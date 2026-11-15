@@ -38,9 +38,15 @@
 .tl-sheet-face + .tl-sheet-sec { margin-top: var(--s5); }
 .tl-ord { display: flex; align-items: baseline; justify-content: center; gap: var(--s1); width: 64px; }
 
-/* ---------- the trainer's sheet: the medals they hold, then the type and region boards under their counts ---------- */
+/* ---------- the trainer's sheet: every medal they hold on one board, then the eighteen types and the ten regions as lamp boards under their counts ---------- */
 .tl-mine { display: grid; gap: var(--s3); }
+.tl-lampset { display: grid; gap: var(--s3); }
 .tl-mhead { display: flex; align-items: flex-end; justify-content: space-between; margin-top: var(--s5); }
+/* a lamp board: one cell a type or a region, lit (inverted) where it is held and off where it is not; six (types) or five (regions) a row on a phone, one row on desktop */
+.tl-lamps { grid-template-columns: repeat(var(--m), minmax(0, 1fr)); }
+.tl-lamp { display: flex; align-items: center; justify-content: center; min-width: 0; height: var(--h-strip); overflow: hidden; white-space: nowrap; color: var(--mute); }
+.tl-lamp.inv { color: var(--ground); font-weight: 700; }
+@media (min-width: 860px) { .tl-lamps { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); } }
 .tl-mhead .counter-board > .t15 { line-height: 1; }
 .tl-mine .tl-cell { padding: var(--s1) var(--s1) var(--s2); }
 .tl-mine .tl-medal { padding: var(--s1); }

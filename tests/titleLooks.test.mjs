@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { championMedal, eraOfSeason, generationOfTitle, normalizeTitleLook, ownMedal, partnerMedal, regionMedal, regionOfTitle, titleCounts, titleLook, typeMedal, typeOfTitle } from "../src/services/titleLooks.js";
+import { championMedal, generationOfTitle, normalizeTitleLook, ownMedal, partnerMedal, regionMedal, regionOfTitle, titleCounts, titleLook, typeMedal, typeOfTitle } from "../src/services/titleLooks.js";
 
 test("a title's look keeps only what can be drawn", () => {
   assert.equal(normalizeTitleLook(null), null);
@@ -21,15 +21,19 @@ test("a title without a look falls back to its preset, then to one plain band", 
 test("every title becomes a medal of its own kind", () => {
   assert.deepEqual(typeMedal("fire"), { glyphs: ["fire"], enamel: ["fire"] });
   assert.deepEqual(regionMedal("성도"), { scene: "성도", enamel: ["flying"] });
-  assert.deepEqual(partnerMedal("water"), { device: "paw", enamel: ["water"] });
+  assert.deepEqual(partnerMedal("fire"), { device: "paw", enamel: ["fire"] });
+  assert.equal(partnerMedal("water", 184).foot, "webbed", "a partner's footprint follows its kind");
+  assert.equal(partnerMedal("flying", 398).foot, "bird");
   assert.deepEqual(partnerMedal(undefined).enamel, ["normal"]);
+  assert.deepEqual(partnerMedal("normal", 428), { device: "paw", enamel: ["normal"], n: 428 }, "a partner carries its Pokémon's number");
+  assert.notDeepEqual(partnerMedal("normal", 428), partnerMedal("normal", 242), "two partners of one type are told apart");
   assert.deepEqual(ownMedal({ name: "RED" }), { device: "n151", enamel: ["fire"] });
-  assert.deepEqual(ownMedal({ name: "몽키매직" }), { glyphs: ["grass", "fire", "water"], enamel: ["grass", "fire", "water"] });
+  assert.deepEqual(ownMedal({ name: "몽키매직" }), { device: "monkey", enamel: ["grass", "fire", "water"] });
+  assert.deepEqual(ownMedal({ name: "전화기" }), { device: "engineering", enamel: ["electric", "poison", "steel"] },
+    "전화기 is 전자공학, 화학공학, 기계공학: a chip, a flask and a gear on their three colours, never a telephone");
   assert.deepEqual(ownMedal({ name: "메가진화의 계승자" }), { mark: "mega" });
   assert.notDeepEqual(ownMedal({ name: "스승" }), ownMedal({ name: "제자" }), "a teacher and a pupil are told apart");
-  assert.deepEqual(championMedal(2, "클래식 시즌 2"), { champ: { gen: 2, era: "classic" }, tier: "gold" });
-  assert.equal(championMedal(6, "YPL 시즌 2").champ.era, "ypl");
-  assert.equal(eraOfSeason("CLASSIC SEASON 1"), "classic");
+  assert.deepEqual(championMedal(2), { champ: { gen: 2 }, tier: "gold" }, "every champion wears the crown, whatever the season");
 });
 
 test("a title's name gives its type, region or generation", () => {

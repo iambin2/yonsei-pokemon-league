@@ -100,7 +100,7 @@ function TitleLookPicker({ look, onChange }) {
       <div className="chips tl-look-devices">{TITLE_TYPES.map(t=>{ const at=look.bands.indexOf(t.id);
         return <button type="button" key={t.id} className={at>=0?"inv":"pn"} aria-pressed={at>=0} onClick={()=>toggle(t.id)}>{at>=0?`${at+1} `:""}{t.korean}</button>; })}</div></div>}
     <div className="field"><span className="field-label">미리보기</span>
-      {preview?<div className="tl-sheet-face"><Medal spec={ownMedal({look:preview})}/></div>:<div className="bk-hint">색을 하나 이상 고르면 메달이 보입니다.</div>}</div>
+      {preview?<div className="tl-sheet-face"><Medal spec={ownMedal({look:preview})} big/></div>:<div className="bk-hint">색을 하나 이상 고르면 메달이 보입니다.</div>}</div>
   </>);
 }
 

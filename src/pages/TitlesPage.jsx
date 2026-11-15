@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { Counter, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
 import Button from "../components/common/Button.jsx";
 import Modal from "../components/common/Modal.jsx";
-import { Medal, MedalBoard, usePartnerType } from "../components/TitleFaces.jsx";
+import { Medal, MedalBoard, usePartnerMedal } from "../components/TitleFaces.jsx";
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
-import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, partnerMedal, regionMedal, regionOfTitle, titleCounts, typeMedal, typeOfTitle } from "../services/titleLooks.js";
+import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, regionMedal, regionOfTitle, titleCounts, typeMedal, typeOfTitle } from "../services/titleLooks.js";
 
 /* ============================== TITLES ==============================
    (DESIGN.md "Titles and hall of fame", 2026-11-13) 모든 칭호는 메달이고, 칭호 페이지는 채워 갈 메달 도감이다.
@@ -14,7 +14,7 @@ const holdersOf = item => item?.holders || [];
 const COLS = { champion: [6, 3], type: [9, 3], region: [10, 5] };
 
 /* the medals of one group, in the board's order */
-function groupMedals(group, items, open, champions, partnerType) {
+function groupMedals(group, items, open, champions, partnerMedalOf) {
   const medal = (item, extra) => ({ key: item?.id || extra.key, item, on: holdersOf(item).length > 0, n: holdersOf(item).length, onClick: item ? open(item) : undefined, ...extra });
   if (group.key === "champion") {
     const hung = items.map(item => ({ item, gen: generationOfTitle(item.name) })).filter(x => x.gen).sort((a, b) => a.gen - b.gen);
@@ -22,7 +22,7 @@ function groupMedals(group, items, open, champions, partnerType) {
     const seasonOf = gen => { const c = (champions || []).find(x => generationText(x.gen) === `${gen}대`); return c ? displaySeasonLabel(c.slabel || ("시즌 " + c.season)) : ""; };
     return hung.map(({ item, gen }) => {
       const who = holdersOf(item).join(", "), season = seasonOf(gen), now = gen === reign;
-      return medal(item, { key: `g${gen}`, n: 0, name: who || `${gen}대`, big: true, sub: now ? "현 챔피언" : season, reign: now, spec: championMedal(gen, season),
+      return medal(item, { key: `g${gen}`, n: 0, name: who || `${gen}대`, big: true, sub: now ? "현 챔피언" : season, reign: now, spec: championMedal(gen),
         label: `${gen}대 챔피언 ${who || "없음"}${season ? `, ${season}` : ""}${now ? ", 현 챔피언" : ""}` });
     });
   }
@@ -39,7 +39,7 @@ function groupMedals(group, items, open, champions, partnerType) {
     const by = new Map();
     items.forEach(item => holdersOf(item).forEach(p => { const g = by.get(p) || { item, trainers: [] }; g.trainers.push(item.name); by.set(p, g); }));
     return [...by].map(([p, g]) => ({ key: p, item: g.item, on: true, n: g.trainers.length, name: p, onClick: open(g.item),
-      spec: partnerType ? partnerMedal(partnerType(p)) : null, label: `${g.trainers.join(", ")}의 파트너 ${p}` }));
+      spec: partnerMedalOf ? partnerMedalOf(p) : null, label: `${g.trainers.join(", ")}의 파트너 ${p}` }));
   }
   return items.map(item => medal(item, { key: item.name, name: item.name, spec: ownMedal(item), label: `${item.name}${holdersOf(item).length ? `, ${holdersOf(item).join(", ")}` : ", 없음"}` }));
 }
@@ -50,7 +50,7 @@ function TitleSheet({ group, item, spec, go, onClose }) {
   const partner = group.key === "partner";
   const title = partner ? `${item.name}의 파트너` : item.name;
   return <Modal title={title} hint={item.desc || group.desc} className="tl-sheet" onClose={onClose}>
-    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} /></div>}
+    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} big /></div>}
     <section className="tl-sheet-sec">
       <SectionHead title={partner ? `파트너 ${holders.length}` : `주인 ${holders.length}명`} />
       {holders.length ? <div className="stack">
@@ -67,11 +67,11 @@ export default function TitlesPage({ data, admin, setModal, go }) {
   const groups = data.titleGroups || [];
   const [openKey, setOpenKey] = useState(groups.length ? groups[0].key : null);
   const [sheet, setSheet] = useState(null);
-  const partnerType = usePartnerType();
+  const partnerMedalOf = usePartnerMedal();
   const g = groups.find(x => x.key === openKey) || groups[0];
   const counts = titleCounts(groups);
   const items = g ? (g.items || []) : [];
-  const medals = g ? groupMedals(g, items, item => () => open(item), data.champions, partnerType) : [];
+  const medals = g ? groupMedals(g, items, item => () => open(item), data.champions, partnerMedalOf) : [];
   // 관리자 모드에서는 칭호가 편집기의 문이고, 그 밖에서는 칭호 시트의 문이다
   function open(item) {
     if (admin) { setModal({ type: "title", groupKey: g.key, item }); return; }
