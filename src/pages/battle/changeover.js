@@ -13,10 +13,11 @@
 import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
 
 const CELL = 64;          // a module's side, about: the board is cut to whole modules, an even number across so the sides meet on a seam
-const CHARGE = 300;       // from the edges to the middle
-const RING = 320;         // from the middle back out to the corners
-const POP = 60, SETTLE = 260;
-const PASS = 200, RINGLIGHT = .618;   // the ring over one module: how long, and how lit (a ring at full light whitened the whole board)
+// on the battle's phi steps (DESIGN.md "Battle", Time)
+const CHARGE = 260;       // from the edges to the middle
+const RING = 260;         // from the middle back out to the corners
+const POP = 62, SETTLE = 260;
+const PASS = 160, RINGLIGHT = .618;   // the ring over one module: how long, and how lit (a ring at full light whitened the whole board)
 const settled = anim => anim.finished.catch(() => {});
 
 // the modules switch on over box (the stage's room); resolves with the board once it covers the room

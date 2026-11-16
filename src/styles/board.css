@@ -110,7 +110,7 @@
   font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit);
 }
 .q textarea.in { height: auto; min-height: calc(var(--h-row) * 2); padding-block: var(--s3); line-height: var(--l-read); font-weight: 400; }
-.q .in:focus-visible, .q.has-error .in { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.q.has-error .in { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .q .in::placeholder { color: var(--mute); font-weight: 400; }
 .q-error { display: flex; align-items: center; gap: var(--s2); }
 .bang { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--lit); color: var(--ground); font-size: var(--t12); line-height: 1; font-weight: 700; }
@@ -118,7 +118,7 @@
 
 /* choice: panels in a row, 44 tall, the chosen one inverted */
 .choice { grid-template-columns: repeat(auto-fit, minmax(var(--s21), 1fr)); }
-.choice-opt { display: flex; align-items: center; justify-content: center; min-height: var(--h-control); padding: 0 var(--s3); text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); cursor: pointer; transition: background-color var(--move-tone), color var(--move-tone); }
+.choice-opt { display: flex; align-items: center; justify-content: center; min-height: var(--h-control); padding: 0 var(--s3); text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); cursor: pointer; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
 .choice-opt.inv { color: var(--ground); font-weight: 700; }
 .choice-opt:has(:focus-visible), .check-row:has(:focus-visible) .box { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .choice-opt.inv:has(:focus-visible) { outline-color: var(--ground); }
@@ -139,7 +139,8 @@
 .cell .dd-btn { position: static; min-height: 0; padding: 0; background: none; box-shadow: none; }
 .cell .dd-btn::after { content: ""; position: absolute; inset: 0; }
 .cell .dd-btn:focus-visible { outline: none; }
-.cell:has(.dd.open), .cell:has(.dd-btn:focus-visible) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cell:has(.dd.open) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cell:has(.dd-btn:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .cell .pick-clear { z-index: var(--z-raised); }
 .cell .tb-locked-item { min-height: 0; padding: 0; background: none; }
 @media (hover: hover) { .cell:has(.dd-btn:not(:disabled)):hover { background: var(--panel-2); } }
@@ -186,9 +187,9 @@
 /* ---------- search: a 52 field panel with the icon; focus draws the 2px line ---------- */
 .search { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
 .search-in { display: flex; align-items: center; gap: var(--s3); flex: 1; min-width: 0; height: var(--h-row); padding: 0 var(--pad); color: var(--mute); cursor: text; }
-.search-in:has(input:focus-visible) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.search-in:has(input:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .search-in input { flex: 1; min-width: 0; min-height: 0; height: 100%; padding: 0; background: none; box-shadow: none; font-size: var(--t15); line-height: var(--l15); color: var(--lit); }
-.search-in input:focus-visible { box-shadow: none; }
+.search-in input:focus-visible { outline: none; box-shadow: none; }
 .search-clear { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); margin-right: calc(var(--pad) * -1); color: var(--dim); }
 .search-count { flex: none; }
 
@@ -218,7 +219,7 @@
 /* the first and last word's target runs 12 past it like the others': the scroller keeps that room instead of cutting it */
 .tabsline { padding-inline: var(--s3); margin-inline: calc(var(--s3) * -1); }
 .tabsline::-webkit-scrollbar { display: none; }
-.tabsline > button { position: relative; flex: none; min-width: 0; display: flex; align-items: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--mute); transition: color var(--move-tone); }
+.tabsline > button { position: relative; flex: none; min-width: 0; display: flex; align-items: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--mute); transition: scale var(--move-press), color var(--move-tone); }
 .tabsline { position: relative; }
 .tabsline > button.on { color: var(--lit); font-weight: 700; }
 @media (hover: hover) { .tabsline > button:not(.on):hover { color: var(--dim); } }
@@ -256,13 +257,15 @@
 .push-later { justify-self: center; }
 /* a switch: 52 by 32; off is a muted square in panel-2, on is inverted with the square at the right */
 .switch-row { justify-content: space-between; padding-right: var(--pad); }
-.sw { display: flex; width: var(--s13); height: var(--h-strip); padding: var(--s1); flex: none; background: var(--panel-2); transition: background-color var(--move-tone); }
+.sw { display: flex; width: var(--s13); height: var(--h-strip); padding: var(--s1); flex: none; background: var(--panel-2); transition: scale var(--move-press), background-color var(--move-tone); }
 .sw i { width: 24px; height: 24px; background: var(--mute); }
 .sw.on { background: var(--lit); }
 /* the square slides across the track as the switch turns */
 .sw i { transition: transform var(--move-tone), background-color var(--move-tone); }
 .sw.on i { transform: translateX(calc(var(--s13) - var(--s1) * 2 - 24px)); }
 .sw.on i { background: var(--ground); }
+/* a switch that cannot be pressed keeps its track and steps its square down one tone */
+:disabled .sw i { background: var(--rule); }
 
 /* ---------- errors and empty (DESIGN.md "Errors and empty"): the ! square and a sentence, then one way out ---------- */
 .error-note { display: grid; gap: var(--s3); padding: var(--pad); }

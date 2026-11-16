@@ -18,9 +18,9 @@ const JOIN = [
   { t: "공식 파티 제출", d: "대회 시작 전까지 사이트에서 파티를 제출합니다.", cta: "팀 빌더 열기", to: "builder" },
 ];
 const RECORDS = [
-  { t: "모든 대회의 경기 결과", d: "대진표에서 확정된 결과가 트레이너, 대회, 포켓몬 기록에 자동으로 반영됩니다." },
-  { t: "역대 시즌의 주인공", d: "챔피언스 시리즈 우승자와 우승 엔트리를 명예의 전당에 보관합니다." },
-  { t: "트레이너가 획득한 기록", d: "타입 엑스퍼트, 지방 엘리트, 파트너처럼 조건을 달성하면 받는 칭호를 관리합니다." },
+  { t: "모든 대회의 경기 결과", d: "대진표에서 확정된 결과가 트레이너, 대회, 포켓몬 기록에 자동으로 반영됩니다.", cta: "기록 보기", to: "records" },
+  { t: "역대 시즌의 주인공", d: "챔피언스 시리즈 우승자와 우승 엔트리를 명예의 전당에 보관합니다.", cta: "명예의 전당 보기", to: "champions" },
+  { t: "트레이너가 획득한 기록", d: "타입 엑스퍼트, 지방 엘리트, 파트너처럼 조건을 달성하면 받는 칭호를 관리합니다.", cta: "칭호 보기", to: "titles" },
 ];
 // 날짜는 사이트의 한 표기(formatDate)로 쓴다. 기간은 "2023년 – 2025년"처럼 띄운 반각 대시로 잇는다.
 const TIMELINE = [
@@ -122,7 +122,9 @@ export default function AboutPage({ go, data, admin }) {
     <section className="ab-sec" aria-labelledby="ab-rec">
       <SectionHead id="ab-rec" title="YPL의 기록" />
       <div className="stack">
-        {RECORDS.map(r => <div key={r.t} className="pn ab-panel"><b className="t15">{r.t}</b><p className="read">{r.d}</p></div>)}
+        {/* a panel that names a place on the site is a door there, the same word a step of 참가하는 법 carries */}
+        {RECORDS.map(r => <div key={r.t} className="pn ab-panel"><b className="t15">{r.t}</b><p className="read">{r.d}</p>
+          <button type="button" className="ab-go t12" onClick={() => go?.(r.to)}><Icon n="arrow" size={16} />{r.cta}</button></div>)}
       </div>
     </section>
 

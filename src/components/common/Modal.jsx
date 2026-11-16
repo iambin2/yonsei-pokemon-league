@@ -2,6 +2,7 @@ import React, { useId, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon.jsx";
 import { DUR, EASE_IN, EASE_OUT, desktop, reduced, settleTitle, springTo } from "./motion.js";
+import { holdSheet } from "../layout/history.js";
 
 /* 닫힘 애니메이션 — 떠 있는 층은 부모가 상태를 지우는 순간 사라진다.
    그래서 React 가 떼어 낸 노드를 그 자리에 잠깐 다시 붙여 사라지는 모습만 재생하고 지운다.
@@ -86,6 +87,8 @@ export default function Modal({ title, hint, children, onClose, className = "", 
     const lastFocus = overlay.contains(document.activeElement) ? null : document.activeElement;
     let anim = null, drag = null, dragged = false;
     holdPage(true);
+    // the phone's back closes the top sheet, as it does in an app (history.js)
+    const release = holdSheet(() => closeRef.current?.());
 
     const curY = () => new DOMMatrix(getComputedStyle(sheet).transform).m42;
     const slide = (to, v0 = 0, leaving = false) => {
@@ -181,6 +184,7 @@ export default function Modal({ title, hint, children, onClose, className = "", 
       sheet.removeEventListener("click", swallow, true);
       window.removeEventListener("keydown", key);
       holdPage(false);
+      release();
       if (lastFocus?.isConnected) lastFocus.focus({ preventScroll: true });
     };
   }, []);

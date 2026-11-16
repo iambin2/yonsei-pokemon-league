@@ -36,6 +36,10 @@
 .rc-league { margin-left: var(--s2); vertical-align: middle; }
 .rc-league.master { --type: var(--lit); }
 .rc-league:not(.master) { color: var(--dim); }
+/* 나 after the league: the same tag, its square lit; tags keep the seam between each other (.tb-types) */
+.rc-league + .rc-me { margin-left: var(--seam); }
+/* on a phone the two tags pass the name's column into the 우승 column's empty left, whose figures stand at its right end */
+.rc-tr .row-main > b:has(.rc-me) { overflow: visible; text-overflow: clip; }
 .rc-tr.inv .rc-league { --tag-bg: var(--ground); }
 @media (hover: hover) { .rc-tr:not(.inv):hover .rc-league { --tag-bg: var(--ground); } }
 .rc-three { display: grid; grid-template-columns: repeat(3, 52px); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
@@ -81,7 +85,7 @@
 .r2-line.sf .r2-name { font-weight: 600; }
 /* a team's members: the whole line under the team's name, 12 dim with commas, wrapping only inside that line */
 .r2-mems { flex-basis: 100%; font-size: var(--t12); line-height: var(--l12); font-weight: 400; color: var(--dim); }
-.records-round-toggle { width: 100%; display: flex; align-items: center; gap: var(--s3); min-height: var(--h-control); margin-top: var(--s3); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); transition: color var(--move-tone); }
+.records-round-toggle { width: 100%; display: flex; align-items: center; gap: var(--s3); min-height: var(--h-control); margin-top: var(--s3); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) { .records-round-toggle:hover { color: var(--lit); } }
 .records-round-summary { flex: 1; min-width: 0; }
 .records-round-chevron { flex: none; display: grid; place-items: center; width: var(--s5); height: var(--s5); color: var(--dim); transition: rotate var(--move-light); }
@@ -118,7 +122,7 @@
 .sheet .rc-sec { margin-top: var(--s8); }
 .rc-place { display: inline-flex; align-items: center; height: var(--s5); padding: 0 var(--s2); font-weight: 700; }
 .rc-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
-.rc-cell { --floor: var(--s13); height: calc(var(--s21) + var(--s13)); }
+.rc-cell { --floor: var(--s13); height: calc(var(--s21) + var(--s13)); text-align: left; }
 .rc-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .rc-lead-note { margin-top: var(--s5); }
 @media (min-width: 860px) {

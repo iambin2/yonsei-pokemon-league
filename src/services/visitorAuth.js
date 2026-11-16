@@ -3,7 +3,7 @@
    이 세션은 계정의 트레이너 이름 정하기, 계정으로 하는 신청, 자기 계정 읽기, 연승 도전의 시작과 순위의 내 줄에만 쓰고, 사이트의 다른 읽기와 쓰기는 지금처럼
    익명으로 한다(구글로 들어온 authenticated 역할은 방문자 쓰기 정책을 통과하지 못한다). */
 
-import { supa } from "../storage.js";
+import { setAccountToken, supa } from "../storage.js";
 
 const URL_BASE = String(import.meta.env?.VITE_SUPABASE_URL || "").replace(/\/?$/, "/");
 const KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
@@ -69,6 +69,10 @@ async function token() {
   write(STORE, { access: next.access_token, refresh: next.refresh_token, until: Date.now() + (next.expires_in || 3600) * 1000 - 60000 });
   return next.access_token;
 }
+
+// the signed-in visitor's access token (refreshed when due), or null: account teams and battles (accountTeams.js, storage.js callFunction)
+export const visitorToken = () => (visitorSignedIn() ? token() : Promise.resolve(null));
+setAccountToken(visitorToken);
 
 async function rest(path, { method = "GET", body, auth = true } = {}) {
   const bearer = auth ? await token() : null;

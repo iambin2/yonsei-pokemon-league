@@ -20,7 +20,8 @@ import { VISITOR_EVENT, myPlayerLink, pickStreakDraft, readDailyBoard, resumeStr
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapTier } from "../../services/streak.js";
 import { nameOf, typesOf } from "./Stage.jsx";
 import { DUR, STAGGER, climb, light, place } from "../../components/common/motion.js";
-import { onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
+import { ALIGNMENTS, STAT_KEYS, calculatedStat, onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
+import { toID } from "../../services/battleLog.js";
 import { standTower, towerDive, towerDrop, towerShow } from "./tower.js";
 import { MonCard } from "./Sets.jsx";
 
@@ -96,6 +97,31 @@ function TowerHall({ wins, live, climbers = null }) {
    - the Mega: a Mega candidate carries the Mega emblem, and the strip ends in one place of its own marked with it. Once a Mega is
      chosen that place holds it, and every other Mega stands off with its emblem dim: the one place is taken */
 const MEGA = "/brand/mega-evolution.png";
+/* a set's six stats at level 50 (the stat points and the nature it carries, as the team builder counts them; with neither, the
+   species' own at level 50); null without its base stats */
+const STAT_WORD = { hp: "HP", atk: "공격", def: "방어", spa: "특공", spd: "특방", spe: "스피" };
+const BAR_TOP = 230;
+export function statsAt50(res, species, evs = {}, nature = "") {
+  const base = res?.detail?.pokedex?.[toID(species)]?.baseStats;
+  if (!base) return null;
+  const alignment = ALIGNMENTS.find(a => a.id === toID(nature));
+  return Object.fromEntries(STAT_KEYS.map(k => [k, calculatedStat(base[k], evs?.[k] || 0, k, alignment)]));
+}
+/* the six as bars on their tracks (the info sheet's bar form): the word, the bar, the number. other: the stats it is held against,
+   so the higher of each pair stands lit and the lower dim (the trade, 2026-11-16 draft A) */
+function StatBars({ stats, other = null }) {
+  if (!stats) return null;
+  return <span className="streak-stats" role="img" aria-label={STAT_KEYS.map(k => `${STAT_WORD[k]} ${stats[k]}`).join(", ")}>
+    {STAT_KEYS.map(k => {
+      const n = stats[k], o = other?.[k];
+      return <span key={k} className={"streak-stat" + (o == null || o === n ? "" : n > o ? " up" : " down")}>
+        <small>{STAT_WORD[k]}</small>
+        <span className="tb-bar"><i style={{ transform: `scaleX(${Math.min(1, n / BAR_TOP)})` }} /></span>
+        <b>{n}</b>
+      </span>;
+    })}
+  </span>;
+}
 export function DraftBoard({ res, draft, picks, onPick }) {
   const open = () => { const i = draft.findIndex((_, k) => !picks[k]); return i < 0 ? draft.length - 1 : i; };
   const [step, setStep] = useState(open);
@@ -137,6 +163,10 @@ export function DraftBoard({ res, draft, picks, onPick }) {
         return <span key={c.species} data-rise className={"streak-pick" + (off ? " off" : "")}>
           <MonCard res={res} species={c.species} ability={c.ability} item={c.item} moves={(c.moves || []).map(id => ({ id, pp: "" }))} compact
             pick={{ order: on ? step + 1 : 0, onPick: () => choose(c.species), off, locked: off }} />
+          {/* its six at level 50 on tracks under the moves, part of the card: a tap on them chooses it as the card does (2026-11-16 draft B) */}
+          <span className={"streak-pick-stats" + (on ? " on" : "")} onClick={off ? undefined : () => choose(c.species)}>
+            <StatBars stats={statsAt50(res, c.species, c.evs, c.nature)} />
+          </span>
           {c.mega && <img className="streak-mega-mark" src={MEGA} alt="메가진화" draggable="false" />}
         </span>;
       })}
@@ -168,7 +198,11 @@ export function DoorPick({ res, doors, value, onChange }) {
           {d.kind === "even" ? <span className="streak-gain none">없음</span>
             : <>{d.kind === "gate" && <span className="streak-gain"><i className="lamp" aria-hidden="true" />램프 +1</span>}<span className="streak-gain">교환 승급</span></>}
         </span>
-        {d.species.length > 0 && <span className="streak-door-six">{d.species.map(s => <img key={s} src={spriteUrl(s)} alt={nameOf(res, s)} draggable="false" onError={onSpriteError()} />)}</span>}
+        {/* each of the six with its types under its picture, one tick a type in the type's colour (2026-11-16 draft A) */}
+        {d.species.length > 0 && <span className="streak-door-six">{d.species.map(s => <span key={s} className="streak-door-mon">
+          <img src={spriteUrl(s)} alt={nameOf(res, s)} draggable="false" onError={onSpriteError()} />
+          <span className="streak-ticks" aria-hidden="true">{typesOf(res, s).map(t => <i key={t} className={`type-${toID(t)}`} />)}</span>
+        </span>)}</span>}
       </button>)}
     </div>
   </section>;
@@ -441,7 +475,37 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
    it). Under the table 새 파티 뽑기 is a key of the row's height: on, our side goes to ? and theirs off. ours, theirs: { species, name }
    in tier order */
 const OFF_WHY = "같은 포켓몬이 둘이 되어 바꿀 수 없습니다.";
-export function SwapTable({ ours, theirs, chosen, matchOurs, matchTheirs, onPick, blocked = [], onInfo = null, up = false }) {
+/* the chosen row's two sets side by side over the table, read without opening a sheet (2026-11-16 draft A): each its picture and name,
+   its four moves (the foe's as far as the game showed them) and its six at level 50 as bars, the higher of each pair lit and the lower
+   dim. Both stand on one footing: the sets' own stats when both are known, else each species' own at level 50 */
+const realStats = c => (c?.stats && /\/\d+$/.test(c.hp || "") ? { hp: Number(c.hp.split("/")[1]), ...c.stats } : null);
+function SetPair({ res, give, take }) {
+  const ref = useRef(null);
+  // where the break cannot hold it all (a phone), the pair stands at the break's top with the table under it
+  useLayoutEffect(() => {
+    const el = ref.current, box = el?.closest(".streak-break");
+    if (box && box.scrollHeight > box.clientHeight) box.scrollTop = el.offsetTop - parseFloat(getComputedStyle(box).paddingTop);
+  }, []);
+  const ra = realStats(give), rb = realStats(take);
+  const sa = ra && rb ? ra : statsAt50(res, give.species), sb = ra && rb ? rb : statsAt50(res, take.species);
+  const side = (c, mine, other) => <div className="pn streak-cmp-side">
+    <span className="streak-cmp-id"><img src={spriteUrl(c.species)} alt="" draggable="false" onError={onSpriteError()} /><b>{nameOf(res, c.species)}</b></span>
+    <span className="bt-card-moves">
+      {Array.from({ length: 4 }, (_, i) => {
+        const m = c.moves?.[i];
+        if (!m) return <span key={`u${i}`} className="bt-cmove streak-unseen"><b>모름</b></span>;
+        const id = toID(m.id), type = m.type || res.detail.moves[id]?.type || "Normal";
+        return <span key={id} className={`bt-cmove type-${toID(type)}`}><b>{res.text.moves[id]?.name || res.detail.moves[id]?.name || m.id}</b></span>;
+      })}
+    </span>
+    <StatBars stats={mine} other={other} />
+  </div>;
+  return <div ref={ref} className="stack streak-cmp" role="group" aria-label="고른 교환">{side(give, sa, sb)}{side(take, sb, sa)}</div>;
+}
+
+/* sets: (mine, species) => the set as the party's cards hold it (BattlePage's own and seen cards), or null: the chosen row's two sets
+   stand over the table (SetPair) */
+export function SwapTable({ ours, theirs, chosen, matchOurs, matchTheirs, onPick, blocked = [], onInfo = null, up = false, res = null, sets = null }) {
   const whyOf = (mine, s) => blocked.find(b => (mine ? b.give : b.take) === s)?.why || OFF_WHY;
   const side = (mine, { species: s, name }) => {
     const off = !(mine ? matchTheirs(s) : matchOurs(s));
@@ -461,7 +525,10 @@ export function SwapTable({ ours, theirs, chosen, matchOurs, matchTheirs, onPick
      user: "다른 건 전부 네모 안에 있는데 이것만 날 것 텍스트라"), and between the two sides of every row stands the trade's own mark,
      two arrows passing each other, lit on the row chosen; the head row's middle carries it too */
   const chosenRow = i => chosen.has(`give:${ours[i]?.species}`);
+  const of = k => [...chosen].find(x => x.startsWith(k))?.slice(k.length);
+  const give = res && sets && of("give:") ? sets(true, of("give:")) : null, take = give && of("take:") ? sets(false, of("take:")) : null;
   return <section className="streak-swap" aria-labelledby="streak-swap-title">
+    {give && take && <SetPair key={`${give.species}${take.species}`} res={res} give={give} take={take} />}
     <div className="stack streak-trades" role="table">
       {/* the table names itself by its head row (내 파티, the trade's mark, 상대 파티; its own strip over it was dropped 2026-11-11 so the
           break fits the stage without a scroll, the user: "포켓몬 교환도 굳이 스크롤을 조금 해야 하고"); a trade a tier up says 승급 in it,
@@ -485,7 +552,7 @@ export function SwapTable({ ours, theirs, chosen, matchOurs, matchTheirs, onPick
    나가기). Playing the replay puts the break away (away) and the stage shows it; back at the end it lights again. The run rests after a
    win until 다음 판 opens the next game, so 나가기 loses nothing. ours, theirs: the two parties' species, as the team preview showed
    them (none after a reload: then there is no swap) */
-export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, standUp, leaveNow = async () => {}, settle = async () => {}, onInfo = null, stage = null, away = false, ours: ourSix = [], theirs: theirSix = [] }) {
+export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, standUp, leaveNow = async () => {}, settle = async () => {}, onInfo = null, sets = null, stage = null, away = false, ours: ourSix = [], theirs: theirSix = [] }) {
   const seat = readSeat(id);
   const board = useBoard(Boolean(seat?.daily));
   // the door to the next game, the even one unless chosen (2026-11-11)
@@ -602,7 +669,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     {resting && <DoorPick res={res} doors={seat?.doors} value={door} onChange={setDoor} />}
     {swapping && <SwapTable ours={ours} theirs={theirs} up={reach > 0}
       chosen={new Set(pairs.flatMap(p => [`give:${p.give}`, `take:${p.take}`]))}
-      matchTheirs={matchIn(theirs)} matchOurs={matchIn(ours)} onPick={pick} blocked={blocked} onInfo={onInfo} />}
+      matchTheirs={matchIn(theirs)} matchOurs={matchIn(ours)} onPick={pick} blocked={blocked} onInfo={onInfo} res={res} sets={sets} />}
   </section>;
   return <>
     {stage && createPortal(brk, stage)}

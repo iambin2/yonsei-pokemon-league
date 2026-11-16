@@ -288,6 +288,13 @@ test("a page change copies nothing and flies nothing; there is no burst (Motion)
   assert.doesNotMatch(motion, /cloneNode|"ghost"|celebrate|placePill/);
   assert.doesNotMatch(TOKENS, /@property --(stage|surface|fg)\b/);
 });
+// A button's own transition list replaces the global one (tokens.css, press and hover), so it has to carry the press itself or the
+// press snaps. Only a selector that names the button element can be checked here; a class that sits on a button cannot be told from CSS.
+test("a button's own transition keeps the press: scale at --move-press (Motion, Controls)", () => {
+  const subject = sel => sel.split(",").some(part => /(^|[\s>+~])button(?![\w-])[^\s>+~]*$/.test(part.trim()));
+  const hits = DECLS.filter(d => d.prop === "transition" && d.value !== "none" && subject(d.sel) && !/\bscale var\(--move-press\)/.test(d.value));
+  assert.deepEqual(hits.map(keyOf), []);
+});
 test("no View Transitions snapshots (Don't)", () => {
   const hits = [...SRC, ...CSS.map(f => join(STYLES, f))].filter(f => /startViewTransition|view-transition/.test(read(f)));
   assert.deepEqual(hits.map(rel), []);

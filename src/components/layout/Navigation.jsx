@@ -1,5 +1,7 @@
 import React, { useSyncExternalStore } from "react";
 import Icon from "../common/Icon.jsx";
+import { follow } from "../common/Board.jsx";
+import { viewHref } from "../../services/appRouting.js";
 
 /* 폰은 화면 아래 탭 바 다섯 칸, 데스크톱은 상단 바에 같은 다섯. 더보기에는 나머지 화면. */
 export const TABS = [["home","홈","home"],["news","공지","news"],["bracket","대진표","bracket"],["records","기록","records"],["more","더보기","more"]];
@@ -26,12 +28,12 @@ export default function TabBar({ view, onNavigate, live = null }) {
     <nav className="tabbar" aria-label="주요 메뉴">
       {TABS.map(([key, label, ic]) => {
         const lit = key === "bracket" && live;
-        return <button key={key} type="button" className="tab" data-tab={key} {...current(cur, key, view)}
-          onClick={() => onNavigate(key)} aria-label={lit ? `${label}, 진행 중` : undefined}>
+        return <a key={key} href={viewHref(key)} className="tab" data-tab={key} {...current(cur, key, view)}
+          onClick={follow(() => onNavigate(key))} aria-label={lit ? `${label}, 진행 중` : undefined}>
           <Icon n={ic} size={24} />
           {lit && <i className="lamp sig tab-lamp" aria-hidden="true" />}
           <span>{label}</span>
-        </button>;
+        </a>;
       })}
     </nav>
   );

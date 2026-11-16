@@ -101,15 +101,22 @@ export function signOutAdmin() {
   clearTimeout(refreshTimer);
 }
 
-// 방문자의 요청으로 Edge Function을 부르고 답을 돌려준다(배틀). 함수가 거절하면 그 이유를 담은 오류를 던진다.
-export async function callFunction(name, body) {
+/* 방문자의 요청으로 Edge Function을 부르고 답을 돌려준다(배틀). 함수가 거절하면 그 이유를 담은 오류를 던진다.
+   account: 자리를 잡는 요청. 구글로 로그인해 있으면 그 토큰을 보내, 함수가 그 자리를 계정의 배틀로 적는다(docs/db/account_teams.sql).
+   토큰을 못 얻으면 지금처럼 익명으로 보낸다. 토큰은 visitorAuth.js가 알려 준다(그 모듈이 이 모듈을 읽으므로 거꾸로 읽지 않는다). */
+let accountToken = null;
+export const setAccountToken = read => { accountToken = read; };
+export async function callFunction(name, body, { account = false } = {}) {
   if (!supa) throw new Error("이 환경에서는 쓸 수 없습니다.");
+  const bearer = account && accountToken ? await accountToken().catch(() => null) : null;
   let response;
   try {
     response = await fetch(new URL(`functions/v1/${name}`, SUPA_URL.replace(/\/?$/, "/")), {
       method: "POST",
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${bearer || SUPA_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      // a request that hangs is given up, so a choice on its way never leaves the keys locked for good
+      signal: AbortSignal.timeout?.(20_000),
     });
   } catch {
     // the browser's own words ("Failed to fetch", "Load failed") are English and say nothing a player can act on

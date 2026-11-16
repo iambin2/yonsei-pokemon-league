@@ -43,6 +43,8 @@ test("completed bracket opens record application with the supplied save callback
       : name.endsWith("bracketWinnerPlan.js") ? bracketWinnerPlan
       : name.endsWith("components/index.js") ? { Button: "button", ErrorNote: "div", Field: "div", FormError: "p", Icon: "span", Loader: "div" }
       // the page's one hook from the shared parts: the list's arrival light, a ref that never lights here
+      // the tab's title (layout/title.js) names the open bracket in the browser; nothing to name here
+      : name.endsWith("layout/title.js") ? { useItemTitle() {} }
       : name.endsWith("common/Board.jsx") ? { useArrival: () => ({ current: null }) }
       : {},
   });

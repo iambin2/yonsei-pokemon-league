@@ -3,7 +3,7 @@
    타입의 파편, 히트 스톱, 카메라의 반동). 맞은 쪽의 결과 줄은 맞는 순간에 함께 뜬다.
    말(턴, 승자, 특성, 이름)은 무대 밖의 판(.bs-over)이고 보드의 판(battle.css)이다.
    speed: 1 보통, .5 빠르게, 0 건너뛰기(연출 없이 상태만). */
-import { DUR, reduced } from "../../components/common/motion.js";
+import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
 import { makeDraw, recipeOf, playScript } from "./moveFx.js";
 import { atlasPainted, atlasStep, glOf, rand, lerp, clamp, typeId, colorOf, TYPE_COLOR } from "./gl.js";
 import { audio, primeAudio } from "./cries.js";
@@ -15,17 +15,33 @@ let speed = 1;
 export const setSpeed = s => { speed = s; setSfxSpeed(s); };
 export const instant = () => speed === 0;
 let slowed = 1;
-const ms = n => Math.max(1, n * (speed || 0));
-export const wait = n => (instant() ? Promise.resolve() : new Promise(resolve => setTimeout(resolve, ms(n) * slowed)));
-export const hold = (since, n) => (instant() ? Promise.resolve() : new Promise(resolve => setTimeout(resolve, Math.max(0, ms(n) - (performance.now() - since)))));
-const OUT = "cubic-bezier(.22,1,.36,1)";
-const IN = "cubic-bezier(.5,0,.75,0)";
+/* a big moment (the opening, a Mega Evolution, the end) is skipped by a tap on the stage, which plays it to its end at once
+   (DESIGN.md "Battle", The big moments). While one stands (sceneOn to sceneOff) a tap sets rush: the engine's clock runs RUSH times
+   as fast, every wait already counting ends, and new ones take no time; the scene's own last frame is what is left standing. */
+const RUSH = 60;
+let rush = false, scenes = 0, rushed = null;
+const sleepers = new Set();
+const sleep = t => new Promise(resolve => { const done = () => { clearTimeout(id); sleepers.delete(done); resolve(); }; const id = setTimeout(done, t); sleepers.add(done); });
+const ms = n => Math.max(1, n * (rush ? 0 : speed || 0));
+export const wait = n => (instant() || rush ? Promise.resolve() : sleep(ms(n) * slowed));
+export const hold = (since, n) => (instant() || rush ? Promise.resolve() : sleep(Math.max(0, ms(n) - (performance.now() - since))));
+export const sceneOn = () => { scenes += 1; };
+export const sceneOff = () => { if (scenes) scenes -= 1; if (!scenes && rush) { rush = false; E(rushed); rushed = null; } };
+export const sceneClear = () => { scenes = 1; sceneOff(); };
+export function skip(stage) {
+  if (!scenes || rush || instant()) return;
+  rush = true; rushed = stage; E(stage);
+  for (const done of [...sleepers]) done();
+}
+// what a scene waits on outside the stage's clock (a cry being heard) is let go by a skip too
+export const orSkipped = heard => (rush || !heard ? Promise.resolve() : Promise.race([heard, new Promise(resolve => { sleepers.add(resolve); Promise.resolve(heard).finally(() => sleepers.delete(resolve)); })]));
+const OUT = EASE_OUT, IN = EASE_IN;
 
 /* ---------- the engine of a stage, at the playback speed ---------- */
-const E = stage => { const e = glOf(stage); if (e) e.rate = speed ? 1 / speed : 1; return e; };
+const E = stage => { const e = glOf(stage); if (e) e.rate = rush ? RUSH : speed ? 1 / speed : 1; return e; };
 // where a sound stands between the ears: ours on the left, theirs on the right (sfx.js)
 const panOf = (e, at) => (e?.W && at ? clamp(at[0] / e.W * 2 - 1, -1, 1) * .55 : 0);
-export function slowMo(stage, duration = 700) {
+export function slowMo(stage, duration = 680) {
   const e = E(stage);
   if (!e || instant() || reduced()) return;
   slowed = 2; e.slow(duration * speed, .45);
@@ -782,7 +798,7 @@ export async function goIn(stage) {
   const e = E(stage);
   if (!e || instant()) return;
   e.sync();
-  const lamps = e.anim(e.grade, { dim: [1, 1, .18] }, { dur: reduced() ? DUR.leave : 900, at: [0, .4, 1], ease: "inout", fill: true });
+  const lamps = e.anim(e.grade, { dim: [1, 1, .18] }, { dur: reduced() ? DUR.leave : 1100, at: [0, .4, 1], ease: "inout", fill: true });
   await Promise.all([lamps, ...[...e.actors.keys()].map(key => leave(stage, key))]);
 }
 /* the opening: the arena's lamps switch on over the dark stage hideAll left, and the throws come on their rise. No board or veil
@@ -803,7 +819,7 @@ export async function opening(stage) {
      160 with 100 between them, .18 to .45 to .72 to all on */
   if (darkened && reduced()) e.anim(e.grade, { dim: [.18, 1] }, { dur: DUR.leave });
   else if (darkened) e.anim(e.grade, { dim: [.18, .45, .45, .72, .72, 1], bloom: [1.6, 1.4, 1.4, 1.2, 1.2, 1] }, { dur: 680, at: [0, 160 / 680, 260 / 680, 420 / 680, 520 / 680, 1], ease: "out" });
-  await wait(reduced() ? 200 : 450);
+  await wait(reduced() ? DUR.tone : DUR.light);
 }
 /* the end (DESIGN.md "Battle", The big moments): the match board over the arena, the camera holding wide. The Pokémon each side knocked
    out switch on, then the winner's row inverts with 승리 and the loser's dims (a tie dims both); it stands a moment and goes */
@@ -827,7 +843,7 @@ export async function final(stage, { winner, perspective }) {
     el.dataset.lost = "";
     [...el.children].forEach(c => c.animate([{ opacity: 1 }, { opacity: .382 }], { duration: ms(420), easing: OUT, fill: "backwards" }));
   }
-  if (tie) return wait(900);
+  if (tie) return wait(1100);
   /* the winner's strip lights in the same frame the loser's goes out and the message and the deck turn to the result: lit 420 after
      them, it came late, after everything else had changed (2026-11-10, the user: "다른 것 다 전환되고 뒤늦게 따라오는 느낌") */
   const won = strip(winner);
@@ -836,7 +852,7 @@ export async function final(stage, { winner, perspective }) {
   won.style.setProperty("--result", '"승리"');
   won.dataset.won = "";
   [...won.children].forEach(c => c.animate([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: ms(420), easing: OUT, fill: "backwards" }));
-  await wait(900);
+  await wait(1100);
 }
 // a jump of the replay away from the end takes the strips' result back
 export function clearFinal(stage) {
@@ -887,7 +903,7 @@ export async function leave(stage, key, { drag = false } = {}) {
     return;
   }
   const { W, H } = e, ball = a.own ? [-W * .03, H * 1.03] : [W * 1.03, -H * .03];
-  const FOLD = 700;
+  const FOLD = 680;
   glow(e, at, s * 1.5, "normal", { ramp: "recall.h", dur: FOLD, alpha: .22, s0: .9 });
   // motes drawn in to its heart from round its body
   for (let i = 0; i < 18; i++) {
@@ -962,12 +978,12 @@ export async function megaStart(stage, key) {
   const at = centre(stage, key), s = sizeOf(stage, key), { W, H } = e, own = ownKey(stage, key), tex = megaTex(e);
   a.lit = true;
   sfx("megaStart", { pan: panOf(e, at) });
-  e.anim(e.grade, { dim: [1, .22] }, { dur: 500, fill: true }).then(() => {});
+  e.anim(e.grade, { dim: [1, .22] }, { dur: DUR.light, fill: true }).then(() => {});
   e.megaDim = true;
   e.shot(at[0], at[1], 1.25, { smooth: .5 });
   // the Key Stone's light: two strands twisting round each other from the trainer's corner into the Mega Stone
   const from = own ? [-W * .04, H * 1.04] : [W * 1.04, -H * .04], dx = at[0] - from[0], dy = at[1] - from[1], len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
-  const FLY = 640, N = 70;
+  const FLY = 680, N = 70;
   for (const phase of [0, Math.PI]) for (let i = 0; i <= N; i++) {
     const t = i / N, amp = s * .2 * Math.sin(Math.PI * Math.min(1, t * 1.15)), w = Math.sin(t * Math.PI * 5 + phase) * amp;
     e.emit({ at: [from[0] + dx * t + nx * w, from[1] + dy * t + ny * w], tex: "glow", ramp: "rainbow", size: [s * .2, s * .09], life: 560, delay: t * FLY, alpha: 1, emis: 1 });
@@ -1037,7 +1053,7 @@ export async function megaEnd(stage, key) {
   sparks(e, at, 24, "psychic", { ramp: "magenta.h", speed: [s * 2.5, s * 6], len: [10, 20] });
   shock(e, at, s * 3.4, { dur: 640 });
   e.shake(.4);
-  await Promise.all([e.anim(a, { alpha: [.12, 1, 1], flash: [.45, .1, 0], rimR: [.75, .75], rimG: [.62, .62], rimB: [1, 1], rimA: [1, .7, 0], sx: [1.12, 1], sy: [1.12, 1] }, { dur: 900, at: [0, .25, 1] }), e.anim(e.grade, { dim: [.22, 1] }, { dur: 900 })]);
+  await Promise.all([e.anim(a, { alpha: [.12, 1, 1], flash: [.45, .1, 0], rimR: [.75, .75], rimG: [.62, .62], rimB: [1, 1], rimA: [1, .7, 0], sx: [1.12, 1], sy: [1.12, 1] }, { dur: 1100, at: [0, .25, 1] }), e.anim(e.grade, { dim: [.22, 1] }, { dur: 1100 })]);
   e.wide(.6);
 }
 // a stat change: arrows rise (warm) or fall (cold) through it in columns, a band of light passing the same way

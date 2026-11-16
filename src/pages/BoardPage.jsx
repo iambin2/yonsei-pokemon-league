@@ -18,8 +18,14 @@ import { dotDate } from "../services/dateFormat.js";
 const dotDay=dotDate;
 import TeamSheet, { sheetOf, useTeamDisplay } from "../components/common/TeamSheet.jsx";
 import Field from "../components/common/Field.jsx";
+import { useItemTitle } from "../components/layout/title.js";
+import { viewHref } from "../services/appRouting.js";
 
 const PAGE_SIZE = 8;
+/* 닉네임은 한 번 쓰면 이 브라우저가 기억한다: 글, 댓글, 소개글, 사설 대진표가 같은 이름을 쓴다 */
+const NICK_KEY="ypl-board-nick";
+const savedNick=()=>{ try{return localStorage.getItem(NICK_KEY)||"";}catch{return "";} };
+const keepNick=nick=>{ try{ localStorage.setItem(NICK_KEY,nick); }catch{ /* 기억 못 해도 된다 */ } };
 
 /* ============================== BOARD (자유게시판) ============================== */
 const fmtDT=iso=>formatDate(iso,{time:true});
@@ -40,11 +46,12 @@ function MediaEmbed({ url }){
 }
 
 function BoardCompose({ onClose, onSubmit, initial=null }){
-  const [nick,setNick]=useState(""); const [title,setTitle]=useState(initial?.title||""); const [body,setBody]=useState(initial?.body||""); const [pin,setPin]=useState(""); const [link,setLink]=useState(""); const [secret,setSecret]=useState(false);
+  const [nick,setNick]=useState(savedNick); const [title,setTitle]=useState(initial?.title||""); const [body,setBody]=useState(initial?.body||""); const [pin,setPin]=useState(""); const [link,setLink]=useState(""); const [secret,setSecret]=useState(false);
   // what is missing is said under its own field, both at once, never by a dialog over this sheet (2026-11-10)
   const [tried,setTried]=useState(false);
   const pinShort=pin.length>0&&pin.length<4;
   const submit=()=>{ if(!nick.trim()||!title.trim()||pinShort){ setTried(true); return; }
+    keepNick(nick.trim().slice(0,20));
     onSubmit({nick:nick.trim().slice(0,20),title:title.trim().slice(0,60),body:body.trim(),pin:pin.trim(),link:link.trim(),secret}); };
   return (<Modal title="새 글 작성" onClose={onClose}>
     <div className="swap" key="compose">
@@ -96,19 +103,21 @@ function useCommunityList(key,admin,flash){
 /* 글과 댓글 수정 시트. initial 에 있는 칸만 보여 준다(title, body, link, secret). */
 function EditSheet({ heading, initial, onClose, onSave }){
   const [v,setV]=useState(initial); const [busy,setBusy]=useState(false);
+  // what is missing is said under its own field, never by a dialog over this sheet (DESIGN.md "Sheets, dialogs, toasts")
+  const [tried,setTried]=useState(false);
   const set=k=>e=>setV(s=>({...s,[k]:e.target.type==="checkbox"?e.target.checked:e.target.value}));
   const has=k=>k in initial;
+  const noTitle=has("title")&&!String(v.title||"").trim(), noBody=!has("title")&&!String(v.body||"").trim()&&!String(v.link||"").trim();
   const submit=async()=>{
     const next={...v}; for(const k of ["title","body","link"]) if(has(k)) next[k]=String(next[k]||"").trim();
-    if(has("title")&&!next.title){siteAlert("제목을 입력해 주세요.");return;}
-    if(!has("title")&&!next.body&&!next.link){siteAlert("내용이나 링크를 입력해 주세요.");return;}
+    if(noTitle||noBody){ setTried(true); return; }
     if(has("title")) next.title=next.title.slice(0,60);
     setBusy(true); try{ await onSave(next); }finally{ setBusy(false); }
   };
   return (<Modal title={heading} onClose={onClose}>
     <div className="swap" key="edit">
-      {has("title")&&<Field label="제목"><input value={v.title} onChange={set("title")} maxLength={60}/></Field>}
-      {has("body")&&<Field label="내용"><textarea value={v.body} onChange={set("body")} rows={has("title")?6:3}/></Field>}
+      {has("title")&&<Field label="제목" error={tried&&noTitle&&"제목을 입력해 주세요."}><input value={v.title} onChange={set("title")} maxLength={60}/></Field>}
+      {has("body")&&<Field label="내용" error={tried&&noBody&&"내용이나 링크를 입력해 주세요."}><textarea value={v.body} onChange={set("body")} rows={has("title")?6:3}/></Field>}
       {has("link")&&<div className="field"><label htmlFor="bd-edit-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-edit-link" value={v.link} onChange={set("link")} placeholder="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요." aria-label="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요."/>
         {v.link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={v.link}/></div>}</div>}
       {has("secret")&&<label className="bk-check"><input type="checkbox" checked={v.secret} onChange={set("secret")}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>}
@@ -119,19 +128,25 @@ function EditSheet({ heading, initial, onClose, onSave }){
 const Edited=({ at })=>at?<span>, 수정됨</span>:null;
 
 function CommentForm({ onSubmit }){
-  const [nick,setNick]=useState(""); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [link,setLink]=useState("");
-  const submit=()=>{ if(!nick.trim()){siteAlert("닉네임을 입력해 주세요.","댓글 작성자로 표시될 닉네임이 필요합니다.");return;} if(!body.trim()&&!link.trim()){siteAlert("댓글이나 링크를 입력해 주세요.");return;}
-    onSubmit({nick:nick.trim().slice(0,20),body:body.trim(),pin:pin.trim(),link:link.trim()}); setBody(""); setPin(""); setLink(""); };
+  const [nick,setNick]=useState(savedNick); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [link,setLink]=useState("");
+  // what is missing is said under its own row, both at once, never by a dialog (DESIGN.md "Sheets, dialogs, toasts")
+  const [tried,setTried]=useState(false);
+  const noNick=!nick.trim(), noBody=!body.trim()&&!link.trim();
+  const submit=()=>{ if(noNick||noBody){ setTried(true); return; }
+    keepNick(nick.trim().slice(0,20));
+    onSubmit({nick:nick.trim().slice(0,20),body:body.trim(),pin:pin.trim(),link:link.trim()}); setTried(false); setBody(""); setPin(""); setLink(""); };
   return (<div className="bd-cform stack">
     {/* each field is a cell: its label 12 over what is typed, so a placeholder never stands in for the label (DESIGN.md "Controls") */}
     <div className="bd-cform-row">
-      <label className="cell bd-cform-nick"><span className="cell-label">닉네임</span><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20}/></label>
+      <label className="cell bd-cform-nick"><span className="cell-label">닉네임</span><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20} aria-invalid={tried&&noNick?true:undefined} aria-describedby={tried&&noNick?"bd-cform-nick-error":undefined}/></label>
       <label className="cell bd-cform-pin"><span className="cell-label">비밀번호 (선택)</span><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="숫자 4자리" inputMode="numeric"/></label>
     </div>
+    {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
     <div className="bd-cform-row">
-      <label className="cell bd-cform-body"><span className="cell-label">댓글</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}}/></label>
+      <label className="cell bd-cform-body"><span className="cell-label">댓글</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
       <Button variant="main" icon="check" size="sm" onClick={submit}>등록</Button>
     </div>
+    {tried&&noBody&&<FormError id="bd-cform-body-error">댓글이나 링크를 입력해 주세요.</FormError>}
     <label className="cell bd-cform-link"><span className="cell-label">이미지 또는 유튜브 링크 (선택)</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/></label>
   </div>);
 }
@@ -162,7 +177,7 @@ function FreeBoard({ admin, flash, tabs }){
     const url=new URL(window.location.href); url.searchParams.delete("post"); window.history.replaceState(window.history.state,"",url); transition(()=>flushSync(()=>setArticle(null)),{shared:"b-"+id,dir:"back",scrollY:listScroll.current}); };
   const [editing,setEditing]=useState(null);
   const addPost=async({pin,secret,...post})=>{ if(await run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),post,{pin,secret}),"글을 등록했습니다.")) setCompose(false); };
-  const delPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(FREE_BOARD_KEY,p.id,pin),"삭제됨")) closePost(); };
+  const delPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(FREE_BOARD_KEY,p.id,pin),"삭제했습니다.")) closePost(); };
   const addComment=({pin,...c},p)=>run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),c,{parentId:p.id,pin}),"댓글을 등록했습니다.");
   const delComment=async(p,c)=>{ const pin=await authorize(FREE_BOARD_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(FREE_BOARD_KEY,c.id,pin)); };
   const editPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","수정",admin); if(pin!==null) setEditing({heading:"글 수정",id:p.id,pin,initial:{title:p.title||"",body:p.body||"",link:p.link||"",secret:Boolean(p.secret)}}); };
@@ -171,6 +186,7 @@ function FreeBoard({ admin, flash, tabs }){
   const editSheet=editing&&<EditSheet {...editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>;
 
   const p=article?all.find(x=>x.id===article):null;
+  useItemTitle(p?(p.title||p.body||"").slice(0,40):null);
   if(article&&!p) return (<section className="bd"><BackLink to="게시판" onClick={closePost}/>
     {fresh?<Empty title="글을 찾을 수 없습니다." desc="삭제되었거나 주소가 잘못되었습니다."/>:<Loader/>}
   </section>);
@@ -187,7 +203,7 @@ function FreeBoard({ admin, flash, tabs }){
           {p.link&&<MediaEmbed url={p.link}/>}
         </div>}
         <div className="bd-cmts">
-          <h2 className="t20 bd-cmts-h">댓글{cc>0?<span className="dim"> {cc}</span>:""}</h2>
+          <SectionHead title={cc>0?`댓글 ${cc}`:"댓글"}/>
           {(p.comments||[]).map(c=>(<div className="pn bd-cmt" key={c.id}>
             <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/><button className="bd-act t12" onClick={()=>editComment(p,c)}>수정</button><button className="bd-act t12" onClick={()=>delComment(p,c)}>삭제</button></div><div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
           </div>))}
@@ -211,7 +227,7 @@ function FreeBoard({ admin, flash, tabs }){
       {shown.map(p=>{ const cc=(p.comments||[]).length; const d=dotDay(p.createdAt);
         return <Row key={p.id} title={<span data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</span>}
           line={<>{p.secret&&"관리자 전용, "}{p.nick}{d&&<span className="bd-day"><span className="num">{d.day}</span> {d.weekday}</span>}</>}
-          value={cc>0?<span className="t12 dim">댓글 {cc}</span>:undefined} onClick={()=>openPost(p.id)}/>;})}
+          value={cc>0?<span className="t12 dim">댓글 {cc}</span>:undefined} onClick={()=>openPost(p.id)} href={viewHref("board",{post:p.id})}/>;})}
     </div>
     <div className="bd-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>
     {compose&&<BoardCompose initial={typeof compose==="object"?compose:null} onClose={()=>setCompose(false)} onSubmit={addPost}/>}
@@ -276,7 +292,7 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
   const [kind,setKind]=useState(members.length===1?"sample":initialKind);
   const [format,setFormat]=useState(initialFormat);
   const [index,setIndex]=useState(Math.min(initialIndex,Math.max(0,members.length-1)));
-  const [nick,setNick]=useState(()=>{ try{return localStorage.getItem("ypl-board-nick")||"";}catch{return "";} });
+  const [nick,setNick]=useState(savedNick);
   const [title,setTitle]=useState(""); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [busy,setBusy]=useState(false);
   const sheet=sheetOf(team,display);
   const nameAt=i=>sheet[i]?.name||members[i]?.pokemonName||"";
@@ -297,7 +313,7 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
         team:{ name:team?.working?"":String(team?.name||"").slice(0,40), regulationId:team?.regulationId, cupRuleId:team?.cupRuleId||"none", cupRuleSettings:team?.cupRuleSettings||{assignedType:""}, members:picked },
         comments:[] };
       await createCommunityItem(SHOWCASE_KEY,id,post,{pin});
-      try{ localStorage.setItem("ypl-board-nick",post.nick); }catch{ /* 기억 못 해도 된다 */ }
+      keepNick(post.nick);
       onPosted?.(post);
     }catch(error){ setFailed(readErrorText(error,"글을 올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.")); }
     finally{ setBusy(false); }
@@ -345,6 +361,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
   const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE)); const cur=Math.min(page,pages);
   const shown=list.slice((cur-1)*PAGE_SIZE,cur*PAGE_SIZE);
   const p=article?(posts||[]).find(x=>x.id===article):null;
+  useItemTitle(p?(p.title||p.nick||"").slice(0,40):null);
   const display=useTeamDisplay(Boolean(p));
 
   // 글을 여는 것은 기록 한 칸: 폰의 뒤로 가기가 목록으로 돌아온다
@@ -355,7 +372,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
     else { const url=new URL(window.location.href); url.searchParams.delete("post"); window.history.replaceState(window.history.state,"",url); transition(()=>flushSync(()=>setArticle(null)),{shared:"s-"+id,dir:"back",scrollY:listScroll.current}); } };
 
   const [editing,setEditing]=useState(null);
-  const delPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(SHOWCASE_KEY,post.id,pin),"삭제됨")) closePost(); };
+  const delPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(SHOWCASE_KEY,post.id,pin),"삭제했습니다.")) closePost(); };
   const addComment=async(post,{pin,...c})=>{ await run(()=>createCommunityItem(SHOWCASE_KEY,newCommunityId(),c,{parentId:post.id,pin}),"댓글을 등록했습니다."); };
   const delComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(SHOWCASE_KEY,c.id,pin)); };
   const editPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","수정",admin); if(pin!==null) setEditing({heading:"글 수정",id:post.id,pin,cap:true,initial:{title:post.title||"",body:post.body||""}}); };

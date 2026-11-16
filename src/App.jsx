@@ -20,6 +20,7 @@ import LazyContent from "./components/common/LazyContent.jsx";
 import Loader, { Busy } from "./components/common/Loader.jsx";
 import { Arrived, LiveStrip } from "./components/common/Board.jsx";
 import { warmChampions } from "./components/home/homeFacts.js";
+import { setPageTitle } from "./components/layout/title.js";
 
 // 첫 화면이 홈이면 현 챔피언의 읽기를 site_data 와 나란히 출발시킨다: 첫 화면의 가장 큰 그림이 그 끝에 있다(homeFacts.js).
 if (typeof window !== "undefined" && readInitialAppView(window.location.search) === "home") warmChampions();
@@ -124,7 +125,7 @@ export default function App() {
   /* 탭 제목 — 뒤로 가기 목록과 브라우저 탭에서 어디에 있었는지 구분되게 화면 이름을 붙인다. */
   useEffect(()=>{
     const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
-    document.title=label?`${label} | YPL`:"Yonsei Pokémon League";
+    setPageTitle(label);
     // 검색 엔진에 화면 주소만 알린다. eventId와 배포 갱신용 __ypl_v 같은 덧붙은 값은 뺀다.
     document.querySelector('link[rel="canonical"]')?.setAttribute("href",`https://league.pokeyonsei.com/${view==="home"?"":`?view=${view}`}`);
   },[view]);
@@ -150,14 +151,15 @@ export default function App() {
       const url=new URL(window.location.href);
       // a battle's own keys (?id=, ?event=, ?match=, ?team=) stay with the battle
       const here=new URLSearchParams(window.location.search); ["id","event","match","team"].forEach(key=>here.delete(key));
-      url.search= v==="builder" ? `view=builder&eventId=${encodeURIComponent(options.eventId)}` : bracketRouteSearch(options.eventId, `?${here}`).slice(1);
+      // a match named by the move (the home's 다음 경기) opens its sheet on the bracket (?m=, BracketsPage ElimBoard)
+      url.search= v==="builder" ? `view=builder&eventId=${encodeURIComponent(options.eventId)}` : bracketRouteSearch(options.eventId, `?${here}`).slice(1) + (options.m ? `&m=${encodeURIComponent(options.m)}` : "");
       pushHistory({view:v,eventId:options.eventId},url);
     }else{
       // 모든 탭이 주소에 남는다 — 새로고침, 뒤로 가기, 링크 공유 모두 같은 화면으로 돌아온다.
       const url=new URL(window.location.href);
       url.searchParams.delete("eventId");
       // 한 화면 안의 항목을 바로 여는 링크: 공지(?notice=), 트레이너 기록(?trainer=), 랭킹 탭(?tab=rank).
-      ["notice","trainer","tab","format","post","pb","id","event","match","team","me"].forEach(key=>url.searchParams.delete(key));
+      ["notice","trainer","pokemon","title","gen","m","tab","format","post","pb","id","event","match","team","me"].forEach(key=>url.searchParams.delete(key));
       if(v==="news"&&options.notice) url.searchParams.set("notice",options.notice);
       // 한 배틀을 바로 여는 링크(?id=): 홈의 지금 경기, 기록의 배틀 줄
       if(v==="battle"&&options.battle) url.searchParams.set("id",options.battle);
@@ -232,7 +234,7 @@ export default function App() {
         if(!(await submitAnnouncementResponse(annId,answers||{}))) return false;
         await refresh();
       }
-      flash("신청을 접수했습니다.");
+      // the form's own panel says the application was taken; a toast would say the same fact twice
       return true;
     }catch(error){
       // 중복 신청, 마감 같은 이유는 신청서가 그대로 보여 준다. 재시도 안내로 덮지 않는다.
@@ -262,7 +264,7 @@ export default function App() {
   const logout=()=>{ signOutAdmin(); setAdmin(false); };
   const onAdmin=()=>{ setMore(null); admin?logout():setModal({type:"login"}); };
   // 무거운 조각은 시트가 다 올라온 뒤에 받는다: 여는 순간에 평가하면 시트가 굳는다.
-  const toggleMore=el=>{ if(!more) setTimeout(()=>{ CalculatorPage.prefetch(); ChampionsPage.prefetch(); },DUR.lift); setMore(m=>m?null:el); };
+  const toggleMore=el=>{ if(!more) setTimeout(()=>{ CalculatorPage.prefetch(); ChampionsPage.prefetch(); },DUR.light); setMore(m=>m?null:el); };
   // 오늘 열리는 대회: 바의 램프, 대진표 탭의 램프, 홈과 대진표 밖의 화면을 여는 진행 띠
   const live=useMemo(()=>data?todayEvent(data.announcements):null,[data]);
   const moreItems=[
@@ -288,7 +290,7 @@ export default function App() {
         {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
         {view==="news"&&<NewsPage data={data} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go}/>}
         {view==="board"&&<BoardPage data={data} admin={admin} save={save} flash={flash} go={go}/>}
-        {view==="records"&&<RecordsPage data={data} admin={admin} setModal={setModal} save={save}/>}
+        {view==="records"&&<RecordsPage data={data} admin={admin} setModal={setModal} save={save} go={go}/>}
         {view==="bracket"&&<BracketsPage data={data} admin={admin} save={save} flash={flash} refresh={refresh}/>}
         {view==="builder"&&<TeamBuilderPage go={go} flash={flash} admin={admin}/>}
         {view==="calc"&&<CalculatorPage/>}

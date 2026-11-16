@@ -181,7 +181,7 @@
 /* ---------- 3 대진 배치: each first-round match a row, the two names as cells; the held name inverted ---------- */
 .bk-place-tools { grid-template-columns: minmax(0, 1fr); }
 .bk-place-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0 var(--s2) 0 var(--pad); }
-.bk-place-name { min-height: var(--h-control); padding: 0 var(--s3); text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; transition: background-color var(--move-tone); }
+.bk-place-name { min-height: var(--h-control); padding: 0 var(--s3); text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; transition: scale var(--move-press), background-color var(--move-tone); }
 .bk-place-name.inv { color: var(--ground); }
 .bk-place-name.bye { display: flex; align-items: center; color: var(--mute); font-weight: 600; cursor: default; }
 @media (hover: hover) { button.bk-place-name:not(.inv):hover { background: var(--panel-2); } }
@@ -211,7 +211,7 @@
 .bk-entry-pick { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); align-self: stretch; padding: 0 var(--pad); text-align: left; color: inherit; }
 .bk-entry-row.scored { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .bk-entry-score { display: flex; align-items: center; gap: var(--s2); padding-right: var(--s2); }
-.bk-entry-step { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); background: var(--panel-2); color: var(--lit); transition: background-color var(--move-tone); }
+.bk-entry-step { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); background: var(--panel-2); color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
 .bk-entry-row.inv .bk-entry-step { background: var(--panel); color: var(--lit); }
 .bk-entry-step:disabled { color: var(--mute); }
 .bk-entry-actions { grid-template-columns: minmax(0, 1fr); }

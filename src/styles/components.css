@@ -51,7 +51,7 @@
 .seg-track > button {
   position: relative; display: inline-flex; align-items: center; justify-content: center; height: var(--h-control); padding: 0 var(--s3);
   background: var(--field-bg, var(--panel)); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); white-space: nowrap;
-  transition: color var(--move-tone);
+  transition: scale var(--move-press), color var(--move-tone);
 }
 .seg-track > button[aria-selected="true"] { background: var(--lit); color: var(--ground); font-weight: 700; }
 @media (hover: hover) { .seg-track > button:not([aria-selected="true"]):hover { background: var(--panel-2); color: var(--lit); } }
@@ -79,7 +79,8 @@
 }
 /* a field is a 52 panel (DESIGN.md "Controls"); inside a sheet or a panel it is one tone up. Focus draws a 2px line along the bottom. */
 :where(.sheet, .pn, .plate, .tb-panel, .tb-validation, .tb-library-save, .tb-saved-list, .fb-wrap, .ed-round, .bk-submission, .bk-group) { --field-bg: var(--panel-2); }
-:where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus-visible { outline: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+/* keyboard focus is the one ring, a field's included (2026-11-16: a field drew a line under it instead); the line under a field says an error */
+:where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); box-shadow: none; }
 :where(.ypl) textarea { min-height: calc(var(--s21) + var(--s13)); resize: vertical; line-height: var(--l-read); padding: var(--s3) var(--pad); }
 :where(.ypl) :where(input[type="number"]) { font-variant-numeric: tabular-nums; }
 :where(.ypl) :is(input, textarea)[aria-invalid="true"] { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
@@ -105,9 +106,9 @@
   padding: 0 var(--pad); border: 0;
   background: var(--field-bg, var(--panel)); box-shadow: none;
   color: var(--lit); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
-  transition: background-color var(--move-tone);
+  transition: scale var(--move-press), background-color var(--move-tone);
 }
-.dd.open .dd-btn, .dd-btn:focus-visible { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.dd.open .dd-btn { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .dd-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dd-btn.ph > span { color: var(--mute); }
 .dd-chev { color: var(--mute); transition: transform var(--move-light); }
@@ -120,7 +121,7 @@
 .dd-opt {
   width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
   padding: var(--s2) var(--s3); border: 0; background: transparent; text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
-  transition: background-color var(--move-tone);
+  transition: scale var(--move-press), background-color var(--move-tone);
 }
 @media (hover: hover) { .dd-opt:hover:not(:disabled):not(.sel) { background: var(--panel-2); } }
 .dd-opt.sel { background: var(--panel-2); }
@@ -206,7 +207,7 @@
 .modal > h3 + *:not(.hint), .modal > .hint + * { margin-top: var(--s5); }
 .modal-x {
   position: absolute; top: 0; right: 0; z-index: var(--z-raised); width: 52px; height: 52px; display: grid; place-items: center; color: var(--dim);
-  transition: background-color var(--move-tone), color var(--move-tone);
+  transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 @media (hover: hover) { .modal-x:hover { color: var(--lit); } }
 /* actions are planes on the sheet's bottom edge: they meet each other and stay reachable while the body scrolls; the primary sits on the right.
@@ -299,13 +300,13 @@
 :where(.ypl) :is(.pn, .sheet, .bk-pin) input[type="checkbox"]:not(.sr-only):not(:checked) { background: var(--rule); }
 :where(.ypl) input[type="checkbox"]:not(.sr-only):checked { background: var(--lit); }
 :where(.ypl) input[type="checkbox"]:not(.sr-only):checked::after { content: ""; width: var(--s3); height: var(--s3); background: var(--ground); clip-path: polygon(14% 44%, 0 58%, 38% 92%, 100% 22%, 86% 8%, 38% 64%); }
-:where(.ypl) input[type="checkbox"]:not(.sr-only):focus-visible { outline: var(--line) solid var(--lit); outline-offset: var(--seam); }
+:where(.ypl) input[type="checkbox"]:not(.sr-only):focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 :where(.ypl) input[type="checkbox"]:not(.sr-only):disabled { background: var(--panel); cursor: default; }
 
 /* recently picked: up to six square cells over the list, the Pokémon standing on the cell's floor */
 .pick-recent { display: grid; gap: var(--s2); margin-top: var(--s5); }
 .pick-recent-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.pick-recent-one { position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; transition: background-color var(--move-tone); }
+.pick-recent-one { position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; transition: scale var(--move-press), background-color var(--move-tone); }
 .pick-recent-one .mon { position: absolute; inset: var(--s1) var(--s1) 0; width: calc(100% - var(--s2)); height: calc(100% - var(--s1)); object-fit: contain; object-position: bottom; }
 @media (hover: hover) { .pick-recent-one:hover { background: var(--panel-2); } }
 .toast .toast-act { margin-left: auto; }

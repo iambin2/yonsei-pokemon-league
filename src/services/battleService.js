@@ -19,7 +19,7 @@ function keepSeat(id, seat) {
 /* room: "open" (on the list of open rooms) or "code" (entered with the four digits the opener passes on; docs/db/battle_rooms.sql).
    The code is kept with the seat, so the waiting screen can show it again after a reload. */
 export async function createBattle({ regulation, battleFormat, name, team, room }) {
-  const made = await callFunction("battle", { action: "create", regulation, battleFormat, name, team, room });
+  const made = await callFunction("battle", { action: "create", regulation, battleFormat, name, team, room }, { account: true });
   keepSeat(made.id, { token: made.token, side: made.side, ...(made.code ? { code: made.code } : {}) });
   return made;
 }
@@ -28,7 +28,7 @@ export const recordCpuBattle = inputLog => callFunction("battle", { action: "rec
 // a kept battle with the computer as a replay anyone may watch (리플레이 공유): played again on the server from its record, as a row
 export const readCpuReplay = id => callFunction("battle", { action: "cpureplay", id }).then(out => out.row);
 export async function joinBattle(id, { name, team, code }) {
-  const view = await callFunction("battle", { action: "join", id, name, team, code });
+  const view = await callFunction("battle", { action: "join", id, name, team, code }, { account: true });
   keepSeat(id, { token: view.token, side: view.side });
   return view;
 }
@@ -36,21 +36,22 @@ export async function joinBattle(id, { name, team, code }) {
    this player (waiting for the other, with its code), joined (it has started), or this player's own already (mine). The new seat is
    kept like any other, marked so its waiting screen says what it waits for. */
 export async function rematchBattle(id, team) {
-  const next = await asSeat(id, "rematch", { team });
+  const next = await asSeat(id, "rematch", { team }, true);
   if (next.token) keepSeat(next.id, { token: next.token, side: next.side, rematch: true, ...(next.code ? { code: next.code } : {}) });
   return next;
 }
 // 공식 경기의 자리. 먼저 온 선수가 배틀을 열고, 다음 선수가 시작한다. 같은 선수가 다른 기기에서 오면 자리를 옮긴다.
 // player: in a team bout (teamBouts.js) the member who plays it, since the side is their team's
 export async function takeOfficialSeat({ eventId, nodeKey, side, pin, player = "" }) {
-  const seat = await callFunction("battle", { action: "official", eventId, nodeKey, side, pin, ...(player ? { player } : {}) });
+  const seat = await callFunction("battle", { action: "official", eventId, nodeKey, side, pin, ...(player ? { player } : {}) }, { account: true });
   keepSeat(seat.id, { token: seat.token, side: seat.side });
   return seat;
 }
-const asSeat = (id, action, extra = {}) => {
+// account: a request that takes a seat (rematch, streakNext) goes as the signed-in account, so the battle is written as theirs
+const asSeat = (id, action, extra = {}, account = false) => {
   const seat = readSeat(id);
   if (!seat) throw new Error("이 기기에는 이 배틀의 자리가 없습니다.");
-  return callFunction("battle", { action, id, token: seat.token, ...extra });
+  return callFunction("battle", { action, id, token: seat.token, ...extra }, { account });
 };
 /* 연승 도전 (docs/BATTLE_STREAK.md): an ended game's answer carries the run (streak: { wins, lives, status, won, foe }). The run rests
    (status active) after a won game, and after a lost one while a lamp is left (2026-11-10, the three lamps), until its player opens
@@ -129,7 +130,7 @@ export function keepStreakResume(made, daily = false) {
 export async function streakNextGame(id, swap = null, door = 0) {
   const seat = readSeat(id);
   if (seat?.next && readSeat(seat.next)) return { id: seat.next, side: "p1" };
-  const made = await asSeat(id, "streakNext", { ...(swap ? { swap } : {}), door });
+  const made = await asSeat(id, "streakNext", { ...(swap ? { swap } : {}), door }, true);
   keepSeat(made.id, { token: made.token, side: made.side, streak: true, wins: made.wins, game: made.wins + 1, lives: made.lives, daily: seat?.daily || null, hard: Boolean(made.hard), party: made.party || seat?.party || null });
   if (seat) keepSeat(id, { ...readSeat(id), next: made.id });
   keepStreakGame(made.id, seat?.daily);

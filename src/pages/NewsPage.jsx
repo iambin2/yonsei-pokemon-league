@@ -7,13 +7,14 @@ import { PushLink } from "../components/common/PushControl.jsx";
 import Seg from "../components/common/Seg.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
-import { Dropdown, Empty, Icon, ListSearch, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
+import { Dropdown, Empty, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingForm, visitorSignedIn } from "../services/visitorAuth.js";
 import { builderRouteSearch, editEventApplication, findApplicantNameRecord, listEventApplications, openEventApplication, playerNameKey, tidyApplicantName, listEventRegistrationSubmissionStatuses, loadPrivateAnswers, resetSubmissionPin, resolveChampionshipSubmissionEvents } from "../services/index.js";
+import { useItemTitle } from "../components/layout/title.js";
 
 const fmtDT=iso=>formatDate(iso,{time:true});
 /* a tight row's time: digits and dots on one line (10.28 수 17:18), so a list of applicants keeps one height */
@@ -131,7 +132,12 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
   };
   const delResp=(rid)=>{ const announcements=data.announcements.map(a=>a.id!==respId?a:{...a,form:{...(a.form||{}),responses:((a.form||{}).responses||[]).filter(r=>r.id!==rid)}}); save({...data,announcements}); };
   const a=article?data.announcements.find(x=>x.id===article):null;
+  useItemTitle(a?.title);
   useEffect(()=>{ setFill(null); },[article]);
+  // 주소의 공지가 지금 가진 사본에 없으면 한 번 새로 읽고 나서야 없다고 말한다(읽지 않은 목록을 비었다고 하지 않는다)
+  const [sought,setSought]=useState(null);
+  useEffect(()=>{ if(!article||a||sought===article) return; if(!refresh){ setSought(article); return; }
+    Promise.resolve(refresh()).catch(()=>{}).then(()=>setSought(article)); },[article,Boolean(a)]);
   // back from Google sign-in that started on a form: the same form opens again (after the reset above)
   useEffect(()=>{ const id=takePendingForm(); if(id&&id===article) setFill(id); },[]);
   const modals=<>
@@ -153,6 +159,10 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
       }}/>);
   }
 
+  if(article&&!a) return (<section className="nw"><BackLink to="공지" onClick={closeArticle}/>
+    {sought===article?<Empty title="공지를 찾을 수 없습니다." desc="삭제되었거나 주소가 잘못되었습니다."/>:<Loader/>}
+    {modals}
+  </section>);
   if(a){
     const hasForm=a.form&&a.form.enabled; const championshipSubmission=championshipSubmissionEvents[a.id];
     const openBuilder=(eventId)=>{if(go)go("builder",{eventId});else window.location.search=builderRouteSearch(eventId,window.location.search);};
@@ -284,7 +294,12 @@ function PublicResponses({ ann, compact, onRefresh, updatedAt, responsesOverride
    이름은 선수와 리그를 정하므로 고치지 않는다. */
 function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=false }){
   const form=ann.form||{}; const fields=form.fields||[];
-  const [ans,setAns]=useState({}); const [registrationName,setRegistrationName]=useState(""); const [done,setDone]=useState(false); const [busy,setBusy]=useState(false);
+  /* 쓰던 답은 이 탭에 공지마다 남는다: 폰의 뒤로 가기나 새로고침 뒤에 신청을 다시 열면 그대로 있고, 접수되면 지운다.
+     신청 수정은 서버의 답을 불러와 고치므로 남기지 않는다(제출 비밀번호도 남기지 않는다). */
+  const draftKey=`ypl-form-draft:${ann.id}`;
+  const [draft]=useState(()=>{ if(edit) return null; try{ const d=JSON.parse(sessionStorage.getItem(draftKey)); return d&&typeof d==="object"?d:null; }catch{ return null; } });
+  const [ans,setAns]=useState(()=>draft?.ans&&typeof draft.ans==="object"?draft.ans:{}); const [registrationName,setRegistrationName]=useState(()=>typeof draft?.name==="string"?draft.name:""); const [done,setDone]=useState(false);
+  useEffect(()=>{ if(edit||done) return; try{ sessionStorage.setItem(draftKey,JSON.stringify({ans,name:registrationName})); }catch{ /* 남기지 못해도 신청은 된다 */ } },[ans,registrationName,done]); const [busy,setBusy]=useState(false);
   const [errors,setErrors]=useState({}); const [failed,setFailed]=useState("");
   const [pin,setPin]=useState(""); const [held,setHeld]=useState(null);
   /* 구글 계정 (docs/db/player_accounts.sql): 희망자만 쓴다. 계정에 승인된 트레이너 이름(owned)이 있으면 이름 칸 없이 그 이름으로
@@ -367,6 +382,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
       : {registrationName:name,answers:ans,account:viaAccount}); setBusy(false);
     if(typeof ok==="string"){ setFailed(ok); return; }
     if(ok===false){ setFailed("신청 저장을 확인하지 못했습니다."); return; }
+    if(!edit) try{ sessionStorage.removeItem(draftKey); }catch{ /* 없음 */ }
     setAlias(name===typed?"":name); setDone(true);
   };
   const required=form.eventId||fields.some(f=>f.required);
@@ -396,7 +412,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
   </section>);
   if(done) return sheet({
     act:<Button variant="main" onClick={onBack}>공지 보기</Button>,
-    children:<div className="inv nw-done"><span className="box on"><Icon n="check" size={16}/></span><div><b className="t15">{edit?"신청을 수정했습니다.":"신청이 접수되었습니다."}</b>{alias&&<p className="t12 reg">{`${alias} 이름으로 접수했습니다.`}</p>}</div></div>,
+    children:<div className="inv nw-done"><span className="box on"><Icon n="check" size={16}/></span><div><b className="t15">{edit?"신청을 수정했습니다.":"신청을 접수했습니다."}</b>{alias&&<p className="t12 reg">{`${alias} 이름으로 접수했습니다.`}</p>}</div></div>,
   });
   if(edit&&!held) return sheet({
     toast:failed&&<Toast error action="다시 시도" onAction={find}>{failed}</Toast>,
@@ -405,10 +421,10 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
     children:<section className="nw-form-sec" aria-labelledby="ff-who-h">
       <SectionHead id="ff-who-h" title="본인 확인"/>
       <Question id="ff-name" label="참가자 이름" required error={errors.name}>
-        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} type="text" value={registrationName} onChange={e=>{setRegistrationName(e.target.value);setErrors(x=>({...x,name:""}));}} placeholder="신청할 때 쓴 이름을 입력해 주세요." autoComplete="name"/>
+        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} aria-describedby={errors.name?"ff-name-error":undefined} type="text" value={registrationName} onChange={e=>{setRegistrationName(e.target.value);setErrors(x=>({...x,name:""}));}} placeholder="신청할 때 쓴 이름을 입력해 주세요." autoComplete="name"/>
       </Question>
       <Question id="ff-pin" label="제출 비밀번호" required error={errors.pin}>
-        <input id="ff-pin" className="in" aria-required="true" aria-invalid={errors.pin?true:undefined} type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4));setErrors(x=>({...x,pin:""}));}} placeholder="숫자 4자리"/>
+        <input id="ff-pin" className="in" aria-required="true" aria-invalid={errors.pin?true:undefined} aria-describedby={errors.pin?"ff-pin-error":undefined} type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4));setErrors(x=>({...x,pin:""}));}} placeholder="숫자 4자리"/>
         <p className="t12 dim reg">아직 정하지 않았다면 지금 입력한 숫자 4자리가 제출 비밀번호가 됩니다.</p>
       </Question>
     </section>,
@@ -435,7 +451,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
           :"신청하면 입력한 이름이 이 계정의 트레이너 이름으로 등록됩니다. 기존 기록이 있는 이름은 운영진의 본인 확인 후 연결됩니다."}</p>}
       </Question>}
       {form.eventId&&!edit&&!owned&&<Question id="ff-name" label="참가자 이름" required error={errors.name}>
-        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} type="text" value={registrationName} onChange={e=>{ if(playerNameKey(e.target.value)!==playerNameKey(registrationName)) setWho(""); setRegistrationName(e.target.value);setErrors(x=>({...x,name:"",who:""}));}} onBlur={checkName} autoComplete="name"/>
+        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} aria-describedby={errors.name?"ff-name-error":undefined} type="text" value={registrationName} onChange={e=>{ if(playerNameKey(e.target.value)!==playerNameKey(registrationName)) setWho(""); setRegistrationName(e.target.value);setErrors(x=>({...x,name:"",who:""}));}} onBlur={checkName} autoComplete="name"/>
       </Question>}
       {similar.length>0&&<Question id="ff-similar" label="비슷한 이름의 기록" group>
         <div className="stack">
@@ -464,7 +480,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
       <SectionHead id="ff-ans-h" title="신청 내용"/>
       {fields.length===0&&<p className="t15 reg dim">등록된 질문이 없습니다.</p>}
       {fields.map((f,i)=>{ const label=f.label||`질문 ${i+1}`, id=`ff-${f.id}`, error=errors[f.id];
-        const text={id,className:"in","aria-required":f.required||undefined,"aria-invalid":error?true:undefined,value:ans[f.id]||"",onChange:e=>set(f.id,e.target.value)};
+        const text={id,className:"in","aria-required":f.required||undefined,"aria-invalid":error?true:undefined,"aria-describedby":error?`${id}-error`:undefined,value:ans[f.id]||"",onChange:e=>set(f.id,e.target.value)};
         return (<Question key={f.id} id={id} label={label} required={f.required} error={error} group={f.type==="single"||f.type==="multi"}>
           {f.type==="short"&&<input type="text" {...text}/>}
           {f.type==="long"&&<textarea {...text}/>}

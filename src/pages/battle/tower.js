@@ -14,7 +14,7 @@
    Reduced motion: the tower stands, then a cut (2026-11-11, the user: the going in was "너무 빨라서 뭐가 뭔지도 모르겠어", and coming
    to the tab "그냥 로딩되는 느낌"; 2026-11-16: the lamp's light running from door to door, "빛이 이동하는 경로가 전부 보여", and the
    tower alone in an empty night, "가상의 요소처럼 느껴져서 몰입이 깨져") */
-import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
+import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, reduced } from "../../components/common/motion.js";
 import { sfx } from "./sfx.js";
 import { ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
 
@@ -28,11 +28,29 @@ if (typeof window !== "undefined") (window.requestIdleCallback || (f => setTimeo
   host.appendChild(el); void prebuildModel(topOf(1), paletteOf(el)); el.remove();
 }, { timeout: 2000 });
 
-const MOVE = 420, BEAT = 260, READ = 420, WALK = 900, DIVE = 1400, ENTRANCE = 2200, ARRIVE = 1000;
+/* the battle's lengths are the phi steps 62, 100, 160, 260, 420, 680, 1100, 1780, 2880 (DESIGN.md "Battle", Time), and its curves three:
+   EASE_OUT for what arrives, EASE_IN for what leaves, INOUT for what moves from place to place; linear only measures time */
+const MOVE = 420, BEAT = 260, READ = 420, WALK = 1100, DIVE = 1100, ENTRANCE = 1780, ARRIVE = 1100;
 const NEXT = 0.382;
-const INOUT = "cubic-bezier(.65,0,.35,1)";
-const inout = t => (t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const out3 = t => 1 - (1 - t) ** 3;
+// a CSS cubic-bezier as a function of time, for the moves drawn frame by frame (x solved by Newton's steps, then bisection)
+const bezier = (x1, y1, x2, y2) => {
+  const at = (a, b, t) => ((1 - 3 * b + 3 * a) * t + (3 * b - 6 * a)) * t * t + 3 * a * t;
+  return x => {
+    if (x <= 0 || x >= 1) return Math.min(1, Math.max(0, x));
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const d = 3 * (1 - 3 * x2 + 3 * x1) * t * t + 2 * (3 * x2 - 6 * x1) * t + 3 * x1, e = at(x1, x2, t) - x;
+      if (Math.abs(e) < 1e-5) return at(y1, y2, t);
+      if (Math.abs(d) < 1e-6) break;
+      t -= e / d;
+    }
+    let lo = 0, hi = 1;
+    for (t = x; hi - lo > 1e-5; t = (lo + hi) / 2) { if (at(x1, x2, t) < x) lo = t; else hi = t; }
+    return at(y1, y2, t);
+  };
+};
+const curve = css => bezier(...css.match(/[\d.]+/g).map(Number));
+const inout = curve(INOUT), out3 = curve(EASE_OUT);
 const linear = t => t;
 const pause = n => new Promise(resolve => setTimeout(resolve, n));
 const settled = anim => anim.finished.catch(() => {});
@@ -176,7 +194,7 @@ function mark(el, show = true) {
   marksOf(el).forEach(x => x.remove());
   if (!tw?.m.hall) return;
   el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", climbersHTML(tw));
-  if (show && !reduced()) marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.light, { delay: i * 60 }));
+  if (show && !reduced()) marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.light, { delay: i * STAGGER.display }));
 }
 /* the tab's tower answers a hand: held and dragged, the camera goes round the tower with it and, under a mouse, up and down it (a
    finger's way up and down is the page's scroll); let go, it comes back to the door the run stands before, where it belongs. The
@@ -209,7 +227,7 @@ function hand(el) {
     el.classList.remove("held");
     const was = tw?.look;
     if (!was) { marksOf(el).forEach(x => { x.style.visibility = ""; }); return; }
-    void animate(el, DUR.light * 1.5, t => { tw.look = t >= 1 ? null : { dphi: was.dphi * (1 - t), dy: was.dy * (1 - t) }; }, out3).then(() => { if (el.tower === tw) mark(el); });
+    void animate(el, 680, t => { tw.look = t >= 1 ? null : { dphi: was.dphi * (1 - t), dy: was.dy * (1 - t) }; }, out3).then(() => { if (el.tower === tw) mark(el); });
   };
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", end);
@@ -274,7 +292,7 @@ async function entrance(el) {
 }
 /* 1. between games: the tower comes up over the stage as the camera settles before the door, drawing in from a little round the tower */
 function arrive(el) {
-  void fade(el.querySelector(".tw-body"), 0, 1, DUR.light * .8);
+  void fade(el.querySelector(".tw-body"), 0, 1, DUR.leave);
   const tw = el.tower, b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
   return animate(el, ARRIVE, e => { tw.cam = e >= 1 ? null : mixView(a, b, e); }, out3);
 }
@@ -312,7 +330,7 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
   const now = { ...keep, floor, at: game, live: true };
   // the picture before the step the scene plays: the game just won still the lamp's, or the floor left with its gate still the lamp's
   const before = hall || again ? now : climbing ? { floor: floor - 1, at: 5, live: true } : game > 1 ? { floor, at: game - 1, live: true } : now;
-  if (reduced()) { drawTower(el, now); await pause(READ * 2); return; }
+  if (reduced()) { drawTower(el, now); await pause(680); return; }
   if (hall) {
     // the hall already stands on the game gone into, at the run's rest (its entrance, if it still plays, taken to its end): its door
     // turns amber where it stands
@@ -350,7 +368,7 @@ export async function towerDive() {
     const top = topOf(tw.st.floor), door = doorOf(tw.st), a = tw.cam || viewOf(tw.kind, tw.s, tw.m, top), c = viewOf("door", door, tw.m, top);
     const b = { ...c, dist: 2.5 };
     sfx("swoosh", { sec: .6 });
-    for (const x of marksOf(el)) void fade(x, 1, 0, DIVE * .4, { easing: EASE_IN });
+    for (const x of marksOf(el)) void fade(x, 1, 0, DUR.light, { easing: EASE_IN });
     let stepped = false;
     await animate(el, DIVE, e => {
       tw.cam = mixView(mixView(a, b, smooth(0, .52, e)), c, smooth(.46, 1, e) ** 2);
@@ -378,7 +396,7 @@ const boxOf = el => {
   return { left: r.left, top, width: r.width, height: Math.max(0, innerHeight - foot - top) };
 };
 // the next screen comes up out of the dark, as the battle's own stage does
-const lift = el => fade(el, 1, 0, DUR.light * 1.5).then(() => el.remove());
+const lift = el => fade(el, 1, 0, 680).then(() => el.remove());
 
 /* 4. the next screen has mounted; the dark goes to its stage (target) and the screen comes up out of it. Returns the time until it
    starts to lift, so that screen's arrival can wait for it, or null when no dark waits */

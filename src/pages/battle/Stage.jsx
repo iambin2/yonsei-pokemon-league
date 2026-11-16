@@ -90,7 +90,7 @@ function preload(state, res) {
 }
 
 // a picture fetched and decoded before it is shown (a Mega Evolution's new form), or given up on after a moment
-const decoded = src => { const img = new Image(); img.src = src; return Promise.race([img.decode?.().catch(() => {}), new Promise(resolve => setTimeout(resolve, 900))]); };
+const decoded = src => { const img = new Image(); img.src = src; return Promise.race([img.decode?.().catch(() => {}), new Promise(resolve => setTimeout(resolve, 1100))]); };
 
 /* ---------- the tape: the log played one line at a time on the stage ---------- */
 // how long a line stays the newest before the next one comes, counted from when it lit (its effect plays inside this time)
@@ -194,10 +194,13 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       // the camera (DESIGN.md "Battle", The camera): pushed in while a beat plays, back to wide once its words have stood
       let framed = false, shotId = 0, opened = false;
       let leads = []; // the leads' entrances still playing
+      let opening = false; // the opening stands as a scene (a tap on the stage plays it to its end) until its leads have landed
+      const opened0 = () => { if (opening) { opening = false; fx.sceneOff(); } };
       // the plates wait for the leads (.bs-intro), and a side's come on as its lead stands (data-up)
       const intro = st => { st.classList.add("bs-intro"); st.querySelectorAll("[data-up]").forEach(el => { delete el.dataset.up; }); };
       const toWide = () => { shotId += 1; if (framed) { framed = false; return cam.wide(stageRef.current); } return null; };
       const push = (key, scale, duration) => { const stage = stageRef.current; if (!stage) return; shotId += 1; framed = true; cam.frame(stage, fx.spot(stage, key), scale, duration); };
+      try {
       for (let i = 0; i < fresh.length; i++) {
         if (latest.current.epoch !== epoch) break; // a jump came while this played: the next run starts again
         const line = fresh[i];
@@ -205,7 +208,11 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
         done.current += 1;
         const before = {};
         for (const side of ["p1", "p2"]) R.state.sides[side].active.forEach((m, s) => { if (m) before[slotKey(side, s)] = { hp: m.hp, maxhp: m.maxhp }; });
-        const { lines: text, event, reveal } = R.read(line);
+        /* a line the reader cannot read is passed over, never the battle (2026-11-16: read outside any guard, one such line left
+           the tape marked as running for good, and the battle stood still until the page was loaded again) */
+        let read;
+        try { read = R.read(line); } catch (err) { console.error("stage read", err); continue; }
+        const { lines: text, event, reveal } = read;
         if (event?.verb === "turn") pending.push({ turn: event.turn });
         pending.push(...text.map(t => ({ text: t })));
         if (text.length) lastSaid = text;
@@ -256,7 +263,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
           }
           /* as in 포켓몬 챔피언스, nothing is written over a Pokémon: the message window says the critical hit, the matchup, a miss;
              the stage shows them by the camera, the weight of the blow and the sound */
-          case "crit": blow.crit.add(k); push(k, 1.25, 200); break;
+          case "crit": blow.crit.add(k); push(k, 1.25, 160); break;
           case "super": blow.strong.add(k); break;
           case "resist": blow.weak.add(k); break;
           case "take": case "hp": {
@@ -279,8 +286,8 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
               // weight (DESIGN.md "Battle", Weight): the stage holds still at the impact, longer for a hard blow and longest for the
               // one that knocks out, which then plays on at half speed with the camera on its target
               if (direct && blow.on && nth === 0) {
-                await cam.hitStop(stage, knockout ? 120 : strike.crit || strike.strong ? 90 : 60);
-                if (knockout) { push(k, strike.crit ? 1.25 : 1.18, 300); fx.slowMo(stage, 700); }
+                await cam.hitStop(stage, knockout ? 160 : strike.crit || strike.strong ? 100 : 62);
+                if (knockout) { push(k, strike.crit ? 1.25 : 1.18, 260); fx.slowMo(stage, 680); }
               }
               // a further hit of a multi-hit move lands its own blow, and its HP goes with it
               if (again) fx.burst(stage, k, blow.type, .8);
@@ -307,7 +314,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
           case "fall": {
             // the stadium's lamps dim a step while it sinks, and come back as it goes out
            
-            fx.darken(stage, .7, 900);
+            fx.darken(stage, .7, 1100);
             // the bar has emptied by now (the blow's HP is awaited before this line); the plate goes out as the Pokémon sinks
             if (standing.has(k)) { standing.set(k, "fall"); show(); }
             await Promise.all([fx.faint(stage, k), fx.instant() ? null : cryOf(k, .85)]);
@@ -354,6 +361,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
                 // the pictures go onto the GPU one a frame while the lamps are off, so the lamps and the throws never stop for an upload
                 await Promise.all([fx.warm(st, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl))), uncovered]);
               }
+              fx.sceneOn(); opening = true;
               await fx.opening(st);
             }
             if (opener && text.length) { shown = text; flushSync(() => said.set(shown)); saidAt = performance.now(); }
@@ -362,47 +370,47 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
                from behind first, then theirs while ours is still landing (below); the camera goes back to the wide shot of the two
                facing each other with the line after them */
             const partnered = R.state.turn === 0 && /^\|switch\|/.test(fresh[i - 1] || "") && part(fresh[i - 1], 2).slice(0, 2) === part(line, 2).slice(0, 2);
-            if (R.state.turn === 0 && !partnered) push(k, R.state.gameType === "doubles" ? 1.16 : 1.3, 360);
+            if (R.state.turn === 0 && !partnered) push(k, R.state.gameType === "doubles" ? 1.16 : 1.3, 420);
             else if (R.state.turn > 0 && !chain) push(k, 1.08, 420);
-            const call = () => cryOf(k);
+            const call = () => fx.orSkipped(cryOf(k));
             if (R.state.turn === 0 && !event.leaving) {
               /* a lead: its side's plates switch on as it comes out of its ball, and the next lead's ball is thrown before this one
-                 has landed (its partner's 260 after, the other side's 300 after); what follows the leads waits for them all */
+                 has landed (260 after, its partner and the other side alike since the time ladder, 2026-11-16); what follows the leads waits for them all */
               const hud = st?.querySelector(own(k) ? ".bt-hud-own" : ".bt-hud-foe");
               const up = () => { if (hud) hud.dataset.up = ""; };
               leads.push(fx.enter(st, k, { cry: call, out: up }).then(up, up));
-              if (/^\|switch\|/.test(next)) await fx.wait(part(next, 2).slice(0, 2) === part(line, 2).slice(0, 2) ? 260 : 300);
-              else { await Promise.all(leads); leads = []; }
+              if (/^\|switch\|/.test(next)) await fx.wait(260);
+              else { await Promise.all(leads); leads = []; opened0(); }
             } else if (chain) { fx.enter(st, k, { cry: call }); await fx.wait(260); } else await fx.enter(st, k, { cry: call });
             break;
           }
           case "change": {
             const next = R.state.sides[k.slice(0, 2)].active[k.charCodeAt(2) - 97];
             const ready = next ? decoded(spriteUrl(next.species)) : null;
-            if (fresh[i + 1]?.startsWith("|-mega|")) { await Promise.all([fx.megaStart(stage, k), ready]); }
+            if (fresh[i + 1]?.startsWith("|-mega|")) { fx.sceneOn(); await Promise.all([fx.megaStart(stage, k), ready]); }
             else await ready;
             show();
             if (!fresh[i + 1]?.startsWith("|-mega|")) await fx.flashMon(stage, k);
             break;
           }
-          case "mega": show(); await Promise.all([fx.megaEnd(stage, k), fx.instant() ? null : cryOf(k)]); break;
+          case "mega": show(); await Promise.all([fx.megaEnd(stage, k), fx.instant() ? null : fx.orSkipped(cryOf(k))]); fx.sceneOff(); break;
           case "status": show(); await fx.status(stage, k, event.status); break;
           case "cure": show(); sfx("cure", { pan: own(k) ? -.4 : .4 }); await fx.flashMon(stage, k, .5); break;
           // it does not affect it, or the move fails: the games' dull double knock
           case "immune": case "fail": show(); sfx("fail", { pan: k && !own(k) ? .4 : -.4 }); break;
-          case "boost": show(); if (chain) { fx.boost(stage, k, event.amount); await fx.wait(120); } else await fx.boost(stage, k, event.amount); break;
-          case "weather": show(); if (!event.upkeep && event.id) await Promise.all([fx.wait(500), fx.weatherIn(stage, event.id)]); break;
-          case "field": show(); conditionSound(event.id, event.on); await Promise.all([fx.wait(450), event.on && event.id === "trickroom" ? fx.twist(stage) : null]); break;
+          case "boost": show(); if (chain) { fx.boost(stage, k, event.amount); await fx.wait(100); } else await fx.boost(stage, k, event.amount); break;
+          case "weather": show(); if (!event.upkeep && event.id) await Promise.all([fx.wait(420), fx.weatherIn(stage, event.id)]); break;
+          case "field": show(); conditionSound(event.id, event.on); await Promise.all([fx.wait(420), event.on && event.id === "trickroom" ? fx.twist(stage) : null]); break;
           case "side":
             if (!event.id) sfx("swoosh");
             else if (event.on || !blow.on) conditionSound(event.id, event.on, event.side === perspective ? -.4 : .4);
             // a screen that a blow breaks falls apart before it fades; one that runs out only fades
             // (inside a blow the hit lands while the shards still fall)
-            if (!event.on && blow.on) { fx.shatter(stage, event.side === perspective, event.id); await fx.wait(120); show(); break; }
-            show(); await fx.wait(450); break;
+            if (!event.on && blow.on) { fx.shatter(stage, event.side === perspective, event.id); await fx.wait(100); show(); break; }
+            show(); await fx.wait(420); break;
           case "protect": await fx.shield(stage, k, event.id); break;
-          case "ability": fx.popup(stage, k, `${word(k)}의 특성`, event.name, own(k)); await fx.wait(520); show(); break;
-          case "item": fx.popup(stage, k, `${word(k)}의 도구`, event.name, own(k)); await fx.wait(400); show(); break;
+          case "ability": fx.popup(stage, k, `${word(k)}의 특성`, event.name, own(k)); await fx.wait(420); show(); break;
+          case "item": fx.popup(stage, k, `${word(k)}의 도구`, event.name, own(k)); await fx.wait(420); show(); break;
           case "volatile":
             if (event.id === "substitute" && !event.on) { await fx.breakDoll(stage, k); show(); await fx.doll(stage, k, false); break; }
             if (event.on && event.id === "substitute") await fx.hideForDoll(stage, k);
@@ -419,7 +427,9 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
                on, then the winner's row inverts with 승리 and the loser's dims; that is the celebration */
             // the strips turn with the message, not after the camera has settled
             show();
+            fx.sceneOn();
             await Promise.all([toWide(), fx.final(stage, { winner: event.winner, perspective })]);
+            fx.sceneOff();
             break;
           }
           default: show();
@@ -429,6 +439,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       }
       if (landing.length) await Promise.all(landing);
       if (leads.length) await Promise.all(leads);
+      opened0();
       toWide();
       stageRef.current?.classList.remove("bs-intro");
       /* a replay standing at its start (the team preview read, nobody out yet): its arena waits with the lamps off, as a stadium
@@ -443,6 +454,9 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       flushLines();
       if (lastSaid.length && shown.at(-1) !== lastSaid.at(-1)) flushSync(() => said.set(lastSaid));
       put(sceneOf(R.state));
+      // whatever fails in the run, the tape is given back: the scene follows the state and the next lines are read
+      } catch (err) { console.error("stage tape", err); try { put(sceneOf(R.state)); } catch { /* the scene stays as it stood */ } }
+      fx.sceneClear(); // a run cut short leaves no scene open
       running.current = false;
       // the log moved on (or jumped) while this played: read it again
       if (latest.current.log !== log || latest.current.epoch !== epoch) setKick(n => n + 1);
@@ -658,7 +672,7 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
   return (
     <div className="bt-arena">
       <Strip side={foe} scene={scene} name={names[foe]} res={res} onParty={onFoeParty} />
-      <div className="bs-stage hud" ref={stageRef}>
+      <div className="bs-stage hud" ref={stageRef} onPointerDown={() => fx.skip(stageRef.current)}>
         {/* the arena, the Pokémon, every effect, the field and the camera are one GPU picture (gl.js) under these places */}
         <div className="bs-world">
           <SideField side={foe} scene={scene} own={false} doubles={doubles} />

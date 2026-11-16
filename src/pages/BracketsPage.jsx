@@ -6,6 +6,7 @@ import { josa } from "../services/josa.js";
 import { Button, Dropdown, Empty, ErrorNote, Field, FormError, Icon, ListSearch, Loader, Modal, Prose, STAGGER, Segmented, siteAlert, siteConfirm, sitePrompt, transition } from "../components/index.js";
 import { BackLink, Counter, Dock, Lead, Row, Status, Steps, TabsLine, Toast, useArrival } from "../components/common/Board.jsx";
 import { reduced } from "../components/common/motion.js";
+import { Busy } from "../components/common/Loader.jsx";
 import { dotDate } from "../services/dateFormat.js";
 import { addChampionshipQualifierManualRegistration, applyEventRecord, recommendChampionshipDirectEntrants, resetSubmissionPin, revertEventRecord, championsData, fetchPlayerChampionRosters, fetchRegistrationFinalRosters, buildChampionshipRecordApplyCompletionOptions, buildNormalizedRuntimeCreateAttempt, buildNormalizedSingleCreateAttempt, championshipEventPickerLabel, confirmEventTeamsForBracket, createChampionshipAdvancement, createNormalizedBracketRuntime, deleteNormalizedBracketRuntime, deleteNormalizedSingleBracketRuntime, ensureChampionshipHallOfFameEntry, listChampionshipManualParticipantCandidates, fetchNormalizedBracketRuntime, fetchNormalizedSingleBracketRuntime, readBracketMatchStamp, getEvent, sitePlayed, getEventRecordContext, getIndividualPlacementPointPolicy, inspectEventParticipantIdentities, lastPlacementPoints, isRecordApplyCompletionConfirmed, listChampionshipQualifierDirectSelectionIds, listEventRegistrationSubmissionStatuses, listEventRegistrations, listNormalizedBracketRuntimes, loadPrivateAnswers, listSubmissionEvents, preflightChampionshipFinalBracket, rollbackEventParticipantIdentityChanges, setChampionshipQualifierDirectSelections, setNormalizedSingleBracketWinner, readMatchOutcomes, setNormalizedMatchOutcome, syncNormalizedBracketMatches, validateEventParticipantEntries, validateEventTeamEntries } from "../services/index.js";
 import { buildDefaultTeamMatchLineups, buildTeamMatchSeries, getTeamMatchLineupOptions, getTeamRegistrationAnswerEntries } from "../services/bracketTeamParticipants.js";
@@ -30,6 +31,10 @@ import { PRIVATE_BRACKETS_KEY, createCommunityItem, deleteCommunityItem, patchCo
 import { PIN_DENIED } from "../services/communityItems.js";
 import { PRIVATE_BRACKET_MAX, buildPrivateBracketPatch, buildPrivateGraph, createPrivateBracket, parseParticipantNames } from "../services/privateBracket.js";
 import { leagueIntakeId, leagueIntakeOptions } from "../services/leagueIntake.js";
+import { useItemTitle } from "../components/layout/title.js";
+import { viewHref } from "../services/appRouting.js";
+import { readBracketSchedule, roundKeyOf, roundStartIso, setMatchTable, setRoundSchedule, tableWord } from "../services/bracketSchedule.js";
+import { VISITOR_EVENT, accountsReady, myPlayerLink, visitorSignedIn } from "../services/visitorAuth.js";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -205,7 +210,7 @@ async function downloadBracketPng(b,nameOf){
     const t=bkDrawTree(ctx,g.rounds,ev,nameOf,padL,oy,boxW,boxH,gapX,pitch0);
     let bottom=t.bottom;
     if(g.kind==="double"){
-      const lbY=t.bottom+50; ctx.fillStyle=BKC.t2; ctx.font=`700 16px ${BKF}`; ctx.fillText("패자부활전",padL,lbY-12);
+      const lbY=t.bottom+50; ctx.fillStyle=BKC.t2; ctx.font=`700 16px ${BKF}`; ctx.fillText("패자조",padL,lbY-12);
       // LB는 단순 컬럼
       for(let r=0;r<g.lb.length;r++){ const x=padL+r*(boxW+gapX);
         for(let j=0;j<g.lb[r].length;j++){ const m=g.lb[r][j]; const cy=lbY+j*pitch0+boxH/2;
@@ -217,7 +222,7 @@ async function downloadBracketPng(b,nameOf){
       ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("그랜드 파이널",gx,lbY-12);
       bkDrawMatch(ctx,gx,gy-boxH/2,boxW,boxH, aPid?nameOf(aPid):"", bPid?nameOf(bPid):"", wp&&wp===aPid, wp&&wp===bPid,false,false);
       if(g.reset&&g.gf.winner==="b"){ const rx=gx+boxW+gapX; const rm=g.reset; const raPid=ev.sp(rm.a),rbPid=ev.sp(rm.b),rwp=ev.win[rm.id];
-        ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("최종 결승 (리셋)",rx,lbY-12);
+        ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("리셋 결승",rx,lbY-12);
         bkDrawMatch(ctx,rx,gy-boxH/2,boxW,boxH, raPid?nameOf(raPid):"", rbPid?nameOf(rbPid):"", rwp&&rwp===raPid, rwp&&rwp===rbPid,false,false); }
       bottom=lbY+Math.max(...g.lb.map(r=>r.length))*pitch0;
     }
@@ -228,7 +233,7 @@ async function downloadBracketPng(b,nameOf){
     b.groups.forEach((gr,gi)=>{ const st=groupStandings(gr); const r=Math.floor(gi/cols),c=gi%cols;
       const gboxH=40+gr.members.length*26+14; const x=padL+c*(gboxW+24); const y=curY+r*( 40+Math.max(...b.groups.map(g=>g.members.length))*26+14 +24);
       bkRR(ctx,x,y,gboxW,gboxH,0); ctx.fillStyle=BKC.card; ctx.fill();
-      ctx.fillStyle=BKC.ink; ctx.font=`700 16px ${BKF}`; ctx.textAlign="left"; ctx.fillText("그룹 "+gr.name,x+14,y+26);
+      ctx.fillStyle=BKC.ink; ctx.font=`700 16px ${BKF}`; ctx.textAlign="left"; ctx.fillText(gr.name+"조",x+14,y+26);
       st.forEach((s,i)=>{ const ry=y+44+i*26; const adv=i<b.groupCfg.adv; if(adv){ bkRR(ctx,x+8,ry-15,gboxW-16,24,0); ctx.fillStyle=BKC.primary; ctx.fill(); }
         ctx.fillStyle=adv?BKC.onPrimary:BKC.t2; ctx.font=`${adv?700:400} 13px ${BKF}`; ctx.fillText(`${i+1}. ${nameOf(s.name)}`,x+16,ry+2); ctx.textAlign="right"; ctx.fillText(s.wins+"승",x+gboxW-16,ry+2); ctx.textAlign="left"; });
     });
@@ -583,7 +588,7 @@ function BracketWizard({ data, onClose, onCreate }){
               : events.find(event=>event.id===v);
             selectLinkedEvent(selected?.id||"");
           }}
-          placeholder={eventBusy?"불러오는 중…":"대회를 선택해 주세요."}
+          placeholder="대회를 선택해 주세요."
           options={leagueIntakeOptions(events).map(option=>({value:option.value,label:option.label||championshipEventPickerLabel(option.event)}))}
         />
         {selectedIntakeId&&<div className="field">
@@ -610,7 +615,7 @@ function BracketWizard({ data, onClose, onCreate }){
       <Dock>
         <div className="stack bk-dock">
           <Button variant="second" onClick={onClose}>취소</Button>
-          <Button variant="main" onClick={()=>setStep(2)} disabled={!topologyKind||!eventId||eventBusy}>다음</Button>
+          <Button variant="main" onClick={()=>setStep(2)} disabled={!topologyKind||!eventId||eventBusy} loading={eventBusy}>다음</Button>
         </div>
       </Dock>
       </>}
@@ -827,7 +832,7 @@ function TeamMatchModal({ teamA, teamB, init, onClose, onSave }){
   const allPlayed=N>0&&games.every(w=>w); const tie=allPlayed&&a===b;
   const allPlayers=lineupA.every(Boolean)&&lineupB.every(Boolean);
   const decided=allPlayers&&allPlayed&&(!tie||(!!aceA&&!!aceB&&!!aceW));
-  const confirm=()=>{ if(!decided){siteAlert("결과를 모두 입력해 주세요.","실제 출전 선수와 모든 대결 결과를 입력해야 저장할 수 있습니다. 동점이면 타이브레이커도 입력해 주세요.");return;}
+  const confirm=()=>{ if(!decided) return; // the key is off until every bout is filled; the sheet's line says what is needed
     const result=buildTeamMatchSeries(teamA,teamB,{lineupA,lineupB,games,ace:tie?{a:aceA,b:aceB,winner:aceW}:null}); onSave(result.series,result.winnerSide); };
   // team: 폰에서는 두 팀의 머리 줄이 없으므로 각 칸이 제 팀의 이름을 달고 선다
   const side=(value,onChange,options,winner,onWin,label,team)=><div className="bk-bout-side"><span className="bk-bout-team t12 dim">{team}</span><div className="bk-bout-player"><Dropdown value={value} onChange={onChange} placeholder="선수 선택" ariaLabel={`${team} 선수`} options={options}/></div><button type="button" className={"bk-bout-win"+(winner?" is-win":"")} onClick={onWin} aria-label={label} aria-pressed={winner}>{winner?<><Icon n="check" size={16}/>승</>:"승"}</button></div>;
@@ -856,7 +861,25 @@ function TeamMatchModal({ teamA, teamB, init, onClose, onSave }){
 const seriesScore=(m,side)=>{ const s=m?.series; if(!s?.games) return null; return s.games.filter(w=>w===side).length+(s.ace?.winner===side?1:0); };
 const slotName=(pid,nameOf)=>pid===BYE?"부전승":(pid?nameOf(pid):"대기");
 const sideScore=(m,side)=>seriesScore(m,side)??(side==="a"?m.scoreA:m.scoreB)??null;
-function MatchCard({ m, ev, nameOf, admin, onPick, compact, teamMode, onOpenTeam, seedOf, onOpen, battle }){
+/* 나: a signed-in trainer's own name carries the records' league tag form after it (DESIGN.md "Records"), here 나 with its square lit */
+const MeTag=()=><span className="tb-type mb-me">나</span>;
+/* the account's player as an entry of this bracket: approved links only (docs/db/player_accounts.sql); signed out or unlinked, none */
+function useMyEntry(participants){
+  const [playerId,setPlayerId]=useState(null);
+  useEffect(()=>{
+    let on=true;
+    const read=()=>{
+      if(!visitorSignedIn()){ setPlayerId(null); return; }
+      accountsReady().then(ok=>ok?myPlayerLink():null).then(row=>{ if(on) setPlayerId(row?.status==="approved"&&row.player_id||null); },()=>{ if(on) setPlayerId(null); });
+    };
+    read();
+    window.addEventListener(VISITOR_EVENT,read);
+    return ()=>{ on=false; window.removeEventListener(VISITOR_EVENT,read); };
+  },[]);
+  if(!playerId) return null;
+  return (participants||[]).find(p=>p.playerId===playerId||p.memberIdentities?.some(x=>x.playerId===playerId))?.id||null;
+}
+function MatchCard({ m, ev, nameOf, admin, onPick, teamMode, onOpenTeam, seedOf, onOpen, battle, me=null }){
   if(!m) return null;
   const pa=ev.sp(m.a), pb=ev.sp(m.b);
   const decided=!!m.winner;
@@ -868,21 +891,22 @@ function MatchCard({ m, ev, nameOf, admin, onPick, compact, teamMode, onOpenTeam
     return <Tag {...extra} className={"mb-row"+(isWin?" inv":"")+(lost?" lost":"")+(isBye||!pid?" wait":"")}>
       <i className="mb-seed num t12" aria-hidden={!n}>{n||""}</i>
       <span className="mb-name">{slotName(pid,nameOf)}</span>
+      {me&&pid===me&&<MeTag/>}
       {lost&&m.forfeit?<span className="mb-score t12">불참</span>:score!=null&&<span className="mb-score num">{score}</span>}
     </Tag>;
   };
   /* a visitor presses the whole box (DESIGN.md "Open": the whole match box is the target): on a phone the names end in an ellipsis,
      so the sheet says them in full with the result */
   if(!admin&&onOpen&&[pa,pb].some(pid=>pid&&pid!==BYE))
-    return <button type="button" className={"mb can-open"+(compact?" cmp":"")} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
+    return <button type="button" className={"mb can-open"} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
   if(teamMode){
     const clickable=admin&&(bothReal||decided);
     const Box=clickable?"button":"div";
-    return <Box {...(clickable?{type:"button"}:{})} className={"mb"+(compact?" cmp":"")+(clickable?" team-click":"")} onClick={()=>clickable&&onOpenTeam(m,pa,pb)} title={clickable?"눌러서 팀 대결 진행 또는 수정":""}>{line("a",pa,"span")}{line("b",pb,"span")}</Box>;
+    return <Box {...(clickable?{type:"button"}:{})} className={"mb"+(clickable?" team-click":"")} onClick={()=>clickable&&onOpenTeam(m,pa,pb)} title={clickable?"눌러서 팀 대결 진행 또는 수정":""}>{line("a",pa,"span")}{line("b",pb,"span")}</Box>;
   }
   const canPick=admin&&bothReal;
   const pickProps=side=>({type:"button",disabled:!canPick,onClick:()=>canPick&&onPick(m.id,side),title:canPick?(decided?"다른 쪽을 누르면 승자 변경, 같은 쪽을 다시 누르면 취소":"눌러서 승자 선택"):""});
-  return <div className={"mb"+(compact?" cmp":"")+(canPick?" can-pick":"")}>{line("a",pa,"button",pickProps("a"))}{line("b",pb,"button",pickProps("b"))}{live}</div>;
+  return <div className={"mb"+(canPick?" can-pick":"")}>{line("a",pa,"button",pickProps("a"))}{line("b",pb,"button",pickProps("b"))}{live}</div>;
 }
 /* a match's battle in its sheet: watching it while it runs, its replay once it ended, or starting one for an open official match.
    A battle that cannot give the match a winner (a tie, a void one, one that could not go in) leaves the match open to be played again.
@@ -994,16 +1018,22 @@ function useEventBattles(eventId, onApplied){
   return list;
 }
 /* a match's sheet: the round, the two sides at full length with the winner inverted and named 승자, the score; a team match adds its bouts */
-function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, battles=[], boutCount=0 }){
+function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, battles=[], boutCount=0, start="", table="", me=null }){
   const s=m.series, bouts=Array.isArray(s?.games)?s.games:[];
   const side=(key,pid)=>{
     const win=m.winner===key, lost=Boolean(m.winner)&&!win, score=sideScore(m,key);
-    return <Row key={key} className={win?"inv":""} title={slotName(pid,nameOf)} line={win?"승자":lost?(m.forfeit?"불참":"패배"):"결과 전"}
+    return <Row key={key} className={win?"inv":""} title={me&&pid===me?<>{slotName(pid,nameOf)}<MeTag/></>:slotName(pid,nameOf)} line={win?"승자":lost?(m.forfeit?"불참":"패배"):"결과 전"}
       value={score!=null&&!(lost&&m.forfeit)?<span className="num t20">{score}</span>:null}/>;
   };
   const bout=(label,a,b,w)=><Row key={label} title={`${a||"미정"}, ${b||"미정"}`} line={`${label}, ${w==="a"?a:w==="b"?b:"결과 전"}${w?" 승리":""}`}/>;
-  return (<Modal title={stageOf(g,m)} hint={m.winner?"결과가 확정된 경기입니다.":"아직 결과가 없는 경기입니다."} onClose={onClose}>
+  // the round's start as a clock and the match's table as a counter (docs/db/match_schedule.sql); a table the site did not number stays in the box's strip
+  const tableNo=/^\d{1,2}$/.test(table)?table:"";
+  return (<Modal title={stageOf(g,m)} onClose={onClose}>
     <div className="stack">{side("a",ev.sp(m.a))}{side("b",ev.sp(m.b))}</div>
+    {(start||tableNo)&&<div className={"stack mb-when"+(start&&tableNo?" two":"")}>
+      {start&&<Counter label={`${stageOf(g,m)} 시작`} value={start} cells={4}/>}
+      {tableNo&&<Counter label="테이블" value={tableNo} cells={tableNo.length} unit="번" after={<span className="t15">번</span>}/>}
+    </div>}
     {boutCount?<TeamBouts m={m} ev={ev} battles={battles} boutCount={boutCount} startable={startable} eventId={eventId}/>
       :<MatchBattle m={m} ev={ev} battle={battle} startable={startable} eventId={eventId}/>}
     {bouts.length>0&&<div className="stack mb-bouts">
@@ -1013,15 +1043,46 @@ function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, bat
   </Modal>);
 }
 
+/* 경기 일정 (docs/db/match_schedule.sql), the operators' sheet from a round's head: each round's start on the event's day, then the
+   table of each match already made and not yet decided (a match not made has no row to hold it). 저장 acts at once and offers 되돌리기. */
+function ScheduleSheet({ g, schedule, nameOf, eventName, day, onClose, onSave }){
+  const ev=evalGraph(g);
+  const rounds=[...g.rounds.map((r,ri)=>[roundLabel(g,ri),r]),...(g.lb||[]).map((r,li)=>[lbRoundName(li),r]),...(g.kind==="double"?[["그랜드 파이널",[g.gf]]]:[])]
+    .map(([label,ms])=>({label,key:roundKeyOf(ms[0]?.id)})).filter(x=>x.key);
+  const open=collectGraphMatches(g).filter(m=>!m.winner&&[ev.sp(m.a),ev.sp(m.b)].every(pid=>pid&&pid!==BYE));
+  const date=day||new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Seoul"});
+  const [times,setTimes]=useState(()=>Object.fromEntries(rounds.map(x=>[x.key,dotDate(schedule.rounds[x.key])?.clock||""])));
+  const [tables,setTables]=useState(()=>Object.fromEntries(open.map(m=>[m.id,schedule.tables.get(m.id)||""])));
+  const [busy,setBusy]=useState(false);
+  const count=Math.max(2,g.rounds[0]?.length||0);
+  const options=[["","미정"],...Array.from({length:count},(_,i)=>[String(i+1),`${i+1}번`])];
+  // 4강 1경기 테이블, 정두호 대 이제빈: the round, the match's place in it, the two names
+  const fieldLabel=m=>{ const r=[...g.rounds,...(g.lb||[])].find(x=>x.includes(m)); return `${stageOf(g,m)}${r&&r.length>1?` ${r.indexOf(m)+1}경기`:""} 테이블, ${nameOf(ev.sp(m.a))} 대 ${nameOf(ev.sp(m.b))}`; };
+  const submit=async()=>{
+    if(busy)return;
+    setBusy(true);
+    try{ await onSave({rounds:Object.fromEntries(rounds.map(x=>[x.key,roundStartIso(date,times[x.key])])),tables}); }
+    finally{ setBusy(false); }
+  };
+  return (<Modal title="경기 일정" hint={eventName} onClose={onClose}>
+    <div className="swap" key="bk-schedule">
+      <div className="bk-sched-times">{rounds.map(x=><Field key={x.key} label={`${x.label} 시작`}><input type="time" value={times[x.key]} onChange={e=>{const v=e.target.value; setTimes(cur=>({...cur,[x.key]:v}));}}/></Field>)}</div>
+      {open.map(m=><div className="field" key={m.id}><span className="field-label">{fieldLabel(m)}</span>
+        <Segmented value={tables[m.id]} onChange={v=>setTables(cur=>({...cur,[m.id]:v}))} ariaLabel={`${stageOf(g,m)} 테이블`} options={options}/></div>)}
+      <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={busy} onClick={submit} loading={busy}>저장</Button></div>
+    </div>
+  </Modal>);
+}
+
 /* ===== 결과 입력 =====
    경기 칩으로 경기를 고르고 이긴 줄을 눌러 승자를 정한다. 대진표의 줄을 누르는 것과 같은 일이며(같은 줄을 다시 누르면 취소),
    저장은 누를 때마다 된다. 개인전의 게임 점수와 불참은 경기 데이터에 칸이 없어 다루지 않는다. */
 const stageOf=(g,m)=>{
   const ri=g.rounds.findIndex(r=>r.includes(m));
-  if(ri>=0){ if(g.kind==="double") return `승자조 ${ri+1}라운드`; const len=g.rounds[ri].length; return len===1?"결승":`${len*2}강`; }
+  if(ri>=0) return roundLabel(g,ri);
   const li=(g.lb||[]).findIndex(r=>r.includes(m));
-  if(li>=0) return `패자조 ${li+1}라운드`;
-  return m===g.reset?"리셋 결승":"결승";
+  if(li>=0) return lbRoundName(li);
+  return m===g.reset?"리셋 결승":"그랜드 파이널";
 };
 function ResultEntry({ g, nameOf, seedOf, onPick, teamMode, onOpenTeam, busy, outcomeOn=false, onOutcome, battles=[], startable=false, eventId=null, onBattleChanged, boutsOf=()=>0 }){
   const ev=evalGraph(g);
@@ -1083,7 +1144,10 @@ function ResultEntry({ g, nameOf, seedOf, onPick, teamMode, onOpenTeam, busy, ou
    경기 상자는 74(36, 이음매 2, 36). 첫 열의 상자는 94 간격(상자와 20)으로 서고, 다음 열은 앞의 두 상자 사이에 선다.
    끝난 경기의 승자 길은 2px의 켜진 선, 아직인 길은 1px 선이다. */
 const BK_ROW_H=36, BK_MATCH_H=BK_ROW_H*2+2, BK_PITCH0=BK_MATCH_H+20;
-const roundName=(len)=>({1:"결승",2:"4강",4:"8강",8:"16강",16:"32강"})[len]||`${len*2}강`;
+/* a round has one name wherever it is written: the tree's columns, the draw, the match sheet, result entry */
+const roundName=(len)=>len===1?"결승":`${len*2}강`;
+const roundLabel=(g,ri)=>g.kind==="double"?`승자조 ${ri+1}라운드`:roundName(g.rounds[ri].length);
+const lbRoundName=(li)=>`패자조 ${li+1}라운드`;
 /* 진행 중인 단일 토너먼트의 지금 라운드: 승자가 정해지지 않은 첫 라운드와 그 라운드에서 끝난 경기 수 (상태 띠) */
 function liveProgress(b){
   if(b.format==="group"&&!b.knockout&&b.groups?.length){
@@ -1098,17 +1162,30 @@ function liveProgress(b){
   const r=g.rounds[ri];
   return `${roundName(r.length)} ${r.filter(m=>ev.win[m.id]).length}/${r.length} 종료`;
 }
-function treeCenters(rounds){
-  const centers=[];
+/* once any match of the bracket has a table (docs/db/match_schedule.sql), every box carries a 32 head strip on the seam over its
+   two rows, so the boxes of a round stay one size; the centres are the two rows' middle, where the lines meet the box */
+const BK_STRIP_H=32+2;
+function treeCenters(rounds,strip=0){
+  const centers=[], pitch=BK_PITCH0+strip;
   for(let r=0;r<rounds.length;r++){ centers[r]=[];
-    for(let j=0;j<rounds[r].length;j++){ centers[r][j]= r===0 ? (j*BK_PITCH0+BK_MATCH_H/2) : (centers[r-1][2*j]+centers[r-1][2*j+1])/2; } }
-  return { centers, totalH: Math.max(BK_MATCH_H,(rounds[0]?.length||1)*BK_PITCH0-20) };
+    for(let j=0;j<rounds[r].length;j++){ centers[r][j]= r===0 ? (j*pitch+strip+BK_MATCH_H/2) : (centers[r-1][2*j]+centers[r-1][2*j+1])/2; } }
+  return { centers, totalH: Math.max(BK_MATCH_H+strip,(rounds[0]?.length||1)*pitch-20) };
 }
-function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=false, seedOf, battles=[], startable=false, eventId=null, boutsOf=()=>0 }){
+function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=false, seedOf, battles=[], startable=false, eventId=null, boutsOf=()=>0, schedule=null, me=null, onSchedule=null }){
   const ev=evalGraph(g);
   const finalRes=elimResult(g);
-  const rlabel=roundName;
-  const { centers, totalH }=treeCenters(g.rounds);
+  const strip=schedule?.tables?.size?BK_STRIP_H:0;
+  const { centers, totalH }=treeCenters(g.rounds,strip);
+  const startOf=ms=>{ const at=schedule?.rounds?.[roundKeyOf(ms[0]?.id)]; return at?dotDate(at)?.clock||"":""; };
+  /* a column's head: the round and its start at the right end (13:00); for an operator it opens the schedule */
+  const head=(label,ms,extra="t12 dim")=>{
+    const start=startOf(ms);
+    const words=<><span>{label}</span>{start&&<span className="num">{start}</span>}</>;
+    return onSchedule
+      ? <button type="button" className={"bk-col-h bk-col-set "+extra} onClick={onSchedule} aria-label={`${label}${start?` ${start} 시작`:""}, 경기 일정 정하기`}>{words}</button>
+      : <div className={"bk-col-h "+extra}>{words}</div>;
+  };
+  const stripOf=m=>{ const label=schedule?.tables?.get(m.id)||""; return <div className={"mb-strip t12"+(label?"":" wait")}>{label?tableWord(label):"테이블 미정"}</div>; };
   /* the lines: one drawing over the whole tree, measured from the boxes as they stand (offsets, so a lighting rise never bends them).
      Out of each box a road to the middle of its pair and on into the next box; a decided road is a 2px lit line drawn over the rest,
      so it runs unbroken from the winner's box to the next. */
@@ -1139,19 +1216,24 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
     const watch=typeof ResizeObserver==="function"?new ResizeObserver(draw):null;
     watch?.observe(tree);
     return ()=>watch?.disconnect();
-  },[winKey,g.rounds.length,g.kind]);
-  const [seen,setSeen]=useState(null);
+  },[winKey,g.rounds.length,g.kind,strip]);
+  /* the match open is in the address (?m=), so a reload or a shared link opens the same match: "이 경기" can be sent */
+  const [seen,setSeenState]=useState(()=>{ const k=new URLSearchParams(window.location.search).get("m"); return k?collectGraphMatches(g).find(x=>String(x.id)===k)||null:null; });
+  const setSeen=m=>{ setSeenState(m); const url=new URL(window.location.href); if(m) url.searchParams.set("m",m.id); else url.searchParams.delete("m");
+    if(url.href!==window.location.href) window.history.replaceState(window.history.state,"",url); };
   // a team match is live while any of its bouts is (the lamp on its box)
   const liveBout=m=>battles.find(x=>x.status!=="ended"&&parseBoutKey(x.source_node_key)?.parent===m.id)||null;
-  const card=m=><MatchCard m={m} ev={ev} nameOf={nameOf} admin={admin} onPick={onPick} teamMode={teamMode} onOpenTeam={onOpenTeam} seedOf={seedOf} onOpen={setSeen} battle={teamMode?liveBout(m):battleForMatch(battles,m.id,[ev.sp(m.a),ev.sp(m.b)])}/>;
+  const card=m=><MatchCard m={m} ev={ev} nameOf={nameOf} admin={admin} onPick={onPick} teamMode={teamMode} onOpenTeam={onOpenTeam} seedOf={seedOf} onOpen={setSeen} me={me} battle={teamMode?liveBout(m):battleForMatch(battles,m.id,[ev.sp(m.a),ev.sp(m.b)])}/>;
+  const seenRound=seen&&[...g.rounds,...(g.lb||[]),[g.gf],[g.reset]].find(r=>r?.includes(seen));
   return (<div className="bk-scroll" role="region" aria-label="대진표" tabIndex={0}>
-  {seen&&<MatchSheet g={g} m={seen} ev={ev} nameOf={nameOf} onClose={()=>setSeen(null)} battle={battleForMatch(battles,seen.id,[ev.sp(seen.a),ev.sp(seen.b)])} startable={startable} eventId={eventId} battles={battles} boutCount={teamMode?boutsOf(seen,ev):0}/>}
+  {seen&&<MatchSheet g={g} m={seen} ev={ev} nameOf={nameOf} onClose={()=>setSeen(null)} battle={battleForMatch(battles,seen.id,[ev.sp(seen.a),ev.sp(seen.b)])} startable={startable} eventId={eventId} battles={battles} boutCount={teamMode?boutsOf(seen,ev):0}
+    start={seenRound?startOf(seenRound):""} table={schedule?.tables?.get(seen.id)||""} me={me}/>}
   <div className="bk-tree" ref={treeRef}>
     {wires&&<svg className="bk-wires" width={wires.w} height={wires.h} aria-hidden="true"><path className="dim" d={wires.dim}/><path className="lit" d={wires.lit}/></svg>}
     {g.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
-      <div className="bk-col-h t12 dim">{g.kind==="double"?("승자조 "+(ri+1)+"R"):rlabel(r.length)}</div>
-      <div className="bk-col-body" style={{height:totalH,"--bk-pitch":(BK_PITCH0*Math.pow(2,ri))+"px"}}>
-        {r.map((m,j)=>(<div className="bk-mpos" data-r={ri} data-j={j} key={m.id} style={{top:(centers[ri][j]-BK_MATCH_H/2)+"px"}}>{card(m)}</div>))}
+      {head(roundLabel(g,ri),r)}
+      <div className="bk-col-body" style={{height:totalH,"--bk-pitch":((BK_PITCH0+strip)*Math.pow(2,ri))+"px"}}>
+        {r.map((m,j)=>(<div className="bk-mpos" data-r={ri} data-j={j} key={m.id} style={{top:(centers[ri][j]-BK_MATCH_H/2-strip)+"px"}}>{strip?stripOf(m):null}{card(m)}</div>))}
       </div>
     </div>))}
     {/* the 우승 panel stands from the start and lights when the final ends */}
@@ -1166,12 +1248,12 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
       </div>
     </div>}
   </div>
-  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자부활전</div><div className="bk-cols">
-    {g.lb.map((r,ri)=>(<div className="bk-col" key={ri}><div className="bk-col-h t12 dim">패자조 {ri+1}R</div>
-      {r.map(m=><React.Fragment key={m.id}>{card(m)}</React.Fragment>)}
+  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자조</div><div className="bk-cols">
+    {g.lb.map((r,ri)=>(<div className="bk-col" key={ri}>{head(lbRoundName(ri),r)}
+      {r.map(m=><React.Fragment key={m.id}>{strip?<div className="stack">{stripOf(m)}{card(m)}</div>:card(m)}</React.Fragment>)}
     </div>))}
-    {!qualifier&&<div className="bk-col"><div className="bk-col-h gf">그랜드 파이널</div>{card(g.gf)}</div>}
-    {!qualifier&&g.reset&&g.gf.winner==="b"&&<div className="bk-col"><div className="bk-col-h gf">최종 결승 (리셋)</div>{card(g.reset)}</div>}
+    {!qualifier&&<div className="bk-col"><div className="bk-col-h gf">그랜드 파이널</div>{strip?<div className="stack">{stripOf(g.gf)}{card(g.gf)}</div>:card(g.gf)}</div>}
+    {!qualifier&&g.reset&&g.gf.winner==="b"&&<div className="bk-col"><div className="bk-col-h gf">리셋 결승</div>{strip?<div className="stack">{stripOf(g.reset)}{card(g.reset)}</div>:card(g.reset)}</div>}
     {!qualifier&&finalRes&&finalRes.champ&&<div className="bk-col bk-champ-col">
       <div className="bk-col-h gf">우승</div>
       <div className="bk-champ-node inv"><span className="t12">우승</span><b className="t15">{nameOf(finalRes.champ)}</b></div>
@@ -1214,7 +1296,7 @@ function SubmissionStatusPanel({ model, busy, error, expanded, onToggle, onRefre
         >
           <span className="bk-submission-title">파티 제출 현황</span>
           <span className="bk-submission-summary">
-            {busy && model.total === 0 ? "불러오는 중…" : `${model.submitted} / ${model.total} 제출${lateCount ? `, 마감 뒤 ${lateCount}명` : ""}`}
+            {busy && model.total === 0 ? <Busy h={32}/> : `${model.submitted} / ${model.total} 제출${lateCount ? `, 마감 뒤 ${lateCount}명` : ""}`}
             <span className={"bk-submission-chevron"+(expanded?" open":"")} aria-hidden="true"><Icon n="chev" size={16}/></span>
           </span>
         </button>
@@ -1364,6 +1446,38 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     return ()=>{ cancelled=true; };
   },[b.eventId,teamMode,championshipRefreshKey,outcomeKey,b.graph]);
   if(outcomes&&b.graph) collectGraphMatches(b.graph).forEach(m=>{ const o=outcomes.get(m.id); m.scoreA=o?.score_a??null; m.scoreB=o?.score_b??null; m.forfeit=o?.resolution==="forfeit"&&Boolean(m.winner); });
+  /* 경기 일정(docs/db/match_schedule.sql): 라운드의 시작 시각과 경기의 테이블. 그 SQL 전에는 null이라 대진표는 지금과 같다 */
+  const [schedule,setSchedule]=useState(null);
+  const [scheduleKey,setScheduleKey]=useState(0);
+  const runtimeId=b.projection?.source==="normalized"?b.projection.runtimeId:null;
+  useEffect(()=>{
+    let cancelled=false;
+    if(!b.eventId||!runtimeId){ setSchedule(null); return undefined; }
+    readBracketSchedule({eventId:b.eventId,runtimeId}).then(next=>{ if(!cancelled) setSchedule(next); }).catch(()=>{ if(!cancelled) setSchedule(null); });
+    return ()=>{ cancelled=true; };
+  },[b.eventId,runtimeId,scheduleKey,b.graph,b.knockout]);
+  const me=useMyEntry(b.participants);
+  const [scheduling,setScheduling]=useState(null);
+  const canSchedule=Boolean(editAdmin&&schedule&&runtimeId);
+  /* 저장은 한 번에: 바뀐 라운드 일정, 바뀐 테이블. 되돌릴 수 있으므로 묻지 않고 저장한 뒤 되돌리기를 준다 (DESIGN.md "Sheets") */
+  const saveSchedule=async(next,{undo=true}={})=>{
+    const before={rounds:schedule?.rounds||{},tables:schedule?.tables||new Map()};
+    // 되돌리기는 앞의 일정을 그대로 다시 보낸다: 다시 읽기 전에 눌러도 빠지는 것이 없다
+    const tableKeys=Object.keys(next.tables).filter(id=>!undo||(before.tables.get(id)||"")!==next.tables[id]);
+    const instants=r=>JSON.stringify(Object.entries(r||{}).filter(([,v])=>v).map(([k,v])=>[k,new Date(v).getTime()]).sort());
+    const roundsChanged=!undo||instants(next.rounds)!==instants(before.rounds);
+    try{
+      if(roundsChanged) await setRoundSchedule({eventId:b.eventId,runtimeId,rounds:next.rounds});
+      for(const id of tableKeys) await setMatchTable({eventId:b.eventId,sourceNodeKey:id,label:next.tables[id]||null});
+      setScheduling(null);
+      setScheduleKey(value=>value+1);
+      const back={rounds:before.rounds,tables:Object.fromEntries(tableKeys.map(id=>[id,before.tables.get(id)||""]))};
+      flash(undo?"경기 일정을 저장했습니다.":"경기 일정을 되돌렸습니다.",undo&&(roundsChanged||tableKeys.length)?{label:"되돌리기",run:()=>void latestRef.current.saveSchedule(back,{undo:false})}:undefined);
+    }catch(error){
+      setScheduleKey(value=>value+1);
+      flash(`경기 일정을 저장하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);
+    }
+  };
   const saveOutcome=async(matchId,{scoreA=null,scoreB=null,forfeit=false})=>{
     if(readOnly||locked||matchMutationBusyRef.current)return;
     matchMutationBusyRef.current=true;
@@ -1430,7 +1544,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     }
   };
   const latestRef=useRef(null);
-  latestRef.current={b,pickNormalized};
+  latestRef.current={b,pickNormalized,saveSchedule};
   const pick=(matchId,side)=>{
     if(readOnly||locked)return;
     void pickNormalized(matchId,side);
@@ -1491,7 +1605,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
         <Button variant="second" className="bk-img" onClick={()=>downloadBracketPng(b,nameOf)}>대진표 이미지</Button>
         {/* the one main action docks above the bars on a scrolling screen (DESIGN.md "Controls") */}
         {admin&&!readOnly&&!b.applied&&championshipEvent?.championship_phase!=="qualifier"&&<Dock><Button variant="main" icon="check" onClick={()=>onApply(b,res)}>기록에 반영</Button></Dock>}
-        {b.applied&&<>{admin&&<span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span>}{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당 등록 ✓");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}</>}
+        {b.applied&&<>{admin&&<span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span>}{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}</>}
       </div>
     </section>}
     {b.eventId&&(admin||!(res&&res.done))&&<SubmissionStatusPanel
@@ -1512,13 +1626,14 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
       {editAdmin&&!(res&&res.done)&&<ResultEntry g={b.knockout} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupFinal}
         battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
       <ElimBoard g={b.knockout} nameOf={nameOf} admin={editAdmin} onPick={pickGroupFinal} battles={battles}
-        startable={battleStartable} eventId={b.eventId}/>
+        startable={battleStartable} eventId={b.eventId} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.knockout):null}/>
     </>}
     {admin&&!locked&&b.format==="elim"&&b.graph&&!(res&&res.done)&&<ResultEntry g={b.graph} nameOf={nameOf} busy={matchMutationBusy} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome}
       battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()} boutsOf={boutsOf}
       seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}/>}
     {b.format==="elim"&&<ElimBoard g={b.graph} nameOf={nameOf} admin={editAdmin} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} qualifier={championshipEvent?.championship_phase==="qualifier"} seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}
-      battles={battles} startable={battleStartable} eventId={b.eventId} boutsOf={boutsOf}/>}
+      battles={battles} startable={battleStartable} eventId={b.eventId} boutsOf={boutsOf} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.graph):null}/>}
+    {scheduling&&<ScheduleSheet g={scheduling} schedule={schedule} nameOf={nameOf} eventName={championshipEvent?.name||b.name||""} day={championshipEvent?.held_on||null} onClose={()=>setScheduling(null)} onSave={saveSchedule}/>}
     {series&&<TeamMatchModal teamA={series.A} teamB={series.B} init={series.m.series} onClose={()=>setSeries(null)} onSave={saveSeries}/>}
   </div>);
 }
@@ -2054,7 +2169,6 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
 function BracketDraw({ b, onDone }){
   const nameOf=(pid)=>{ const p=(b.participants||[]).find(x=>x.id===pid); return p?p.name:pid; };
   const allNames=(b.participants||[]).map(p=>p.name);
-  const rlabel=(len)=>{ const names={1:"결승",2:"4강",4:"8강",8:"16강",16:"32강"}; return names[len]||`${len*2}강`; };
   const group=b.format==="group";
   // 채울 슬롯 순서(참가자만) 및 각 슬롯의 순번 계산
   const order={}; let k=0;
@@ -2087,13 +2201,13 @@ function BracketDraw({ b, onDone }){
     <div className="bk-draw-h"><h2 className="t20">{done?"대진 확정":"대진 추첨 중"}</h2><span className="t15 bk-draw-cnt num">{Math.min(n,total)} / {total}</span><span className="bk-draw-skip">{skip}</span></div>
     {group ? (
       <div className="bk-groups">{b.groups.map((g,gi)=>(
-        <div className="bk-group" key={g.id}><div className="bk-group-h">그룹 {g.name}</div>
+        <div className="bk-group" key={g.id}><div className="bk-group-h">{g.name}조</div>
           <div className="mb">{g.members.map((mem,mi)=>slotFor("g"+gi+"_"+mi,mem,false))}</div>
         </div>))}</div>
     ) : (()=>{ const {centers,totalH}=treeCenters(b.graph.rounds);
       return (<div className="bk-scroll sq" role="region" aria-label="대진표" tabIndex={0}><div className="bk-tree">
         {b.graph.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
-          <div className="bk-col-h t12 dim">{b.graph.kind==="double"?("승자조 "+(ri+1)+"R"):rlabel(r.length)}</div>
+          <div className="bk-col-h t12 dim">{roundLabel(b.graph,ri)}</div>
           <div className="bk-col-body" style={{height:totalH,"--bk-pitch":(BK_PITCH0*Math.pow(2,ri))+"px"}}>
             {r.map((m,j)=>(<div className="bk-mpos" key={m.id} style={{top:(centers[ri][j]-BK_MATCH_H/2)+"px"}}>
               {ri===0
@@ -2166,12 +2280,16 @@ function PrivateBracketCreate({ onClose, onCreate }){
 function PrivateBracketEdit({ b, onClose, onSave }){
   const [name,setName]=useState(b.name); const [host,setHost]=useState(b.host||""); const [note,setNote]=useState(b.note||"");
   const [names,setNames]=useState(()=>b.participants.map(p=>p.name)); const [busy,setBusy]=useState(false);
+  // what is missing is said under its own field, every field at once, when 저장 is pressed (DESIGN.md "Sheets")
+  const [tried,setTried]=useState(false);
+  const nameError=!name.trim()&&"대진표 이름을 입력해 주세요.";
+  const namesError=list=>list.some(n=>!n)?"참가자 이름을 입력해 주세요.":new Set(list).size!==list.length?"같은 이름의 참가자가 있습니다. 이름이 겹치지 않게 고쳐 주세요.":"";
+  const shownNamesError=tried&&namesError(names.map(n=>n.trim().slice(0,20)));
   const submit=async()=>{
     if(busy)return;
     const clean=names.map(n=>n.trim().slice(0,20));
-    if(!name.trim()){siteAlert("대진표 이름을 입력해 주세요.");return;}
-    if(clean.some(n=>!n)){siteAlert("참가자 이름을 입력해 주세요.");return;}
-    if(new Set(clean).size!==clean.length){siteAlert("같은 이름의 참가자가 있습니다.","이름이 겹치지 않게 고쳐 주세요.");return;}
+    setTried(true);
+    if(nameError||namesError(clean)) return;
     setBusy(true);
     try{ await onSave({name:name.trim().slice(0,40),host:host.trim().slice(0,20),note:note.trim().slice(0,1000),
       participants:b.participants.map((p,i)=>({...p,name:clean[i]}))}); }
@@ -2179,10 +2297,11 @@ function PrivateBracketEdit({ b, onClose, onSave }){
   };
   return (<Modal title="대진표 수정" onClose={onClose}>
     <div className="swap" key="pb-edit">
-      <Field label="대진표 이름"><input value={name} onChange={e=>setName(e.target.value)} maxLength={40}/></Field>
+      <Field label="대진표 이름" error={tried&&nameError}><input value={name} onChange={e=>setName(e.target.value)} maxLength={40}/></Field>
       <Field label="개설자 닉네임"><input value={host} onChange={e=>setHost(e.target.value)} maxLength={20}/></Field>
       <div className="field"><span className="field-label">참가자 이름</span>
-        {names.map((n,i)=><input key={b.participants[i].id} value={n} aria-label={`참가자 ${i+1}`} maxLength={20} style={{marginTop:i?8:0}} onChange={e=>{const v=e.target.value; setNames(cur=>cur.map((x,k)=>k===i?v:x));}}/>)}</div>
+        {names.map((n,i)=><input key={b.participants[i].id} value={n} aria-label={`참가자 ${i+1}`} maxLength={20} aria-invalid={shownNamesError?true:undefined} onChange={e=>{const v=e.target.value; setNames(cur=>cur.map((x,k)=>k===i?v:x));}}/>)}
+        {shownNamesError&&<FormError>{shownNamesError}</FormError>}</div>
       <Field label="안내 (선택)"><textarea value={note} onChange={e=>setNote(e.target.value)} rows={3}/></Field>
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={busy} onClick={submit} loading={busy}>저장</Button></div>
     </div>
@@ -2207,6 +2326,7 @@ function PrivateBrackets({ admin, flash, tabs }){
   const kw=q.trim().toLowerCase();
   const shown=kw?sorted.filter(b=>[b.name,b.host,...(b.participants||[]).map(p=>p.name)].some(t=>String(t||"").toLowerCase().includes(kw))):sorted;
   const open=openId?(list||[]).find(b=>b.id===openId):null;
+  useItemTitle(open?.name);
   const canEdit=Boolean(open&&(admin||unlocked.has(open.id)));
   const nameOf=pid=>open?.participants?.find(p=>p.id===pid)?.name||pid;
 
@@ -2262,7 +2382,7 @@ function PrivateBrackets({ admin, flash, tabs }){
     const id=open.id;
     try{ await deleteCommunityItem(PRIVATE_BRACKETS_KEY,id,pin); }
     catch(error){ siteAlert("삭제하지 못했습니다.",error?.message||"잠시 뒤 다시 시도해 주세요."); return; }
-    await reload(); flash("삭제됨"); lock(id); closeBracket(); };
+    await reload(); flash("사설 대진표를 삭제했습니다."); lock(id); closeBracket(); };
   const share=async()=>{ const r=await shareLink({view:"bracket",tab:"private",pb:open.id},open.name); if(r==="copied")flash("주소를 복사했습니다."); };
 
   if(openId&&!open) return (<section className="bk"><div className="bk-open">
@@ -2314,7 +2434,7 @@ function PrivateBrackets({ admin, flash, tabs }){
       ? (kw?<Empty className="swap" title="검색 결과가 없습니다."/>
            :<Empty className="swap" title="아직 사설 대진표가 없습니다."/>)
       : <div className="stack bk-rows" ref={listArrived}>{shown.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0&&!kw} vt={"pb-"+b.id} live={pbStatus(b)==="진행 중"}
-          line={`${b.host?`${b.host} 개설, `:""}${b.participants.length}명, ${pbFormat(b)}${pbChamp(b)?`, 우승 ${pbChamp(b)}`:""}`} onOpen={()=>openBracket(b)}/>)}</div>}
+          line={`${b.host?`${b.host} 개설, `:""}${b.participants.length}명, ${pbFormat(b)}${pbChamp(b)?`, 우승 ${pbChamp(b)}`:""}`} onOpen={()=>openBracket(b)} href={viewHref("bracket",{tab:"private",pb:b.id})}/>)}</div>}
     {creating&&<PrivateBracketCreate onClose={()=>setCreating(false)} onCreate={create}/>}
   </section>);
 }
@@ -2322,12 +2442,12 @@ function PrivateBrackets({ admin, flash, tabs }){
 
 /* only what runs carries a status: an ended bracket says 우승 in its grey line, so its end shows the date alone (nothing when the
    old record has none) instead of 종료 on every row */
-function BracketRow({ b, vt, live, line, end, onOpen, lead=false }){
+function BracketRow({ b, vt, live, line, end, onOpen, href, lead=false }){
   const d=dotDate(b.createdAt);
   /* the newest of a list stands as a lead panel: its date lit, the amber lamp while it runs */
   if(lead) return <Lead date={d?.day} title={<span data-vt={vt}>{b.name}</span>} line={[line,end].filter(Boolean).join(", ")}
-    lamp={live?"진행 중":null} sig={live} onClick={onOpen} label={`${b.name}, ${[line,live?"진행 중":end].filter(Boolean).join(", ")}`}/>;
-  return <Row title={<span data-vt={vt}>{b.name}</span>} line={line} onClick={onOpen}
+    lamp={live?"진행 중":null} sig={live} onClick={onOpen} href={href} label={`${b.name}, ${[line,live?"진행 중":end].filter(Boolean).join(", ")}`}/>;
+  return <Row title={<span data-vt={vt}>{b.name}</span>} line={line} onClick={onOpen} href={href}
     value={live?<Status live>진행 중</Status>:end?<Status>{end}</Status>:d?<Status><span className="num">{d.day}<span className="wd">{d.weekday}</span></span></Status>:null}/>;
 }
 
@@ -2366,6 +2486,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
   const [deletingId,setDeletingId]=useState(null);
   const deletingRef=useRef(false);
   const open=list.find(b=>b.id===openId);
+  useItemTitle(open?.name);
   // 관람 중인 진행 대진표는 화면이 보이는 동안 15초마다 그 대회의 경기만 확인하고, 달라졌을 때 전체를 다시 읽는다.
   // 경기 밖의 변화(기록 반영)는 2분마다의 전체 조회가 따라잡는다.
   // 관리자는 자기 쓰기 뒤에 이미 다시 읽고, 바뀐 것이 없으면 다시 그리지 않는다.
@@ -2396,12 +2517,18 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
     const target=list.find(b=>b.eventId===requestedEventIdRef.current);
     if(!target) return;
     requestedEventIdRef.current=null;
+    openingRef.current=target.id;
     setOpenId(target.id);
   },[normalizedInitialReady,normalizedBrackets.length]); // eslint-disable-line react-hooks/exhaustive-deps
   // Keep ?eventId= in step with the open bracket, so refresh and shared links
   // match the screen and a closed bracket does not reopen.
+  /* the bracket a link asked for is set open in the same commit this runs in: until it stands, the address keeps its ?eventId=
+     (2026-11-16: it was taken off for one render, so the entry under a sheet opened from the link kept no eventId) */
+  const openingRef=useRef(null);
   useEffect(()=>{
     if(!normalizedInitialReady) return;
+    if(openingRef.current&&!open) return;
+    openingRef.current=null;
     const url=new URL(window.location.href);
     if(open?.eventId) url.searchParams.set("eventId",open.eventId); else url.searchParams.delete("eventId");
     if(url.href!==window.location.href) window.history.replaceState(window.history.state,"",url);
@@ -2457,7 +2584,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
         ]);
         setOpenId(presentation.openId);
         setDrawId(presentation.drawId);
-        flash("대회를 생성했습니다.");
+        flash("대진표를 만들었습니다.");
         return true;
       }catch(error){
         await loadNormalized();
@@ -2520,7 +2647,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
         ]);
         setOpenId(presentation.openId);
         setDrawId(presentation.drawId);
-        flash("대회를 생성했습니다.");
+        flash("대진표를 만들었습니다.");
         return true;
       }catch(error){
         let cleanupError=null;
@@ -2611,7 +2738,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
             {admin&&<Button variant="second" onClick={()=>transition(()=>flushSync(()=>setWizard(true)))}>첫 대진표 만들기</Button>}
           </Empty>}
       {list.length>0&&<div className="stack bk-rows">{list.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0} vt={"b-"+b.id} live={statusTag(b)==="진행 중"}
-        line={lineOf(b)} end={admin&&statusTag(b)!=="진행 중"?statusTag(b):null} onOpen={()=>openBracket(b)}/>)}</div>}
+        line={lineOf(b)} end={admin&&statusTag(b)!=="진행 중"?statusTag(b):null} onOpen={()=>openBracket(b)} href={b.eventId?viewHref("bracket",{eventId:b.eventId}):undefined}/>)}</div>}
     </div>}
     {open&&!wizard&&(()=>{ const openRes=open.format==="group"?(open.knockout?elimResult(open.knockout):null):elimResult(open.graph);
       const openName=pid=>{ const p=(open.participants||[]).find(x=>x.id===pid); return p?p.name:pid; };

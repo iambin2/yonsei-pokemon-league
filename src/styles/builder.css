@@ -19,8 +19,11 @@
 .tb-mon { --floor: var(--h-row); position: relative; display: block; width: 100%; aspect-ratio: 1 / 1.272; text-align: left; }
 .tb-mon.empty { display: grid; place-items: center; color: var(--mute); }
 .tb-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
-.tb-mon-remove { position: absolute; top: 0; right: 0; z-index: var(--z-raised); display: grid; place-items: center; width: var(--h-control); height: var(--h-control); color: var(--dim); opacity: 0; transition: opacity var(--move-tone); }
-.tb-mon:hover .tb-mon-remove, .tb-mon.active .tb-mon-remove, .tb-mon-remove:focus-visible { opacity: 1; }
+.tb-mon-remove { position: absolute; top: 0; right: 0; z-index: var(--z-raised); display: grid; place-items: center; width: var(--h-control); height: var(--h-control); color: var(--dim); opacity: 0; transition: scale var(--move-press), opacity var(--move-tone); }
+/* the × is the slot's sibling (a button never holds a button), so the cell that holds both is what it hangs from */
+.tb-mon-cell { position: relative; }
+.tb-mon-cell:hover .tb-mon-remove, .tb-mon.active + .tb-mon-remove, .tb-mon-remove:focus-visible { opacity: 1; }
+.tb-mon.active + .tb-mon-remove { color: var(--ground); }
 @media (hover: none) { .tb-mon-remove { opacity: 1; } }
 @media (hover: hover) { .tb-mon-remove:hover { color: var(--lit); } }
 @media (min-width: 860px) { .tb-team-slots { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
@@ -41,7 +44,7 @@
 .tb-type-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tb-type-grid.has-all { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .tb-type-grid > .all { grid-column: span 2; }
-.tb-type-opt { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 600; transition: background-color var(--move-tone); }
+.tb-type-opt { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 600; transition: scale var(--move-press), background-color var(--move-tone); }
 .tb-type-opt.inv { color: var(--ground); }
 @media (hover: hover) { .tb-type-opt.pn:not(:disabled):hover { background: var(--panel-2); } }
 
@@ -101,6 +104,9 @@
 .tb-library-save .cell:has(input:focus-visible) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .tb-library-save-meta, .tb-save-message { margin-top: var(--s2); }
 .tb-saved-list { margin-top: var(--s5); }
+/* this device's teams not yet on the account: one line and one key, once (docs/db/account_teams.sql) */
+.tb-account-offer { margin-top: var(--s5); }
+.tb-account-offer > p { padding: var(--s3) var(--pad); }
 .tb-saved { display: grid; }
 .tb-saved-open { display: grid; gap: var(--s1); padding: var(--s3) var(--pad) var(--s2); text-align: left; color: inherit; }
 .tb-saved-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }

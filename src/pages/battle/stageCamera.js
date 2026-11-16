@@ -8,7 +8,7 @@ const smoothOf = ms => Math.max(.08, ms / 1000 * .5);
 export function frame(stage, [x, y], scale = 1.12, duration = 420) { glOf(stage)?.shot(x, y, scale, { smooth: smoothOf(duration) }); return Promise.resolve(); }
 export function pan(stage, [x, y], duration = 520, scale = null) { const e = glOf(stage); e?.shot(x, y, scale ?? e.cam.tz, { smooth: smoothOf(duration) }); return Promise.resolve(); }
 export function wide(stage, duration = 680) { glOf(stage)?.wide(smoothOf(duration)); return Promise.resolve(); }
-export function hitStop(stage, ms = 60) {
+export function hitStop(stage, ms = 62) {
   const e = glOf(stage);
   if (!e) return Promise.resolve();
   e.hold(ms);

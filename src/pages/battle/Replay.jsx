@@ -6,6 +6,7 @@ import Empty from "../../components/common/Empty.jsx";
 import Pager from "../../components/common/Pager.jsx";
 import { battleHref, endedByLine, isDoubles, readSeat } from "../../services/battleService.js";
 import { battleHistoryIds, forgetBattles, listBattlesById } from "../../services/battleWatch.js";
+import { mergeBattles, readMyBattles } from "../../services/accountTeams.js";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { createBattleReader } from "../../services/battleLog.js";
 import { formatDate } from "../../services/dateFormat.js";
@@ -89,7 +90,8 @@ const kindLine = b => [b.kind === "official" ? "공식" : "친선", isDoubles(b.
 function result(b) {
   if (b.status === "waiting") return <span className="t12 dim">대기</span>;
   if (b.status === "active") return <Status live>진행 중</Status>;
-  const side = readSeat(b.id)?.side;
+  // my_side: the account's seat (my_battles), for a battle this device holds no seat of
+  const side = b.my_side || readSeat(b.id)?.side;
   if (!side || b.winner === "tie") return <span className="t12 dim">{b.winner === "tie" ? "무승부" : "종료"}</span>;
   const won = b.winner === side;
   return <span className={"rc-place t12" + (won ? " inv" : " dim")}>{won ? "승리" : "패배"}</span>;
@@ -103,14 +105,18 @@ function BattleRows({ rows, onOpen }) {
   </div>;
 }
 /* the battle page's 기록 tab (2026-11-10: the list stood under 배틀 열기's form and grew without end): twelve battles a page, the
-   newest first, with the pager under them; a device with none says so on a panel */
+   newest first, with the pager under them; a device with none says so on a panel. Signed in with Google once
+   docs/db/account_teams.sql has run, the account's battles join this device's (2026-11-16, 시안 5의 A) as 내 배틀; until then, or
+   signed out, the list is this device's alone, as before. Only this device's can be deleted from it */
 const PAGE = 12;
 export function BattleLists({ onOpen, onCleared }) {
   const [mine, setMine] = useState(null);
+  const [account, setAccount] = useState(false);
   const [page, setPage] = useState(1);
   useEffect(() => {
     let on = true;
-    listBattlesById(battleHistoryIds()).then(rows => on && setMine(rows), () => on && setMine([]));
+    Promise.all([listBattlesById(battleHistoryIds()).catch(() => []), readMyBattles().catch(() => null)])
+      .then(([device, account]) => { if (!on) return; setAccount(Boolean(account)); setMine(account ? mergeBattles(device, account) : device); });
     return () => { on = false; };
   }, []);
   /* 기록 삭제 picks before it deletes (2026-11-06): the link turns the rows into checks (a 20 square leading each), 취소 leaves. Only
@@ -119,9 +125,12 @@ export function BattleLists({ onOpen, onCleared }) {
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState(() => new Set());
   const open = b => b.status === "waiting" || b.status === "active";
+  // deletable: a battle over that this device alone keeps (the account's stay with the account)
+  const here = new Set(battleHistoryIds());
+  const mayForget = b => !open(b) && here.has(b.id) && !b.my_side;
   if (!mine) return null;
-  if (!mine.length) return <Empty title="이 기기에서 한 배틀이 없습니다." />;
-  const done = mine.filter(b => !open(b));
+  if (!mine.length) return <Empty title={account ? "아직 한 배틀이 없습니다." : "이 기기에서 한 배틀이 없습니다."} />;
+  const done = mine.filter(mayForget);
   const pages = Math.ceil(mine.length / PAGE), cur = Math.min(page, pages);
   const shown = mine.slice((cur - 1) * PAGE, cur * PAGE);
   const toggle = id => setPicked(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -139,13 +148,13 @@ export function BattleLists({ onOpen, onCleared }) {
   };
   return <>
     {mine.length > 0 && <section className="bt-list" aria-labelledby="bt-mine-h">
-      <SectionHead id="bt-mine-h" title="이 기기의 배틀" link={picking ? "취소" : done.length ? "기록 삭제" : undefined} onLink={picking ? leave : () => setPicking(true)} />
+      <SectionHead id="bt-mine-h" title={account ? "내 배틀" : "이 기기의 배틀"} link={picking ? "취소" : done.length ? "기록 삭제" : undefined} onLink={picking ? leave : () => setPicking(true)} />
       {picking ? <>
         <div className="stack" role="group" aria-label="지울 배틀">
           {shown.map(b => {
-            const can = !open(b), on = picked.has(b.id);
+            const can = mayForget(b), on = picked.has(b.id);
             return <Row key={b.id} className={"bt-pickrow" + (can ? "" : " off")} title={`${b.p1_name} 대 ${b.p2_name || "상대 대기"}`}
-              line={can ? [kindLine(b), endedByLine(b)].filter(Boolean).join(", ") : "진행 중이거나 대기 중인 배틀은 남습니다"}
+              line={can || !open(b) ? [kindLine(b), endedByLine(b)].filter(Boolean).join(", ") : "진행 중이거나 대기 중인 배틀은 남습니다"}
               lead={<span className={"box" + (on ? " on" : "")} aria-hidden="true">{on && <Icon n="check" size={16} />}</span>}
               value={result(b)} onClick={can ? () => toggle(b.id) : undefined}
               label={can ? `${b.p1_name} 대 ${b.p2_name || "상대 대기"}, ${on ? "선택됨" : "선택 안 됨"}` : undefined} />;

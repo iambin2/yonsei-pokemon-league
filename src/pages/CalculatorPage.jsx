@@ -58,6 +58,8 @@ import {
   weightOf,
 } from "../services/calculatorCore.js";
 import Button from "../components/common/Button.jsx";
+import { reduced } from "../components/common/motion.js";
+import { josa } from "../services/josa.js";
 
 const REGULATION = REGULATIONS[DEFAULT_REGULATION_ID];
 const SIDE_NAMES = ["내 포켓몬", "상대 포켓몬"];
@@ -69,11 +71,6 @@ const MOVE_SORTS = [
 ];
 const toID = championsData.toID;
 const signed = value => value > 0 ? `+${value}` : String(value);
-// 받침이 있으면 앞의 조사, 없으면 뒤의 조사. 한글이 아닌 끝 글자는 받침 없음으로 읽는다.
-const josa = (word, withFinal, withoutFinal) => {
-  const code = String(word).charCodeAt(String(word).length - 1) - 0xAC00;
-  return word + (code >= 0 && code <= 11171 && code % 28 ? withFinal : withoutFinal);
-};
 
 function readStored() {
   try {
@@ -282,7 +279,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
               const final = engine?.rawStats?.[key];
               return (
                 <div className="calc-stat-row" key={key}>
-                  <button type="button" className="t12 tb-stat-key calc-stat-key" title={`${STAT_LABELS[key]}, 종족값 ${base ?? "확인 중"}`}
+                  <button type="button" className="t12 tb-stat-key calc-stat-key" title={base != null ? `${STAT_LABELS[key]}, 종족값 ${base}` : STAT_LABELS[key]}
                     aria-label={`${STAT_LABELS[key]} 능력 포인트 ${side.sp[key] ? "0으로" : "32로"}`} onClick={() => setSp(key, side.sp[key] ? 0 : 32)}>{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</button>
                   <span className="tb-bar"><i style={{ transform: `scaleX(${side.sp[key] / 32})` }} /><input type="range" min="0" max="32" step="1" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트 슬라이더`} /></span>
                   <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트`} />
@@ -356,7 +353,7 @@ function DamageView({ sides, setSide, swapSides, field, setField, records, pokem
         ))}
       </div>
       {(pokemons[0] || pokemons[1]) && <div className="calc-speed-row">
-        {duel && <p className="t12 reg dim calc-speed-line"><b className="t12">{duel.speedA} : {duel.speedB}</b> {duel.first === "tie" ? "스피드가 같아 먼저 움직일 쪽은 무작위입니다." : `${josa(nameOf(duel.first === "a" ? 0 : 1), "이", "가")} 먼저 움직입니다${duel.trickRoom ? " (트릭룸)" : ""}.`}</p>}
+        {duel && <p className="t12 reg dim calc-speed-line"><b className="t12">{duel.speedA} : {duel.speedB}</b> {duel.first === "tie" ? "스피드가 같아 먼저 움직일 쪽은 무작위입니다." : `${josa(nameOf(duel.first === "a" ? 0 : 1), "subject")} 먼저 움직입니다${duel.trickRoom ? " (트릭룸)" : ""}.`}</p>}
         <Button variant="link" onClick={swapSides}>서로 바꾸기</Button>
       </div>}
       {/* with neither Pokémon chosen the two panels above already ask for them: the directions wait until one is */}
@@ -427,7 +424,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
             <Seg value={String(me)} h={40} label={`스피드 ${me}`} />
             <span className="t12 reg dim">{rows.length}마리 중 {faster}마리가 더 빠릅니다.{ties ? ` ${ties}마리는 같습니다.` : ""}</span>
           </div>
-          <Button variant="link" onClick={() => { setQuery(""); requestAnimationFrame(() => meRef.current?.scrollIntoView({ block: "center", behavior: "smooth" })); }}>내 위치</Button>
+          <Button variant="link" onClick={() => { setQuery(""); requestAnimationFrame(() => meRef.current?.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" })); }}>내 위치</Button>
         </div>
       ) : (
         <div className="pn calc-speed-none">
@@ -461,7 +458,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
             </React.Fragment>
           ))}
           {meIndex === -1 && !q && meRow}
-          {!shown.length && <p className="t15 reg dim calc-empty">검색 결과가 없습니다.</p>}
+          {!shown.length && <li className="t15 reg dim calc-empty">검색 결과가 없습니다.</li>}
         </ol>
       </div>
     </>
@@ -538,7 +535,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
             {MULTIPLIER_LABELS.filter(([key]) => chart[key]?.length).map(([key, label], index) => (
               <div className={"calc-matchup " + (index === 0 && Number(key) > 1 ? "inv" : "pn")} key={key}>
                 <b className="t15">{label}</b>
-                <span className="t15">{chart[key].map(type => TYPE_KO[type] || type).join(", ")}</span>
+                <TypeBadges types={chart[key]} />
               </div>
             ))}
           </div>
@@ -559,7 +556,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
         </div>
         <div className="calc-table-wrap">
           <table className="calc-table">
-            <thead><tr><th>기술</th><th>타입</th><th>분류</th><th className="num">위력</th><th className="num">명중</th><th className="num">PP</th></tr></thead>
+            <thead><tr><th scope="col">기술</th><th scope="col">타입</th><th scope="col">분류</th><th scope="col" className="num">위력</th><th scope="col" className="num">명중</th><th scope="col" className="num">PP</th></tr></thead>
             <tbody>
               {moves.map(move => (
                 <tr key={move.id}>
@@ -582,7 +579,18 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
 
 export default function CalculatorPage() {
   const initial = useMemo(readStored, []);
-  const [tab, setTab] = useState(initial.tab);
+  /* the tab stands in the address as the records' does, so a reload and a shared link open on it; the last one used is the fallback */
+  const [tab, setTabState] = useState(() => {
+    const asked = new URLSearchParams(window.location.search).get("tab");
+    return ["damage", "speed", "dex"].includes(asked) ? asked : initial.tab;
+  });
+  const setTab = next => {
+    setTabState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(window.history.state, "", url);
+  };
+  const [attempt, setAttempt] = useState(0);
   const [sides, setSides] = useState(initial.sides);
   const [field, setField] = useState(initial.field);
   const [dexName, setDexName] = useState(initial.sides[0].name);
@@ -601,7 +609,7 @@ export default function CalculatorPage() {
       .then(names => { if (!cancelled) setKoreanNames(names.koreanByEnglish); })
       .catch(error => console.warn("Korean species names unavailable:", error));
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     try { localStorage.setItem(CALC_STORAGE_KEY, JSON.stringify({ tab, sides, field })); } catch { /* 저장소가 없으면 이번 방문에만 기억한다 */ }
@@ -677,7 +685,7 @@ export default function CalculatorPage() {
         <div className="tb-panel calc-dex-empty">
           <strong>포켓몬 데이터를 불러오지 못했습니다.</strong>
           <span>연결 상태를 확인한 뒤 다시 시도해 주세요.</span>
-          <Button type="button" variant="main" onClick={() => window.location.reload()}>다시 시도</Button>
+          <Button type="button" variant="main" onClick={() => { setDetailStatus("loading"); setAttempt(n => n + 1); }}>다시 시도</Button>
         </div>
       ) : loading ? <Loader /> : (
         <div className="calc-swap swap" key={tab}>

@@ -10,7 +10,7 @@
 
 /* ---------- toggles: 32 panels, an active one inverted ---------- */
 .calc-toggles { display: flex; flex-wrap: wrap; gap: var(--seam); }
-.calc-toggle { min-height: var(--h-strip); padding: 0 var(--s3); color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 600; transition: background-color var(--move-tone), color var(--move-tone); }
+.calc-toggle { min-height: var(--h-strip); padding: 0 var(--s3); color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 600; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
 .calc-toggle.inv { color: var(--ground); }
 /* on a phone the toggles wrap: each row keeps the room a finger's 44 needs, and the target runs 6 past the chip (Controls, Chip) */
 @media (max-width: 859px) {
@@ -77,12 +77,12 @@
 .calc-section { margin-top: 0; }
 .calc-stat-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control) calc(var(--s21) + var(--s5)) var(--h-control); align-items: center; gap: var(--s3); min-height: var(--h-control); }
 /* the stat's letter is a key: 0 or 32 in one press */
-.calc-stat-key { align-self: stretch; text-align: left; transition: color var(--move-tone); }
+.calc-stat-key { align-self: stretch; text-align: left; transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) { .calc-stat-key:hover { color: var(--lit); } }
 .calc-final { justify-self: end; font-variant-numeric: tabular-nums; }
 
 .calc-stepper { display: grid; grid-template-columns: var(--h-strip) minmax(0, 1fr) var(--h-strip); align-items: center; height: var(--h-strip); background: var(--panel); }
-.calc-stepper button { display: grid; place-items: center; width: var(--h-strip); height: var(--h-strip); color: var(--dim); transition: background-color var(--move-tone); }
+.calc-stepper button { display: grid; place-items: center; width: var(--h-strip); height: var(--h-strip); color: var(--dim); transition: scale var(--move-press), background-color var(--move-tone); }
 @media (hover: hover) { .calc-stepper button:hover:not(:disabled) { background: var(--panel-2); color: var(--lit); } }
 .calc-stepper button:disabled { color: var(--off); }
 .calc-stepper output { text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
@@ -126,6 +126,8 @@
 .calc-base-row > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .calc-matchup { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s2) var(--pad); }
 .calc-matchup > b { font-variant-numeric: tabular-nums; }
+/* an inverted panel inverts what is in it: the tags step to the ground (Composing a screen 13) */
+.calc-matchup.inv .tb-type { --tag-bg: var(--ground); }
 
 .calc-move-tools { display: grid; grid-template-columns: minmax(0, 1.618fr) repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .calc-move-tools .tb-search-row { margin: 0; }

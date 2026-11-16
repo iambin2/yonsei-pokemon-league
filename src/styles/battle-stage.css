@@ -40,7 +40,7 @@
    36 into the far pair, and the four read as one heap) */
 @media (max-width: 859px) { .bs-stage.hud:has(.bt-hud.two) .bs-slot:is([data-pos="own-d0"], [data-pos="own-d1"]) { height: 40%; } }
 /* breathing: a slow rise of 1.5% from the feet, never in step with its neighbour */
-.bs-mon { position: absolute; inset: 0; transform-origin: 50% 92%; animation: bs-idle 3.4s cubic-bezier(.45, 0, .55, 1) infinite; }
+.bs-mon { position: absolute; inset: 0; transform-origin: 50% 92%; animation: bs-idle 3.4s var(--ease-inout) infinite; }
 .bs-slot:nth-child(odd) .bs-mon { animation-delay: -1.7s; }
 .bs-side.foe .bs-mon { animation-duration: 3.8s; }
 .bs-mon img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; display: block; }
@@ -56,7 +56,7 @@
    the floor in turn, the light a Pokémon comes out of, not yet bloomed */
 .bs-await { position: absolute; left: 50%; bottom: 4%; width: 72%; aspect-ratio: 3.2; translate: -50% 50%; }
 .bs-await::before, .bs-await::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--lit); opacity: 0; will-change: transform, opacity;
-  animation: bs-await 2.4s cubic-bezier(.22, 1, .36, 1) infinite; }
+  animation: bs-await 2.4s var(--ease-out) infinite; }
 .bs-await::after { animation-delay: -1.2s; }
 @keyframes bs-await { 0% { opacity: 0; transform: scale(.3); } 25% { opacity: .75; } 100% { opacity: 0; transform: scale(1.3); } }
 

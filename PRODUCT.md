@@ -25,7 +25,7 @@ Not a generic club homepage: every record on the site is derived from real, oper
 - Monthly 파이컵 (Master / Rookie league), event 파이컵 라이트, and the semester-closing 챔피언스 시리즈 (Qualifier + Final).
 - Seasons roll over every March 1 / September 1 (current: YPL Season 3 from 2026-09-01).
 - Community lives on Discord; the site links there.
-- Team Builder follows the current Pokémon Champions regulation and saves drafts in the browser.
+- Team Builder follows the current Pokémon Champions regulation and saves drafts in the browser; signed in with Google, saved teams and battle history follow the account (docs/db/account_teams.sql), and the browser stays the fallback.
 
 ## Capabilities and Constraints
 

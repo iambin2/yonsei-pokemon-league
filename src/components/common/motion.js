@@ -4,16 +4,17 @@
 
 export const EASE_OUT = "cubic-bezier(.22,1,.36,1)";
 export const EASE_IN = "cubic-bezier(.5,0,.75,0)";
+// what moves from one place to another, or breathes (DESIGN.md "Battle", Time; the site's own pages never travel)
+export const INOUT = "cubic-bezier(.65,0,.35,1)";
 
 const mq = q => typeof window !== "undefined" && window.matchMedia?.(q).matches;
 export const reduced = () => mq("(prefers-reduced-motion: reduce)");
 export const desktop = () => mq("(min-width: 860px)");
 
-/* one length for each verb of the motion law, the --t-* of tokens.css: press, tone, leave, light. place, lift, seal and wait are the old
-   verbs, folded into light until the pages that call them are rebuilt. */
-export const DUR = { press: 100, tone: 160, leave: 260, light: 420, place: 420, lift: 420, seal: 420, wait: 420 };
+/* one length for each verb of the motion law, the --t-* of tokens.css: press, tone, leave, light. */
+export const DUR = { press: 100, tone: 160, leave: 260, light: 420 };
 /* things that arrive together arrive one step apart */
-export const STAGGER = { row: 38, display: 62, tile: 62 };
+export const STAGGER = { row: 38, display: 62 };
 
 /* ---------- the verbs of the motion law (DESIGN.md): pages and components move through these, never through their own .animate() ---------- */
 /* place: what arrives switches on where it stands; nothing flies (DESIGN.md "Motion"). step spaces out what arrives together. */
@@ -127,7 +128,8 @@ export function springTo(from, to, v0, response = 0.42, zeta = 0.86) {
    its displays after them, done by 260. Going back lights the page it returns to the same way, where it was left (2026-11-06: a back
    that only swapped the page read as a cut, so in and out are one motion). The bars never move. ---------- */
 const main = () => document.getElementById("ypl-main");
-/* mutate() must render the next page synchronously (flushSync). scrollY is where the new page starts. dir is kept for callers. */
+/* mutate() must render the next page synchronously (flushSync). scrollY is where the new page starts. Callers still pass dir and
+   shared; neither is read. */
 export function transition(mutate, { scrollY: nextY = 0 } = {}) {
   mutate();
   window.scrollTo(0, nextY);
@@ -166,9 +168,7 @@ export function lightAfter(el) {
     for (let n = at.nextElementSibling; n; n = n.nextElementSibling) light(n, DUR.leave);
 }
 
-/* ---------- the four battle verbs (DESIGN.md "Battle"): the battle field is the one place a lit thing travels ----------
-   Each returns a promise that settles when the verb is over, so the field can run a turn one message at a time.
-   Reduced motion: nothing travels, the verb settles at once and only the cell's inversion (flash) remains. */
+/* ---------- verbs that return a promise settling when the verb is over, so a scene can run one beat at a time ---------- */
 // A hidden page (another app on the phone, a background tab) stops the animation clock, and a turn must not wait on it forever:
 // past its own length a verb is over, and it is put at its end.
 function settled(anim) {
@@ -181,60 +181,10 @@ function settled(anim) {
     try { if (anim.playState !== "finished") anim.finish(); } catch { /* cancelled already */ }
   });
 }
-const centreOf = el => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
-function toward(from, to, length) {
-  const [ax, ay] = centreOf(from), [bx, by] = centreOf(to);
-  const d = Math.hypot(bx - ax, by - ay) || 1;
-  return [(bx - ax) / d * length, (by - ay) / d * length];
-}
-const OUT = DUR.press / DUR.leave; // 100 out, 160 back
-/* a cell inverts once: its lit plate (.bt-hit) comes up and goes, the tone verb's length; hold keeps it for a Mega Evolution */
-export function flash(plate, hold = 0) {
-  if (!plate?.animate) return Promise.resolve();
-  const total = DUR.tone + hold;
-  return settled(plate.animate([{ opacity: 0 }, { opacity: 1, offset: Math.min(.5, DUR.press / 2 / total) }, { opacity: 1, offset: 1 - DUR.press / 2 / total }, { opacity: 0 }], { duration: total, easing: EASE_OUT }));
-}
-/* strike: a physical move, the attacker travels 32 toward its target and back */
-export function strike(mon, target) {
-  if (!mon?.animate || !target || reduced()) return Promise.resolve();
-  const [dx, dy] = toward(mon, target, 32);
-  return settled(mon.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)`, offset: OUT, easing: EASE_IN }, { transform: "none" }], { duration: DUR.leave, easing: EASE_OUT }));
-}
-/* take: a Pokémon is hit, it travels 12 away from the blow and back while its cell inverts once */
-export function take(mon, plate, from) {
-  const moved = !mon?.animate || !from || reduced() ? Promise.resolve() : (() => {
-    const [dx, dy] = toward(from, mon, 12);
-    return settled(mon.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)`, offset: OUT }, { transform: "none" }], { duration: DUR.leave, easing: EASE_OUT }));
-  })();
-  return Promise.all([moved, flash(plate)]);
-}
-/* chase: a line of 8px squares in the move's type colour switches on and off from the attacker to each target, 38 apart, each lit 100 */
-export function chase(layer, from, targets, typeClass) {
-  if (!layer || !from || !targets.length || reduced()) return Promise.resolve();
-  const box = layer.getBoundingClientRect();
-  const [ax, ay] = centreOf(from);
-  const runs = targets.map(target => {
-    const [bx, by] = centreOf(target);
-    const count = Math.max(3, Math.round(Math.hypot(bx - ax, by - ay) / 20));
-    return Array.from({ length: count + 1 }, (_, i) => {
-      const dot = document.createElement("i");
-      dot.className = "bt-dot " + typeClass;
-      dot.style.transform = `translate(${ax - box.left + (bx - ax) * i / count - 4}px, ${ay - box.top + (by - ay) * i / count - 4}px)`;
-      layer.appendChild(dot);
-      return settled(dot.animate([{ opacity: 1 }, { opacity: 1 }], { duration: DUR.press, delay: i * STAGGER.row })).then(() => dot.remove());
-    });
-  });
-  return Promise.all(runs.flat());
-}
 /* fall: a Pokémon faints, it sinks 12 as it goes dark, the reverse of light */
 export function fall(mon) {
   if (!mon?.animate || reduced()) return Promise.resolve();
   return settled(mon.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(12px)" }], { duration: DUR.leave, easing: EASE_IN, fill: "forwards" }));
-}
-/* a Pokémon sent in lights as anything arrives */
-export function enter(mon) {
-  if (!mon?.animate || reduced()) return Promise.resolve();
-  return settled(mon.animate(RISE, { duration: DUR.light, easing: EASE_OUT }));
 }
 /* the page being left dims (DESIGN.md "Motion", Page change) while what it waits on is read; returns the animations, so a refusal can
    cancel them and stand the page up again */
@@ -263,16 +213,6 @@ export function lineup(first, then, elapsed = 0, still = null) {
   if (reduced()) return;
   [...first, ...then].forEach((el, i) => el?.animate?.(el === still ? [{ opacity: 0 }, { opacity: 1 }] : RISE, { duration: DUR.light, delay: Math.max(0, i * STAGGER.display + (i >= first.length ? DUR.tone : 0) - elapsed), easing: EASE_OUT, fill: "backwards" }));
 }
-/* the HP gauge: changed cells switch as a score's bars do, 38 apart, from the right when it falls and from the left when it rises */
-export function gauge(cells, before, after, offValue) {
-  if (reduced() || before === after) return Promise.resolve();
-  const changed = cells.map((el, i) => ({ el, i })).filter(({ i }) => (i < before) !== (i < after));
-  if (after < before) changed.reverse();
-  const [from, to] = after < before ? [1, offValue] : [offValue, 1];
-  return Promise.all(changed.map(({ el }, k) => settled(el.animate([{ opacity: from }, { opacity: from }, { opacity: to }], { duration: DUR.press, delay: k * STAGGER.row, fill: "backwards" }))));
-}
-export const pause = ms => new Promise(resolve => setTimeout(resolve, reduced() ? 0 : ms));
-
 /* a 연승 도전 run climbs (Streak.jsx): once the board stands, what was just won brightens once in its new light (tone), then what comes
    next lights rising the last 12, one after another 62 apart: a step of the floor, or a floor of the tower */
 export function climb(won, next) {

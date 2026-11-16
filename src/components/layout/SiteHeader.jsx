@@ -3,6 +3,8 @@ import Icon from "../common/Icon.jsx";
 import { VISITOR_EVENT, accountsEnabled, accountsReady, myPlayerLink, visitorSignedIn } from "../../services/visitorAuth.js";
 import { useSlideLine } from "../common/Board.jsx";
 import { TABS, WIDE_TABS, current, tabOf, useWideNav } from "./Navigation.jsx";
+import { follow } from "../common/Board.jsx";
+import { viewHref } from "../../services/appRouting.js";
 
 export const DISCORD_URL = "https://discord.gg/T7UZHhGvUh";
 
@@ -74,15 +76,15 @@ export default function SiteHeader({ view, onNavigate, dark, onToggleTheme, more
   const themeLabel = dark ? "라이트 테마로 바꾸기" : "다크 테마로 바꾸기";
   return (
     <header className="topbar">
-      <button type="button" className="brand" onClick={() => onNavigate("home")} aria-label="YPL 홈으로">
+      <a href={viewHref("home")} className="brand" onClick={follow(() => onNavigate("home"))} aria-label="YPL 홈으로">
         <BrandMark size={20} /><Wordmark />
-      </button>
+      </a>
       <nav className="navlinks" aria-label="주요 메뉴" ref={navRef}>
-        {(wide ? WIDE_TABS : TABS).map(([key, label]) => (
-          <button key={key} type="button" className="navlink" data-tab={key} {...current(cur, key)}
-            {...(key === "more" ? { "aria-haspopup": "menu", "aria-expanded": moreOpen } : {})}
-            onClick={e => key === "more" ? onMore(e.currentTarget) : onNavigate(key)}>{key === "bracket" && live && <i className="lamp sig" aria-hidden="true" />}{label}</button>
-        ))}
+        {(wide ? WIDE_TABS : TABS).map(([key, label]) => key === "more"
+          ? <button key={key} type="button" className="navlink" data-tab={key} {...current(cur, key)} aria-haspopup="menu" aria-expanded={moreOpen}
+            onClick={e => onMore(e.currentTarget)}>{label}</button>
+          : <a key={key} href={viewHref(key)} className="navlink" data-tab={key} {...current(cur, key)}
+            onClick={follow(() => onNavigate(key))}>{key === "bracket" && live && <i className="lamp sig" aria-hidden="true" />}{label}</a>)}
       </nav>
       <AccountButton onNavigate={onNavigate} />
       {/* the lamp's fixture: its housing is dark until something is live; on event day it lights with its word and opens the bracket */}

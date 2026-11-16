@@ -7,6 +7,7 @@ import { saveTeamSheetImage } from "../components/teamSheetImage.js";
 import { ShowcaseCompose } from "./BoardPage.jsx";
 import { STAGGER, place } from "../components/common/motion.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
+import { josa } from "../services/josa.js";
 import { CUP_RULES, DEFAULT_REGULATION_ID, KO, REGULATIONS, TYPE_OPTIONS, resolveRegulationId } from "../data/index.js";
 import { championsData, findSubmissionRegistration, getEvent, getSubmissionWriteGate, listRegistrationSubmissions, submitEventTeamSnapshot } from "../services/index.js";
 import {
@@ -62,6 +63,8 @@ import {
   resolveEventRuleSelection,
 } from "../services/teamBuilderCore.js";
 import { multiplierMark, teamMatchups } from "../services/teamTypeChart.js";
+import { deleteAccountTeam, deviceCopy, onlyOnDevice, putAccountTeams, readAccountTeams } from "../services/accountTeams.js";
+import { VISITOR_EVENT, visitorSignedIn } from "../services/visitorAuth.js";
 import Button from "../components/common/Button.jsx";
 
 
@@ -84,7 +87,7 @@ function syncRuleUrl(regulationId, cupRuleId, assignedTypeId) {
   const cupRule = CUP_RULES[cupRuleId] || CUP_RULES.none;
   if (cupRule.kind === "monotype" && assignedTypeId) url.searchParams.set("type", assignedTypeId);
   else url.searchParams.delete("type");
-  window.history.replaceState({}, "", url);
+  window.history.replaceState(window.history.state, "", url);
 }
 
 function readSavedTeams() {
@@ -185,25 +188,17 @@ function TeamSlot({ index, member, active, displayName, itemLabel, onSelect, onR
   const moveCount = member.moves.filter(Boolean).length;
   const unresolved = member.resolutionState === "unresolved";
   return (
-    /* the picture is the slot: no name under it (the editor below names the chosen one); the chosen slot inverts */
+    /* the picture is the slot: no name under it (the editor below names the chosen one); the chosen slot inverts.
+       The × is the slot's sibling, not its child: a button never holds another button */
+    <div className="tb-mon-cell">
     <button type="button" className={"stand tb-mon" + (active ? " inv active" : " pn") + (unresolved ? " unresolved" : "")} onClick={onSelect} aria-pressed={active}
       aria-label={`${displayName}, ${itemLabel || "도구 없음"}, 기술 ${moveCount}/4${unresolved ? ", 현재 규칙에서 확인할 수 없는 포켓몬" : ""}`}
       title={unresolved ? "현재 규칙에서 확인할 수 없는 포켓몬" : `${displayName}, ${itemLabel || "도구 없음"}, 기술 ${moveCount}/4`}>
       <i className="floor" aria-hidden="true" />
       <Mon src={spriteUrl(member.pokemon.name)} />
-      <span
-        role="button"
-        tabIndex={0}
-        className="tb-mon-remove"
-        aria-label={`${displayName} 제거`}
-        onClick={event => { event.stopPropagation(); onRemove(); }}
-        onKeyDown={event => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault(); event.stopPropagation(); onRemove();
-          }
-        }}
-      ><Icon n="x" size={16} /></span>
     </button>
+    <button type="button" className="tb-mon-remove" aria-label={`${displayName} 제거`} onClick={onRemove}><Icon n="x" size={16} /></button>
+    </div>
   );
 }
 
@@ -463,6 +458,12 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
   const [saveName, setSaveName] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [storageAvailable, setStorageAvailable] = useState(true);
+  /* 내 팀 on the Google account (accountTeams.js, docs/db/account_teams.sql): accountOn once the account answered with its teams;
+     savedTeams are then the account's, and deviceOnly this device's teams not in it yet, offered once with 계정에 올리기 */
+  const [accountOn, setAccountOn] = useState(false);
+  const [deviceOnly, setDeviceOnly] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const accountOnRef = useRef(false);
   const [pendingRuleChange, setPendingRuleChange] = useState(null);
   const [pendingTeamChange, setPendingTeamChange] = useState(null);
   const [eventContext, setEventContext] = useState(null);
@@ -584,6 +585,51 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
     setHydrated(true);
   }, []);
 
+  /* the account's teams, read after the device's (which stand at once) and again on a sign-in or sign-out. Signed out, or before the
+     SQL has run, nothing changes: this device's teams are the list, as always */
+  useEffect(() => {
+    if (!hydrated) return undefined;
+    let on = true;
+    const load = () => {
+      if (!visitorSignedIn() && !accountOnRef.current) return;
+      readAccountTeams().then(list => {
+        if (!on) return;
+        const device = readSavedTeams() || [];
+        accountOnRef.current = Boolean(list);
+        setAccountOn(Boolean(list));
+        if (!list) { setDeviceOnly([]); setSavedTeams(device); return; }
+        const teams = list.map(normalizeSavedTeam).filter(Boolean).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        setSavedTeams(teams);
+        setDeviceOnly(onlyOnDevice(device, teams));
+      }, error => console.warn("[YPL] 계정의 팀을 읽지 못했습니다.", error));
+    };
+    load();
+    window.addEventListener(VISITOR_EVENT, load);
+    return () => { on = false; window.removeEventListener(VISITOR_EVENT, load); };
+  }, [hydrated]);
+  // this device keeps the account's teams and its own not yet in it, so signed out it still has them all
+  const storeTeams = useCallback(next => writeSavedTeams(accountOn ? deviceCopy(next, deviceOnly) : next), [accountOn, deviceOnly]);
+  const toAccount = useCallback(write => {
+    if (!accountOn) return;
+    write().catch(error => flash?.(error?.message && /100개/.test(error.message) ? error.message : "계정에 저장하지 못했습니다. 이 기기에는 저장했습니다."));
+  }, [accountOn, flash]);
+  const uploadDeviceTeams = useCallback(async () => {
+    if (!deviceOnly.length || uploading) return;
+    setUploading(true);
+    try {
+      await putAccountTeams(deviceOnly);
+      const next = [...savedTeams, ...deviceOnly].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      writeSavedTeams(next);
+      setSavedTeams(next);
+      setDeviceOnly([]);
+      flash?.(`팀 ${deviceOnly.length}개를 계정에 올렸습니다.`);
+    } catch (error) {
+      setSaveMessage(error?.message || "계정에 올리지 못했습니다.");
+    } finally {
+      setUploading(false);
+    }
+  }, [deviceOnly, uploading, savedTeams, flash]);
+
   useEffect(() => {
     if (!detailData) return;
     setTeam(current => current.map(member => {
@@ -701,7 +747,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
     syncRuleUrl(regulationId, cupRuleId, cupRule.kind === "monotype" ? assignedTypeId : "");
   }, [hydrated, regulationId, cupRuleId, cupRule.kind, assignedTypeId]);
 
-  const currentSaved = savedTeams.find(saved => saved.id === activeSavedTeamId) || null;
+  const currentSaved = savedTeams.find(saved => saved.id === activeSavedTeamId) || deviceOnly.find(saved => saved.id === activeSavedTeamId) || null;
 
   const validation = useMemo(() => validateTeam({
     team,
@@ -885,11 +931,26 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
 
   const removeMember = useCallback(uid => {
     const index = team.findIndex(member => member.uid === uid);
+    const removed = team[index];
+    if (!removed) return;
     const next = team.filter(member => member.uid !== uid);
     setTeam(next);
     if (uid === selectedUid) setSelectedUid(next[index]?.uid || next[index - 1]?.uid || null);
     markDirty();
-  }, [team, selectedUid, markDirty]);
+    /* Confirm by undo (DESIGN.md "Sheets, dialogs, toasts"): it goes at once and the toast puts it back where it stood.
+       It goes back only into the team it left: not a full one, not one that took the same Pokémon since, not another team loaded meanwhile. */
+    const species = speciesIdentity(detailData, removed.pokemon);
+    const max = regulation.maxTeamSize || 6;
+    flash?.(`${josa(displayPokemon(removed.pokemon), "object")} 팀에서 뺐습니다.`, { label: "되돌리기", run: () => {
+      setTeam(current => {
+        const same = next.length ? next.every(member => current.some(now => now.uid === member.uid)) : current.length === 0;
+        if (!same || current.length >= max || current.some(member => member.uid === uid || speciesIdentity(detailData, member.pokemon) === species)) return current;
+        return [...current.slice(0, index), removed, ...current.slice(index)];
+      });
+      setSelectedUid(uid);
+      markDirty();
+    } });
+  }, [team, selectedUid, markDirty, detailData, regulation.maxTeamSize, displayPokemon, flash]);
 
   const applyRuleChange = useCallback(change => {
     const nextRegulation = REGULATIONS[change.regulationId] || regulation;
@@ -1022,7 +1083,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
       return null;
     }
     const now = new Date().toISOString();
-    const existing = forceNew ? null : savedTeams.find(saved => saved.id === activeSavedTeamId) || null;
+    const existing = forceNew ? null : currentSaved;
     const snapshot = {
       schemaVersion: TEAM_SCHEMA_VERSION,
       id: existing?.id || makeUid("saved"),
@@ -1034,22 +1095,25 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
       updatedAt: now,
       members: serializeMembers(team, { detailData }),
     };
-    const next = existing
-      ? savedTeams.map(saved => saved.id === existing.id ? snapshot : saved)
+    // a team only this device had joins the account once it is saved there
+    const next = savedTeams.some(saved => saved.id === snapshot.id)
+      ? savedTeams.map(saved => saved.id === snapshot.id ? snapshot : saved)
       : [snapshot, ...savedTeams];
     next.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    if (!writeSavedTeams(next)) {
+    if (!storeTeams(next)) {
       setStorageAvailable(false);
       setSaveMessage("팀을 저장하지 못했습니다. 시크릿 창이라면 일반 창에서 다시 열어 주세요.");
       return null;
     }
     setStorageAvailable(true);
     setSavedTeams(next);
+    if (accountOn) setDeviceOnly(list => list.filter(saved => saved.id !== snapshot.id));
+    toAccount(() => putAccountTeams(snapshot));
     setActiveSavedTeamId(snapshot.id);
     setDirty(false);
     setSaveName(snapshot.name);
     return snapshot;
-  }, [storageAvailable, saveName, savedTeams, activeSavedTeamId, regulationId, cupRuleId, cupRule.kind, assignedTypeId, team, detailData]);
+  }, [storageAvailable, saveName, savedTeams, currentSaved, regulationId, cupRuleId, cupRule.kind, assignedTypeId, team, detailData, storeTeams, accountOn, toAccount]);
 
   const saveCurrentTeam = useCallback(() => {
     const snapshot = saveWorkingTeam({ name: saveName });
@@ -1149,28 +1213,30 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
       updatedAt: now,
     };
     const next = [copy, ...savedTeams];
-    if (!writeSavedTeams(next)) {
+    if (!storeTeams(next)) {
       setStorageAvailable(false);
       return;
     }
     setStorageAvailable(true);
     setSavedTeams(next);
-  }, [savedTeams]);
+    toAccount(() => putAccountTeams(copy));
+  }, [savedTeams, storeTeams, toAccount]);
 
   const deleteSavedTeam = useCallback(async saved => {
     if (!(await siteConfirm({ title: "팀 삭제", body: `“${saved.name}” 팀을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`, confirmLabel: "삭제", danger: true }))) return;
     const next = savedTeams.filter(item => item.id !== saved.id);
-    if (!writeSavedTeams(next)) {
+    if (!storeTeams(next)) {
       setStorageAvailable(false);
       return;
     }
     setStorageAvailable(true);
     setSavedTeams(next);
+    toAccount(() => deleteAccountTeam(saved.id));
     if (activeSavedTeamId === saved.id) {
       setActiveSavedTeamId(null);
       setDirty(team.length > 0);
     }
-  }, [savedTeams, activeSavedTeamId, team.length]);
+  }, [savedTeams, activeSavedTeamId, team.length, storeTeams, toAccount]);
 
   useEffect(() => {
     const onKeyDown = event => {
@@ -1243,7 +1309,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
     if (!saved) return;
     if (storageAvailable) {
       const next = [saved, ...savedTeams];
-      if (writeSavedTeams(next)) { setSavedTeams(next); flash?.(`‘${saved.name}’ 팀을 내 팀에 저장했습니다.`); }
+      if (storeTeams(next)) { setSavedTeams(next); toAccount(() => putAccountTeams(saved)); flash?.(`‘${saved.name}’ 팀을 내 팀에 저장했습니다.`); }
     }
     requestTeamChange({ kind: "load", saved });
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1346,7 +1412,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
 
   const dataStatusText = detailStatus === "ready" ? "배틀 데이터 연결됨" : detailStatus === "error" ? "데이터 연결 안 됨" : "배틀 데이터 불러오는 중…";
   const localizationText = localizationStatus === "ready" ? "한국어 이름 사용" : localizationStatus === "error" ? "영문 이름 사용" : "한국어 이름 준비 중…";
-  const draftText = draftStatus === "saved" ? "임시저장됨" : draftStatus === "pending" ? "임시저장 중…" : draftStatus === "error" ? "임시저장 안 됨" : "";
+  const draftText = draftStatus === "saved" ? "임시저장됨" : draftStatus === "error" ? "임시저장 안 됨" : "";
   const hasWorkingState = team.length > 0 || Boolean(activeSavedTeamId) || cupRuleId !== "none" || Boolean(assignedTypeId);
 
   return (
@@ -1444,6 +1510,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
               aria-label="포켓몬 검색"
               aria-expanded={showSuggestions}
               aria-controls="tb-search-suggest"
+              aria-activedescendant={showSuggestions ? `tb-suggest-opt-${suggestIndex}` : undefined}
               aria-autocomplete="list"
               autoComplete="off"
             />
@@ -1453,7 +1520,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                 {searchSuggestions.map((entry, index) => (
                   <React.Fragment key={`${entry.kind}:${entry.id}`}>
                     {(index === 0 || searchSuggestions[index - 1].kind !== entry.kind) && <div className="tb-suggest-head">{SEARCH_KIND_LABEL[entry.kind]}</div>}
-                    <button type="button" className={"dd-opt" + (index === suggestIndex ? " sel" : "")} role="option" aria-selected={index === suggestIndex}
+                    <button type="button" id={`tb-suggest-opt-${index}`} className={"dd-opt" + (index === suggestIndex ? " sel" : "")} role="option" aria-selected={index === suggestIndex}
                       onMouseDown={event => event.preventDefault()} onClick={() => addSearchChip(entry)}>
                       {entry.label}{entry.english && entry.english !== entry.label && <small>{entry.english}</small>}
                     </button>
@@ -1524,7 +1591,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
               <>
                 <div className="tb-editor-head">
                   <h2 className="t20">{displayPokemon(selectedMember.pokemon)}</h2>
-                  <span className="t12 reg dim">{displayPokemon(selectedMember.pokemon) !== selectedMember.pokemon.name ? `${selectedMember.pokemon.name}, ` : ""}{selectedDetails?.num != null ? `전국도감 #${String(selectedDetails.num).padStart(4, "0")}` : "전국도감 번호 확인 중"}</span>
+                  {(displayPokemon(selectedMember.pokemon) !== selectedMember.pokemon.name || selectedDetails?.num != null) && <span className="t12 reg dim">{[displayPokemon(selectedMember.pokemon) !== selectedMember.pokemon.name && selectedMember.pokemon.name, selectedDetails?.num != null && `전국도감 #${String(selectedDetails.num).padStart(4, "0")}`].filter(Boolean).join(", ")}</span>}
                   <TypeBadges types={selectedDetails?.types || []} />
                 </div>
 
@@ -1537,7 +1604,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                   </Cell>
                   <Cell label="도구">
                     {selectedRequiredItem ? (
-                      <div className="tb-locked-item" role="textbox" aria-readonly="true" aria-label="메가폼 전용 도구" title="선택한 메가폼에 필요한 도구로 자동 지정되며 변경할 수 없습니다.">
+                      <div className="tb-locked-item" role="textbox" aria-readonly="true" aria-label="메가폼 전용 도구, 자동 지정, 변경 불가" title="선택한 메가폼에 필요한 도구로 자동 지정되며 변경할 수 없습니다.">
                         <span>{itemDisplay(detailData, selectedRequiredItem)}</span><Icon n="lock" size={16} />
                       </div>
                     ) : (
@@ -1563,9 +1630,9 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                       const final = calculatedStat(base, point, key, nature);
                       return (
                         <div className="tb-stat-row" key={key}>
-                          <span className="t12 tb-stat-key" title={`${STAT_LABELS[key]}, 종족값 ${base ?? "확인 중"}`}>{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span>
+                          <span className="t12 tb-stat-key" title={base != null ? `${STAT_LABELS[key]}, 종족값 ${base}` : STAT_LABELS[key]}><span aria-hidden="true">{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span><span className="sr-only">{STAT_LABELS[key]}{base != null ? `, 종족값 ${base}` : ""}{nature.plus === key ? ", 성격 보정 상승" : nature.minus === key ? ", 성격 보정 하락" : ""}</span></span>
                           <span className="tb-bar"><i style={{ transform: `scaleX(${point / 32})` }} /><input type="range" min="0" max="32" step="1" value={point} aria-label={`${STAT_LABELS[key]} 포인트`} onChange={event => updateStat(selectedMember, key, event.target.value)} /></span>
-                          <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={point} onChange={event => updateStat(selectedMember, key, event.target.value)} aria-label={`${STAT_LABELS[key]} Stat Point`} />
+                          <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={point} onChange={event => updateStat(selectedMember, key, event.target.value)} aria-label={`${STAT_LABELS[key]} 포인트 숫자`} />
                           <span className="t12 reg dim tb-final-stat">최종 <b>{final}</b></span>
                         </div>
                       );
@@ -1665,6 +1732,10 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
         </div>
         <p className="t12 reg dim tb-library-save-meta">{regulation.name}, {currentCupRuleSummary}, {team.length}/6마리</p>
         {saveMessage && <p className="t15 tb-save-message">{saveMessage}</p>}
+        {accountOn && deviceOnly.length > 0 && <div className="stack tb-account-offer">
+          <p className="pn t12 reg dim">이 기기에만 있는 팀 {deviceOnly.length}</p>
+          <Button variant="second" icon="up" disabled={uploading} onClick={uploadDeviceTeams}>계정에 올리기</Button>
+        </div>}
         <div className="stack tb-saved-list">
           {savedTeams.map(saved => {
             const savedReg = REGULATIONS[saved.regulationId];

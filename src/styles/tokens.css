@@ -108,7 +108,7 @@
   --z-raised: 1; --z-sticky: 10; --z-header: 20; --z-modal: 40; --z-popover: 50; --z-toast: 60; --z-skip: 80;
   /* time: each verb about 1.618 times the last. A transition reads one --move and nothing else. */
   --t-press: 100ms; --t-tone: 160ms; --t-leave: 260ms; --t-light: 420ms;
-  --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-in: cubic-bezier(.5, 0, .75, 0);
+  --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-in: cubic-bezier(.5, 0, .75, 0); --ease-inout: cubic-bezier(.65, 0, .35, 1);
   --move-press: var(--t-press) var(--ease-out); --move-tone: var(--t-tone) var(--ease-out);
   --move-leave: var(--t-leave) var(--ease-in); --move-light: var(--t-light) var(--ease-out);
 }
@@ -168,7 +168,7 @@ input[type="date"], input[type="datetime-local"] { min-height: 52px; }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input:-webkit-autofill { -webkit-text-fill-color: var(--lit); box-shadow: inset 0 0 0 100px var(--panel); }
-:where(button, .tab, .navlink) { user-select: none; }
+:where(button, .tab, .navlink, a.pn) { user-select: none; }
 label:has(input) { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -213,10 +213,14 @@ label:has(input) { cursor: pointer; }
 
 /* ---------- press and hover: a finger comes down, scale .976; desktop hover lifts a panel one tone. Nothing grows. ---------- */
 /* a panel that changes state (lit, dim, inverted) changes in one tone, whether or not a finger pressed it */
-:where(button, .press, .pn, .inv, .seg) { transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
-:where(button, .press):active:not(:disabled) { scale: .976; }
-@media (prefers-reduced-motion: reduce) { :where(button, .press):active:not(:disabled) { scale: 1; } }
-:where(button, input, select, textarea):disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+:where(button, a[href], .press, .pn, .inv, .seg) { transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
+:where(button, a[href], .press):active:not(:disabled) { scale: .976; }
+@media (prefers-reduced-motion: reduce) { :where(button, a[href], .press):active:not(:disabled) { scale: 1; } }
+/* disabled (DESIGN.md Controls, 2026-11-16 one form): its words and marks are muted and its panel keeps its tone, so a navy panel never
+   turns muddy; a picture in it dims, the one place a disabled control takes its colour from opacity. A busy key is not disabled. */
+:where(button, input, select, textarea):disabled { cursor: not-allowed; }
+.ypl :is(button, input, select, textarea):disabled:not([aria-busy="true"]) { color: var(--mute); }
+.ypl :is(button, a):disabled :is(img, .mon) { opacity: var(--opacity-disabled); }
 
 /* ---------- shared keyframes: things arrive by lighting ---------- */
 @keyframes y-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -235,6 +239,11 @@ label:has(input) { cursor: pointer; }
   :root input[type="checkbox"]:checked::after,
   :root :is(.swap, .calc-sides [data-calc-side], .fb-reveal, .dd-menu, .toast-panel, .q-error, .error-note, .form-error, .bk-entry-error, .box .ic),
   :root :is(.records-round-detail, .bk-submission-groups, .bk-submission-individuals, .fold-body, .pr-list) > * { animation: none; }
+  /* what turns or slides (a fold's chevron, a switch's square, a drawn name) stands in its new place at once; its tone still changes */
+  :root .mb-row.pop { animation: none; }
+  :root :is(.dd-chev, .fold-chev, .records-round-chevron) { transition: none; }
+  :root .bk-submission-chevron { transition: color var(--move-tone); }
+  :root .sw i { transition: background-color var(--move-tone); }
 }
 /* theme change: the page turns in one frame under a clearing wash of the old ground (motion.js themeTurn) */
 .theme-turn * { transition: none !important; }

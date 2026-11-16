@@ -33,3 +33,22 @@ export function bracketRouteSearch(eventId, search = "") {
   else params.delete("eventId");
   return `?${params.toString()}`;
 }
+
+/* The address a door leads to, as App's go() writes it (2026-11-16: every door was a button with no address, so it could not be
+   opened in a new tab, copied by a long press or found by a search engine). A door is a link with this href; a plain click is
+   still App's own move (follow, Board.jsx), so nothing about how the site moves changes. */
+export function viewHref(v, o = {}) {
+  const p = new URLSearchParams();
+  if (v !== "home") p.set("view", v);
+  if ((v === "builder" || v === "bracket") && o.eventId) p.set("eventId", o.eventId);
+  if (v === "news" && o.notice) p.set("notice", o.notice);
+  if (v === "battle" && o.battle) p.set("id", o.battle);
+  if (v === "records" && o.trainer) p.set("trainer", o.trainer);
+  if (v === "records" && o.me) p.set("me", "1");
+  if (["records", "board", "bracket", "battle"].includes(v) && o.tab) p.set("tab", o.tab);
+  if (v === "board" && o.post) p.set("post", o.post);
+  if (v === "bracket" && o.pb) p.set("pb", o.pb);
+  const base = import.meta.env?.BASE_URL || "/";
+  const q = p.toString();
+  return q ? `${base}?${q}` : base;
+}

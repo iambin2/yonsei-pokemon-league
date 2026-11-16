@@ -20,6 +20,17 @@
 /* the party submission counter: 20 under the name, 20 over the main action (2026-11-03) */
 .ho-due { margin-top: var(--s5); }
 
+/* 내 다음 (a signed-in trainer linked to a record): three cells on the seam like the counters, 32 over the label row; a cell with
+   no fact keeps its label and its place, switched off */
+.ho-me { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--s8); }
+.ho-me > button.cell { text-align: left; transition: scale var(--move-press), background-color var(--move-tone); }
+@media (hover: hover) { .ho-me > button.cell:hover { background: var(--panel-2); } }
+/* 지난 대회 (no event ahead): the lead panel and one strip a league's winner, the place in a cell of its own (the records' placings) */
+.ho-last { margin-top: var(--s3); }
+.ho-win { display: flex; align-items: stretch; min-height: var(--h-row2); }
+.ho-win-place { flex: none; display: grid; place-items: center; width: var(--s21); font-weight: 700; }
+.ho-win > .row-main { align-content: center; padding-left: var(--pad); }
+
 .ho-reign { display: grid; gap: var(--seam); margin-top: var(--s13); }
 .ho-six { display: none; }
 .ho-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -79,6 +90,10 @@
   .ho-next { grid-template-rows: auto auto auto 1fr; }
   .ho-next > .ho-due { grid-row: 3; }
   .ho-next > .ho-go { grid-row: 4; align-self: end; padding-top: var(--s8); }
+  /* 내 다음 takes the first row, so the deadline and the action step down one */
+  .ho-next:has(> .ho-me) { grid-template-rows: auto auto auto auto 1fr; }
+  .ho-next:has(> .ho-me) > .ho-due { grid-row: 4; }
+  .ho-next:has(> .ho-me) > .ho-go { grid-row: 5; }
   .ho-rank, .ho-news { display: flex; flex-direction: column; }
   .ho-rank > .podium { flex: 1 0 auto; }
   .ho-rank .podium-col { height: auto; min-height: calc(var(--h-counter) + var(--h-row)); }

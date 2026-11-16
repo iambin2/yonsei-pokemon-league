@@ -34,7 +34,15 @@ function useLightOnChange(ref, value) {
 
 /* The scoreboard's shared parts (DESIGN.md). A screen is built from these, board.css and the
    panel classes of tokens.css (.pn, .pn2, .stack, .inv, .lamp). A panel is a door: given onClick it is a button. */
-const door = onClick => onClick ? { as: "button", props: { type: "button", onClick } } : { as: "div", props: {} };
+/* A door with an address (href) is a link, so it opens in a new tab, copies by a long press and is found by a search engine;
+   a plain click on it is still the site's own move (follow). */
+export const follow = fn => e => {
+  if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  fn(e);
+};
+const door = (onClick, href) => href && onClick ? { as: "a", props: { href, onClick: follow(onClick) } }
+  : onClick ? { as: "button", props: { type: "button", onClick } } : { as: "div", props: {} };
 
 /* A section is a title (20) and its link (a 12px underlined word on the right), 12 above its stack. */
 export function SectionHead({ id, title, link, onLink }) {
@@ -62,8 +70,8 @@ export function Counter({ label, value, unit = "", cells = 2, onClick, lamp, aft
 /* A row of a stack: 52 for one line, 64 with a grey line. lead is the cell on the left (a rank, a date), value the figure on the right,
    lamp the lamp column at the end (true lights it, false keeps the column dark; a word lights it and stands beside it, since a lamp
    is a word's companion: 새 글); sig makes it amber, for what is live (도전 중). className sets the columns. */
-export function Row({ lead, title, line, value, lamp, sig = false, onClick, className = "", label }) {
-  const { as: Box, props } = door(onClick);
+export function Row({ lead, title, line, value, lamp, sig = false, onClick, href, className = "", label }) {
+  const { as: Box, props } = door(onClick, href);
   return (
     <Box className={"pn row" + (line ? " row--2" : "") + (className ? " " + className : "")} {...props} aria-label={label}>
       {lead != null && <span className="row-lead">{lead}</span>}
@@ -110,8 +118,8 @@ export function Podium({ rows, onName, unit = "점" }) {
 
 /* A lead panel: the first of a list stands large so the list has a beat. The date as 월 and 일 displays at 32, the lamp with
    its word at the right (sig for amber), the title at 20 in two lines, a grey line. date is "10.28" (dotDate's day). */
-export function Lead({ date, title, line, lamp, sig = false, onClick, label }) {
-  const { as: Box, props } = door(onClick);
+export function Lead({ date, title, line, lamp, sig = false, onClick, href, label }) {
+  const { as: Box, props } = door(onClick, href);
   const [m, d] = String(date || "").split(".");
   return (
     <Box className="pn lead" {...props} aria-label={label}>

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { normTeam as normalizeLegacyParty } from "../services/legacyPartyImages.js";
-import { Empty } from "../components/index.js";
+import { Empty, ErrorNote, Loader } from "../components/index.js";
 import { Counter, Mon, SectionHead } from "../components/common/Board.jsx";
 import Seg from "../components/common/Seg.jsx";
 import Button from "../components/common/Button.jsx";
@@ -14,6 +14,7 @@ import {
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
 import { freshRead, peekRead } from "../services/readCache.js";
 import { CHAMPIONS_MAX_AGE_MS } from "../components/home/homeFacts.js";
+import { useItemTitle } from "../components/layout/title.js";
 
 /* ============================== CHAMPIONS ==============================
    (DESIGN.md "Titles and hall of fame") 전당은 한 사람을 크게, 나머지를 벽에 건다.
@@ -25,14 +26,17 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
   const [normalizedChamps, setNormalizedChamps] = useState(() => peekRead("champions") ?? null);
   const [artworkLookup, setArtworkLookup] = useState(null);
   const normalizedEnabled = championsOperationsEnabled();
+  /* a failed read is not an empty hall (DESIGN.md "Errors and empty"): what was already read stays, and the note says the rest did not come */
+  const [failed, setFailed] = useState(false), [tries, setTries] = useState(0);
   useEffect(() => {
     let cancelled = false;
     if (!normalizedEnabled) return undefined;
     freshRead("champions", fetchNormalizedChampionsHallOfFame, admin ? 0 : CHAMPIONS_MAX_AGE_MS)
-      .then(rows => { if (!cancelled) setNormalizedChamps(rows); })
-      .catch(error => { console.warn("normalized Champions read failed", error); if (!cancelled) setNormalizedChamps([]); });
+      .then(rows => { if (!cancelled) { setNormalizedChamps(rows); setFailed(false); } })
+      .catch(error => { console.warn("normalized Champions read failed", error); if (!cancelled) { setNormalizedChamps(seen => seen ?? []); setFailed(true); } });
     return () => { cancelled = true; };
-  }, [normalizedEnabled]);
+  }, [normalizedEnabled, tries]);
+  const reading = normalizedEnabled && normalizedChamps == null;
   useEffect(() => {
     let cancelled = false;
     loadHallOfFameArtworkLookup()
@@ -41,7 +45,24 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
     return () => { cancelled = true; };
   }, []);
   const champs = mergeHallOfFame(data.champions, normalizedChamps);
-  const [pop, setPop] = useState(null);
+  // the reign open is in the address (?gen=), so a reload or a shared link opens the same party
+  const [pop, setPopState] = useState(null);
+  const reignKey = c => (c.generationNumber > 0 ? String(c.generationNumber) : c.name);
+  const setPop = c => {
+    setPopState(c);
+    const url = new URL(window.location.href);
+    if (c) url.searchParams.set("gen", reignKey(c)); else url.searchParams.delete("gen");
+    if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
+  };
+  useItemTitle(pop ? `${pop.name}, ${generationText(pop.gen) || "챔피언"}` : null);
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !champs.length) return;
+    const k = new URLSearchParams(window.location.search).get("gen");
+    if (!k) { restored.current = true; return; }
+    const c = champs.find(x => reignKey(x) === k);
+    if (c) { restored.current = true; setPopState(c); } else if (!reading) { restored.current = true; setPop(null); }
+  }, [champs.length, reading]);
 
   // 세대는 어디서나 숫자로("초대"가 아니라 "1대"), 문장은 "6대 챔피언, YPL 시즌 2 우승" 한 가지로 쓴다.
   const genLabel = c => generationText(c.gen) ? `${generationText(c.gen)} 챔피언` : "챔피언";
@@ -65,7 +86,8 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
 
   return (<section className="hof">
     <h1 className="t32">명예의 전당</h1>
-    {!reigning && <Empty title="등록된 챔피언이 없습니다." />}
+    {failed && <ErrorNote action="다시 불러오기" onRetry={() => { setFailed(false); setTries(n => n + 1); }}>챔피언 기록을 불러오지 못했습니다.</ErrorNote>}
+    {!reigning && (reading ? <Loader /> : !failed && <Empty title="등록된 챔피언이 없습니다." />)}
     {reigning && <section className="pn hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
       <div className="hof-crown-who">
         <span className="inv t12 hof-crown-tag">현 챔피언</span>
@@ -74,7 +96,7 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
         <p className="t15 dim reg">{title(reigning)}</p>
         <div className="hof-crown-act">
           {go && <Button variant="link" onClick={() => go("records", { trainer: reigning.name })}>{reigning.name} 기록 보기</Button>}
-          <Button variant="link" onClick={() => setPop(reigning)}>우승 엔트리 크게 보기</Button>
+          <Button variant="link" onClick={() => setPop(reigning)}>파티 보기</Button>
         </div>
       </div>
       <div className="hof-crown-six">
@@ -94,7 +116,7 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
       <SectionHead id="hof-past-h" title="역대 챔피언" />
       <div className="hof-wall">
         {past.map((c, i) => (<div className="hof-slot" key={c.id || i}>
-          <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 우승 엔트리 보기`}>
+          <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
             <span className="hof-plate-top">{plate(c, 40)}<span className="t12 dim hof-plate-season">{title(c)}</span></span>
             <b className="t20 hof-plate-name">{c.name}</b>
             <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} /></span>)}</span>

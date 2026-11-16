@@ -27,13 +27,15 @@ import { battleHref, endedByLine, listOfficialBattleLogs, listPlayerBattles } fr
 import { battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
+import { useItemTitle } from "../components/layout/title.js";
+import { useMe } from "../components/common/useMe.js";
 
 /* 사이트 배틀로 치른 공식 경기(DESIGN.md "Battle"): 트레이너의 배틀 이력과 포켓몬의 실제 선출, 선봉, 승률.
    끝난 공식 배틀의 로그는 한 번만 읽어 둔다. */
 let officialUsage = null;
 const loadOfficialUsage = () => (officialUsage ||= listOfficialBattleLogs().then(battleUsage, () => new Map()));
 
-function TrainerBattles({ playerIds }) {
+function TrainerBattles({ playerIds, go }) {
   const [rows, setRows] = useState(null);
   const key = playerIds.join(",");
   useEffect(() => { let on = true; listPlayerBattles(playerIds).then(list => { if (on) setRows(list); }); return () => { on = false; }; }, [key]);
@@ -49,7 +51,7 @@ function TrainerBattles({ playerIds }) {
           line={[formatDate(b.updated_at), `${b.turn}턴`, endedByLine(b)].filter(Boolean).join(", ")}
           value={<span className={"rc-place t12" + (won ? " inv" : " dim")}>{result}</span>}
           label={`상대 ${mine === "p1" ? b.p2_name : b.p1_name}, ${result}, 리플레이 보기`}
-          onClick={() => { window.location.search = battleHref(b.id); }} />;
+          onClick={() => { if (go) go("battle", { battle: b.id }); else window.location.search = battleHref(b.id); }} />;
       })}
     </div>
   </section>;
@@ -132,7 +134,7 @@ function PartySheet({ open, onClose, onTrainer }) {
 /* ============================== RECORDS ============================== */
 // The Pokémon directory comes from files that only change with a deploy, so one load serves the visit.
 let directorySeen = null;
-export default function RecordsPage({ data, admin, setModal, save }) {
+export default function RecordsPage({ data, admin, setModal, save, go }) {
   const [tab, setTabState] = useState(() => {
     const asked = new URLSearchParams(window.location.search).get("tab");
     return RECORD_TABS.some(([key]) => key === asked) ? asked : "trainer";
@@ -162,16 +164,18 @@ export default function RecordsPage({ data, admin, setModal, save }) {
       if (RECORD_TABS.some(([key]) => key === asked)) setTabState(asked);
       setFinding(p.has("me"));
       setSheet(p.get("trainer") ? { key: p.get("trainer"), from: null } : null);
+      setPokemonName(p.get("pokemon"));
     };
     popHandlers.add(sync);
-    return () => popHandlers.delete(sync);
+    return () => { popHandlers.delete(sync); };
   }, []);
-  const openTrainer = (key, from = null) => setSheet({ key, from });
-  const closeTrainer = () => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.has("trainer")) { url.searchParams.delete("trainer"); window.history.replaceState(window.history.state, "", url); }
-    setSheet(null);
-  };
+  // 포켓몬 시트도 페이지 하나가 연다. 포켓몬 목록, 트레이너의 자주 쓴 포켓몬, 함께 등록된 포켓몬이 같은 시트를 쓴다.
+  const [pokemonName, setPokemonName] = useState(() => new URLSearchParams(window.location.search).get("pokemon"));
+  // an open sheet stands in the address (?trainer=, ?pokemon=), so a reload or a shared link opens it again; closing takes it off
+  const closeTrainer = () => { setParam("trainer"); setSheet(null); };
+  const closePokemon = () => { setParam("pokemon"); setPokemonName(null); };
+  const openTrainer = (key, from = null) => { closePokemon(); setParam("trainer", key); setSheet({ key, from }); };
+  const openPokemon = (name) => { closeTrainer(); setParam("pokemon", name); setPokemonName(name); };
   const normalizedEnabled = normalizedRecordsReadEnabled();
   // 다시 들어오면 지난 조회 결과로 바로 그리고, 새 조회가 끝나면 바뀐 경우에만 다시 그린다(관리자는 늘 새 결과만).
   const [normalizedRead, setNormalizedRead] = useState(() => {
@@ -219,6 +223,8 @@ export default function RecordsPage({ data, admin, setModal, save }) {
       : buildRecordsSnapshot(data),
     [data, normalizedRead.data, pokemonDirectory]
   );
+  // the tab names the trainer or the Pokémon open (a trainer's key may be an id: its name is read from the record)
+  useItemTitle(sheet ? profileOf(snapshot, sheet.key)?.name : pokemonName);
 
   // 판의 세 숫자: 트레이너, 대회, 챔피언. 챔피언은 홈과 같은 명예의 전당 읽기를 쓴다.
   const [champions, setChampions] = useState(seenChampions);
@@ -244,8 +250,8 @@ export default function RecordsPage({ data, admin, setModal, save }) {
         {normalizedRead.loading ? <Loader small /> : <>
         {tab === "trainer" && admin && <LinkRequests id="rc-linkreq-h" hint={(name) => { const p = profileOf(snapshot, name); return p ? trainerHint(p) : null; }} />}
         {tab === "trainer" && <TrainerView snapshot={snapshot} onOpen={openTrainer} finding={finding} />}
-        {tab === "tour" && <TournamentArchiveView snapshot={snapshot} data={data} admin={admin} setModal={setModal} onParty={setParty} />}
-        {tab === "pokemon" && <PokemonView snapshot={snapshot} onParty={setParty} />}
+        {tab === "tour" && <TournamentArchiveView snapshot={snapshot} data={data} admin={admin} setModal={setModal} onParty={setParty} onName={openTrainer} />}
+        {tab === "pokemon" && <PokemonView snapshot={snapshot} onOpen={openPokemon} />}
         {tab === "rank" && <RankingHub snapshot={snapshot} data={data} admin={admin} setModal={setModal} save={save} onName={openTrainer} />}
         </>}
       </div>
@@ -253,9 +259,13 @@ export default function RecordsPage({ data, admin, setModal, save }) {
         const profile = profileOf(snapshot, sheet.key);
         return profile ? (
           <Modal title={profile.name} hint={trainerHint(profile)} className="rc-sheet wide" onClose={closeTrainer}>
-            <TrainerProfile snapshot={snapshot} profile={profile} onParty={setParty} finding={finding} />
+            <TrainerProfile snapshot={snapshot} profile={profile} onParty={setParty} onPokemon={openPokemon} go={go} finding={finding} />
           </Modal>
         ) : null;
+      })()}
+      {(() => {
+        const current = pokemonName ? snapshot.pokemon.find((p) => p.name === pokemonName) : null;
+        return current ? <PokemonSheet key={current.name} snapshot={snapshot} pokemon={current} rank={pokemonRank(snapshot, current)} onClose={closePokemon} onParty={setParty} onTrainer={openTrainer} onPokemon={openPokemon} /> : null;
       })()}
       {party && <PartySheet open={party} onClose={() => setParty(null)} onTrainer={(name) => { setParty(null); openTrainer(name); }} />}
     </section>
@@ -265,6 +275,13 @@ export default function RecordsPage({ data, admin, setModal, save }) {
 /* 트레이너 시트의 머리 아래 한 줄: 참가 횟수와 가진 챔피언 세대 */
 function trainerHint(profile) {
   return [trainerLeague(profile) === "master" ? "마스터" : "루키", `참가 ${profile.history.length}회`, ...profile.champions.map((c) => `${generationText(c.gen)} 챔피언`)].join(", ");
+}
+
+/* 주소의 한 칸을 쓰거나 지운다. 지금 기록 항목을 바꿀 뿐 새 항목을 쌓지 않는다. */
+function setParam(key, value) {
+  const url = new URL(window.location.href);
+  if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+  if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
 }
 
 /* 이름이나 키로 트레이너 기록을 찾는다. 다른 페이지의 링크는 이름만 알고 있다. */
@@ -279,6 +296,7 @@ function profileOf(snapshot, key) {
 const LIST_SHOWN = 20;
 
 function TrainerView({ snapshot, onOpen, finding = false }) {
+  const me = useMe();
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
 
@@ -300,13 +318,15 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
             // 리그는 이름 뒤 타입과 같은 태그로: 마스터는 사각이 켜지고, 루키는 꺼진다 (trainerLeague, 트레이너 시트의 머리와 같은 기준)
             const master = trainerLeague(profileOf(snapshot, trainer.key || trainer.name)) === "master";
             const league = master ? "마스터" : "루키";
+            // 로그인한 트레이너의 자기 줄: 리그 태그 뒤에 같은 태그로 나 (DESIGN.md "Colour and light")
+            const mine = Boolean(me && (trainer.playerId ? trainer.playerId === me.playerId : trainer.name === me.name));
             return (
               <Row key={trainer.key || trainer.name} className={"rc-tr" + (i === 0 && !query.trim() ? " inv" : "")}
                 lead={<span className="num t12">{snapshot.trainers.indexOf(trainer) + 1}</span>}
-                title={<>{trainer.name}<span className={"tb-type rc-league" + (master ? " master" : "")}>{league}</span></>}
+                title={<>{trainer.name}<span className={"tb-type rc-league" + (master ? " master" : "")}>{league}</span>{mine && <span className="tb-type rc-league master rc-me">나</span>}</>}
                 value={<span className="rc-three">{[trainer.wins, trainer.runnerUps, trainer.top4].map((v, k) => <span key={k} className={"num" + (v ? "" : " mute")}>{v}</span>)}</span>}
                 onClick={(e) => onOpen(trainer.key || trainer.name, e.currentTarget.querySelector(".row-main b"))}
-                label={`${trainer.name}, ${league}, 우승 ${trainer.wins} 준우승 ${trainer.runnerUps} 4강 ${trainer.top4}`} />
+                label={`${trainer.name}${mine ? ", 나" : ""}, ${league}, 우승 ${trainer.wins} 준우승 ${trainer.runnerUps} 4강 ${trainer.top4}`} />
             );
           })}
         </div>
@@ -318,7 +338,7 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   );
 }
 
-function TrainerProfile({ snapshot, profile, onParty, finding = false }) {
+function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = false }) {
   const [season, setSeason] = useState("");
   const [histPage, setHistPage] = useState(1);
   const [allParties, setAllParties] = useState(false);
@@ -399,7 +419,7 @@ function TrainerProfile({ snapshot, profile, onParty, finding = false }) {
 
       {!finding && <TrainerLink profile={profile} />}
 
-      <TrainerBattles playerIds={[...new Set([profile.playerId, ...profile.history.map(event => event.playerId)].filter(Boolean))]} />
+      <TrainerBattles go={go} playerIds={[...new Set([profile.playerId, ...profile.history.map(event => event.playerId)].filter(Boolean))]} />
 
       {parties.length > 0 && <section className="rc-sec" aria-labelledby="rc-party-h">
         <SectionHead id="rc-party-h" title={`사용한 파티 ${parties.length}개`} />
@@ -417,9 +437,9 @@ function TrainerProfile({ snapshot, profile, onParty, finding = false }) {
       <section className="rc-sec" aria-labelledby="rc-fav-h">
         <SectionHead id="rc-fav-h" title="자주 쓴 포켓몬" />
         {favorites.length ? (
-          <CountList items={favorites.slice(0, 6)} sprites={snapshot.pokemon} />
+          <CountList items={favorites.slice(0, 6)} sprites={snapshot.pokemon} onOpen={onPokemon} />
         ) : (
-          <Empty title="저장된 우승 엔트리가 없습니다." />
+          <Empty title="등록한 파티가 없습니다." />
         )}
       </section>
     </div>
@@ -558,18 +578,20 @@ function FindMe({ query, exact, onOpen, part = "head" }) {
 /* ---- shared pieces of the records views ---- */
 
 /* 포켓몬의 횟수: 그림이 있으면 바닥 띠 위에 선 여섯 칸, 없으면 줄 */
-function CountList({ items, sprites }) {
+function CountList({ items, sprites, onOpen }) {
   const sprite = (name) => pictureOf(name, sprites.find((p) => p.name === name)?.spriteName);
+  // a cell is a door to its Pokémon's sheet
+  const Box = onOpen ? "button" : "span";
   return (
     <div className="rc-six">
-      {items.map((item) => <span className="pn stand rc-cell" key={item.name}><Mon src={sprite(item.name)} /><span className="floor rc-band"><b className="t12">{item.name}</b><span className="t12 dim num">{item.entries}회</span></span></span>)}
+      {items.map((item) => <Box {...(onOpen ? { type: "button", onClick: () => onOpen(item.name), "aria-label": `${item.name}, ${item.entries}회, 포켓몬 기록 보기` } : {})} className="pn stand rc-cell" key={item.name}><Mon src={sprite(item.name)} /><span className="floor rc-band"><b className="t12">{item.name}</b><span className="t12 dim num">{item.entries}회</span></span></Box>)}
     </div>
   );
 }
 
 /* ============================== TOURNAMENT ARCHIVE ============================== */
 
-function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
+function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onName }) {
   const legacyTours = data.tournaments || [];
   const archiveKeys = [...new Set((snapshot.archives || []).map((row) => row.tournamentKey).filter(Boolean))];
   const keys = [
@@ -582,7 +604,6 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
     return {
       key,
       label: legacy?.label || first?.tournamentName || first?.eventName || key,
-      color: legacy?.color || first?.color || "#A1A1A6",
       rounds: (snapshot.archives || []).filter((row) => row.tournamentKey === key),
       legacy,
     };
@@ -638,7 +659,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
     });
   };
 
-  const renderRound = (tour, r, key, showCompetition = false) => {
+  const renderRound = (tour, r, key) => {
     const championSeries = Boolean(r.championSeries || r.champ);
     const runnerUps = Array.isArray(r.ru) ? r.ru : split(r.ru);
     const rule = displayRecordMeta(r.rule);
@@ -665,7 +686,13 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
           <div className={"r2-line " + placement} key={`${placement}:${k}`}>
             <span className={"r2-rk" + (placement === "win" ? " inv" : "")}>{k === 0 ? label : ""}</span>
             <span className="r2-names">
-              {entry.names.map((name, n) => <span key={`${name}:${n}`} className={"r2-name" + (placement === "win" ? " win" : "")}>{name}</span>)}
+              {entry.names.map((name, n) => {
+                const cls = "r2-name" + (placement === "win" ? " win" : "");
+                // a trainer's name is a door to the trainer's sheet; a team's name is not a trainer
+                return entry.trainers && onName && profileOf(snapshot, name)
+                  ? <button type="button" key={`${name}:${n}`} className={cls + " rc-name-link"} onClick={() => onName(name)}>{name}</button>
+                  : <span key={`${name}:${n}`} className={cls}>{name}</span>;
+              })}
               {/* a team's members always take the line under its name, as a grey line with commas, so no strip wraps differently */}
               {entry.members?.length > 0 && <span className="r2-mems">{entry.members.join(", ")}</span>}
             </span>
@@ -677,7 +704,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
       ["win", "우승", partyRows.filter((row) => row.placement === "win")],
       ["ru", "준우승", partyRows.filter((row) => row.placement === "ru")],
       ["sf", "4강", partyRows.filter((row) => row.placement === "sf")],
-    ].filter(([, , rows]) => rows.length > 0).map(([placement, label, rows]) => [placement, label, [{ names: rows.map((row) => row.name) }]]));
+    ].filter(([, , rows]) => rows.length > 0).map(([placement, label, rows]) => [placement, label, [{ names: rows.map((row) => row.name), trainers: true }]]));
     const teamResults = () => resultLines([
       ["win", "우승", [{ names: r.win ? [displayTeamName(r.win)] : [], members: r.winMembers }]],
       ["ru", "준우승", (runnerUps.length > 0 || r.ruMembers?.length > 0) ? [{ names: runnerUps[0] ? [displayTeamName(runnerUps[0])] : [], members: r.ruMembers }] : []],
@@ -757,7 +784,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
       <div className="swap" key={category}>
         {admin && selectedTour.legacy && <div className="rc-admin"><Button variant="second" onClick={openRoundEditor}>회차 편집</Button></div>}
         <ul className="stack rc-rounds">
-          {withChapters(sortRounds(selectedTour.rounds).map((r, i) => [r, r.id || i]), ([r]) => r, ([r, key]) => renderRound(selectedTour, r, key, false))}
+          {withChapters(sortRounds(selectedTour.rounds).map((r, i) => [r, r.id || i]), ([r]) => r, ([r, key]) => renderRound(selectedTour, r, key))}
         </ul>
       </div>
     ) : (
@@ -765,7 +792,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
         <div className="rc-list-search"><ListSearch q={query} setQ={setQuery} placeholder="대회명, 시즌, 룰, 입상자, 포켓몬 검색" count={allRows.length} /></div>
         {allRows.length ? (
           <ul className="stack rc-rounds swap">
-            {withChapters(allRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key, true))}
+            {withChapters(allRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key))}
           </ul>
         ) : <Empty title="검색 결과가 없습니다." />}
       </>
@@ -775,15 +802,14 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty }) {
 
 /* ============================== POKEMON ============================== */
 /* 포켓몬은 도감처럼 카드로 고른다. 카드를 누르면 많이 쓴 구성과, 누가 어느 대회에서 어떤 샘플을 썼는지가 열린다. */
-function PokemonView({ snapshot, onParty }) {
+const pokemonRank = (snapshot, pokemon) => snapshot.pokemon.findIndex((p) => p.entries === pokemon.entries) + 1;
+function PokemonView({ snapshot, onOpen }) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(null);
   const [all, setAll] = useState(false);
   const normalized = query.trim().toLowerCase();
 
   const visible = snapshot.pokemon.filter((p) => p.name.toLowerCase().includes(normalized));
-  const current = open ? snapshot.pokemon.find((p) => p.name === open) : null;
-  const rankOf = (pokemon) => snapshot.pokemon.findIndex((p) => p.entries === pokemon.entries) + 1;
+  const rankOf = (pokemon) => pokemonRank(snapshot, pokemon);
 
   if (!snapshot.pokemon.length) {
     return <Empty title="기록에 연결된 파티 엔트리가 없습니다." />;
@@ -799,7 +825,7 @@ function PokemonView({ snapshot, onParty }) {
       {visible.length ? (
         <div className="rc-mons">
           {rows.map((pokemon) => (
-            <button type="button" className="pn stand rc-mon" key={pokemon.name} onClick={() => setOpen(pokemon.name)} aria-label={`${pokemon.name}, ${rankOf(pokemon)}위, ${pokemon.entries}회 등록`}>
+            <button type="button" className="pn stand rc-mon" key={pokemon.name} onClick={() => onOpen(pokemon.name)} aria-label={`${pokemon.name}, ${rankOf(pokemon)}위, ${pokemon.entries}회 등록`}>
               <span className="rc-mon-rank num t12 dim">{rankOf(pokemon)}</span>
               <Mon src={pictureOf(pokemon.name, pokemon.spriteName)} />
               <span className="floor rc-band"><b className="t15">{pokemon.name}</b><span className="t12 dim num">{pokemon.entries}회</span></span>
@@ -810,20 +836,20 @@ function PokemonView({ snapshot, onParty }) {
       {!all && !normalized && visible.length > GRID_SHOWN && (
         <div className="rc-more"><Button variant="second" onClick={() => setAll(true)}>{visible.length}종 전체 보기</Button></div>
       )}
-      {current && <PokemonSheet snapshot={snapshot} pokemon={current} rank={rankOf(current)} onClose={() => setOpen(null)} onParty={onParty} />}
     </div>
   );
 }
 
 /* A figure read as a bar on its track, the calculator's bar (DESIGN.md "Records"): the name (a move's type tag before it), the bar, the
    figure. share is 0 to 1. In a ranking the sole leader inverts, as the record holder does. */
-function BarRow({ name, tag, note, share, value, top = false, keyed = false }) {
+function BarRow({ name, tag, note, share, value, top = false, keyed = false, onClick }) {
+  const Box = onClick ? "button" : "div";
   return (
-    <div className={(top ? "inv" : "pn") + " rc-bar" + (keyed ? " keyed" : "")}>
+    <Box {...(onClick ? { type: "button", onClick } : {})} className={(top ? "inv" : "pn") + " rc-bar" + (keyed ? " keyed" : "")}>
       <span className="rc-bar-name">{tag}<b className="t15">{name}</b>{note && <span className="t12 dim reg">{note}</span>}</span>
       <span className="tb-bar" aria-hidden="true"><i style={{ transform: `scaleX(${Math.min(1, Math.max(0, share))})` }} /></span>
       <b className="t15 num rc-bar-fig">{value}</b>
-    </div>
+    </Box>
   );
 }
 const typeTag = (type) => type ? <span className={`tb-type type-${type.toLowerCase()}`}>{TYPE_KO[type] || type}</span> : null;
@@ -835,7 +861,7 @@ function BarGroup({ label, rows, total, unit = "%", columns = 1 }) {
       <div className="tb-subhead"><span className="t12 dim">{label}</span></div>
       <div className={"stack rc-bars" + (columns > 1 ? " two" : "")} style={{ "--rows": Math.ceil(rows.length / columns) }}>
         {rows.map((row, i) => <BarRow key={row.key} name={row.name} tag={row.tag} note={row.note} share={row.count / total}
-          value={unit === "%" ? `${row.rate}%` : `${row.count}${unit}`} top={lead && i === 0} />)}
+          value={unit === "%" ? `${row.rate}%` : `${row.count}${unit}`} top={lead && i === 0} onClick={row.onClick} />)}
       </div>
     </div>
   );
@@ -844,7 +870,7 @@ function BarGroup({ label, rows, total, unit = "%", columns = 1 }) {
 /* The Pokémon sheet (2026-11-04): the Pokémon is its subject, so it stands large on its panel with its rank lit beside it and its types
    on its floor; four counters read the record; then the statistics as bars: its base stats, the points the samples gave it, and the
    moves, items, abilities and natures they chose. The samples and parties follow as doors. */
-function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty }) {
+function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, onPokemon }) {
   const samples = useMemo(() => pokemonSamples(snapshot.rosters, pokemon.name), [snapshot.rosters, pokemon.name]);
   const usage = useMemo(() => sampleUsage(samples), [samples]);
   const display = useTeamDisplay(true);
@@ -860,7 +886,8 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty }) {
   const effect = (a) => a?.plus ? `${STAT_LABELS[a.plus]}↑ ${STAT_LABELS[a.minus]}↓` : "보정 없음";
   const [more, setMore] = useState(false);
   const total = dex ? STAT_KEYS.reduce((sum, key) => sum + (dex.baseStats?.[key] || 0), 0) : 0;
-  const trainers = pokemon.trainers.slice(0, 8).map((t) => ({ key: t.name, name: t.name, count: t.entries }));
+  const door = (name) => onTrainer && profileOf(snapshot, name) ? () => onTrainer(name) : undefined;
+  const trainers = pokemon.trainers.slice(0, 8).map((t) => ({ key: t.name, name: t.name, count: t.entries, onClick: door(t.name) }));
   const battle = useBattleUsage(dex);
   return (
     <Modal title={pokemon.name} hint={dex ? `${dex.name}, 전국도감 ${String(dex.num).padStart(4, "0")}` : undefined} className="rc-sheet wide" onClose={onClose}>
@@ -941,7 +968,7 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty }) {
         <section className="rc-sec" aria-labelledby="rc-pk-pt-h">
           <SectionHead id="rc-pk-pt-h" title="함께 많이 등록된 포켓몬" />
           {pokemon.partners.length
-            ? <CountList items={pokemon.partners.slice(0, 8)} sprites={snapshot.pokemon} />
+            ? <CountList items={pokemon.partners.slice(0, 8)} sprites={snapshot.pokemon} onOpen={onPokemon} />
             : <Empty title="동반 엔트리 기록이 없습니다." />}
         </section>
 
@@ -949,7 +976,7 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty }) {
           <section className="rc-sec" aria-labelledby="rc-pk-ch-h">
             <SectionHead id="rc-pk-ch-h" title="역대 챔피언 엔트리" />
             <div className="stack">
-              {pokemon.champions.map((item, index) => <Row key={`${item.gen}:${index}`} title={`${generationText(item.gen)} ${item.name}`} line={item.season} />)}
+              {pokemon.champions.map((item, index) => <Row key={`${item.gen}:${index}`} title={`${generationText(item.gen)} ${item.name}`} line={item.season} onClick={door(item.name)} />)}
             </div>
           </section>
         )}
@@ -973,10 +1000,8 @@ function RankingHub({ snapshot, data, admin, setModal, save, onName }) {
     ...eras.map((era, i) => ({ id: `e:${era.key}`, label: i === 0 ? "누적 랭킹" : `${era.label} 누적`, era })),
   ];
   const primary = [views.find((v) => v.id === `s:${current}`), views.find((v) => v.era)].filter(Boolean);
-  const past = views.filter((v) => !primary.includes(v));
   const [sel, setSel] = useState(null);
   const view = views.find((v) => v.id === sel) || primary[0];
-  const options = [...primary, ...(view && !primary.includes(view) ? [view] : [])].map((v) => [v.id, v.label]);
 
   const addEra = async () => {
     const name = (await sitePrompt({ title: "누적 탭 추가", label: "탭 이름", placeholder: "예: 클래식", confirmLabel: "추가" })) || "";

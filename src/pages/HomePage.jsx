@@ -1,8 +1,12 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChampionPanel, Counter, Mon, Podium, SectionHead } from "../components/common/Board.jsx";
+import { ChampionPanel, Counter, Lead, Mon, Podium, SectionHead } from "../components/common/Board.jsx";
+import { useMe } from "../components/common/useMe.js";
+import { loadMyNext } from "../services/myNext.js";
+import { lastEventResult } from "../services/lastEvent.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
 import Button from "../components/common/Button.jsx";
 import ChampionSheet from "../components/common/ChampionSheet.jsx";
+import ErrorNote from "../components/common/ErrorNote.jsx";
 import { DUR, light } from "../components/common/motion.js";
 import Seg from "../components/common/Seg.jsx";
 import StandTable from "../components/common/StandTable.jsx";
@@ -14,6 +18,7 @@ import { liveMatches } from "../services/recordsAnalytics.js";
 import { listEventBattles } from "../services/battleService.js";
 import { submissionDue } from "../services/submissionDue.js";
 import { applicationsOpen } from "../services/announcementTimes.js";
+import { readBracketSchedule, roundKeyOf, tableWord } from "../services/bracketSchedule.js";
 
 const DAY_MS = 86400000;
 /* "2026-10-04", "2026.10.04", "2026-10-04T15:21" → 그날 0시의 Date. 일까지 없으면 null. */
@@ -58,6 +63,22 @@ const opening = () => firstOpen;
 /* 좁은 줄의 날짜: 11.07, 그 옆에 흐린 요일 */
 const Day = ({ d }) => d && <span className="num">{d.day}<span className="dim wd">{d.weekday}</span></span>;
 
+/* 내 다음의 한 칸: 사실이 있으면 그곳으로 가는 문, 없으면 이름만 남은 꺼진 칸(값의 자리는 비워 두어 켜질 때 움직이지 않는다) */
+const MyCell = ({ label, value, onClick, say }) => value == null
+  ? <div className="cell"><span className="cell-label">{label}</span><b aria-hidden="true">{" "}</b></div>
+  : <button type="button" className="cell" onClick={onClick} aria-label={say || `${label} ${value}`}><span className="cell-label">{label}</span><b>{value}</b></button>;
+
+/* 지난 대회: 다음 대회가 없는 날의 첫 자리. 기록 화면과 같은 정규 기록 읽기(캐시 "records")에서 찾고, 지난 방문의 답을 첫 그림부터 쓴다. */
+const LAST_KEY = "ypl-home-last";
+const seenLast = () => { try { return JSON.parse(localStorage.getItem(LAST_KEY) || "null"); } catch { return null; } };
+async function loadLast(admin) {
+  const records = await import("../services/normalizedRecordsService.js");
+  if (!records.normalizedRecordsReadEnabled()) return null;
+  const last = lastEventResult(await freshRead("records", records.fetchNormalizedRecordsSnapshot, admin ? 0 : 60_000));
+  try { last ? localStorage.setItem(LAST_KEY, JSON.stringify(last)) : localStorage.removeItem(LAST_KEY); } catch { /* 다음에 다시 읽는다 */ }
+  return last;
+}
+
 
 /* ============================== HOME ==============================
    전광판 한 장 (DESIGN.md "Layout and pages").
@@ -67,13 +88,15 @@ export default function HomePage({ data, go, admin }) {
   const [enter] = useState(opening);
   const root = useRef(null);
   const [champions, setChampions] = useState(seenChampions), [facts, setFacts] = useState(() => admin ? null : seenFacts()), [pop, setPop] = useState(null);
+  /* a failed read is not a board still reading (DESIGN.md "Errors and empty"): the counters stay off and the note under them says so */
+  const [factsFailed, setFactsFailed] = useState(false), [factsTry, setFactsTry] = useState(0);
 
   useEffect(() => {
     let live = true;
     loadChampions(data, admin).then(rows => { if (live) setChampions(rows); }).catch(error => { console.warn("home champions read failed", error); if (live) setChampions([]); });
-    loadFacts(data, admin).then(next => { if (live) setFacts(next); }).catch(error => { console.warn("home facts read failed", error); if (live) setFacts(seen => seen || {}); });
+    loadFacts(data, admin).then(next => { if (live) { setFacts(next); setFactsFailed(false); } }).catch(error => { console.warn("home facts read failed", error); if (live) { setFacts(seen => seen || {}); setFactsFailed(true); } });
     return () => { live = false; };
-  }, [data]);
+  }, [data, factsTry]);
   /* the reign and the league's numbers are one block of the board: on a first visit the champion waits for the counters (its picture
      is fetched meanwhile) so the block lights at once, never longer than a second; a returning visitor has both from the first frame */
   const [waited, setWaited] = useState(false);
@@ -113,6 +136,20 @@ export default function HomePage({ data, go, admin }) {
      화면에 있는 동안 15초마다 다시 읽는다(2026-11-08, 중계 강화: 한 경기만, 한 번만 읽었다). */
   const [live, setLive] = useState(null);
   const [liveBattles, setLiveBattles] = useState([]);
+  /* the live match's table and its round's start, as its sheet shows them (docs/db/match_schedule.sql; nothing until it has run) */
+  const [liveWhere, setLiveWhere] = useState(null);
+  const liveMatch = live?.live?.[0] || null;
+  useEffect(() => {
+    if (!liveMatch || !live?.runtimeId) { setLiveWhere(null); return undefined; }
+    let on = true;
+    readBracketSchedule({ eventId: live.eventId, runtimeId: live.runtimeId }).then(sc => {
+      if (!on || !sc) return;
+      const at = sc.rounds[roundKeyOf(liveMatch.id)], table = sc.tables.get(liveMatch.id);
+      const time = at ? new Date(at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }) : "";
+      setLiveWhere([time, table ? tableWord(table) : ""].filter(Boolean).join(", ") || null);
+    }, () => {});
+    return () => { on = false; };
+  }, [liveMatch?.id, live?.runtimeId]);
   useEffect(() => {
     if (!now?.today || !now.eventId) { setLive(null); setLiveBattles([]); return undefined; }
     let on = true;
@@ -123,7 +160,7 @@ export default function HomePage({ data, go, admin }) {
       freshRead("brackets", listNormalizedBracketRuntimes, 10_000)
         .then(rows => {
           if (!on) return;
-          const plays = (rows || []).map(row => row.bracket).filter(b => eventIds.includes(b?.eventId)).map(liveMatches);
+          const plays = (rows || []).map(row => row.bracket).filter(b => eventIds.includes(b?.eventId)).map(b => ({ ...liveMatches(b), eventId: b.eventId, runtimeId: b.projection?.runtimeId || null }));
           setLive(plays.find(p => p.live.length) || null);
         })
         .catch(error => { console.warn("home live matches read failed", error); if (on) setLive(null); });
@@ -133,7 +170,25 @@ export default function HomePage({ data, go, admin }) {
     const timer = setInterval(read, 15_000);
     return () => { on = false; clearInterval(timer); };
   }, [now?.today, now?.eventId]);
-  const primary = !now ? ["공지 보기", "news"] : now.today ? ["대진표 보기", "bracket"] : now.open ? ["이번 대회 신청", "news"] : ["대회 공지 보기", "news", { notice: now.noticeId }];
+  /* 내 다음 (2026-11-16): 기록에 연결된 계정의 다음 대회 신청, 파티 제출, 다음 경기. 계정이 없으면 이 블록은 없다 */
+  const me = useMe();
+  const [mine, setMine] = useState(null);
+  useEffect(() => {
+    setMine(null);
+    if (!me || !now?.eventId) return undefined;
+    let on = true;
+    loadMyNext(now.eventId, me).then(next => { if (on) setMine(next); }, error => console.warn("home my next read failed", error));
+    return () => { on = false; };
+  }, [me?.playerId, now?.eventId]);
+  /* 다음 대회가 없는 날의 첫 자리는 지난 대회의 결과다 (2026-11-16): 꺼진 88 대신 날짜, 이름, 리그마다의 우승, 대진표 보기 */
+  const [last, setLast] = useState(() => (now ? null : seenLast()));
+  useEffect(() => {
+    if (now) return undefined;
+    let on = true;
+    loadLast(admin).then(next => { if (on) setLast(next); }, error => console.warn("home last event read failed", error));
+    return () => { on = false; };
+  }, [!now, data]);
+  const primary = !now ? (last ? ["대진표 보기", "bracket", { eventId: last.eventId }] : ["공지 보기", "news"]) : now.today ? ["대진표 보기", "bracket"] : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
   const notices = useMemo(() => [...data.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.date < b.date ? 1 : -1)).slice(0, 3), [data.announcements]);
   const reigning = (facts || waited) ? champions?.[0] || null : null;
   const readingReign = !reigning && (!champions || (champions.length > 0 && !(facts || waited)));
@@ -141,6 +196,23 @@ export default function HomePage({ data, go, admin }) {
 
   return (<div className="ho" ref={root}>
     <section className="ho-next" aria-labelledby={now ? "ho-title" : undefined}>
+      {now && me && <div className="stack ho-me" data-light>
+        <MyCell label="신청" value={mine?.applied == null ? null : mine.applied ? "신청함" : "미신청"} onClick={() => go("news", { notice: now.noticeId })} />
+        <MyCell label="파티 제출" value={mine?.submitted == null ? null : mine.submitted ? "제출함" : "미제출"} onClick={() => go("builder", { eventId: mine.builderEventId })} />
+        <MyCell label="다음 경기" value={mine?.match ? `${mine.match.stage} ${mine.match.opponent}` : null} say={mine?.match && `다음 경기 ${mine.match.stage}, 상대 ${mine.match.opponent}, 대진표 보기`}
+          onClick={() => go("bracket", { eventId: mine.match.eventId, m: mine.match.id })} />
+      </div>}
+      {!now && last ? <>
+        <p className="ho-label t12" data-light><span className="ho-lamp dim"><i className="lamp unlit" aria-hidden="true" />지난 대회</span></p>
+        <div className="stack ho-last" data-light>
+          <Lead date={last.date} title={last.name} line={last.leagues.map(l => [l.league, `${l.count}${l.team ? "팀" : "명"}`].filter(Boolean).join(" ")).join(", ")} />
+          {last.leagues.map((l, i) => <div className="pn ho-win" key={l.eventId}>
+            <span className={"ho-win-place t12 " + (i === 0 ? "inv" : "pn2")}>우승</span>
+            <span className="row-main"><b className={i === 0 ? "t20" : "t15"}>{l.win}</b>
+              {(l.league || l.ru.length > 0) && <span className="t12 dim">{[l.league, l.ru.length && `준우승 ${l.ru.join(", ")}`].filter(Boolean).join(", ")}</span>}</span>
+          </div>)}
+        </div>
+      </> : <>
       <p className="ho-label t12" data-light>
         {now?.today
           ? <span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />오늘 대회 진행 중</span>
@@ -154,6 +226,7 @@ export default function HomePage({ data, go, admin }) {
           ? <><Seg value={now.date?.clock || "  :  "} h={84} cells={4} label={now.date?.clock ? `${now.date.clock} 시작` : "시작 시각 미정"} /><span className="ho-unit">시작</span></>
           : <><Seg value={now ? String(now.dday).padStart(2, "0") : ""} h={120} cells={now?.dday >= 100 ? 3 : 2} label={now ? `${now.dday}일 남음` : "다음 대회 없음"} className="ho-days" /><span className={"ho-unit" + (now ? "" : " dim")} data-light>일</span></>}
       </div>
+      </>}
       {/* the board says it alone: the countdown under its label; an event's name stays for screen readers (2026-11-06), no event has no title (2026-11-08) */}
       {now && <h1 className="ho-title sr-only" id="ho-title">{now.name}</h1>}
       {now?.due && <div className="stack ho-due">
@@ -167,11 +240,14 @@ export default function HomePage({ data, go, admin }) {
     </section>
 
     {live?.live.length > 0 && <section className="ho-sec ho-live" aria-labelledby="ho-live">
-      <SectionHead id="ho-live" title="지금 경기" link="대진표 전체" onLink={() => go("bracket")} />
+      <SectionHead id="ho-live" title="지금 경기" link="대진표 전체" onLink={() => go("bracket", { eventId: live.eventId })} />
       <div className="stack">
-        <p className="pn ho-live-head t12"><span className="dim">{live.live[0].stage}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></p>
-        <p className="pn ho-live-row t15">{live.live[0].a}</p>
-        <p className="pn ho-live-row t15">{live.live[0].b}</p>
+        {/* the match is a door to its own bracket, as every panel that names a place is */}
+        <button type="button" className="stack" onClick={() => go("bracket", { eventId: live.eventId, m: live.live[0].id })} aria-label={`${live.live[0].stage}${liveWhere ? `, ${liveWhere}` : ""}, ${live.live[0].a} 대 ${live.live[0].b}, 진행 중, 경기 보기`}>
+          <span className="pn ho-live-head t12"><span className="dim">{[live.live[0].stage, liveWhere].filter(Boolean).join(", ")}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></span>
+          <span className="pn ho-live-row t15">{live.live[0].a}</span>
+          <span className="pn ho-live-row t15">{live.live[0].b}</span>
+        </button>
         <p className="pn ho-live-head t12"><span className="dim">{live.stage} 진행</span><span>{live.done} / {live.total} 종료</span></p>
         {/* every match of the day being played as a site battle, one strip each, opening it to watch */}
         {liveBattles.map(b => <button key={b.id} type="button" className="pn ho-live-head t12" onClick={() => go("battle", { battle: b.id })}>
@@ -191,6 +267,7 @@ export default function HomePage({ data, go, admin }) {
         <Counter label="트레이너" value={facts?.trainers ?? null} unit="명" onClick={() => go("records", { tab: "trainer" })} />
         <Counter label="역대 시즌" value={facts?.seasons ?? null} unit="개" onClick={() => go("records", { tab: "rank" })} />
       </div>
+      {factsFailed && <ErrorNote action="다시 불러오기" onRetry={() => { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
     </div>
 
     {/* while the ranking is read its place stands switched off, so the notices under it do not move when it lights */}

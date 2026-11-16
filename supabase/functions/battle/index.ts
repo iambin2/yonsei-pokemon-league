@@ -327,6 +327,28 @@ async function userOf(req: Request) {
   if (error || !data?.user) refuse(401, "Google 계정으로 로그인해 주세요.");
   return data!.user.id as string;
 }
+/* 계정에 배틀 기록 (docs/db/account_teams.sql, 2026-11-16): a seat taken by a request signed in with Google (the site sends the
+   session's token when it has one, storage.js callFunction) is written on the battle as that account's, so 기록 lists it on any
+   device. After the answer, so a seat never waits on it; a token that is the anon key or not a user's is passed over without asking
+   Auth. Before that SQL has run there is no battle_set_account, and this stands aside for the worker's life: everything else is as before. */
+let accountSeats = true;
+const jwtRole = (jwt: string) => { try { return JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).role; } catch { return null; } };
+function seatAccount(req: Request | undefined, id: string, side: string, user: string | null = null) {
+  if (!accountSeats || !id) return;
+  later((async () => {
+    let uid = user;
+    if (!uid && req) {
+      const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      if (jwtRole(jwt) !== "authenticated") return;
+      const { data } = await db.auth.getUser(jwt);
+      uid = data?.user?.id ?? null;
+    }
+    if (!uid) return;
+    const { error } = await db.rpc("battle_set_account", { p_id: id, p_side: side, p_user: uid });
+    if (error && (error.code === "PGRST202" || error.code === "42883")) accountSeats = false;
+    else if (error) throw error;
+  })());
+}
 // A streak game the player gives up or lets run out of time: lost, saved, and a lamp of the run goes out (streakAfter).
 async function endStreakGame(battle: Record<string, any>, secret: Record<string, any>, side: string, endedBy: "forfeit" | "timeout") {
   const engine = loadBattle(secret.state);
@@ -390,10 +412,12 @@ async function seatSecond(battle: Record<string, any>, secret: Record<string, an
 const readOr = async (id: string) => { try { return await read(id); } catch (e) { if (e instanceof Refusal && e.status === 404) return null; throw e; } };
 
 const actions: Record<string, (body: Record<string, any>, again?: boolean, req?: Request) => Promise<unknown>> = {
-  async create({ regulation, battleFormat, name, team, room }) {
+  async create({ regulation, battleFormat, name, team, room }, _again, req) {
     let formatid = "";
     try { formatid = formatId(String(regulation), String(battleFormat)); } catch { refuse(400, "알 수 없는 규정입니다."); }
-    return openBattle({ regulation: String(regulation), formatid, name: cleanName(name), team, room });
+    const made = await openBattle({ regulation: String(regulation), formatid, name: cleanName(name), team, room });
+    seatAccount(req, made.id, "p1");
+    return made;
   },
 
   /* A seat's screen asks this while its player thinks (src/pages/BattlePage.jsx). A worker of this function lives about 75 seconds
@@ -415,10 +439,10 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     return { id };
   },
 
-  async join({ id, name, team, code }) {
+  async join({ id, name, team, code }, _again, req) {
     const p2 = cleanName(name);
     const token = newToken();
-    return withRetry(async () => {
+    const view = await withRetry(async () => {
       const { battle, secret } = await read(String(id));
       if (battle.kind === "official") refuse(409, "공식 경기는 대진표의 경기에서 참가해 주세요.");
       if (battle.kind === "streak") refuse(409, "도전의 탑에는 참가할 수 없습니다. 관전만 할 수 있습니다.");
@@ -427,13 +451,20 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
       if (battle.room === "code" && String(code ?? "") !== secret.room_code) refuse(403, "방 코드가 맞지 않습니다.");
       return seatSecond(battle, secret, p2, team, token);
     });
+    seatAccount(req, String(id), "p2");
+    return view;
   },
 
   /* 다시하기 (docs/db/battle_rematch.sql): either player of an ended friendly battle asks. The first to ask opens the next battle
      (a code room, so it stands on no list and no one else comes in) with the same rule and format and writes it on the ended one;
      the other, asking next, sits down in it and it starts. Each plays under the name they played under; the party is the one they
      send, and a random party is drawn again. A rematch that was cancelled, or has already been played, is replaced by a new one. */
-  async rematch({ id, token, team }, again = false) {
+  async rematch(body, again = false, req) {
+    const next = await actions.rematchSeat(body, again, req) as Record<string, any>;
+    if (next?.token) seatAccount(req, next.id, next.side);
+    return next;
+  },
+  async rematchSeat({ id, token, team }, again = false) {
     const { battle, secret } = await read(String(id));
     const side = await seat(secret, token);
     if (battle.kind !== "friendly") refuse(409, "친선 배틀만 다시 할 수 있습니다.");
@@ -458,7 +489,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     // the other asked in the same moment and was written first: ours goes, and theirs is taken
     await rpc("battle_cancel", { p_id: made.id });
     if (again) refuse(409, "다른 요청과 겹쳤습니다. 다시 시도해 주세요.");
-    return actions.rematch({ id, token, team }, true);
+    return actions.rematchSeat({ id, token, team }, true);
   },
 
   async view({ id, token }) {
@@ -552,6 +583,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
       throw error;
     }
     await keepMemory(game.id, game.memory);
+    seatAccount(req, game.id, "p1", user);
     return { id: game.id, token: game.token, side: "p1", run: data };
   },
 
@@ -574,6 +606,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     if (run.battle_id === String(have ?? "") && (held == null || (await sha256(String(held))) === secret.p1_token_hash)) return { run: shown, id: run.battle_id, known: true };
     const token = newToken();
     await rpc("battle_set_seat", { p_id: run.battle_id, p_side: "p1", p_entry_id: null, p_player_id: null, p_token_hash: await sha256(token) });
+    seatAccount(req, run.battle_id, "p1", user);
     const party = Array.isArray(secret.p1_team) ? secret.p1_team.map((m: Record<string, any>) => m.species) : null;
     return { run: shown, id: run.battle_id, token, side: "p1", wins: run.wins, lives: run.lives, daily: run.daily, party };
   },
@@ -595,6 +628,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
       throw error;
     }
     await keepMemory(game.id, game.memory);
+    seatAccount(req, game.id, "p1", user);
     return { id: game.id, token: game.token, side: "p1", wins: 0, lives: data?.lives ?? run.lives, daily: run.daily, party: (party as Record<string, any>[]).map(m => m.species) };
   },
 
@@ -609,7 +643,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
      gatekeeper's. There is no new party mid-run any more (reroll was taken out the same day). */
   /* door (2026-11-11): which of the doors the run was offered (doorsOf: 0 the even foe, 1 the strong one; a gatekeeper's game has
      one). A trade after a gatekeeper or a strong door reaches one tier up (the offer's reach). */
-  async streakNext({ id, token, swap, door }) {
+  async streakNext({ id, token, swap, door }, _again, req) {
     const { battle, secret } = await read(String(id));
     const side = await seat(secret, token);
     if (battle.kind !== "streak" || side !== "p1" || battle.status !== "ended") refuse(409, "끝난 판에서만 다음 판을 열 수 있습니다.");
@@ -661,6 +695,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
       throw error;
     }
     await keepMemory(game.id, game.memory);
+    seatAccount(req, game.id, "p1");
     return { id: game.id, token: game.token, side: "p1", wins, lives: data?.lives ?? run?.lives, hard: chosen?.kind === "hard", party: game.args.p_p1_team.map((m: Record<string, any>) => m.species) };
   },
 
@@ -756,7 +791,12 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
   /* An official match: a player of that match takes their side's seat with their party PIN, and plays their
      latest official party. The first one in opens the battle, the second starts it. The same player again (another phone)
      gets a new token for the same seat. */
-  async official({ eventId, nodeKey, side, pin, player }) {
+  async official(body, _again, req) {
+    const seated = await actions.officialSeat(body) as Record<string, any>;
+    seatAccount(req, seated.id, seated.side);
+    return seated;
+  },
+  async officialSeat({ eventId, nodeKey, side, pin, player }) {
     // a team bout (src/services/teamBouts.js): the member names themselves, and the seat is theirs, not their team's
     const bout = parseBoutKey(nodeKey);
     if (bout && !/^[0-9a-f-]{36}$/i.test(String(player ?? ""))) refuse(403, SEAT_REFUSAL.not_player[1]);

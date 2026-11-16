@@ -55,7 +55,11 @@
 .bk-scroll::-webkit-scrollbar { display: none; }
 .bk-tree { display: flex; align-items: flex-start; gap: var(--bk-gap); width: max-content; }
 .bk-col2 { position: relative; width: var(--bk-w); display: flex; flex-direction: column; }
-.bk-col-h { margin-bottom: var(--s3); }
+/* a round's head names it at the left and, once the schedule is set (docs/db/match_schedule.sql), its start at the right end (13:00) */
+.bk-col-h { display: flex; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s3); }
+/* an operator presses a round's head to set the schedule: a finger's 44 round the same 12 line, so the tree does not move */
+.bk-col-set { align-items: center; width: 100%; min-height: var(--h-control); padding: 0; margin-top: calc((var(--l12) - var(--h-control)) / 2); margin-bottom: calc(var(--s3) + (var(--l12) - var(--h-control)) / 2); text-align: left; transition: color var(--move-tone); }
+@media (hover: hover) { .bk-col-set:hover { color: var(--lit); } }
 .bk-col-h.gf { font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
 .bk-col-body { position: relative; width: 100%; }
 .bk-mpos { position: absolute; left: 0; right: 0; }
@@ -86,7 +90,7 @@
 .mb-row {
   display: flex; align-items: center; gap: var(--s2); width: 100%; height: 36px; min-height: 0; padding: 0 var(--s3) 0 var(--s2);
   background: var(--panel); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit);
-  transition: background-color var(--move-tone), color var(--move-tone);
+  transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 .mb-row.inv { background: var(--lit); color: var(--ground); }
 .mb-row.lost, .mb-row.wait { color: var(--mute); }
@@ -102,8 +106,22 @@
 /* a visitor's match sheet: the bouts of a team match stand 20 under the two sides */
 .mb-bouts { margin-top: var(--s5); }
 /* a match played as a site battle: the amber lamp in its box's corner, and in its sheet the battle and its one action */
+/* a match's table: the box's 32 head strip on the seam over its two rows (DESIGN.md "Panels" 5); 테이블 미정 muted */
+.mb-strip { display: flex; align-items: center; height: var(--h-strip); margin-bottom: var(--seam); padding: 0 var(--s3) 0 var(--s2); background: var(--panel); font-weight: 700; color: var(--lit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-strip.wait { font-weight: 600; color: var(--mute); }
+.stack > .mb-strip { margin-bottom: 0; }
+/* 나: the records' league tag after a name (records-board.css .rc-league), its square lit; on the inverted winner's row it stands on the ground */
+.mb-me { flex: none; --type: var(--lit); }
+:is(.mb-row, .row).inv .mb-me { --tag-bg: var(--ground); }
+.row-main .mb-me { margin-left: var(--s2); vertical-align: middle; }
+/* the sheet's start and table: a clock and a counter on the seam, split 1.618 to 1 */
+.mb-when { margin-top: var(--s5); }
+.mb-when.two { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr); }
 .mb-lamp { position: absolute; top: var(--s1); right: var(--s1); z-index: var(--z-raised); }
 .mb-battle { margin-top: var(--s5); }
+
+/* the operators' schedule sheet: the rounds' starts two across, then each match's table as a choice */
+.bk-sched-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--seam); }
 
 /* the lines: one svg over the tree (BracketsPage ElimBoard), measured from the boxes. A road not yet decided is a 1px muted line,
    a decided one a 2px lit line laid over it, square-capped so its corners close */
