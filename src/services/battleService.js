@@ -67,7 +67,12 @@ const keepStreakGame = (id, daily = false) => { try { if (id) localStorage.setIt
 /* a run's draft while it waits to be picked (2026-11-11): { run, draft }, kept on the device for each kind so a reload finds it */
 const DRAFT_KEY = "ypl-battle:streak-draft";
 export const readStreakDraft = (daily = false) => { try { return JSON.parse(localStorage.getItem(`${DRAFT_KEY}${daily ? ":day" : ""}`) || "null"); } catch { return null; } };
-export const keepStreakDraft = (made, daily = false) => { try { if (made) localStorage.setItem(`${DRAFT_KEY}${daily ? ":day" : ""}`, JSON.stringify(made)); else localStorage.removeItem(`${DRAFT_KEY}${daily ? ":day" : ""}`); } catch { /* the draft stands for this screen only */ } };
+/* a device holds a draft or a game of a kind, never both (2026-11-16): a run waiting on its draft has no game, so the game remembered
+   is an ended run's. Kept, the tab went on offering its 이어서 하기, the server refused it every time, and the draft never showed */
+export const keepStreakDraft = (made, daily = false) => {
+  if (made) keepStreakGame(null, daily);
+  try { if (made) localStorage.setItem(`${DRAFT_KEY}${daily ? ":day" : ""}`, JSON.stringify(made)); else localStorage.removeItem(`${DRAFT_KEY}${daily ? ":day" : ""}`); } catch { /* the draft stands for this screen only */ }
+};
 function keepRun(id, view) {
   const run = view?.streak;
   if (!run || view.status !== "ended") return view;
@@ -93,7 +98,8 @@ export function keepStreakStart(made) {
   return made;
 }
 /* the account's run as the server answered it (resumeStreakRun) kept on this device: a game it did not hold takes its new seat, a
-   draft replaces another run's, and a device whose run has ended drops its draft. Says whether anything changed */
+   draft replaces another run's and any game remembered, and a device whose run has ended drops its draft. The server's answer is
+   the run; what the device remembers only shows it sooner. Says whether anything changed */
 export function keepStreakResume(made, daily = false) {
   const draft = readStreakDraft(daily);
   if (made?.token) {
@@ -103,7 +109,7 @@ export function keepStreakResume(made, daily = false) {
     return true;
   }
   if (made?.draft) {
-    if (draft?.run?.run_id === made.run.run_id) return false;
+    if (draft?.run?.run_id === made.run.run_id && !currentStreakGame(daily)) return false;
     keepStreakDraft({ run: made.run, draft: made.draft }, daily);
     return true;
   }

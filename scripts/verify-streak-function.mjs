@@ -346,6 +346,25 @@ try {
   assert.ok(fresh.draft, "today's 오늘의 탑 starts over yesterday's");
   console.log("PASS away and back: an uncounted game, a swept game, a taken seat, yesterday's 오늘의 탑");
 
+  /* 2026-11-16, the run that could neither go on nor start again. An end screen never reloaded asks for the next game of a game
+     ended but not counted: it is counted there. A next game opens once, and the second asking is told it moved. 새로 도전 on a run
+     resting on an ended game: the old game's seat is told the run is gone, and the account is answered the new run's draft */
+  const endWon = id => pg.query("update public.battles set status = 'ended', winner = 'p1', ended_by = 'battle', log = spectator_log, input_log = '', version = version + 1 where id = $1", [id]);
+  const seatNow = await call({ action: "streakResume", have: g.id, token: taken.token }, away);
+  g = await call({ action: "streakNext", id: g.id, token: seatNow.token ?? taken.token });
+  await endWon(g.id);
+  const winsBefore = (await pg.query("select wins from public.streak_runs where battle_id = $1", [g.id])).rows[0].wins;
+  const uncounted = await call({ action: "streakNext", id: g.id, token: g.token });
+  assert.equal(uncounted.wins, winsBefore + 1, "an uncounted won game is counted when its next game is asked for");
+  await assert.rejects(call({ action: "streakNext", id: g.id, token: g.token }), /\(moved\)/, "a next game already opened is said so");
+  await endWon(uncounted.id);
+  assert.equal((await call({ action: "view", id: uncounted.id, token: uncounted.token })).streak.status, "active");
+  const anew = await call({ action: "streak", draft: true }, away);
+  await assert.rejects(call({ action: "streakNext", id: uncounted.id, token: uncounted.token }), /\(gone\)/, "an ended run's game is told the run is gone");
+  const held = await call({ action: "streakResume", have: uncounted.id, token: uncounted.token }, away);
+  assert.deepEqual([held.run.run_id, held.id ?? null, held.draft.length > 0], [anew.run.run_id, null, true], "the account is answered the new run's draft, not the old game");
+  console.log("PASS a run that moved on: counted when asked, moved, gone, and the new run's draft");
+
   console.log("PASS the battle function plays whole 연승 도전 runs on the real SQL");
 } finally {
   globalThis.fetch = realFetch;

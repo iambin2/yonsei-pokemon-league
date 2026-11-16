@@ -319,8 +319,11 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   useWarm(approved);
   // the run as the server holds it, so a run started or picked elsewhere is shown here (and 새로 도전 asks before ending it)
   // the seat's token goes with the game it names, so a seat another device has taken since is given back (2026-11-13)
-  const sync = () => resumeStreakRun(daily, currentStreakGame(daily), readSeat(currentStreakGame(daily))?.token ?? "").then(made => { if (keepStreakResume(made, daily)) setSeen(n => n + 1); }, () => {});
-  useEffect(() => { if (approved) sync(); }, [approved, daily]);
+  /* synced (2026-11-16): the keys wait for the server's answer, so a run this device only remembers (ended, or moved on elsewhere)
+     is never offered; with no answer (offline) the device's own stands */
+  const [synced, setSynced] = useState(false);
+  const sync = () => resumeStreakRun(daily, currentStreakGame(daily), readSeat(currentStreakGame(daily))?.token ?? "").then(made => { if (keepStreakResume(made, daily)) setSeen(n => n + 1); }, () => {}).then(() => setSynced(true));
+  useEffect(() => { setSynced(false); if (approved) sync(); }, [approved, daily]);
   const wins = run?.wins ?? 0;
   const rows = Array.isArray(board) ? board : null;
   const mine = back ? null : rows?.find(r => r.mine);
@@ -353,7 +356,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     try {
       const made = await startStreakRun(daily);
       keepStreakDraft(made, daily);
-      setDraft(made); setPicks([]);
+      // the draft took the place of the run this device held (keepStreakDraft), so the tab reads its run again
+      setDraft(made); setPicks([]); setSeen(n => n + 1);
     } catch (e) { setError(e.message); }
     setBusy(false);
   };
@@ -374,7 +378,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
      on a sign-in and an operator (DESIGN.md 연승 도전, 2026-11-09) */
   const practice = onPractice && <Button onClick={onPractice}>컴퓨터와 연습</Button>;
   const left = drafting ? drafting.length - picks.filter(Boolean).length : 0;
-  const keys = account === undefined ? <Button variant="main" loading>도전 시작</Button>
+  const keys = account === undefined || (approved && !synced) ?<Button variant="main" loading>도전 시작</Button>
     : account === null ? <><Button variant="main" onClick={() => signInWithGoogle("", window.location.href.split("#")[0])}><GoogleMark />구글 로그인</Button>{practice}</>
     : !approved ? <><Button variant="main" disabled={account.status === "pending"} onClick={() => go?.("records", { tab: "trainer", me: "1" })}>{account.status === "pending" ? "이름 확인 중" : "트레이너 이름 정하기"}</Button>{practice}</>
     : drafting ? <Button variant="main" icon={left ? "check" : undefined} disabled={left > 0} onClick={depart} loading={busy}>{left ? `${left}마리 더 고르기` : "출발"}</Button>
@@ -558,6 +562,8 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
       onOpen(made.id);
     } catch (e) {
       await dark; towerDrop(); standUp(); setBusy(false);
+      // the run is not on this game any more (ended, or its next game opened elsewhere): the tab shows it as the server holds it
+      if (e.reason === "gone" || e.reason === "moved") { onOut(); return; }
       /* a refused pair stands off and is let go, and the trade table says why on its own title strip, where the eye already is; a toast
          standing in the deck's flow pushed 다음 판 down and broke the end's row (2026-11-10, the user: "왜곡이 생겨"). The other pairs
          stay chosen. Without a named pair the toast says it, all are let go, and the key says 다음 판 again */

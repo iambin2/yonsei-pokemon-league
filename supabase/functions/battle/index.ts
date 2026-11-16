@@ -613,9 +613,19 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     const { battle, secret } = await read(String(id));
     const side = await seat(secret, token);
     if (battle.kind !== "streak" || side !== "p1" || battle.status !== "ended") refuse(409, "끝난 판에서만 다음 판을 열 수 있습니다.");
-    const run = await rpc("streak_run_state", { p_battle_id: battle.id });
+    let run = await rpc("streak_run_state", { p_battle_id: battle.id });
+    /* a game ended but never counted (the request that ended it stopped before streak_settle) is counted here (2026-11-16): its end
+       screen, never reloaded, asked for the next game and streak_next refused it every time, as a game not yet counted */
+    if (secret.state && run?.status === "active" && run.battle_id === battle.id) {
+      await streakAfter(battle, secret.cpu_memory as StreakMemory | null, { winner: battle.winner, inputLog: "" });
+      run = await rpc("streak_run_state", { p_battle_id: battle.id });
+    }
+    /* the run is not on this game any more, said as what happened (reason: the screen then shows the run as the server holds it).
+       streak_next still refuses both under its lock, for two requests at once */
+    if (run?.status !== "active") refuse(409, "이 도전은 끝났습니다.", { reason: "gone" });
+    if (run.battle_id !== battle.id) refuse(409, "이 도전의 다음 판이 이미 열렸습니다.", { reason: "moved" });
     const wins = Number(run?.wins) || 0;
-    let party = Array.isArray(secret.p1_team) && secret.p1_team.length === 6 ? secret.p1_team : null;
+    let party =Array.isArray(secret.p1_team) && secret.p1_team.length === 6 ? secret.p1_team : null;
     // one swap ({ give, take }) a game (2026-11-10, the user: "포켓몬을 무제한으로 바꿀 수 있는 게 너무 오피야. 한 라운드에 한 포켓몬만
     // 바꿀 수 있게 해줘"; it was as many as there are tiers)
     const swaps = (Array.isArray(swap) ? swap : swap ? [swap] : []).filter(s => s?.give && s?.take);
@@ -647,7 +657,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     });
     const { data, error } = await db.rpc("streak_next", { p_battle_id: battle.id, ...game.args });
     if (error) {
-      if (error.code === "P0001") refuse(409, error.message);
+      if (error.code === "P0001") refuse(409, error.message, { reason: "moved" });
       throw error;
     }
     await keepMemory(game.id, game.memory);
