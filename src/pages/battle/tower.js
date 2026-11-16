@@ -1,26 +1,34 @@
-/* 도전의 탑's tower (DESIGN.md "Battle", 도전의 탑, The tower). The tower is one world under one camera (towerGL.js), seen from the air
-   beside the floor the run stands on, the floors climbed going down under it with their doors lit and the ground falling away
-   under them. This file keeps the scene round the model: the night behind it (SVG: the sky, its stars, the moon), the climbers'
-   marks, and the scene's moves, each a move of the model's camera or a change of its doors' light, never a picture slid or laid over:
-     0. coming to the tab: the camera sweeps round the tower and rises to the run's floor while the floors climbed light one by one;
-     1. between games the tower comes up over the stage as the camera settles before it;
-     2. a game won: its amber room cools to warm, the lamp's light runs along the terrace to the next door, which turns amber;
-        after a gatekeeper the gate lights and the camera rises one floor (its last frame the next floor's picture, by construction)
-        and the new floor's first door turns amber;
-     3. when the game is made and read, the camera comes round to stand before the amber door, then walks in through its arch into
-        the room, whose dark becomes the stage's own ground;
+/* 도전의 탑's tower (DESIGN.md "Battle", 도전의 탑, The tower, the tenth pass). The tower is a place under one camera (towerGL.js): a
+   round tower whose terrace winds up round it, a floor a turn, a game a door on that road, standing on its plaza among a wood
+   under a sea of cloud and a moon. The camera always stands before the door of the game the run is on. This file keeps the scene
+   round the model: the climbers' marks, and the scene's moves, each a move of the model's camera or a change of its doors' light,
+   never a picture slid or laid over:
+     0. coming to the tab: the camera comes down and round from the whole tower to the run's door while the doors won light in turn;
+     1. between games the tower comes up over the stage as the camera settles before the door;
+     2. a game won: its lamp goes out (the room cools to warm), the camera walks the terrace to the next door, a fifth of a turn
+        round and up, and that door's lamp switches on. A lamp never moves; after a gatekeeper the next door is the next floor's first;
+     3. when the game is made and read, the camera comes to stand before the amber door, then walks in through its arch into the
+        room, whose dark becomes the stage's own ground;
      4. that dark outlives the screen, goes to the next screen's stage, and the next screen comes up out of it.
-   Until the camera is in, the scene is inside the stage it was called on, so it scrolls with its page. Reduced motion: the tower
-   stands, then a cut (2026-11-11, the user: the going in was "너무 빨라서 뭐가 뭔지도 모르겠어", its doors parting "이전의 엘리베이터
-   연출을 그대로 가져온 것 같고", and coming to the tab "그냥 로딩되는 느낌") */
+   At rest the cloud drifts, and the tab's tower turns under a hand and comes back. Until the camera is in, the scene is inside the stage it was called on, so it scrolls with its page.
+   Reduced motion: the tower stands, then a cut (2026-11-11, the user: the going in was "너무 빨라서 뭐가 뭔지도 모르겠어", and coming
+   to the tab "그냥 로딩되는 느낌"; 2026-11-16: the lamp's light running from door to door, "빛이 이동하는 경로가 전부 보여", and the
+   tower alone in an empty night, "가상의 요소처럼 느껴져서 몰입이 깨져") */
 import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
 import { sfx } from "./sfx.js";
-import { DOORS, H, R, SPAN, buildModel, cameraOf, onFloor, orderOf, paletteOf, render, warmTower } from "./towerGL.js";
+import { ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
 
-// the model's context and program made in the first idle moment after the battle page loads this module
-if (typeof window !== "undefined") (window.requestIdleCallback || (f => setTimeout(f, 200)))(() => warmTower(), { timeout: 2000 });
+// the model's context and programs, and the tower's mesh in the theme's tones (a piece at a time), made in idle moments after the
+// battle page loads this module, so the tab's tower comes in without waiting for them
+if (typeof window !== "undefined") (window.requestIdleCallback || (f => setTimeout(f, 200)))(() => {
+  warmTower();
+  const host = document.querySelector(".ypl");
+  if (!host) return;
+  const el = Object.assign(document.createElement("div"), { className: "tw", hidden: true });
+  host.appendChild(el); void prebuildModel(topOf(1), paletteOf(el)); el.remove();
+}, { timeout: 2000 });
 
-const MOVE = 420, BEAT = 260, READ = 420, RISE = 1100, DIVE = 1400, RUN = 640, ENTRANCE = 2200, ARRIVE = 1000;
+const MOVE = 420, BEAT = 260, READ = 420, WALK = 900, DIVE = 1400, ENTRANCE = 2200, ARRIVE = 1000;
 const NEXT = 0.382;
 const INOUT = "cubic-bezier(.65,0,.35,1)";
 const inout = t => (t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -37,153 +45,81 @@ const letGo = () => { left.forEach(a => a.cancel()); left = []; };
 const f1 = n => n.toFixed(1);
 
 /* ---------- the picture ---------- */
-let uid = 0;
-/* the scene's box: the floor stood on has its foot's radius r0 on screen and its foot at base, its axis at ax; the camera
-   (towerGL.js) is set from them. From the second floor up the floor stands just under the middle, so the floors climbed show
-   under it; the first has none under it, so it stands low and the floors to climb fill the night. Between the two (the climb
-   from the first) the framing goes from one to the other with the camera, and the horizon with it */
-function measure(W, H, hall) {
-  const phone = W < 520;
-  const r0 = Math.min(W * (phone ? .2 : .15), H * .23);
-  return { W, H, r0, base1: H * (hall ? .8 : .78), base2: H * (hall ? .6 : .58), ax: W * (phone ? .44 : .44), hall, phone, id: ++uid };
-}
-// the camera for floor f (a real number while climbing; the mesh's lowest floor lo), on its way in, or swung round the tower
-const camOf = (m, f, lo, dive = null, orbit = null) => {
-  const k = Math.min(1, Math.max(0, f - 1)), base = m.base1 + (m.base2 - m.base1) * k * k * (3 - 2 * k);
-  return cameraOf({ ...m, base }, f - lo, dive, orbit);
-};
-const horizonOf = (m, f) => camOf(m, f, f).horizon;
-// the floors a mesh holds for a run on floor f: a few under it (the lowest well out of the window) and the ones up into the night
-const loOf = f => Math.max(1, f - 4);
-
-/* the night behind the tower: the sky deepening up to the top from the horizon's tone (the ground's fog meets it there, so nothing
-   is laid over the one and not the other), and the stars, more the higher the run has climbed */
-function skySVG(m, floor) {
-  let a = 7;
-  const rnd = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
-  const many = Math.min(2, 1 + (floor - 1) * .1), hz = Math.max(0, horizonOf(m, floor)), over = m.H * .3;
-  const stars = Array.from({ length: Math.round(m.W * hz / 9000 * many) }, () => {
-    const s = rnd() < .12 ? 2 : 1;
-    return `<rect class="tw-star" x="${f1(rnd() * m.W)}" y="${f1(rnd() * hz * .85)}" width="${s}" height="${s}" opacity="${(.12 + rnd() * .4).toFixed(2)}"/>`;
-  }).join("");
-  const sky = `tw-sky-${m.id}-${floor}`;
-  const body = `<defs><linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="s0"/><stop offset="1" class="s1"/></linearGradient></defs>`
-    + `<rect y="${f1(-over)}" width="${m.W}" height="${f1(hz + over + 1)}" fill="url(#${sky})"/>`
-    + `<rect class="tw-fog" y="${f1(hz)}" width="${m.W}" height="${f1(m.H - hz + over)}"/>`
-    + `<g class="tw-stars">${stars}</g>`;
-  return `<svg class="tw-sky" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${body}</svg>`;
-}
-// the crescent moon at the right (the scene's light) or, in the day, the sun, over the night closing on the tower's top
-function cloudsHTML(m) {
-  const fade = `tw-fade-${m.id}`, mx = m.W * (m.phone ? .84 : .86), my = m.H * .1, mr = Math.max(8, m.W * (m.phone ? .034 : .02));
-  const body = `<defs><linearGradient id="${fade}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="f0"/><stop offset=".5" class="f1"/><stop offset="1" class="f2"/></linearGradient>`
-    + `<mask id="tw-moon-${m.id}"><circle cx="${f1(mx)}" cy="${f1(my)}" r="${f1(mr)}" fill="white"/><circle cx="${f1(mx + mr * .42)}" cy="${f1(my - mr * .3)}" r="${f1(mr * .86)}" fill="black"/></mask></defs>`
-    + `<rect width="${m.W}" height="${f1(m.H * .22)}" fill="url(#${fade})"/>`
-    + `<circle class="tw-moon" cx="${f1(mx)}" cy="${f1(my)}" r="${f1(mr)}" mask="url(#tw-moon-${m.id})"/><circle class="tw-sun" cx="${f1(mx)}" cy="${f1(my)}" r="${f1(mr * 1.1)}"/>`;
-  return `<div class="tw-clouds"><svg width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${body}</svg></div>`;
-}
-// a few stars that twinkle (spans, so their light is the compositor's), placed by the same fixed draw each time
-function twinkleHTML(m) {
-  let a = 29;
-  const rnd = () => { a = (a * 16807) % 2147483647; return a / 2147483647; };
-  return `<div class="tw-twinkle" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => `<i style="left:${f1(rnd() * m.W)}px;top:${f1(rnd() * Math.max(0, horizonOf(m, 1)) * .7)}px;animation-delay:${(i * 1.3).toFixed(1)}s"></i>`).join("")}</div>`;
-}
-
-/* the other climbers of the month, marked where they stand: a hairline from the wall of the floor each reached out into the night to
-   the right, and there in one column their name and streak, as a drawing is labelled, a run being played with the amber lamp by its
-   name (2026-11-11, the user: the plaques that hung there had "미감이 없어"; then of a square where the line met the wall, "네모점은
-   없애자. 그냥 선으로만 하는 게 깔끔할 것 같아"). Only the floors in sight; labels keep apart in
-   the column, their lines bending to them. Their floor's own are lit, the others dim */
-function climbersHTML(m, st) {
-  const lo = loOf(st.floor), cam = camOf(m, st.floor, lo);
-  const col = Math.min(m.W - (m.phone ? 104 : 150), m.ax + m.r0 * 1.7);
-  const marks = [];
-  for (const c of (st.climbers || []).slice().sort((a, b) => b.wins - a.wins)) {
-    const f = Math.floor(c.wins / 5) + 1;
-    if (f < lo || f > st.floor + 3) continue;
-    const [x, y] = cam.project(onFloor(f - lo, 64, .46, 1.0));
-    if (y < m.H * .16 || y > m.H - 16 || x > col - 16) continue;
-    marks.push({ c, f, x, y });
-    if (marks.length >= 4) break;
-  }
-  if (!marks.length) return "";
-  marks.sort((a, b) => a.y - b.y);
-  let last = -Infinity;
-  for (const k of marks) { k.ly = Math.max(k.y, last + 28); last = k.ly; }
-  const lines = marks.map(k => `<path class="${k.f === st.floor ? "on" : ""}" d="M${f1(k.x)} ${f1(k.y)}H${f1(k.x + 14)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 4)}"/>`).join("");
-  const labels = marks.map(k => `<span class="tw-tag${k.f === st.floor ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
-    + `<b>${k.c.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(k.c.name)}</b><span>${k.c.wins}<small>연승</small></span></span>`).join("");
-  return `<svg class="tw-leads" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${lines}</svg>${labels}`;
-}
-const escapeHTML = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const themeOf = () => document.documentElement.dataset.theme || "";
-const marksOf = el => [...el.querySelectorAll(".tw-tag, .tw-leads")];
-
-/* each door's light for a state, by the mesh's floor j and game: 0 dark, .382 the next game while the run rests, 1 won, 2 gone into */
-function doorsOf(st, lo) {
-  const v = new Float32Array(SPAN * 5);
-  for (let j = 0; j < SPAN; j++) {
-    const n = lo + j;
-    for (let g = 1; g <= 5; g++) {
-      v[j * 5 + g - 1] = n < st.floor ? 1 : n > st.floor ? 0
-        : st.at > 5 || g < st.at ? 1 : g === st.at ? (st.hold ? 0 : st.live ? 2 : NEXT) : 0;
-    }
-  }
+// the door a state stands before, along the road: at 0 (none yet) and 1 the floor's first, 6 (the floor won whole) the next floor's first
+const doorOf = st => Math.min(ND - 1, (st.floor - 1) * 5 + Math.min(5, Math.max(0, st.at - 1)));
+/* each door's light for a state: 0 dark, .382 the next game while the run rests, 1 won, 2 gone into */
+function doorsOf(st) {
+  const v = new Float32Array(ND), k = doorOf(st);
+  v.fill(1, 0, k);
+  if (st.at >= 1 && st.at <= 5 && !st.hold) v[k] = st.live ? 2 : NEXT;
   return v;
 }
 const mixc = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
-// the lit doors near the floor stood on as lights on the stone: [x, y, z, reach, r, g, b, strength]
-function lightsOf(tw, j0) {
-  const out = [], { doors, pal } = tw;
-  for (const dj of [0, -1, 1]) {
-    const j = Math.round(j0) + dj;
-    if (j < 0 || j >= SPAN) continue;
-    for (let g = 1; g <= 5; g++) {
-      const v = doors[j * 5 + g - 1];
-      if (v <= .01) continue;
-      const col = v <= 1 ? pal.warm : mixc(pal.warm, pal.amber, v - 1);
-      out.push([...onFloor(j, DOORS[g - 1], .12, 1.1), (g === 5 ? .55 : .4) * R ** j, ...col, Math.min(1, v) * (v > 1 ? .85 : .5)]);
-    }
+// the climbers in sight of a state's door, each at the door they stand before: [{ c, k }]
+const othersOf = st => (st.climbers || []).map(c => ({ c, k: Math.min(ND - 1, c.wins) })).filter(o => Math.abs(o.k - doorOf(st)) < 14).slice(0, 3);
+/* the lamps: the lit rooms near the door stood before, the road's six while the camera is low enough to see them, and the other
+   climbers' lanterns on the parapet where each stands. On the stone: [x, y, z, reach, r, g, b, strength]; in the air: [x, y, z,
+   size, r, g, b] */
+function lampsOf(tw) {
+  const lights = [], glows = [], { doors, pal } = tw, k0 = Math.round(tw.s), dim = pal.light ? .5 : 1;
+  for (let k = Math.min(ND - 1, k0 + 1); k >= Math.max(0, k0 - 8); k--) {
+    // under zero: the amber coming on from the dark (step)
+    const raw = doors[k], v = raw < 0 ? 1 - raw : raw;
+    if (v <= .01) continue;
+    const on = raw < 0 ? -raw : Math.max(0, v - 1), col = mixc(pal.warm, pal.amber, on), p = doorPoint(k, RW + .1, .16), gate = k % 5 === 4;
+    const amount = raw < 0 ? -raw : Math.min(1, v);
+    lights.push([...p, gate ? .62 : .46, ...(raw < 0 ? pal.amber : col), amount * (.5 + .35 * on)]);
+    glows.push([...p, .9 + .5 * on, ...(raw < 0 ? pal.amber : col).map(x => x * amount * (.12 + .3 * on) * dim)]);
   }
-  return out.slice(0, 11);
+  for (const o of othersOf(tw.st)) {
+    const p = doorPoint(o.k, RR - .03, .14);
+    lights.push([...p, .34, ...pal.warm, .6]);
+    glows.push([...p, .5, ...pal.warm.map(x => x * .34 * dim)]);
+  }
+  if (tw.s < 16) for (const sx of [-.66, .66]) for (let j = 0; j < 3; j++) {
+    const p = [sx, .13, 2.9 + 1.4 * j];
+    lights.push([...p, 1.5, ...pal.warm, pal.light ? .2 : .42]);
+    glows.push([...p, .45, ...pal.warm.map(x => x * .3 * dim)]);
+  }
+  return { lights, glows };
 }
 
-/* the picture as it stands now: the model's camera at the floor stood on (and how far it has climbed, t), swung round the tower
-   (orbit), or on its way in (dive) */
+/* the picture as it stands now: the model's camera before the door stood before (s, a real number while it walks the road), or
+   where a move has put it (cam) */
 function paint(el) {
   const tw = el.tower, canvas = el.querySelector("canvas.tw-body");
   if (!tw || !canvas) return;
-  // the floors from a few under the one stood on to where the tower has gone into the night, and one more to climb into
-  if (!tw.model || tw.st.floor + 6 > tw.model.hi) {
-    const lo = tw.model?.lo ?? loOf(tw.st.floor);
-    tw.model = buildModel(lo, Math.min(lo + SPAN - 1, tw.st.floor + 7), tw.pal);
-    tw.doors = doorsOf(tw.st, lo);
-  }
-  const j = tw.st.floor - tw.model.lo + tw.t;
-  const lights = lightsOf(tw, j);
-  if (tw.run) lights.push(tw.run);
-  render(canvas, tw.model, camOf(tw.m, tw.st.floor + tw.t, tw.model.lo, tw.dive, tw.orbit), tw.pal, { doors: tw.doors, camK: j, lights, lift: tw.lift });
+  const top = topOf(tw.st.floor);
+  if (tw.model?.top !== top) tw.model = buildModel(top, tw.pal);
+  let v = tw.cam || viewOf(tw.kind, tw.s, tw.m, top);
+  // a hand on the tab's tower turns the camera round it and lifts or lowers it (look)
+  if (tw.look) v = { ...v, phi: v.phi + tw.look.dphi, camY: v.camY + tw.look.dy, tgtY: v.tgtY + tw.look.dy };
+  tw.view = cameraOf(tw.m, v);
+  render(canvas, tw.model, tw.view, tw.pal, { doors: tw.doors, ...lampsOf(tw), lift: tw.lift, time: performance.now() / 1000 });
 }
-/* the scene's moves share one frame loop: each move sets what it changes, then the picture is painted once */
+/* the scene's moves share one frame loop: each move sets what it changes, then the picture is painted once. With no move under way
+   the loop goes on at a third of the frames while the scene is in sight, since the cloud drifts */
+function run(el) {
+  const tw = el.tower;
+  if (!tw || tw.loop) return;
+  let n = 0;
+  const frame = now => {
+    if (el.tower !== tw || !el.isConnected) { tw.loop = 0; return; }
+    for (const a of [...tw.anims]) {
+      a.t0 ??= now;
+      const t = Math.min(1, (now - a.t0) / a.dur);
+      a.step(a.ease(t));
+      if (t >= 1) { tw.anims.delete(a); a.done(); }
+    }
+    if (tw.anims.size || (++n % 3 === 0 && tw.seen)) paint(el);
+    tw.loop = tw.anims.size || !reduced() ? requestAnimationFrame(frame) : 0;
+  };
+  tw.loop = requestAnimationFrame(frame);
+}
 function animate(el, dur, step, ease = inout) {
   const tw = el.tower;
   if (!tw) return Promise.resolve();
-  return new Promise(done => {
-    tw.anims.add({ t0: null, dur, step, ease, done });
-    if (tw.loop) return;
-    const frame = now => {
-      if (el.tower !== tw) { tw.loop = 0; return; }
-      for (const a of [...tw.anims]) {
-        a.t0 ??= now;
-        const t = Math.min(1, (now - a.t0) / a.dur);
-        a.step(a.ease(t));
-        if (t >= 1) { tw.anims.delete(a); a.done(); }
-      }
-      paint(el);
-      tw.loop = tw.anims.size ? requestAnimationFrame(frame) : 0;
-    };
-    tw.loop = requestAnimationFrame(frame);
-  });
+  return new Promise(done => { tw.anims.add({ t0: null, dur, step, ease, done }); run(el); });
 }
 // every move under way taken to its end at once (a game gone into while the tab's entrance still plays)
 function finish(el) {
@@ -192,15 +128,95 @@ function finish(el) {
   for (const a of [...tw.anims]) { a.step(a.ease(1)); tw.anims.delete(a); a.done(); }
   paint(el);
 }
-// the doors' light going to a state's, as light does (DUR.tone), never a picture laid over another
+// the doors' light going to a state's, as light does, never a picture laid over another
 function tweenTo(el, st, dur = DUR.tone) {
   const tw = el.tower;
   if (!tw) return Promise.resolve();
-  const from = tw.doors.slice(), to = doorsOf(st, tw.model.lo);
+  const from = tw.doors.slice(), to = doorsOf({ ...tw.st, ...st });
   tw.st = { ...tw.st, ...st };
   if (reduced()) { tw.doors = to; paint(el); return Promise.resolve(); }
   return animate(el, dur, e => { for (let i = 0; i < to.length; i++) tw.doors[i] = from[i] + (to[i] - from[i]) * e; }, out3);
 }
+
+/* the other climbers of the month, marked where they stand: a hairline from each one's lantern on the terrace (from the tower's
+   edge when they stand round its far side) out into the night to the right, and there in one column their name and streak, as a
+   drawing is labelled, a run being played with the amber lamp by its name (2026-11-11, the user: the plaques that hung there had
+   "미감이 없어"; then of a square where the line met the wall, "네모점은 없애자. 그냥 선으로만 하는 게 깔끔할 것 같아"). Only those in
+   sight; labels keep apart in the column, their lines bending to them. Their floor's own are lit, the others dim */
+function climbersHTML(tw) {
+  const { m, st, view } = tw;
+  if (!view) return "";
+  // the column stands clear of the tower's right edge at the door's height
+  const edge = view.project([RR * Math.sin(view.phi + 1.45), (tw.s + .5) / 5 * PITCH, RR * Math.cos(view.phi + 1.45)])[0];
+  const col = Math.min(m.W - (m.phone ? 104 : 150), edge + (m.phone ? 24 : 56)), marks = [];
+  for (const c of (st.climbers || []).slice().sort((a, b) => b.wins - a.wins)) {
+    const k = Math.min(ND - 1, c.wins), th = (k + .5) * 72 * Math.PI / 180, y0 = (k + .5) / 5 * PITCH + .1;
+    // round the far side the mark starts at the tower's right edge, at their height
+    const a = Math.cos(th - view.phi) > .25 && Math.sin(th - view.phi) > -.5 ? th : view.phi + 1.35;
+    const [x, y] = view.project([RR * Math.sin(a), y0, RR * Math.cos(a)]);
+    if (y < m.H * .12 || y > m.H - 16 || x > col - 16) continue;
+    marks.push({ c, on: Math.floor(k / 5) + 1 === st.floor, x, y });
+    if (marks.length >= 4) break;
+  }
+  if (!marks.length) return "";
+  marks.sort((a, b) => a.y - b.y);
+  let last = -Infinity;
+  for (const k of marks) { k.ly = Math.max(k.y, last + 28); last = k.ly; }
+  const lines = marks.map(k => `<path class="${k.on ? "on" : ""}" d="M${f1(k.x)} ${f1(k.y)}H${f1(k.x + 14)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 4)}"/>`).join("");
+  const labels = marks.map(k => `<span class="tw-tag${k.on ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
+    + `<b>${k.c.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(k.c.name)}</b><span>${k.c.wins}<small>연승</small></span></span>`).join("");
+  return `<svg class="tw-leads" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${lines}</svg>${labels}`;
+}
+const escapeHTML = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+const themeOf = () => document.documentElement.dataset.theme || "";
+const marksOf = el => [...el.querySelectorAll(".tw-tag, .tw-leads")];
+// the marks laid again for where the camera now stands (the tab's hall only)
+function mark(el, show = true) {
+  const tw = el.tower;
+  marksOf(el).forEach(x => x.remove());
+  if (!tw?.m.hall) return;
+  el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", climbersHTML(tw));
+  if (show && !reduced()) marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.light, { delay: i * 60 }));
+}
+/* the tab's tower answers a hand: held and dragged, the camera goes round the tower with it and, under a mouse, up and down it (a
+   finger's way up and down is the page's scroll); let go, it comes back to the door the run stands before, where it belongs. The
+   marks stand aside while it is away. Nothing is held while a move plays */
+function hand(el) {
+  if (el.twHand) return;
+  el.twHand = true;
+  let from = null;
+  el.addEventListener("pointerdown", e => {
+    const tw = el.tower;
+    if (!tw?.m.hall || tw.anims.size || scene || reduced() || e.button) return;
+    from = { x: e.clientX, y: e.clientY };
+    el.setPointerCapture?.(e.pointerId);
+    el.classList.add("held");
+    // (their coming in still holds their opacity, so they are hidden outright)
+    marksOf(el).forEach(x => { x.style.visibility = "hidden"; });
+  });
+  el.addEventListener("pointermove", e => {
+    const tw = el.tower;
+    if (!from || !tw) return;
+    const top = topOf(tw.st.floor), base = viewOf(tw.kind, tw.s, tw.m, top).camY;
+    const dy = e.pointerType === "touch" ? 0 : (e.clientY - from.y) / tw.m.H * 5;
+    tw.look = { dphi: -(e.clientX - from.x) / tw.m.W * 3.4, dy: Math.min(top * PITCH + 1.6 - base, Math.max(.9 - base, dy)) };
+    paint(el);
+  });
+  const end = () => {
+    const tw = el.tower;
+    if (!from) return;
+    from = null;
+    el.classList.remove("held");
+    const was = tw?.look;
+    if (!was) { marksOf(el).forEach(x => { x.style.visibility = ""; }); return; }
+    void animate(el, DUR.light * 1.5, t => { tw.look = t >= 1 ? null : { dphi: was.dphi * (1 - t), dy: was.dy * (1 - t) }; }, out3).then(() => { if (el.tower === tw) mark(el); });
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+// a scene is painted at rest only while it is in sight
+const seen = typeof IntersectionObserver === "undefined" ? null
+  : new IntersectionObserver(all => all.forEach(e => { if (e.target.tower) e.target.tower.seen = e.isIntersecting; }));
 
 /* the tower drawn in el (the tab's hall, or the scene laid over a stage). floor: the floor stood on; at: its game (1 to 5, 6 the floor
    won whole, 0 none yet); live: a game is gone into or played (its door amber), else the run rests (its door at .382); hold: the
@@ -209,12 +225,15 @@ export function drawTower(el, st) {
   const W = el.clientWidth, H = el.clientHeight;
   if (!W || !H) return false;
   el.tower?.anims.forEach(a => a.done());
-  const m = measure(W, H, el.classList.contains("tw-hall"));
-  el.innerHTML = skySVG(m, st.floor) + twinkleHTML(m)
-    + `<div class="tw-cam"><canvas class="tw-body" aria-hidden="true"></canvas>${m.hall ? climbersHTML(m, st) : ""}</div>`
-    + cloudsHTML(m);
-  el.tower = { m, st: { ...st }, theme: themeOf(), pal: paletteOf(el), model: null, doors: null, t: 0, run: null, dive: null, orbit: null, lift: null, anims: new Set(), loop: 0 };
+  const hall = el.classList.contains("tw-hall");
+  el.innerHTML = `<div class="tw-cam"><canvas class="tw-body" aria-hidden="true"></canvas></div>`;
+  el.tower = { m: { W, H, hall, phone: W < 520 }, st: { ...st }, theme: themeOf(), pal: paletteOf(el), model: null, doors: doorsOf(st), kind: hall ? "hall" : "close",
+    s: doorOf(st), cam: null, look: null, view: null, lift: null, seen: true, anims: new Set(), loop: 0 };
+  seen?.observe(el);
+  if (hall) hand(el);
   paint(el);
+  mark(el, false);
+  run(el);
   return true;
 }
 const sameState = (a, b) => a.floor === b.floor && a.at === b.at && a.live === b.live && !a.hold === !b.hold
@@ -233,95 +252,55 @@ if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") 
 }
 
 /* ---------- the scene ---------- */
-/* 0. coming to the tab: the night switches on, and the camera sweeps a third of the way round the tower and draws in as it rises
-   the last floors to the run's (on the first floor it sweeps and draws in alone), while the floors climbed light one by one as it
-   passes them, each from its outer doors to its gate, and the run's own door lights last; then the climbers' marks */
+/* 0. coming to the tab: the night switches on over the whole tower, from its plaza to its lantern, and the camera comes down and
+   round to the run's door, while the doors won light one after another up the road as it comes, the run's own door last; then the
+   climbers' marks */
 async function entrance(el) {
   const tw = el.tower;
   if (!tw || reduced()) return;
-  const lo = tw.model.lo, f = tw.st.floor, from = Math.max(1, f - 2), rise = f - from, target = tw.doors.slice();
-  const order = [0, 1, 2, 3, 4];               // the games' order is the doors' order from the outside in
-  const sky = el.querySelector(".tw-sky"), hz = horizonOf(tw.m, f), marks = marksOf(el);
-  marks.forEach(x => { x.style.opacity = "0"; });
-  for (const x of el.querySelectorAll(".tw-sky, .tw-clouds, .tw-twinkle")) void fade(x, 0, 1, DUR.light * 1.5);
+  const top = topOf(tw.st.floor), a = viewOf("whole", tw.s, tw.m, top), b = viewOf("hall", tw.s, tw.m, top), target = tw.doors.slice(), k = doorOf(tw.st);
+  marksOf(el).forEach(x => { x.style.opacity = "0"; });
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.light);
   tw.doors.fill(0);
   await animate(el, ENTRANCE, e => {
-    const q = out3(e);
-    tw.orbit = { phi: -.62 * (1 - q), k: 1 + .7 * (1 - q) * (1 - q) };
-    tw.t = -rise * (1 - q);
-    if (sky && rise) sky.style.transform = `translateY(${f1(horizonOf(tw.m, f + tw.t) - hz)}px)`;
-    for (let j = 0; j < SPAN; j++) {
-      const n = lo + j;
-      for (const g of order) {
-        const i = j * 5 + g, v = target[i];
-        if (!v) continue;
-        // a floor lights as the camera comes up past it; the run's own door (amber, or the next at .382) last of all
-        const at = v > 1 || (n === f && v < 1) ? .78 : .12 + .5 * Math.max(0, (n - from + .5) / (rise + 1)) + g * .035;
-        tw.doors[i] = v * smooth(at, at + .16, e);
-      }
+    tw.cam = e >= 1 ? null : mixView(a, b, inout(e));
+    for (let i = 0; i < ND; i++) {
+      if (!target[i]) continue;
+      const at = i >= k ? .8 : .14 + .56 * i / Math.max(1, k);
+      tw.doors[i] = target[i] * smooth(at, at + .14, e);
     }
   }, linear);
-  tw.orbit = null; tw.t = 0;
-  if (sky) sky.style.transform = "";
-  paint(el);
-  if (el.tower === tw) marks.forEach((x, i) => { x.style.opacity = ""; void fade(x, 0, 1, DUR.light, { delay: i * 60 }); });
+  if (el.tower === tw) mark(el);
 }
-/* 1. between games: the tower comes up over the stage as the camera settles before it, drawing in from a little round the tower */
+/* 1. between games: the tower comes up over the stage as the camera settles before the door, drawing in from a little round the tower */
 function arrive(el) {
-  for (const x of el.querySelectorAll(".tw-sky, .tw-clouds, .tw-twinkle")) void fade(x, 0, 1, DUR.light);
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.light * .8);
-  const tw = el.tower;
-  return animate(el, ARRIVE, e => { tw.orbit = e >= 1 ? null : { phi: -.22 * (1 - e), k: 1 + .32 * (1 - e) }; }, out3);
+  const tw = el.tower, b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
+  return animate(el, ARRIVE, e => { tw.cam = e >= 1 ? null : mixView(a, b, e); }, out3);
 }
-/* 2. a game won: its room cools from amber to warm while the lamp's light runs along the terrace from its door to the next one,
-   lighting the stone it passes, and the next door turns amber as the light reaches it */
-async function step(el, game) {
-  const tw = el.tower, lo = tw.model.lo, j = tw.st.floor - lo, st = { ...tw.st, at: game, live: true };
-  const a = DOORS[game - 2], b = DOORS[game - 1], amber = tw.pal.amber;
+/* 2. a game won: its lamp goes out where it stands (the amber room cools to the warm of a game won), the camera walks the terrace
+   to the next door, and that door's lamp switches on. A lamp never moves: no light crosses the terrace between the two (2026-11-16,
+   the user: "클리어한 층의 빛이 꺼지고 다른 층의 빛이 켜지는 식이 아니라, 빛이 이동하는 경로가 전부 보여"). After a gatekeeper the next door
+   is the next floor's first, a fifth of a turn on like any other */
+async function step(el, st) {
+  const tw = el.tower, from = tw.s, to = doorOf(st);
   sfx("select");
-  void tweenTo(el, { ...st, hold: true }, 240);
-  const run = animate(el, RUN, e => {
-    tw.run = [...onFloor(j, a + (b - a) * inout(e), .08, 1.07), .5 * R ** j, ...amber, Math.sin(Math.PI * Math.min(1, e)) ** .5];
-  }, linear);
-  await pause(RUN - DUR.tone);
-  await tweenTo(el, st, DUR.tone * 1.5);
-  await run;
-  tw.run = null; paint(el);
+  marksOf(el).forEach(x => void fade(x, 1, 0, DUR.leave, { easing: EASE_IN }));
+  await tweenTo(el, { ...st, hold: true }, DUR.leave);
+  sfx("swoosh", { sec: .7 });
+  await animate(el, WALK, e => { tw.s = from + (to - from) * e; });
+  if (el.tower !== tw) return;
+  mark(el);
   sfx("turn");
-}
-/* the gatekeeper beaten: the gate lights and swings open, the camera rises one floor as the ground and the floors climbed sink
-   under it, and the new floor's first door turns amber */
-async function rise(el, floor) {
-  const tw = el.tower;
-  sfx("select");
-  await tweenTo(el, { ...tw.st, at: 6, live: true }, DUR.light);
-  sfx("swoosh", { sec: .9 });
-  const marks = marksOf(el);
-  marks.forEach(x => void fade(x, 1, 0, DUR.leave, { easing: EASE_IN }));
-  // the night moves with the horizon where the framing changes (the climb from the first floor)
-  const sky = el.querySelector(".tw-sky"), hz0 = horizonOf(tw.m, floor - 1);
-  await animate(el, RISE, e => { tw.t = e; if (sky) sky.style.transform = `translateY(${f1(horizonOf(tw.m, floor - 1 + e) - hz0)}px)`; });
-  tw.st = { ...tw.st, floor, at: 0 }; tw.t = 0;
-  paint(el);
-  // the night of the new floor (a few more stars, the sky a little deeper) switches on over the old
-  const was = el.querySelector(".tw-sky");
-  if (was) {
-    was.insertAdjacentHTML("afterend", skySVG(tw.m, floor));
-    void fade(was, 1, 0, DUR.light).then(() => was.remove());
-  }
-  if (tw.m.hall) {
-    marks.forEach(x => x.remove());
-    el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", climbersHTML(tw.m, tw.st));
-    marksOf(el).forEach(x => void fade(x, 0, 1, DUR.light));
-  }
-  sfx("turn");
-  await tweenTo(el, { ...tw.st, at: 1, live: true }, DUR.tone * 1.5);
+  // the lamp comes on amber from the dark, never through a won room's warm
+  tw.st = { ...tw.st, ...st, hold: false };
+  await animate(el, DUR.light, e => { tw.doors[to] = -e; }, out3);
+  tw.doors = doorsOf(tw.st); paint(el);
 }
 
 /* 1 and 2: the tower is shown on target for the game gone into (floor, at). hall: the tab's hall, where it already stands; otherwise
-   it comes up over the stage. climbing: the floor's first game after a gatekeeper. again: a lost game gone into again (the three
-   lamps), where no lamp was won and the amber lamp stands where it stood. Resolves once it has been read */
+   it comes up over the stage. climbing: the floor's first game after a gatekeeper. again: a lost game gone into again, where no
+   lamp was won and the amber lamp stands where it stood. Resolves once it has been read */
 export async function towerShow(target, { floor, at: game, climbing = false, again = false }) {
   towerDrop(true);
   if (!target) return;
@@ -331,13 +310,14 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
   scene = { el, own: !hall };
   const keep = hall ? { climbers: el.tower?.st.climbers } : {};
   const now = { ...keep, floor, at: game, live: true };
-  // the picture before the step the scene plays: the game just won still the lamp's, or the floor left with its gate still to light
+  // the picture before the step the scene plays: the game just won still the lamp's, or the floor left with its gate still the lamp's
   const before = hall || again ? now : climbing ? { floor: floor - 1, at: 5, live: true } : game > 1 ? { floor, at: game - 1, live: true } : now;
   if (reduced()) { drawTower(el, now); await pause(READ * 2); return; }
   if (hall) {
     // the hall already stands on the game gone into, at the run's rest (its entrance, if it still plays, taken to its end): its door
     // turns amber where it stands
     finish(el);
+    if (el.tower) el.tower.look = null;
     const was = el.tower?.st;
     if (was && was.floor === floor && was.at === game) void tweenTo(el, { ...was, live: true }, DUR.light);
     else drawTower(el, now);
@@ -347,12 +327,11 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
     await arrive(el);
   }
   const mine = () => scene?.el === el;
-  if (mine() && before.floor !== floor) await rise(el, floor);
-  else if (mine() && before.at !== game) await step(el, game);
+  if (mine() && doorOf(before) !== doorOf(now)) await step(el, now);
   if (mine()) await pause(READ);
 }
 
-/* 3. going in, as the camera walks it (DIVE, in two beats: it comes round the tower to stand before the amber door, level with it,
+/* 3. going in, as the camera walks it (DIVE, in two beats: it comes to stand before the amber door, level with it and facing it,
    then walks in through the arch), while the rest of the screen goes out; the room's dark becomes the stage's own ground as the
    arch passes the stage's edges, and that ground is left fixed over the window, to outlive the screen. Resolves with it standing */
 export async function towerDive() {
@@ -368,17 +347,16 @@ export async function towerDive() {
   const tw = el.tower, box = el.getBoundingClientRect();
   if (tw?.model && !reduced()) {
     finish(el);
-    const g = Math.min(Math.max(tw.st.at, 1), 5), o = orderOf(tw.st.floor), gate = g === 5;
-    const dive = { g, t: 0, depth: o.depth * (gate ? 1.8 : 1), yc: (gate ? o.gSpring : .4) * H * .62 };
-    const door = (tw.st.floor - tw.model.lo) * 5 + g - 1;
+    const top = topOf(tw.st.floor), door = doorOf(tw.st), a = tw.cam || viewOf(tw.kind, tw.s, tw.m, top), c = viewOf("door", door, tw.m, top);
+    const b = { ...c, dist: 2.5 };
     sfx("swoosh", { sec: .6 });
-    // the night's stars and moon and the marks, which would not turn with the camera, go as it turns; the sky stays (its horizon holds)
-    for (const x of el.querySelectorAll(".tw-stars, .tw-clouds, .tw-twinkle, .tw-tag, .tw-leads")) void fade(x, 1, 0, DIVE * .4, { easing: EASE_IN });
+    for (const x of marksOf(el)) void fade(x, 1, 0, DIVE * .4, { easing: EASE_IN });
     let stepped = false;
     await animate(el, DIVE, e => {
-      tw.dive = { ...dive, t: e };
-      // inside, the room's lamp goes out at once (a slow blend from the amber to the ground went brown), leaving the dark
-      tw.lift = { door, mix: smooth(.88, .97, e) };
+      tw.cam = mixView(mixView(a, b, smooth(0, .52, e)), c, smooth(.46, 1, e) ** 2);
+      // the room's lamp goes down as the camera comes through the arch, so the room it walks into is already the stage's dark and
+      // the screen is never one sheet of amber
+      tw.lift = { door, mix: smooth(.6, .9, e) };
       if (!stepped && e > .5) { stepped = true; sfx("swoosh", { sec: .5 }); }
     }, linear);
   }

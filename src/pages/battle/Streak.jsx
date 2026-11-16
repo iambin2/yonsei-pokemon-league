@@ -68,9 +68,9 @@ function FloorTrack({ wins, lost = false, playing = false }) {
   </span>;
 }
 
-/* the tower on the tab (tower.js): the stage's place holds the run's own scene, the round tower at night with the floor the run will
-   go to, its path lit as far as the run has come, the run's party on that floor's balcony and the month's other climbers at their
-   floors. Pressing the key plays the going in on this very picture. party: species; climbers: { name, wins, live } */
+/* the tower on the tab (tower.js): the stage's place holds the run's own scene, the tower in its place at night, the camera before
+   the door of the game the run will go to, the doors won lit down the road behind it and the month's other climbers marked where
+   they stand. Pressing the key plays the going in on this very picture. climbers: { name, wins, live } */
 function TowerHall({ wins, live, climbers = null }) {
   const ref = useRef(null);
   const floor = streakFloor(wins), at = floorGame(wins);

@@ -93,19 +93,20 @@
   .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="foe-d0"], [data-pos="foe-d1"]) { height: min(33%, 34vw); bottom: 53%; }
 }
 
-/* ---------- 도전의 탑's tower (tower.js, towerGL.js; DESIGN.md "Battle", 도전의 탑, The tower; the ninth pass 2026-11-11) ----------
-   The run's own scene, as the court is a battle's: a round stone tower at night seen from the air beside the floor the run stands
-   on, modelled in 3D by towerGL.js from these tones and drawn over the night tower.js lays behind it. The scene's own tones are
-   mixed from the board's (none of them a new hue): the wall lit (b) and shaded (e), the stone, the treads, the doorways' dark (pane)
-   and a won room's warm, the sky from its top to the horizon's tone the ground's fog closes into, the plaza (g0) and the fields (g1),
-   the tower's shade on the plaza. .tw is the scene laid over a stage; .tw-hall the same scene on the tab */
+/* ---------- 도전의 탑's tower (tower.js, towerGL.js; DESIGN.md "Battle", 도전의 탑, The tower; the tenth pass 2026-11-16) ----------
+   The run's own scene, as the court is a battle's: a round stone tower whose terrace winds up round it, standing on its plaza among
+   a wood under a sea of cloud and a moon, modelled in 3D by towerGL.js from these tones (the night behind it is the model's too).
+   The scene's own tones are mixed from the board's (none of them a new hue): the wall lit (b) and shaded (e), the stone, the treads,
+   the doorways' dark (pane) and a won room's warm, the sky from its top to the horizon's tone that distance closes into, the plaza
+   (g0) and the fields (g1); towerGL.js steps between them for the ridges, the cloud, the wood and the road. .tw is the scene laid
+   over a stage; .tw-hall the same scene on the tab */
 .tw {
   position: absolute; inset: 0; overflow: hidden; background: var(--ground); color: var(--lit);
   --tw-b: color-mix(in srgb, var(--rule), var(--lit) 12%); --tw-e: color-mix(in srgb, var(--panel), var(--ground) 70%);
   --tw-sky-top: color-mix(in srgb, var(--ground), black 28%); --tw-sky-low: color-mix(in srgb, var(--panel-2), var(--rule) 40%);
   --tw-pane: color-mix(in srgb, var(--ground), black 30%); --tw-warm: color-mix(in srgb, var(--lit), var(--signal) 26%);
   --tw-stone: color-mix(in srgb, var(--rule), var(--lit) 16%); --tw-tread: color-mix(in srgb, var(--rule), var(--lit) 22%);
-  --tw-shadow: var(--ground); --tw-plaza: color-mix(in srgb, var(--panel), var(--ground) 30%);
+  --tw-plaza: color-mix(in srgb, var(--panel), var(--ground) 30%);
   --tw-g0: color-mix(in srgb, var(--tw-plaza), var(--tw-sky-low) 30%); --tw-g1: color-mix(in srgb, var(--tw-plaza), black 25%);
 }
 :root[data-theme="light"] .tw {
@@ -115,41 +116,17 @@
   --tw-sky-top: color-mix(in srgb, var(--mist) 62%, var(--white)); --tw-sky-low: color-mix(in srgb, var(--mist) 12%, var(--white));
   --tw-pane: color-mix(in srgb, var(--slate), var(--navy) 40%); --tw-warm: color-mix(in srgb, var(--white), var(--amber) 22%);
   --tw-stone: var(--white); --tw-tread: var(--white);
-  /* shade in the day is the slate, not the white ground */
-  --tw-shadow: var(--slate); --tw-g0: var(--paper-2); --tw-g1: var(--paper-1);
+  --tw-g0: var(--paper-2); --tw-g1: var(--paper-1);
 }
 .tw.over { z-index: var(--z-sticky); }
-.tw-hall { position: relative; inset: auto; aspect-ratio: 10 / 11; max-height: 72vh; width: 100%; }
+/* the tab's tower turns under a hand (tower.js hand); a finger's way up and down stays the page's scroll */
+.tw-hall { position: relative; inset: auto; aspect-ratio: 10 / 11; max-height: 72vh; width: 100%; cursor: grab; touch-action: pan-y; user-select: none; }
+.tw-hall.held { cursor: grabbing; }
 @media (min-width: 640px) { .tw-hall { aspect-ratio: 16 / 10; } }
-.tw > svg { position: absolute; left: 0; top: 0; overflow: visible; }
-.tw-cam { position: absolute; inset: 0; transform-origin: 0 0; }
-/* the night (the ninth pass): the sky deepening up from the horizon's tone, which the ground's fog closes into, a few stars, a
-   crescent moon; under the horizon the fog's own tone, where the model's ground ends; in the light theme a pale day with no stars
-   and no moon */
-.tw-sky .s0 { stop-color: var(--tw-sky-top); }
-.tw-sky .s1 { stop-color: var(--tw-sky-low); }
-.tw-fog { fill: var(--tw-sky-low); }
-.tw-star { fill: var(--lit); }
-/* the crescent, one shape: no ring of light round it (2026-11-11, the user: "주변에 동심원 같은 것 없이 깔끔하게") */
-.tw-moon { fill: color-mix(in srgb, var(--lit), var(--signal) 8%); }
-:root[data-theme="light"] :is(.tw-stars, .tw-moon, .tw-twinkle) { display: none; }
-/* the sun takes the moon's place in the day, on the same side, so the light falls the same way */
-.tw-sun { display: none; }
-:root[data-theme="light"] .tw-sun { display: inline; fill: color-mix(in srgb, var(--white), var(--amber) 35%); }
+.tw-cam { position: absolute; inset: 0; }
 /* the model (towerGL.js) painted on its canvas; its tones are read from the properties above */
 .tw-cam > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* the clouds the tower goes up into, drifting slowly, a glow in them where the tower stands; a few stars twinkling */
-.tw-clouds { position: absolute; inset: 0; pointer-events: none; }
-.tw-clouds > svg { position: absolute; left: 0; top: 0; overflow: visible; }
-/* the night laid over the tower's top, deepening up */
-.tw-clouds .f0 { stop-color: var(--tw-sky-top); stop-opacity: 1; }
-.tw-clouds .f1 { stop-color: var(--tw-sky-top); stop-opacity: .55; }
-.tw-clouds .f2 { stop-color: var(--tw-sky-top); stop-opacity: 0; }
-.tw-twinkle { position: absolute; inset: 0; pointer-events: none; }
-.tw-twinkle > i { position: absolute; width: 2px; height: 2px; background: var(--lit); opacity: .15; animation: tw-twinkle 3.2s ease-in-out infinite alternate; }
-@keyframes tw-twinkle { from { opacity: .12; } to { opacity: .8; } }
-@media (prefers-reduced-motion: reduce) { .tw-twinkle > i { animation: none; } }
-/* the month's other climbers where they stand (tower.js climbersHTML): a hairline from their floor's wall out into the night, and
+/* the month's other climbers where they stand (tower.js climbersHTML): a hairline from their lantern on the terrace out into the night, and
    in one column to the right their name over their streak, as a drawing is labelled. No box and no mark on the tower: the line and
    the words stand on the night. The run's own floor's are lit, the others dim; a run being played has the amber lamp by its name */
 .tw-leads { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
