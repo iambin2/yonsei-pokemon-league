@@ -20,7 +20,7 @@ import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, 
 import { pickStreakDraft, readDailyBoard, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
 import { nameOf } from "./Stage.jsx";
-import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
+import { DUR, EASE_IN, EASE_OUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
 import { ALIGNMENTS, STAT_KEYS, calculatedStat, onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
 import { josa, toID } from "../../services/battleLog.js";
 import { drawTower, standTower, towerBreak, towerDive, towerDrop, towerShow } from "./tower.js";
@@ -162,20 +162,11 @@ function turnOver(row) {
       }, () => back.remove());
   })));
 }
-/* the chosen card's picture travels up into its place in the row (DUR.light) and the other two go off */
-function travel(row, species, slot) {
+/* the chosen card stays lit and the other two go off; its picture switches on in its place in the row (place, the site's arrival),
+   nothing flies (2026-11-18, the user: a copy of the picture flew up into the numbered place, "너무 구려") */
+function travel(row, species) {
   const card = [...(row?.children || [])].find(c => c.dataset.species === species);
-  if (!card) return;
-  for (const c of row.children) c.classList.toggle("off", c !== card);
-  const img = card.querySelector(".bt-card-pic img, img");
-  if (!img || !slot || reduced() || typeof img.animate !== "function") return;
-  const a = img.getBoundingClientRect(), b = slot.getBoundingClientRect(), fly = img.cloneNode();
-  fly.className = "streak-fly";
-  Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px` });
-  document.body.append(fly);
-  const to = Math.min(b.width, b.height) * .8 / Math.max(1, a.height);
-  fly.animate([{ transform: "none" }, { transform: `translate(${b.left + b.width / 2 - a.left - a.width / 2}px, ${b.top + b.height / 2 - a.top - a.height / 2}px) scale(${to})` }],
-    { duration: DUR.light, easing: INOUT, fill: "forwards" }).finished.then(() => fly.remove(), () => fly.remove());
+  if (card) for (const c of row.children) c.classList.toggle("off", c !== card);
 }
 export function DraftBoard({ res, draft, picks, onPick }) {
   // the first place not chosen: the furthest a run's draft has come (the last when all six are)
@@ -188,11 +179,18 @@ export function DraftBoard({ res, draft, picks, onPick }) {
   // the next place's three are read while this step's stand turned, so they turn over without a wait
   useEffect(() => { const t = setTimeout(() => readAhead(draft[step + 1]?.map(c => c.species)), FOLD * 2 + TURN_STEP * 2); return () => clearTimeout(t); }, [step]);
   useEffect(() => () => clearTimeout(next.current), []);
+  // a place newly filled lights its picture where it stands
+  const had = useRef(picks);
+  useLayoutEffect(() => {
+    const was = had.current;
+    had.current = picks;
+    picks.forEach((sp, k) => { if (sp && sp !== was[k]) place(strip.current?.children[k]?.querySelector("img")); });
+  }, [picks]);
   const reached = open();
   const megaOf = k => draft[k]?.find(c => c.species === picks[k])?.mega;
   const choose = species => {
     const was = picks[step] === species;
-    if (!was) travel(cards.current, species, strip.current?.children[step]);
+    if (!was) travel(cards.current, species);
     else for (const c of cards.current?.children || []) c.classList.remove("off");
     onPick(step, species);
     clearTimeout(next.current);
@@ -494,7 +492,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           <div className="streak-scene">
             {drafting && !entering
               ? <DraftBoard res={res} draft={drafting} picks={picks} onPick={(i, sp) => setPicks(p => { const n = [...p]; n[i] = n[i] === sp ? undefined : sp; return n; })} />
-              : <TowerHall key={`${kind}${round}`} wins={wins} live={Boolean(run?.playing)} climbers={climbers} />}
+              : <TowerHall key={round} wins={wins} live={Boolean(run?.playing)} climbers={climbers} />}
           </div>
           {run && !run.playing && run.doors && <DoorPick res={res} doors={run.doors} value={door} onChange={setDoor} />}
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>
@@ -532,35 +530,6 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
    stands off with an empty panel beside it. One of theirs held by an item the party already holds stands off in its row, its reason
    one press away (the won game's six are known whole, so the screen sees the items the server checks: streak.js swapParty). rows:
    ours ({ species, name, can: [{ species, name }], held: [{ species, name, why }] }), in tier order */
-/* the chosen row's two sets side by side over the table, read without opening a sheet (2026-11-16 draft A): each its picture and name,
-   its four moves (the foe's as far as the game showed them) and its six at level 50 as bars, the higher of each pair lit and the lower
-   dim. Both stand on one footing: the sets' own stats when both are known, else each species' own at level 50 */
-const realStats = c => (c?.stats && /\/\d+$/.test(c.hp || "") ? { hp: Number(c.hp.split("/")[1]), ...c.stats } : null);
-function SetPair({ res, give, take }) {
-  const ref = useRef(null);
-  // where the break cannot hold it all (a phone), the pair stands at the break's top with the table under it
-  useLayoutEffect(() => {
-    const el = ref.current, box = el?.closest(".streak-break");
-    if (box && box.scrollHeight > box.clientHeight) box.scrollTop = el.offsetTop - parseFloat(getComputedStyle(box).paddingTop);
-  }, []);
-  // a beaten foe's set is known whole (2026-11-18): its stat points and nature make its stats as ours are made
-  const ra = realStats(give), rb = realStats(take) || (take.evs ? statsAt50(res, take.species, take.evs, take.nature) : null);
-  const sa = ra && rb ? ra : statsAt50(res, give.species), sb = ra && rb ? rb : statsAt50(res, take.species);
-  const side = (c, mine, other) => <div className="pn streak-cmp-side">
-    <span className="streak-cmp-id"><img src={spriteUrl(c.species)} alt="" draggable="false" onError={onSpriteError()} /><b>{nameOf(res, c.species)}</b></span>
-    <span className="bt-card-moves">
-      {Array.from({ length: 4 }, (_, i) => {
-        const m = c.moves?.[i];
-        if (!m) return <span key={`u${i}`} className="bt-cmove streak-unseen"><b>모름</b></span>;
-        const id = toID(m.id), type = m.type || res.detail.moves[id]?.type || "Normal";
-        return <span key={id} className={`bt-cmove type-${toID(type)}`}><b>{res.text.moves[id]?.name || res.detail.moves[id]?.name || m.id}</b></span>;
-      })}
-    </span>
-    <StatBars stats={mine} other={other} />
-  </div>;
-  return <div ref={ref} className="stack streak-cmp" role="group" aria-label="고른 교환">{side(give, sa, sb)}{side(take, sb, sa)}</div>;
-}
-
 /* the table's rows: for each of ours, which of theirs it can be traded for (can) and which an item already in the party holds back
    (held, with why), by the server's own rule (streak.js swapParty). party, foes: the two sixes as the game began ({ species, item });
    blocked: trades the server refused, { give, take, why } */
@@ -581,12 +550,11 @@ export function tradeRows(res, ours, theirs, party, foes, reach = 0, blocked = [
   });
 }
 
-/* sets: (mine, species) => the set as the party's cards hold it (our own cards; theirs from the beaten six when known, else as the
-   game showed them), or null: the chosen trade's two sets stand over the table (SetPair) */
-export function SwapTable({ rows, chosen, onPick, onInfo = null, up = false, res = null, sets = null }) {
-  const give = res && sets && chosen ? sets(true, chosen.give) : null, take = give ? sets(false, chosen.take) : null;
+/* what is received is never shown before it is taken (2026-11-18, the user: "교환할 때 전부 상세정보가 안 뜨는 것이 좋을 것 같아. 그래야
+   무슨 샘플을 받을 줄 모른다는 쫄깃함이 있잖아"): the pair of sets that stood over the table only when the foe's set was known is gone,
+   and one held back says only why */
+export function SwapTable({ rows, chosen, onPick, onInfo = null, up = false }) {
   return <section className="streak-swap" aria-labelledby="streak-swap-title">
-    {give && take && <SetPair key={`${give.species}${take.species}`} res={res} give={give} take={take} />}
     <div className="stack streak-trades" role="table">
       <span className="pn streak-trades-head" role="columnheader" id="streak-swap-title" aria-label={up ? "포켓몬 교환 승급, 내 파티" : "포켓몬 교환, 내 파티"}>내 파티</span>
       <span className="pn streak-trades-mark" aria-hidden="true"><Icon n="swap" size={20} /></span>
@@ -643,7 +611,7 @@ function BreakTower({ wins, climbing, again }) {
   }, []);
   return <div ref={ref} className="tw tw-hall" role="img" aria-label={`다음 판 ${gameWords(wins)}`} />;
 }
-export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, standUp, leaveNow = async () => {}, settle = async () => {}, onInfo = null, sets = null, stage = null, away = false, ours: ourSix = [], theirs: theirSix = [] }) {
+export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, standUp, leaveNow = async () => {}, settle = async () => {}, onInfo = null, stage = null, away = false, ours: ourSix = [], theirs: theirSix = [] }) {
   const seat = readSeat(id);
   const board = useBoard(Boolean(seat?.daily));
   // the door to the next game, the even one unless chosen (2026-11-11)
@@ -691,11 +659,6 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
   const party = seat?.own?.length === 6 ? seat.own : ours.map(o => ({ species: o.species }));
   const foes = seat?.beaten?.length === 6 ? seat.beaten : theirs.map(t => ({ species: t.species }));
   const rows = swapping ? tradeRows(res, ours, theirs, party, foes, reach, blocked) : [];
-  // a foe of the trade as a card, from the beaten six (its whole set)
-  const beatenCard = sp => {
-    const m = seat?.beaten?.find(f => f.species === sp);
-    return m ? { species: m.species, ability: m.ability, item: m.item, evs: m.evs, nature: m.nature, moves: (m.moves || []).map(id => ({ id })) } : null;
-  };
   const swap = swapping && chosen ? [chosen] : null;
   const goInto = async (make, next) => {
     if (busy) return;
@@ -732,8 +695,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
         {recap.map(m => <MonCard key={m.species} res={res} species={m.species} ability={m.ability} item={m.item || null} moves={(m.moves || []).map(name => ({ id: name, pp: "" }))} compact />)}
       </div>}
     </div>}
-    {beat === "trade" && <SwapTable rows={rows} up={reach > 0} chosen={chosen} onPick={setChosen} onInfo={onInfo} res={res}
-      sets={(mine, sp) => (mine ? sets?.(true, sp) : beatenCard(sp) || sets?.(false, sp)) || null} />}
+    {beat === "trade" && <SwapTable rows={rows} up={reach > 0} chosen={chosen} onPick={setChosen} onInfo={onInfo} />}
     {beat === "door" && <>
       <BreakTower wins={wins} climbing={won && wins > 0 && floorGame(wins) === 1} again={!won} />
       <b className={(master ? "inv" : "pn") + " t15 streak-named streak-break-name"}>{gameWords(wins)}<RunLamps lives={lives} /></b>

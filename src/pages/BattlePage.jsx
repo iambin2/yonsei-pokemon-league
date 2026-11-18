@@ -250,18 +250,22 @@ function Lobby({ res, teams, teamId, setTeamId, name, setName, nameError = "", f
   const stageLabel = random ? "경기장, 랜덤 파티는 배틀이 열리면 정해집니다." : team ? `경기장, ${leads.map(species => nameOf(res, species)).join(", ")}` : "빈 경기장";
   // the sheet a strip opened: "foe" (상대, 난이도, 형식) or "party" (규정, the parties)
   const [sheet, setSheet] = useState(null);
+  /* from 860 what the sheets hold stands open in a column beside the court, as 도전의 탑's side stands beside its tower (2026-11-19,
+     the owner's draft A: "배틀 창의 양 옆의 여백이 의미 없이 낭비되는 것 같아"), so the court keeps its place between the two tabs; on a
+     phone the strips still open them as sheets */
+  const laid = !useNarrow();
   const reg = REGULATIONS[team?.regulationId] || team?.regulationId || "";
   return (
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
       {tabs}
       {before}
-      <div className="bt-lobby one">
+      <div className="bt-lobby">
         <div className="bt-lobby-main">
           {/* the court for every party (2026-11-06, the user: one look for a random party and a saved team): a random party's leads are
               not drawn yet, so a light breathes on our floor where they will come out. The strips are the menu (2026-11-18, draft B) */}
           <LobbyArena res={res} foe={foe || foeHint} foeMuted={!foe} foeNote={foeNote} foeWord={foeWord} six={six}
-            oursWord={random ? `무작위 여섯 마리, ${reg}` : ""} onFoe={foeSheet ? () => setSheet("foe") : null} onOurs={() => setSheet("party")}
+            oursWord={random ? `무작위 여섯 마리, ${reg}` : ""} onFoe={foeSheet && !laid ? () => setSheet("foe") : null} onOurs={laid ? null : () => setSheet("party")}
             ours={/* a field on the strip, its line always drawn and the edit mark after it, so it never reads as a caption (2026-11-09) */
               <label className="bt-name-field"><input id="bt-name" className="bt-name" aria-label="내 이름" value={name} maxLength={20} autoComplete="nickname" enterKeyHint="go" placeholder="내 이름"
                 aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? "bt-name-error" : undefined}
@@ -273,6 +277,10 @@ function Lobby({ res, teams, teamId, setTeamId, name, setName, nameError = "", f
           {action}
           {after && <div className="bt-after">{after}</div>}
         </div>
+        {laid && <div className="bt-lobby-set">
+          {foeSheet}
+          <PartyPick teams={teams} teamId={teamId} setTeamId={setTeamId} res={res} />
+        </div>}
       </div>
       {sheet === "foe" && <Modal title="상대" onClose={() => setSheet(null)}><div className="stack bt-foepick">{foeSheet}</div></Modal>}
       {sheet === "party" && <Modal title="파티" onClose={() => setSheet(null)}><PartyPick teams={teams} teamId={teamId} setTeamId={setTeamId} res={res} onDone={() => setSheet(null)} /></Modal>}
@@ -1041,6 +1049,9 @@ function useMatchLit() {
     main?.classList.add("page--battle");
     leftBehind();
     const wait = liftArrive(main?.querySelector(".bt-match .bt-stagebox")) || 0;
+    /* the court stays off until the dark has come over it: while the dark went from the tower's place to the stage's, the preview's
+       court stood lit round it, a silhouette of the arena (2026-11-18, the user: "선출창에 들어가는 연출에 살짝 경기장 실루엣이 보여") */
+    if (wait && !reduced()) main.querySelectorAll(".bt-match .bt-stagebox :is(.bt-pv-stage, .bt-arena)").forEach(a => { a.style.opacity = "0"; setTimeout(() => a.style.removeProperty("opacity"), wait); });
     const preview = main?.querySelector(".bt-match .bt-preview");
     if (!preview?.querySelector(".bt-card")) { light(main, DUR.leave); return; }
     const side = main.querySelector(".bt-match .bt-side");
@@ -1641,7 +1652,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               <span className="bt-end-line">{offered ? <><i className="lamp" aria-hidden="true" />{`${josa(names[foe], "subject")} 다시하기를 원합니다.`}</> : endLine}</span>
             </div>}
             {streak ? <StreakEnd id={row.id} won={row.winner === seat?.side} res={res} {...streak} settle={settle} onInfo={setSheetTip}
-              sets={(mine, s) => (mine ? ownList() : scene ? seenCards(res, scene[foe].roster, moveField) : []).find(c => c.species === s || toID(c.species).startsWith(toID(s))) || null} stage={stageBox} away={autoplay || cue != null}
+              stage={stageBox} away={autoplay || cue != null}
               ours={(preview[perspective]?.preview || []).map(mon)} theirs={(preview[foe]?.preview || []).map(mon)} /> : (rematch || official || leave) && <Dock>
               <div className={"bt-end-keys" + (revealed ? "" : " wait")}>
                 {rematch ? <Button variant="main" icon="refresh" loading={again} onClick={rematch}>{offered ? "다시하기 수락" : "다시하기"}</Button>
@@ -1700,6 +1711,8 @@ function tipFor(key, { res, own, picks, foeCards = () => [], foeAt = () => "상�
   const [kind, ...rest] = String(key).split(":");
   if (kind === "swap") {
     const [side, species, why] = rest;
+    // one of theirs held back says only why: what would be received stays unseen (2026-11-18)
+    if (side === "foe") return why ? <div className="bt-tip"><p className="bt-tip-say">{why}</p></div> : null;
     /* a Pokémon that changed its form in the game (a Mega) stands in the cards under its new name: it is still the one the row names
        (2026-11-10: its i opened a sheet with nothing in it) */
     const same = c => c.species === species || toID(c.species).startsWith(toID(species)) || toID(species).startsWith(toID(c.species));

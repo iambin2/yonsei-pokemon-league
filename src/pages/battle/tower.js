@@ -325,12 +325,35 @@ export function drawTower(el, st, coming = false) {
 }
 const sameState = (a, b) => a.floor === b.floor && a.at === b.at && a.live === b.live && !a.hold === !b.hold
   && JSON.stringify(a.climbers || []) === JSON.stringify(b.climbers || []);
-// the tab's hall draws itself and comes in with its entrance the first time; a resize, a new state or the other theme draws it again
-// where it stands
+/* the tab's hall draws itself and comes in with its entrance the first time; a resize or the other theme draws it again where it
+   stands. A new state never draws it again (2026-11-18, the user: the tower flashed on 이번 달 and 오늘의 탑, and came in abruptly):
+   the month's board arriving a moment after the tab redrew the hall and cut its entrance short. Now the camera walks to the new door
+   (the same floor), or the night dims and the new floor's tower draws in as between games (another floor), after any move under way */
 export function standTower(el, st) {
   const was = el.tower;
-  if (was && was.m.W === el.clientWidth && was.m.H === el.clientHeight && was.theme === themeOf() && sameState(was.st, st)) return;
-  if (drawTower(el, st, !was && !reduced()) && !was) void entrance(el);
+  if (!was) { if (drawTower(el, st, !reduced())) el.tower.queue = entrance(el); return; }
+  if (was.m.W !== el.clientWidth || was.m.H !== el.clientHeight || was.theme !== themeOf()) { drawTower(el, st); return; }
+  if (sameState(was.st, st)) return;
+  const next = { ...st };
+  was.want = next;
+  was.queue = (was.queue || Promise.resolve()).then(() => (el.tower === was && was.want === next ? moveTo(el, next) : null));
+}
+async function moveTo(el, st) {
+  const tw = el.tower;
+  if (reduced()) { drawTower(el, st); return; }
+  if (st.floor !== tw.st.floor) {
+    await fade(el.querySelector(".tw-body"), 1, 0, DUR.leave, { easing: EASE_IN });
+    if (el.tower !== tw || !drawTower(el, st, true)) return;
+    const now = el.tower;
+    marksOf(el).forEach(x => { x.style.opacity = "0"; });
+    await arrive(el);
+    if (el.tower === now) mark(el);
+    return;
+  }
+  const from = tw.s, to = doorOf(st), walks = from !== to;
+  if (walks) marksOf(el).forEach(x => void fade(x, 1, 0, DUR.tone, { easing: EASE_IN }));
+  await Promise.all([tweenTo(el, st, DUR.light), walks ? animate(el, WALK, e => { tw.s = from + (to - from) * e; }) : null]);
+  if (el.tower === tw) mark(el);
 }
 // the theme turned: every tower standing is painted again in the other one's tones
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {

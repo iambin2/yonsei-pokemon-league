@@ -7,11 +7,13 @@
 
 /* ---------- before the battle (Opening and waiting, redesigned 2026-11-07). The battle is the point, so the arena is the hero: on the
    709 the arena as the battle will stand it (the foe's strip, the court, our strip with the name typed in it and our six), the main
-   action right under it. What is chosen opens from the strips as sheets (2026-11-18, draft B), so the lobby is one column; the
-   waiting room keeps its 439 for the wait's rows and counters. On a phone: the arena and the action docked. ---------- */
+   action right under it. What is chosen stands open in the 439 beside it (2026-11-19, draft A), and
+   opens from the strips as sheets on a phone; the waiting room keeps its 439 for the wait's rows and counters. On a phone: the arena and the action docked. ---------- */
 .bt-lobby { display: grid; gap: var(--s5); }
 .bt-lobby-main, .bt-lobby-set { display: grid; gap: var(--s5); align-content: start; min-width: 0; }
 .bt-lobby-set .q + .q { margin-top: 0; }
+/* the party's questions (규정, the rule's parties, 저장한 팀) stand apart as the 상대 sheet's do, in the sheet and beside the court */
+.bt-partypick { gap: var(--s5); }
 .bt-lobby-main > .dock { margin-top: 0; }
 .bt-cancel { justify-self: center; }
 @media (max-width: 859px) {
@@ -21,12 +23,8 @@
 }
 @media (min-width: 860px) {
   .bt-lobby { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); align-items: start; justify-content: space-between; }
-  /* the lobby with its menu on the strips (2026-11-18, draft B) is one column, the court and its key, in the page's middle */
-  .bt-lobby.one { grid-template-columns: minmax(0, 709px); justify-content: center; }
+  /* 배틀 열기 too is the court and, beside it, what the sheets hold laid open (2026-11-19, the owner's draft A) */
   .bt-lobby-main { gap: var(--s3); }
-  /* the arena's top edge meets the first choice's top edge across the columns, not the label over it (2026-11-07, the user: the
-     matchup's line met no line on the other side) */
-  .bt-lobby:has(> .bt-lobby-set > .q:first-child) > .bt-lobby-main { padding-top: calc(var(--l12) + var(--s2)); }
 }
 /* the battle page's tabs: 배틀 열기, 연승 도전, 방 목록 and 중계, under the title */
 .bt-tabs { margin-top: calc(var(--s8) - var(--s5)); }
@@ -105,7 +103,7 @@
    its own light over it (the board's white, the first thing seen as it comes on, and the ring that runs out from where the two sides
    meet); the amber lamp of a live battle stands at the board's centre. Only opacity moves; every module's seam is its own edge, so
    nothing under the board shows through a gap */
-.bt-change { position: absolute; inset: 0; z-index: var(--z-sticky); display: grid; pointer-events: none; }
+.bt-change { position: absolute; inset: 0; z-index: var(--z-sticky); display: grid; overflow: hidden; pointer-events: none; }
 .bt-change > i { position: relative; background: var(--panel-2); border-left: var(--seam) solid var(--ground); border-top: var(--seam) solid var(--ground); opacity: 0; }
 .bt-change > i > b { position: absolute; inset: 0; background: var(--lit); }
 .bt-change-lamp { position: absolute; left: calc(50% - var(--lamp) / 2); top: calc(50% - var(--lamp) / 2); opacity: 0; }

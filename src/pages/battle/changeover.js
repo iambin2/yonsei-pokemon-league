@@ -29,10 +29,14 @@ export async function boardOff(box) {
   const el = document.createElement("div");
   el.className = "bt-change";
   el.setAttribute("aria-hidden", "true");
-  el.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  el.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  /* the modules keep the size they were cut to: the deck comes under the stage while the board stands and the room gives up height,
+     and modules of 1fr were squeezed with it (2026-11-18, the user: "기술 칸이 나오면서 뭔가 뒤틀리면서 끊어지는 느낌"). Now the room's
+     new edge only cuts the last row, and the lamp stays where they met */
+  el.style.gridTemplateColumns = `repeat(${cols}, ${W / cols}px)`;
+  el.style.gridTemplateRows = `repeat(${rows}, ${H / rows}px)`;
   el.innerHTML = "<i><b></b></i>".repeat(cols * rows) + `<span class="lamp sig bt-change-lamp"></span>`;
   box.appendChild(el);
+  el.lastChild.style.top = `calc(${H / 2}px - var(--lamp) / 2)`;
   const cx = (cols - 1) / 2, cy = (rows - 1) / 2, far = Math.hypot(cx, cy), last = cols / 2 - 1 + cy / 2;
   const cells = [...el.querySelectorAll("i")];
   el.board = { born: performance.now(), cells, at: cells.map((_, i) => Math.hypot(i % cols - cx, Math.floor(i / cols) - cy) / far) };
