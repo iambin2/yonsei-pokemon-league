@@ -133,26 +133,6 @@ export function packedCards(res, inputLog, side) {
   });
 }
 
-/* the end (DESIGN.md "Battle", After the battle; 2026-11-16, the owner's draft 3-C): both parties' sets side by side in the stage's
-   place, each a row of its picture, its name with its ability and item, and its four moves as the type-coloured keys of the cards; a
-   move not shown is an empty key. sides: [{ key, label, cards }] */
-export function EndSets({ res, sides }) {
-  return <div className="bt-endsets" role="region" aria-label="두 파티">
-    {sides.map(s => <section key={s.key} className="bt-endside" aria-label={`${s.label}의 파티`}>
-      <header className="t15">{s.label}</header>
-      {s.cards.map(c => <div key={c.key} className={"bt-endset" + (c.fainted ? " fnt" : "")}>
-        <img src={spriteUrl(c.species)} alt="" draggable="false" loading="lazy" onError={onSpriteError()} />
-        <span className="bt-endset-id"><b>{nameOf(res, c.species)}</b><small>{[c.ability && named(res, "abilities", c.ability), c.item && named(res, "items", c.item)].filter(Boolean).join(", ")}</small></span>
-        <span className="bt-endset-moves">{Array.from({ length: 4 }, (_, i) => {
-          const m = c.moves?.[i];
-          if (!m) return <span key={i} className="bt-cmove empty" aria-hidden="true" />;
-          return <span key={m.id} className={`bt-cmove type-${toID(m.type || res.detail.moves[toID(m.id)]?.type || "Normal")}`}><b>{named(res, "moves", m.id)}</b></span>;
-        })}</span>
-      </div>)}
-    </section>)}
-  </div>;
-}
-
 /* the team preview, a player's: the foe's six small along the top, our six large as the sets they are, each chosen by a tap and
    numbered in the order it will be sent. The count and 선출 확정 are PickDock, beside the cards on a wide screen and docked on a phone.
    locked: chosen and sent, waiting for the foe */

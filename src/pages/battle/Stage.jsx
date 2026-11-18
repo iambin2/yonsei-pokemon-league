@@ -622,8 +622,17 @@ function Tags({ tags }) {
 
 // the message window over the bottom of the stage: the newest line lit, the one before it dim; when the game asks
 // (리자몽은 무엇을 할까?) the question is the newest
-export function Say({ said: box, ask }) {
+/* result: at the end (2026-11-18, the owner's draft A of the end, "승자의 무대와 결과 띠"), the window becomes the result band, the court
+   still standing over it with the last Pokémon on it: the result at 32 (inverted when it is the decided thing the seat or a watcher
+   reads, a panel when the seat lost), how it went under it at 15, and at its right each side's name with the Pokémon it brought, a
+   fallen one grey. { title, line, won, sides: [{ name, mons: [{ species, out }] }] } */
+export function Say({ said: box, ask, result = null, res = null }) {
   const said = useBox(box);
+  if (result) return <div className={"bt-say bt-result" + (result.won ? " inv" : "")} role="status">
+    <div className="bt-result-main"><b>{result.title}</b><span>{result.line}</span></div>
+    <div className="bt-result-sides">{result.sides.map(s => <span key={s.name} className="bt-result-side"><small>{s.name}</small>
+      <span className="bt-result-mons">{s.mons.map((m, i) => <img key={`${m.species}${i}`} className={m.out ? "out" : ""} src={spriteUrl(m.species)} alt={`${nameOf(res, m.species)}${m.out ? ", 쓰러짐" : ""}`} draggable="false" onError={onSpriteError()} />)}</span></span>)}</div>
+  </div>;
   const shown = ask ? [...said.slice(-1), ask] : said;
   return <div className="bt-say" aria-live="polite">{shown.map((line, i) => <p key={`${line}-${i}-${shown.length}`}>{line}</p>)}</div>;
 }
@@ -644,7 +653,7 @@ function Clock({ left, mine }) {
 
 // dark: the stage stands with its lamps off from its first frame (a replay playing from its start, whose opening switches them on)
 // onFoeParty (a phone): the foe's strip is the key to the foe's party, as ours is to 내 파티 (DESIGN.md "Battle", The party)
-export function Stage({ scene, stageRef, perspective, doubles, res, names, said, ask, known, onParty, onFoeParty = null, clock = null, mine = false, dark = false }) {
+export function Stage({ scene, stageRef, perspective, doubles, res, names, said, ask, known, onParty, onFoeParty = null, clock = null, mine = false, dark = false, result = null }) {
   const foe = other(perspective);
   const [info, setInfo] = useState(null);
   /* before its first paint: a replay's arena drawn lit and dimmed a few frames later when its reading reached the start flashed as it
@@ -690,7 +699,7 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
             <Tags tags={[...sideTags(foe), ...chips]} />
           </div>
           <div className="bt-hud-own">{plates(perspective, scene, true, doubles, res, setInfo)}<Tags tags={sideTags(perspective)} /></div>
-          <Say said={said} ask={ask} />
+          <Say said={said} ask={ask} result={result} res={res} />
           <Clock left={clock} mine={mine} />
         </div>
       </div>

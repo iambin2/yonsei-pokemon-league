@@ -248,6 +248,7 @@
 /* why the dock's key waits, said on the dock's own ground over the key */
 .bt-gate-line { margin: 0 0 var(--s2); }
 .bt-end-keys > :only-child { grid-column: 1 / -1; }
+.bt-end-keys.wait { visibility: hidden; }
 .bt-end-keys > .btn--second { padding-inline: var(--s5); }
 .bt-end > .dock { margin-top: 0; }
 /* a toast in the battle's deck stands over it, never in its flow, on every width as on a phone: in the flow it pushed the keys down
@@ -263,7 +264,7 @@
 @media (max-width: 859px) { .bt-rkey { width: var(--h-row); height: var(--h-row); } .bt-rkey svg { width: 20px; height: 20px; } }
 /* on a phone six keys of 52 left the track 18 wide, a handle with nowhere to go (2026-11-10, measured at 390): the keys keep their 52
    of height and stand 44 wide, a finger's width, so the rail has room to be dragged along */
-@media (max-width: 600px) { .bt-rkey:not(.bt-rlive) { width: var(--h-control); } .bt-replay-track { margin: 0 var(--s2); } }
+@media (max-width: 600px) { .bt-rkey:not(.bt-rlive) { width: var(--h-control); } }
 .bt-rkey.main { color: var(--lit); background: var(--panel-2); }
 .bt-rkey.main.on { color: var(--ground); background: var(--lit); }
 .bt-rkey:disabled { color: var(--mute); cursor: default; }
@@ -276,7 +277,15 @@
 .bt-replay-rail > i { position: absolute; inset: 0; background: var(--dim); transform: scaleX(var(--p)); transform-origin: 0 50%; transition: transform var(--move-tone); }
 /* the handle moves by transform only: its holder spans the rail and slides by the share played */
 .bt-replay-at { position: absolute; inset: 0; transform: translateX(calc(var(--p) * 100%)); transition: transform var(--move-tone); }
-.bt-replay-at > b { position: absolute; top: 50%; left: 0; width: var(--s3); height: var(--s3); background: var(--lit); translate: -50% -50%; }
+.bt-replay-at > b { position: absolute; top: 50%; left: 0; display: grid; place-items: center; min-width: var(--s5); height: var(--s5); padding: 0 var(--s1); background: var(--lit); color: var(--ground); font-size: var(--t12); line-height: var(--l12); font-weight: 700; font-variant-numeric: tabular-nums; translate: -50% -50%; }
+/* the timeline's marks (2026-11-18): a tick a stop on the rail; over a turn in which a Pokémon fell a square in the HP bar's red, under
+   one with a Mega Evolution a gold diamond. The handle stands over its own tick */
+.bt-replay-tick { position: absolute; top: 50%; left: calc(var(--x) * 100%); width: var(--seam); height: var(--s2); background: var(--mute); translate: -50% -50%; }
+.bt-replay-tick > u { position: absolute; left: 50%; width: var(--s2); height: var(--s2); translate: -50% 0; }
+.bt-replay-tick > .ko { bottom: calc(100% + var(--s1)); background: var(--type-fire); }
+.bt-replay-tick > .mega { top: calc(100% + var(--s1)); background: var(--gold); rotate: 45deg; }
+/* on a phone the rail is some 60 wide and a stop some 8 apart: the marks are 4, so two turns side by side stay two marks */
+@media (max-width: 600px) { .bt-replay-tick > u { width: var(--s1); height: var(--s1); } }
 /* 중계: the last key of a battle still being played. While the stage follows the battle it stands lit with the amber lamp, on air;
    once the watcher went back it is the main key, to come back */
 .bt-rkey.bt-rlive { display: flex; gap: var(--s1); width: auto; padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 700; white-space: nowrap; }
@@ -490,6 +499,31 @@
 :root[data-theme="light"] .bt-say { background: var(--panel); }
 .bt-say > p { font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit); animation: y-rise var(--move-light) backwards; }
 .bt-say > p:not(:last-child) { color: var(--dim); }
+/* the result band (Stage.jsx Say result, 2026-11-18, the owner's draft A of the end): the message window at the end, the court still
+   over it. The result at 32 with how it went at 15 under it on the left; at the right each side's name at 12 over the Pokémon it
+   brought at 32, a fallen one grey. Inverted for the decided thing (a win, or anyone watching), a panel when the seat lost */
+.bt-say.bt-result { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s5); padding-block: var(--s3); pointer-events: auto; }
+.bt-say.bt-result.inv { background: var(--lit); color: var(--ground); }
+.bt-result-main { display: grid; gap: var(--s1); min-width: 0; }
+.bt-result-main > b { font-size: var(--t32); line-height: 1.15; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: y-rise var(--move-light) backwards; }
+.bt-result-main > span { font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); }
+.bt-say.bt-result.inv .bt-result-main > span { color: inherit; opacity: .72; }
+.bt-result-sides { display: grid; gap: var(--s1); justify-items: end; }
+.bt-result-side { display: flex; align-items: center; gap: var(--s2); }
+.bt-result-side > small { font-size: var(--t12); line-height: var(--l12); font-weight: 700; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-result-mons { display: flex; gap: var(--s1); }
+.bt-result-mons > img { width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.bt-result-mons > img.out { filter: grayscale(1); opacity: .32; }
+@media (max-width: 859px) {
+  /* on a phone the band keeps the message window's height: the two sides' Pokémon on one line, ours first, the names left to the
+     strips over and under the court, which carry them */
+  .bt-say.bt-result { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
+  .bt-result-main > b { font-size: var(--t20); }
+  .bt-result-sides { grid-auto-flow: column; justify-content: start; gap: var(--s5); }
+  .bt-result-side > small { display: none; }
+  .bt-result-mons > img { width: var(--s8); height: var(--s8); }
+}
+@media (prefers-reduced-motion: reduce) { .bt-result-main > b { animation: none; } }
 @media (min-width: 860px) { .bt-say > p { font-size: var(--t20); line-height: var(--l20); } }
 
 /* the clock: the seconds in segment cells on a square in the message window's corner, a bar under them emptying as they run out;
@@ -999,28 +1033,7 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
   .bt-match.cast .bt-castlog .bt-log { height: calc(var(--h-row) * 4 + var(--seam) * 3); max-height: none; }
 }
 
-/* the end's two parties in the stage's place (2026-11-16, the owner's draft 3-C): ours on the left, theirs on the right, one row each,
-   the picture, the name with its ability and item, the four moves as the cards' type keys (a move not shown an empty one) */
-.bt-endsets { position: absolute; inset: 0; z-index: var(--z-raised); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--seam); align-content: start; overflow: hidden auto; background: var(--ground); animation: y-fade var(--move-light) backwards; }
-.bt-endside { display: grid; align-content: start; gap: var(--seam); min-width: 0; }
-.bt-endside > header { display: flex; align-items: center; min-height: var(--h-strip); padding: 0 var(--pad); background: var(--panel-2); color: var(--lit); font-weight: 700; }
-.bt-endset { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); gap: var(--s1) var(--s2); align-items: center; padding: var(--s1) var(--s2); background: var(--panel); }
-.bt-endset > img { grid-row: span 2; width: var(--s13); height: var(--s13); object-fit: contain; }
-.bt-endset.fnt > img { opacity: var(--opacity-disabled); filter: grayscale(1); }
-.bt-endset-id { display: flex; align-items: baseline; gap: var(--s2); min-width: 0; white-space: nowrap; overflow: hidden; }
-.bt-endset-id > b { flex: none; font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit); }
-.bt-endset-id > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
-.bt-endset-moves { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--seam); min-width: 0; }
-.bt-endset-moves > .bt-cmove { min-height: 20px; padding: 0 var(--s1); font-size: var(--t12); line-height: var(--l12); }
-.bt-endset-moves > .bt-cmove.empty { background: var(--panel-2); }
-@media (max-width: 859px) {
-  .bt-endset { grid-template-columns: var(--s8) minmax(0, 1fr); padding: var(--s1); }
-  .bt-endset > img { grid-row: auto; width: var(--s8); height: var(--s8); }
-  .bt-endset-id > small { display: none; }
-  .bt-endset-moves { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 /* reduced motion (DESIGN.md "Motion"): everything appears at once and only tone remains, in a battle as on every page */
 @media (prefers-reduced-motion: reduce) {
-  .bt-end-head, .bt-plate-top, .bt-fieldchips > span, .bt-say > p, .bt-endsets { animation: none; }
+  .bt-end-head, .bt-plate-top, .bt-fieldchips > span, .bt-say > p { animation: none; }
 }

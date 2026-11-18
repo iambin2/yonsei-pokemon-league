@@ -32,7 +32,7 @@ import { shareLink } from "../services/communityStore.js";
 import { logUpTo, nextStop, prevStop, replayStops, secondsLeft, turnStop } from "../services/battleReplay.js";
 import { claimTimeout, expireStreakGame, rememberBattle } from "../services/battleWatch.js";
 import { BattleLists, ReplayBar, downloadReplay, replayKey } from "./battle/Replay.jsx";
-import { EndSets, FoeSix, MonCard, PickDock, TeamInfo, TeamPick, ownCards, packedCards, seenCards } from "./battle/Sets.jsx";
+import { FoeSix, MonCard, PickDock, TeamInfo, TeamPick, ownCards, packedCards, seenCards } from "./battle/Sets.jsx";
 import { StreakBand, StreakEnd, StreakOpen, StreakStake, TrackBar, floorCall, useAccount } from "./battle/Streak.jsx";
 import { liftArrive, towerDrop } from "./battle/tower.js";
 import { floorGame, gameWords, runTrack, streakFloor, streakMaster } from "../services/streak.js";
@@ -1413,8 +1413,18 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     active: request?.active || [], maxpp: maxpp.current, field: moveField,
     used: Object.fromEntries((scene?.[perspective]?.roster || []).filter(m => m.name).map(m => [m.name, m.ppUsed])),
   });
+  /* the end (2026-11-18, the owner's draft A, the user: "판의 끝은 ... A 승자의 무대와 결과 띠"): once the replay stands at its end, the
+     court stays with the last Pokémon on it and the message window becomes the result band (Stage.jsx Say). Both parties' sets, which
+     stood in the court's place as a table from 2026-11-16 (draft C), are the side column's party tabs: a battle with the computer has
+     both whole on this device (its input log); a player has their own whole and the foe's as shown; anyone else both as shown */
+  const atEnd = shownEnded && revealed && cue == null && !autoplay && !tape.playing && scene && row.kind !== "streak";
+  const endSets = !atEnd ? null : (() => {
+    const input = local ? readCpuBattle()?.inputLog : null;
+    const sideSets = side => (input && packedCards(res, input, side)) || (ownView && side === perspective && party.current ? ownList() : seenCards(res, scene[side].roster, moveField));
+    return [perspective, foe].map(side => ({ key: side, label: ownView && side === perspective ? "내 파티" : `${names[side]}의 파티`, cards: sideSets(side) }));
+  })();
   // the party beside the stage: a player reads the foe's shown set and their own whole one; a spectator reads both as shown
-  const infoSides = !scene ? [] : ownView
+  const infoSides = !scene ? [] : endSets ? endSets : ownView
     ? [{ key: "foe", label: `${names[foe]}의 파티`, cards: seenCards(res, scene[foe].roster, moveField) }, { key: "own", label: "내 파티", cards: ownList() }]
     : [perspective, foe].map(side => ({ key: side, label: `${names[side]}의 파티`, cards: seenCards(res, scene[side].roster, moveField) }));
   // on a wide screen the match takes the whole window: the page frame lets go of its 1200 for this view only
@@ -1534,11 +1544,13 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   </section>;
   /* both parties' sets at the end: a battle with the computer has both whole on this device (its input log); a player has their own
      whole and the foe's as shown; anyone else both as shown (the server keeps the rest) */
-  const endSets = !(shownEnded && revealed && cue == null && !autoplay && !tape.playing && scene && row.kind !== "streak") ? null : (() => {
-    const input = local ? readCpuBattle()?.inputLog : null;
-    const sideSets = side => (input && packedCards(res, input, side)) || (ownView && side === perspective && party.current ? ownList() : seenCards(res, scene[side].roster, moveField));
-    return [perspective, foe].map(side => ({ key: side, label: ownView && side === perspective ? "나" : names[side], cards: sideSets(side) }));
-  })();
+  const broughtOf = side => (scene?.[side]?.roster || []).filter(m => m.seen || m.fainted);
+  const endBand = !atEnd ? null : {
+    title: endTitle, won: !seat || row.winner === seat.side || row.winner === "tie",
+    line: row.ended_by === "void" || row.ended_by === "forfeit" || row.ended_by === "timeout" ? endLine
+      : `${shownTurn}턴, 남은 포켓몬 ${[perspective, foe].map(side => broughtOf(side).filter(m => !m.fainted).length).join(" 대 ")}`,
+    sides: [perspective, foe].map(side => ({ name: names[side], mons: broughtOf(side).map(m => ({ species: m.species, out: m.fainted })) })),
+  };
   const speedLabel = (SPEEDS.find(([v]) => v === speed) || SPEEDS[1])[1];
   const logBox = <LogBox box={tape.lines} />;
   // the menu (The play screen): what is set once and what leaves, a sheet on a phone and standing open beside the stage on a desktop
@@ -1578,7 +1590,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               board saying who plays, never on the team preview (2026-11-07, the user: "처음에 선택 창이 미묘하게 보이는 문제") */}
           {started || ended
             ? <Stage scene={scene} stageRef={tape.stageRef} perspective={perspective} doubles={doubles} res={res} names={names} clock={left} mine={Boolean(seat && !waiting)} dark={Boolean(opening?.play)}
-                said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} />
+                said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} result={endBand} />
             : seat && previewParty.current
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}
                 locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} onInfo={narrow || shortPick ? i => setSheetTip(`pick:${i}`) : null}
@@ -1588,7 +1600,6 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               </div>}
           {/* the end (2026-11-16, the owner's draft 3-C): once the replay stands at its end, both parties' sets side by side in the stage's
               place, for the players and anyone watching; stepping back into the replay gives the stage back */}
-          {endSets && <EndSets res={res} sides={endSets} />}
         </div>
         <div className="bt-deck" ref={deckRef}>
         {shownEnded && replay && replay.stops.length > 1 && <ReplayBar stops={replay.stops} at={at} playing={autoplay} onJump={jump} onStep={stepOn} onPlay={play}
@@ -1598,7 +1609,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {cast && narrow && started && <div className="bt-castlog"><Log box={tape.lines} live /></div>}
         {shownEnded && <section className="bt-end" aria-label="배틀 결과">
           {/* the end's words wait for the end: a replay played from its start showed 다음 판을 기다리는 중… and 나가기 through its opening
-              (2026-11-18, docs/BATTLE_TRANSITIONS.md T8) */}
+              (2026-11-18, docs/BATTLE_TRANSITIONS.md T8). The keys keep their room unseen meanwhile: left out, the deck grew a row at the
+              end and the stage over it rose 52 on a phone (measured the same day) */}
           {following && !followed && revealed && <div className="pn bt-waiting"><Busy h={32} /><span className="t15">다음 판을 기다리는 중…</span></div>}
           {/* the end in the deck's own room (2026-11-09 second round, the user: "승리했을 때 갑자기 전체화면이 되는 것도 안 좋고",
               "스크롤을 한참 해야 다음 판 도전이 나오는 것도 어이가 없어"): the result and the keys on one row under the replay keys, so
@@ -1606,7 +1618,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               first (승리, 패배); anyone watching reads who won; a replay playing from its start keeps it until it reaches the end.
               Sharing went to the menu (링크 공유, 게시판에 공유), and a run's break between games stands in the stage's place */}
           <div className="bt-end-row">
-            {revealed && <div className={"bt-end-head " + (seat && row.winner !== seat.side ? "pn" : "inv")}>
+            {revealed && (row.kind === "streak" || (cast && narrow)) && <div className={"bt-end-head " + (seat && row.winner !== seat.side ? "pn" : "inv")}>
               <b className="bt-end-title">{endTitle}</b>
               {/* a rematch asked for is said in the result's own grey line with its lamp, in no room of its own: as a panel over the result
                   it made the deck 54 taller the moment it came, and the stage over it dropped (2026-11-10, measured on the other phone) */}
@@ -1614,8 +1626,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
             </div>}
             {streak ? <StreakEnd id={row.id} won={row.winner === seat?.side} res={res} {...streak} settle={settle} onInfo={setSheetTip}
               sets={(mine, s) => (mine ? ownList() : scene ? seenCards(res, scene[foe].roster, moveField) : []).find(c => c.species === s || toID(c.species).startsWith(toID(s))) || null} stage={stageBox} away={autoplay || cue != null}
-              ours={(preview[perspective]?.preview || []).map(mon)} theirs={(preview[foe]?.preview || []).map(mon)} /> : revealed && (rematch || official || leave) && <Dock>
-              <div className="bt-end-keys">
+              ours={(preview[perspective]?.preview || []).map(mon)} theirs={(preview[foe]?.preview || []).map(mon)} /> : (rematch || official || leave) && <Dock>
+              <div className={"bt-end-keys" + (revealed ? "" : " wait")}>
                 {rematch ? <Button variant="main" icon="refresh" loading={again} onClick={rematch}>{offered ? "다시하기 수락" : "다시하기"}</Button>
                   : official ? <Button variant="main" onClick={() => go?.("bracket", { eventId: row.event_id })}>대진표</Button> : null}
                 {leave && <Button onClick={leave}>나가기</Button>}

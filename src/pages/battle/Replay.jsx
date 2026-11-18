@@ -38,10 +38,13 @@ export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, a
       {live === undefined ? <Key d={KEY.last} label="끝" keys="End" hint="End" onClick={() => onJump(stops[last].at)} disabled={i >= last} />
         : <button type="button" className={"bt-rkey bt-rlive" + (following ? " on-air" : " main")} onClick={following ? undefined : onLive} aria-pressed={following} title="실시간 (End)">
           {following && <i className="lamp sig" aria-hidden="true" />}실시간</button>}
-      {/* where the replay stands, read as any player's scrubber: a rail lit as far as it has played and a square handle where it
-          stands, dragged to any turn. The head's turn counter says the number, so no word stands beside it */}
+      {/* where the replay stands, as a timeline of its turns (2026-11-18, the owner's pick): a tick a stop, a red square over a turn
+          in which a Pokémon fell and a gold diamond under one with a Mega Evolution, so the turns that mattered can be found and jumped
+          to; a rail lit as far as it has played and a handle with the turn's number where it stands, dragged to any turn */}
       <span className="bt-replay-track" style={{ "--p": last ? i / last : 1 }}>
-        <span className="bt-replay-rail" aria-hidden="true"><i /><span className="bt-replay-at"><b /></span></span>
+        <span className="bt-replay-rail" aria-hidden="true"><i />
+          {stops.map((s, k) => <span key={k} className="bt-replay-tick" style={{ "--x": last ? k / last : 0 }}>{s.faints > 0 && <u className="ko" />}{s.mega && <u className="mega" />}</span>)}
+          <span className="bt-replay-at"><b>{stops[i].turn > 0 ? stops[i].turn : ""}</b></span></span>
         <input type="range" min="0" max={last} step="1" value={following ? last : i} onChange={e => { const k = Number(e.target.value); if (live !== undefined && k >= last) onLive(); else onJump(stops[k].at); }}
           aria-label="리플레이 위치" aria-valuetext={stopWord(stops[i])} />
       </span>

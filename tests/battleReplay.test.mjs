@@ -41,6 +41,12 @@ test("a finished log stands at the team preview, at every turn's opening and at 
   }
 });
 
+test("each stop says how many fell and whether a Mega Evolved in the stretch it opens (the timeline's marks)", () => {
+  const log = ["|teampreview", "|start", "|turn|1", "|move|p1a: A|Tackle|p2a: B", "|faint|p2a: B", "|turn|2", "|-mega|p1a: A|Charizard|Charizardite X", "|faint|p1a: A", "|faint|p2a: C", "|win|x"].join("\n");
+  const { stops } = replayStops(log);
+  assert.deepEqual(stops.map(s => [s.turn, s.faints, s.mega]), [[0, 0, false], [1, 1, false], [2, 2, true], [2, 0, false]]);
+});
+
 test("stepping, going back and seeking land on stops", () => {
   const { total, stops } = replayStops(readout(play("doubles", [2, 7, 1, 8])).spectatorLog);
   const first = stops[0].at;

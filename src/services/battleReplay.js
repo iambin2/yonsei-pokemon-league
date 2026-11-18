@@ -15,6 +15,14 @@ export function replayStops(log) {
   const last = stops[stops.length - 1];
   if (last.at < total) stops.push({ turn: last.turn, at: total, end: true });
   else last.end = true;
+  /* what happened in the stretch each stop opens (2026-11-18, the replay's timeline, the owner's pick): how many fell and whether a
+     Mega Evolved, so the bar marks the turns that mattered */
+  stops.forEach((s, k) => {
+    const to = stops[k + 1]?.at ?? total;
+    const part = lines.slice(s.at, to);
+    s.faints = part.filter(l => l.startsWith("|faint|")).length;
+    s.mega = part.some(l => l.startsWith("|-mega|"));
+  });
   return { total, stops };
 }
 
