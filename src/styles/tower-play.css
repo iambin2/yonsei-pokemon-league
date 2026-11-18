@@ -1,0 +1,213 @@
+/* ---------- 도전의 탑's play (DESIGN.md "Battle", 2026-11-18): the draft, the doors, the break between games, the trades and the
+   recap. A run's play is part of the game the battle is, so this file keeps the site's colours and taste and is left out of
+   tests/designLaw.test.mjs as battle.css is; the tab's own parts (the run's panel, the board, the lamps) stay in streak.css under
+   every rule. Moved here as they stood; new play parts are drawn here ---------- */
+/* ---------- the break between a run's games (Streak.jsx StreakEnd, 2026-11-09 second round) ----------
+   It stands in the stage's place, over the arena on the ground, so the next game and the trades are where the eye already is and
+   nothing is scrolled to; it lights as a page does and goes while the replay plays */
+.streak-break { position: absolute; inset: 0; z-index: var(--z-sticky); display: grid; align-content: center; gap: var(--s2); padding: var(--s2); overflow: hidden auto; background: var(--ground);
+  animation: y-rise var(--move-light) backwards; transition: opacity var(--move-tone); }
+.streak-break.away { opacity: 0; pointer-events: none; }
+/* with the trades it fills the stage's place: the table takes what the head leaves, its six rows sharing it up to a two-line row's
+   height, so no band lies over the head and under the table while names are cut and pictures stand at 32 (2026-11-10, measured at
+   390 by 844: 46 over and 88 under) */
+.streak-break:has(> .streak-swap) { align-content: stretch; grid-template-rows: auto minmax(0, 1fr); }
+/* with the doors between the head and the trades (2026-11-11), the doors keep their height and the trades take what is left */
+.streak-break:has(> .streak-doors):has(> .streak-swap) { grid-template-rows: auto auto minmax(0, 1fr); }
+.streak-break > .streak-swap { align-self: center; height: 100%; max-height: calc(var(--h-strip) + var(--h-row2) * 6 + var(--seam) * 6); }
+.streak-break > .streak-swap > .streak-trades { height: 100%; grid-template-rows: var(--h-strip); grid-auto-rows: minmax(var(--h-control), 1fr); }
+/* a refusal stands as a strip over the head row while it is the last word */
+/* on a phone a side is 165 wide, and its name was cut at four letters (한카리…, 가라르 …): the mark's column and the side's padding step
+   down so five letters stand whole, and a longer name takes a second line at its space, which the taller row holds */
+@media (max-width: 639px) {
+  /* a phone's stage is short: the break's parts meet on the seam, and the doors keep their names and what they give, leaving out the
+     six (20 high there) so the trades' last row is not under the fold (2026-11-11) */
+  .streak-break { gap: var(--seam); }
+  .streak-break .streak-door-six { display: none; }
+  .streak-break .streak-trades { grid-template-columns: minmax(0, 1fr) var(--s5) minmax(0, 1fr); }
+  /* on a phone a Pokémon to take is its picture alone, its name read out (and opened by its set over the table once chosen) */
+  .streak-break .streak-take { justify-content: center; padding: 0; }
+  .streak-break .streak-take > b { display: none; }
+}
+@media (min-width: 860px) { .streak-break { padding: 0; } }
+/* its head: the run's count beside the next game, one counter high, at 1 to 1.618 */
+.streak-break-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
+.streak-next { height: var(--h-counter); padding: var(--s2) var(--pad); display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--s2); text-align: left; }
+
+/* the floor as a track: its number in segments, then five games as one bar cut on the seam, won lit, the next at .382, the one being
+   played lit, a lost one muted, the rest an unlit bar's light */
+.streak-track { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.streak-track-bar { display: grid; grid-template-columns: repeat(5, var(--s8)); gap: var(--seam); }
+.streak-track-bar > i { height: var(--s2); background: currentColor; opacity: var(--off); }
+.streak-track-bar > i.won { opacity: 1; }
+.streak-track-bar > i.now { background: var(--signal); opacity: 1; }
+.streak-track-bar > i.next { opacity: var(--opacity-disabled); }
+.streak-track-bar > i.lost { background: var(--mute); opacity: 1; }
+/* a run that ended: the floors it climbed, the highest on top as a tower stands, each its number and its five games across the row,
+   the game it fell on muted; under them the month's first three. Two counters alone stood in the middle of an empty stage
+   (2026-11-10, measured at 390 by 844: 84 of 534 used) */
+.streak-tower { gap: var(--seam); }
+.streak-tower-floor { display: flex; align-items: center; gap: var(--s5); min-height: var(--h-row); padding: 0 var(--pad); }
+.streak-tower-floor > .streak-track-bar { flex: 1; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.streak-tower-floor > .streak-track-bar > i { height: var(--s3); }
+.streak-break-board { display: grid; gap: var(--s3); }
+/* a lost game's recap: the sets it was lost to under their name's strip (the trades' own), three across on every width, so the three
+   are read side by side and the break keeps to the stage's place (2026-11-10, at 390 by 844 one under another they stood 3 by 250
+   and the break's head was cut off over them). The break starts at its top, so a longer one (a run's last game, with its tower
+   and the month's three under the recap) scrolls from its head; one that fits stands in the middle as every break does (safe: a
+   browser without it keeps the start) */
+.streak-break:has(> .streak-recap) { align-content: start; align-content: safe center; }
+.streak-recap { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* with the doors under it (a lost game while a lamp is left), the doors are what is pressed next: they keep their height and the
+   recap gives up its own, scrolling inside, so the doors are never under the fold (2026-11-11, at 390 the doors stood cut) */
+.streak-break:has(> .streak-recap):has(> .streak-doors) { grid-template-rows: auto minmax(0, auto) auto; }
+.streak-break > .streak-recap:has(~ .streak-doors) { min-height: 0; overflow: hidden auto; overscroll-behavior: contain; }
+.streak-recap .bt-card-hp { display: none; }
+@media (max-width: 639px) {
+  .streak-recap .bt-card { gap: var(--s2); padding: var(--s2); }
+  .streak-recap .bt-card-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
+  .streak-recap .bt-card-id { width: 100%; }
+  .streak-recap :is(.bt-card-facts, .bt-card-moves) { grid-template-columns: minmax(0, 1fr); }
+}
+.streak-stake-track { display: flex; align-items: center; min-height: var(--h-row); padding: 0 var(--pad); }
+
+/* the trades (2026-11-18, the owner's draft A): a row for each of ours, its picture, name and info key on the left, and on the right,
+   at the golden split, every one of theirs it can be traded for, side by side, three places at least so one alone keeps its size.
+   The chosen one of ours, the mark and the one taken invert; one of ours with none stands off beside an empty panel; one of theirs
+   held by an item already in the party stands off in its row */
+.streak-swap { display: grid; gap: var(--seam); }
+.streak-trades { grid-template-columns: minmax(0, 1fr) var(--h-strip) minmax(0, 1.618fr); gap: var(--seam); }
+.streak-takes { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--seam); min-width: 0; }
+.streak-take { display: flex; align-items: center; gap: var(--s2); min-width: 0; padding: 0 var(--s2); color: inherit; text-align: left; transition: background-color var(--move-tone); }
+.streak-take > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.streak-take > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t12); line-height: var(--l12); font-weight: 700; }
+.streak-take.off { cursor: default; color: var(--mute); }
+.streak-take.off > img { opacity: var(--opacity-disabled); }
+.streak-take:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { .streak-take.pn:not(.off):hover { background: var(--panel-2); } }
+.streak-trades-mark.off { opacity: var(--opacity-disabled); }
+/* the trade's mark between the two sides of a row, dim, lit (inverted) on the row chosen */
+.streak-trades-mark { display: grid; place-items: center; color: var(--mute); }
+.streak-trades-mark.inv { color: var(--ground); }
+/* the table's name as its own top strip across all three columns, a panel like every cell under it */
+.streak-trades-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-width: 0; min-height: var(--h-strip); padding: 0 var(--pad); font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit); }
+.streak-trades-title > b { flex: none; white-space: nowrap; }
+.streak-trades-head { display: flex; align-items: center; min-height: var(--h-strip); padding: 0 var(--pad); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
+.streak-trade { display: flex; align-items: center; gap: var(--s2); min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--lit); text-align: left; }
+.streak-trade > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.streak-trade > b:not(.bt-i) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
+.streak-trade > .bt-i { flex: none; margin-left: auto; color: var(--dim); }
+.streak-trade:disabled { cursor: default; }
+.streak-trade.inv, .streak-take.inv { background: var(--lit); color: var(--ground); }
+.streak-trade.inv > .bt-i { color: var(--ground); }
+.streak-trade.off { color: var(--mute); }
+.streak-trade.off > img { opacity: var(--opacity-disabled); }
+.streak-trade:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { .streak-trade.pn:not(:disabled):hover { background: var(--panel-2); } }
+/* the chosen row's two sets side by side over the table (Streak.jsx SetPair, 2026-11-16 draft A): each its picture and name, its four
+   moves as the cards draw them, its six as bars; it rises as it lights, the table keeps what is left under it */
+.streak-cmp { grid-template-columns: repeat(2, minmax(0, 1fr)); animation: y-rise var(--move-light) backwards; }
+.streak-cmp-side { display: grid; align-content: start; gap: var(--s2); min-width: 0; padding: var(--s2) var(--pad); }
+.streak-cmp-id { display: flex; align-items: center; gap: var(--s2); min-width: 0; font-size: var(--t15); line-height: var(--l15); color: var(--lit); }
+.streak-cmp-id > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.streak-cmp-id > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.streak-unseen { background: var(--panel-2); color: var(--mute); }
+.streak-break > .streak-swap:has(> .streak-cmp) { max-height: none; }
+/* the stage cannot hold the head, the doors, the pair and the table at once: with the pair the break stands at its start and scrolls,
+   the pair comes in at the break's top with the whole table under it (Streak.jsx SetPair), the table's rows at their own height. On a
+   phone the pair keeps to 192 of the 534 (390 by 844): its picture at 20, its moves two across, its bars on no seam */
+.streak-break:has(> .streak-swap > .streak-cmp) { grid-template-rows: none; align-content: start; }
+.streak-break > .streak-swap:has(> .streak-cmp) { height: auto; grid-template-rows: none; }
+.streak-break > .streak-swap:has(> .streak-cmp) > .streak-trades { height: auto; }
+@media (max-width: 639px) {
+  .streak-cmp-side { gap: var(--s1); padding: var(--s2); }
+  .streak-cmp .bt-card-moves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .streak-cmp-id > img { width: var(--s5); height: var(--s5); }
+  .streak-cmp .streak-stats { gap: 0; }
+}
+
+/* the draft, in steps (Streak.jsx DraftBoard): its strip; the party's six places and the Mega's one as a row of squares on the seam
+   (an empty place its number, a chosen one its Pokémon, the step being chosen lit with a bar at its foot); then the step's three
+   candidates as whole sets, chosen inverted. A Mega candidate carries the Mega emblem at its top right, and the Mega's place ends the
+   row with the emblem: empty it is dim, taken it holds that Pokémon, and every other Mega then stands off with its emblem dim */
+.streak-draft { display: grid; gap: var(--seam); }
+.streak-party { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.streak-slot { position: relative; display: grid; place-items: center; min-width: 0; height: var(--h-row); background: var(--panel); color: var(--mute); font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color var(--move-tone), color var(--move-tone); }
+.streak-slot > img { width: var(--h-control); height: var(--h-control); object-fit: contain; }
+.streak-slot.full { color: var(--lit); }
+.streak-slot.now { background: var(--panel-2); color: var(--lit); }
+.streak-slot.now::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--line); background: var(--lit); }
+/* a place not reached yet stands off: its three are seen only when its turn comes (2026-11-18) */
+.streak-slot:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.streak-slot > .streak-mega-mark { position: absolute; top: var(--s1); right: var(--s1); width: var(--s3); height: var(--s3); }
+.streak-slot:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { button.streak-slot:not(.now):not(:disabled):hover { background: var(--panel-2); } }
+.streak-draft-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.streak-draft-row .bt-card-hp { display: none; }
+.streak-pick { position: relative; display: grid; min-width: 0; }
+.streak-pick > .streak-mega-mark { position: absolute; top: var(--s2); right: var(--s2); width: var(--s5); height: var(--s5); pointer-events: none; }
+/* a set's six as bars on their tracks (Streak.jsx StatBars, the info sheet's bar form): the word, the bar, the number, one row each */
+.streak-stats { display: grid; gap: var(--seam); }
+.streak-stat { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--s8); align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
+.streak-stat > small { font-size: inherit; white-space: nowrap; }
+.streak-stat > .tb-bar { height: var(--s1); background: var(--rule); }
+.streak-stat > b { text-align: right; color: var(--lit); font-weight: 700; }
+/* held against another set: the higher of a pair lit, the lower its number dim and its bar muted */
+.streak-stat.down > b { color: var(--dim); }
+.streak-stat.down > .tb-bar > i { background: var(--mute); }
+/* a draft card's six stand under its moves on the card's own panel, inverted with it once chosen, dim with it when it stands off */
+.streak-pick-stats { padding: 0 var(--s3) var(--s3); background: var(--panel); transition: background-color var(--move-tone); }
+.streak-pick-stats.on { background: var(--lit); }
+.streak-pick-stats.on :is(.streak-stat, .streak-stat > b) { color: var(--ground); }
+.streak-pick-stats.on .tb-bar { background: var(--dim); }
+.streak-pick-stats.on .tb-bar > i { background: var(--ground); }
+.streak-pick > .streak-pick-stats { cursor: pointer; }
+@media (max-width: 639px) {
+  .streak-draft-row .bt-card { gap: var(--s2); padding: var(--s2); }
+  /* three across a phone, a chosen-from card stands its picture over its name (the team preview's grid would cut the name) */
+  .streak-draft-row button.bt-card > .bt-card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto auto; grid-template-areas: "pic end" "name name" "types types"; row-gap: var(--s1); }
+  .streak-draft-row .bt-card-head { flex-direction: column; align-items: flex-start; gap: var(--s1); }
+  .streak-draft-row .bt-card-id { width: 100%; }
+  .streak-draft-row :is(.bt-card-facts, .bt-card-moves) { grid-template-columns: minmax(0, 1fr); }
+  .streak-slot > img { width: var(--s8); height: var(--s8); }
+  .streak-pick-stats { padding: 0 var(--s2) var(--s2); }
+}
+/* the doors: two side by side, or the gatekeeper's one; each its name and the floor's type, what it gives under its name (chips
+   framed in a hairline of its own colour: 램프 +1 and 교환 승급, or 보상 없음 dim), and the six behind it small along its foot; the
+   chosen door inverted */
+.streak-doors { display: grid; gap: var(--seam); }
+.streak-door-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.streak-door-row.one { grid-template-columns: minmax(0, 1fr); }
+.streak-door { display: grid; align-content: space-between; gap: var(--s2); min-width: 0; min-height: var(--h-row2); padding: var(--s2) var(--pad); color: var(--lit); text-align: left; transition: background-color var(--move-tone); }
+.streak-door.inv { background: var(--lit); color: var(--ground); }
+/* the even door blue and the strong one red (2026-11-11, the user asked for the two told apart by hue): the type colours' water and
+   fire as the whole door once it is the one chosen, its words white in both themes as on a move's key. No bar on the edge
+   (2026-11-11, the user: "보통 상대와 강한 상대의 상호작용 버튼 왼쪽의 색깔 줄" removed) */
+.streak-door.on { background: var(--type); color: var(--lit); }
+:root[data-theme="light"] .streak-door.on { color: var(--ground); }
+.streak-door.on .streak-gain.none { color: inherit; }
+.streak-door-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); font-size: var(--t15); line-height: var(--l15); }
+.streak-door-head > b { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; white-space: nowrap; }
+/* what a door gives as one line, 보상 then its value, the same on every door so the two compare in place (2026-11-11, draft C):
+   the label dim and regular, the value lit and bold; on a filled door both take the door's words and only the weight parts them */
+.streak-door-gain { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: var(--s5); font-size: var(--t12); line-height: var(--l12); }
+.streak-gain-k { color: var(--dim); white-space: nowrap; }
+.streak-door:is(.on, .inv) .streak-gain-k { color: inherit; }
+.streak-gain { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; white-space: nowrap; }
+.streak-gain.none { color: var(--mute); }
+.streak-door.inv .streak-gain.none { color: var(--ground); opacity: var(--opacity-disabled); }
+.streak-trades-head > .streak-gain { margin-left: var(--s2); color: var(--lit); }
+.streak-door-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
+/* each of the six its picture over its types, one tick a type in the type's colour, as wide as the picture (2026-11-16 draft A); on a
+   filled door a tick keeps a hairline of the door's words, so a tick of the door's own colour still stands */
+.streak-door-mon { display: grid; justify-items: center; gap: var(--seam); min-width: 0; }
+.streak-door-mon > img { width: 100%; max-width: var(--h-strip); height: var(--s5); object-fit: contain; }
+@media (min-width: 640px) { .streak-door-mon > img { height: var(--h-strip); } }
+.streak-ticks { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--seam); width: 100%; max-width: var(--h-strip); }
+.streak-ticks > i { height: var(--s1); background: var(--type); }
+.streak-door:is(.on, .inv) .streak-ticks > i { outline: var(--hair) solid currentColor; }
+.streak-door:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { .streak-door.pn:hover { background: var(--panel-2); } }
+@media (prefers-reduced-motion: reduce) {
+  .streak-break, .streak-cmp { animation: none; }
+}

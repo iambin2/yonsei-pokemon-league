@@ -56,9 +56,10 @@ function inlineDecls(file) {
   return out;
 }
 const SRC = walk(join(ROOT, "src")).filter(f => /\.(jsx?|mjs)$/.test(f) && !rel(f).startsWith("src/data/") && !rel(f).startsWith("src/pages/battle/"));
-// The battle screen is a game (DESIGN.md "Battle"): its stage, effects and HUD keep the site's colours and taste but not the board's law.
+// The battle screen is a game (DESIGN.md "Battle"): its stage, effects and HUD keep the site's colours and taste but not the board's law;
+// since 2026-11-18 a 도전의 탑 run's play (tower-play.css: the draft, the doors, the break, the trades) is part of that game.
 // Popups over it and every screen outside it are held to every rule here.
-const STAGE = ["battle-stage.css", "battle.css"];
+const STAGE = ["battle-stage.css", "battle.css", "tower-play.css"];
 const CSS = readdirSync(STYLES).filter(f => f.endsWith(".css") && !STAGE.includes(f));
 const DECLS = [...CSS.flatMap(f => cssDecls(join(STYLES, f))), ...SRC.flatMap(inlineDecls)];
 for (const d of DECLS) if (d.blk !== undefined) BLOCKS[d.blk][d.prop] = d.value;
