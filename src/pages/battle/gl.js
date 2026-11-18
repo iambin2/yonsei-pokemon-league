@@ -7,6 +7,7 @@
    - 카메라는 임계 감쇠 스프링이다: 목표가 바뀌어도 속도가 끊기지 않아 꺾임이 없다. 흔들림은 부드러운 잡음(trauma)이다.
    좌표는 무대의 CSS 픽셀(넓은 화면일 때의 자리)이다. DOM의 자리(.bs-slot)는 배치와 누르기만 맡는다. */
 import { reduced } from "../../components/common/motion.js";
+import { inkBoxOf } from "../../components/common/inkCentre.js";
 
 export const TYPE_COLOR = {
   normal: "#E8ECF4", fire: "#FF6A1F", water: "#2F8CFF", electric: "#FFD21A", grass: "#56D23A", ice: "#7FEBFF", fighting: "#FF7A2A",
@@ -297,8 +298,8 @@ function chamfer(inside, n) {
   return d;
 }
 /* a cell's surface, in steps of ROWS_A_STEP rows: a facet cell was one step of 260 ms at a phone's speed, a frame of 734 while a
-   replay opened (2026-11-18, scripts/measure-frames.cjs) */
-const ROWS_A_STEP = 16;
+   replay opened (2026-11-18, scripts/measure-frames.cjs); 16 rows were still steps of 40 to 53 the same day */
+const ROWS_A_STEP = 4;
 function* surfaceSteps(name, alpha, n) {
   const [kind, param = 0, extra] = SURF[name] || ["flat"], out = new Uint8Array(n * n * 4);
   for (let i = 0; i < n * n; i++) { out[i * 4] = 128; out[i * 4 + 1] = 128; out[i * 4 + 2] = 255; out[i * 4 + 3] = 255; }
@@ -362,12 +363,14 @@ function* paintAtlas() {
   yield;
   const N = C * GRID, NH = C * ROWS, mk = () => { const c = document.createElement("canvas"); c.width = N; c.height = NH; return c; };
   const shape = mk(), high = mk(), gs = shape.getContext("2d", { willReadFrequently: true }), gb = high.getContext("2d", { willReadFrequently: true });
-  CELLS.forEach(([, draw], i) => {
+  // the cells drawn a few a step (2026-11-18: all at once they were one step of 94 ms at a phone's speed, in the lobby's first frames)
+  for (const [i, [, draw]] of CELLS.entries()) {
+    if (i && i % 4 === 0) yield;
     const x = (i % GRID) * C, y = Math.floor(i / GRID) * C;
     for (const g of [gs, gb]) { g.save(); g.beginPath(); g.rect(x, y, C, C); g.clip(); g.translate(x, y); g.fillStyle = "#fff"; g.strokeStyle = "#fff"; }
     draw(gs, gb);
     gs.restore(); gb.restore();
-  });
+  }
   /* both sheets are read back from memory (the second was read back from the GPU), and each reading is a step of its own: the first
      step, everything up to the cells' surfaces, was one stop of 155 on the first visit to the battle page (2026-11-10, measured) */
   yield;
@@ -1042,9 +1045,11 @@ class Engine {
     const img = new Image();
     img.decoding = "async";
     a.ready = new Promise(resolve => {
-      img.onload = () => {
+      img.onload = async () => {
         if (a.src !== src) return resolve();
-        const pic = this.upload(img, src);
+        const bitmap = await bitmapOf(img, src);
+        if (a.src !== src || this.disposed) return resolve();
+        const pic = this.upload(bitmap || img, src);
         if (!pic) return resolve();
         if (a.tex) this.gl.deleteTexture(a.tex);
         Object.assign(a, pic);
@@ -1062,13 +1067,14 @@ class Engine {
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     // an SVG (the doll) is drawn to a canvas at a size of its own first: it has no pixels until it is given some
     let pic = img;
-    if (src.startsWith("data:") || !img.naturalWidth) { pic = document.createElement("canvas"); pic.width = 480; pic.height = 500; pic.getContext("2d").drawImage(img, 0, 0, 480, 500); }
+    const bitmap = typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap;
+    if (!bitmap && (src.startsWith("data:") || !img.naturalWidth)) { pic = document.createElement("canvas"); pic.width = 480; pic.height = 500; pic.getContext("2d").drawImage(img, 0, 0, 480, 500); }
     try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pic); } catch { gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.deleteTexture(tex); return null; }
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return { tex, iw: pic.width || img.naturalWidth, ih: pic.height || img.naturalHeight, ink: inkBox(pic) };
+    return { tex, iw: pic.width || img.naturalWidth, ih: pic.height || img.naturalHeight, ink: inkBox(pic, pic === img ? src : "") };
   }
   /* pictures fetched, decoded and put on the GPU one a frame, before they are needed (a replay's team before its opening), so the
      throws never stop for an upload; resolves when all are there or after a moment. ponytail: pictures warmed and never shown keep
@@ -1078,7 +1084,7 @@ class Engine {
     for (const src of todo) this.warmed.set(src, { done: null });
     const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
     // fetched and decoded all at once, put on the GPU one a frame
-    const decoding = todo.map(src => { const img = new Image(); img.decoding = "async"; img.src = src; return [src, img.decode().then(() => img, () => null)]; });
+    const decoding = todo.map(src => { const img = new Image(); img.decoding = "async"; img.src = src; return [src, img.decode().then(() => bitmapOf(img, src).then(b => b || img), () => null)]; });
     const run = (async () => {
       for (const [src, decoded] of decoding) {
         const img = await decoded;
@@ -1327,8 +1333,19 @@ class Engine {
 
 // the substitute doll is a CSS background (battle-stage.css); its data URL is drawn as the picture
 function subUrl(el) { const m = getComputedStyle(el).backgroundImage.match(/url\("?(.+?)"?\)$/); return m ? m[1].replace(/\\"/g, "\"") : ""; }
-// the box of a picture's ink (its non-transparent pixels), as shares of the picture: effects aim at the body, not the empty frame
-function inkBox(img) {
+/* a picture decoded and premultiplied off the page's thread (createImageBitmap), so putting it on the GPU is only the copy: read from the
+   image itself, a Pokémon's picture was 23 to 53 ms of the frame it went up in at a phone's speed (2026-11-18). WebGL takes an
+   ImageBitmap as it is (its own premultiplied alpha, the store's unpack flags left aside), so the texture is the same. A data URL (the
+   doll, an SVG) or a browser without it goes up from the image as before */
+function bitmapOf(img, src) {
+  if (typeof createImageBitmap !== "function" || src.startsWith("data:") || !img.naturalWidth) return Promise.resolve(null);
+  return createImageBitmap(img, { premultiplyAlpha: "premultiply", colorSpaceConversion: "default" }).catch(() => null);
+}
+// the box of a picture's ink (its non-transparent pixels), as shares of the picture: effects aim at the body, not the empty frame.
+// Read from the table built ahead (inkCentre.js, 2026-11-18: read here it was 15 ms a picture at a phone's speed, in a frame of its own)
+function inkBox(img, src = "") {
+  const known = inkBoxOf(src);
+  if (known) return known;
   try {
     const n = 64, c = document.createElement("canvas"); c.width = n; c.height = n;
     const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0, n, n);

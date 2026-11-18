@@ -2,8 +2,9 @@
 // each picture drawn and read in the page held frames of 20 to 100 ms at a phone's speed). It runs the page's own functions
 // (src/components/common/inkCentre.js) in Chrome on public/sprites/pokemon, so the table holds exactly what the page would measure.
 //   node scripts/build-sprite-ink.cjs   (rerun after scripts/build-sprites.py adds or replaces pictures)
-// Writes src/data/sprite-ink.json: { slug: [centre x, centre y, feet x, feet y] } in percent of the picture's box, null where a
-// picture has no ink. Playwright is taken from the npx cache as scripts/measure-frames.cjs does.
+// Writes src/data/sprite-ink.json: { slug: [centre x, centre y, feet x, feet y, box x0, y0, x1, y1] }: the centre and the feet in
+// percent of the picture's box (inkCentre.js), and the box of its ink in 64ths of the picture as the battle stage reads it
+// (gl.js inkBox); null where a picture has no ink. Playwright is taken from the npx cache as scripts/measure-frames.cjs does.
 const fs = require("fs"), path = require("path"), http = require("http");
 function playwright() {
   try { return require("playwright"); } catch { /* not installed */ }
@@ -52,7 +53,10 @@ const server = http.createServer((req, res) => {
       try { await img.decode(); } catch { continue; }
       const nw = img.naturalWidth, nh = img.naturalHeight;
       const c = inkShift(read(img, 48), 48, 48), f = inkFeet(read(img, 256), 256, 256);
-      out[slug] = c && f ? [r1(c[0]), r1(c[1]), r2(f[0] * Math.min(1, nw / nh)), r2(f[1] * Math.min(1, nh / nw))] : null;
+      // gl.js inkBox: the box of the pixels over 40 at 64 by 64
+      const al = read(img, 64); let x0 = 64, y0 = 64, x1 = 0, y1 = 0;
+      for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (al[y * 64 + x] > 40) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      out[slug] = c && f ? [r1(c[0]), r1(c[1]), r2(f[0] * Math.min(1, nw / nh)), r2(f[1] * Math.min(1, nh / nw)), ...(x1 > x0 ? [x0, y0, x1 + 1, y1 + 1] : [0, 0, 64, 64])] : null;
     }
     return out;
   }, slugs);
