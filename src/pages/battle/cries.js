@@ -32,7 +32,12 @@ const SOUND_KEY = "ypl-battle:audio"; // not the old "ypl-battle:sound", which s
 let on = (() => { try { return localStorage.getItem(SOUND_KEY) !== "off"; } catch { return true; } })();
 export const soundOn = () => on;
 export function setSoundOn(value) { on = Boolean(value); try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch { /* the next visit sounds */ } if (on) audio()?.resume?.().catch(() => {}); }
-const wake = () => { const c = audio(); if (c && c.state !== "running") c.resume().catch(() => {}); };
+/* the first touch of a page that loaded untouched does not make the context in its own task: made there, it held the click that opens
+   도전의 탑 for 346 ms at a phone's speed and froze the tower's entrance (2026-11-19). It is primed (the audio service woken, then made in
+   an idle moment once what the touch opened has come in: an idle moment alone fell inside the tower's 1.78 s entrance, still 290 ms);
+   a later touch resumes it, which iOS asks of a gesture. A sound asked before then is not heard, as before any touch */
+const idle = () => new Promise(resolve => setTimeout(() => (typeof requestIdleCallback === "function" ? requestIdleCallback(() => resolve(), { timeout: 3000 }) : resolve()), 2200));
+const wake = () => { if (!ctx) { primeAudio(idle); return; } if (ctx.state !== "running") ctx.resume().catch(() => {}); };
 /* a touch's pointerdown does not count as the user's gesture (only its end does: pointerup, touchend, click), and iOS wakes the
    sound on nothing else, so the context is asked again when the finger lifts */
 if (AC) for (const type of ["pointerdown", "pointerup", "touchend", "click", "keydown"]) addEventListener(type, wake, { capture: true, passive: true });

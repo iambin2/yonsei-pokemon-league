@@ -604,7 +604,8 @@ function BreakTower({ wins, climbing, again }) {
   useLayoutEffect(() => {
     const el = ref.current;
     void towerBreak(el, { floor: streakFloor(wins), at: floorGame(wins), climbing, again });
-    const seen = new ResizeObserver(() => { const tw = el.tower; if (tw && (tw.m.W !== el.clientWidth || tw.m.H !== el.clientHeight)) drawTower(el, tw.st); });
+    // a new size is fitted where the scene stands, its walk to the next door kept (standTower)
+    const seen = new ResizeObserver(() => { if (el.tower) standTower(el, el.tower.st); });
     seen.observe(el);
     return () => seen.disconnect();
   }, []);

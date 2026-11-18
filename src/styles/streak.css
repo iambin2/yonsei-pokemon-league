@@ -5,16 +5,17 @@
    scene's (2026-11-18: no label over it, so nothing stands beside the scene's top but the choice) */
 .streak-side { display: grid; align-content: start; gap: var(--s13); }
 .streak-run { display: grid; gap: var(--s3); }
-/* on a desktop the side ends on the scene's line (battle.css .bt-lobby): when the side is the shorter, the board's rows share what is
-   left; the tower, when it is the shorter, stands taller and is drawn again to its box */
+/* on a desktop the side ends on the scene's line (battle.css .bt-lobby) when it is the shorter: the board's rows share what is left.
+   The tower never follows the side: it stands at 16 to 10 with its key under it. Stretched to a taller side (a run's panel, a board
+   arriving) it was drawn tall and narrow and drawn again at every change, cutting its entrance (2026-11-19, the owner: "심각하게
+   뒤틀리고 ... 완벽하게 어긋나고") */
 @media (min-width: 860px) {
   .streak-side { display: flex; flex-direction: column; }
   .streak-side > section:last-child { flex: 1 0 auto; display: flex; flex-direction: column; }
   .streak-side > section:last-child > .line-score { flex: 1 0 auto; display: flex; flex-direction: column; }
   .streak-side .line-score > .ls-row { flex: 1 0 var(--h-row); height: auto; }
   .streak-side .line-score > .ls-first { flex-basis: var(--h-counter); }
-  .bt-lobby-main > .streak-scene { flex: 1 0 auto; display: flex; flex-direction: column; }
-  .streak-scene > .tw-hall { flex: 1 0 auto; max-height: none; }
+  .bt-lobby-main:has(> .streak-scene) { align-self: start; }
 }
 /* with no run of one's own the choice alone heads the board it chooses, at a section head's distance */
 .streak-run:not(:has(.streak-hero)) + section { margin-top: calc(var(--s5) - var(--s13)); }

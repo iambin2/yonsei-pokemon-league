@@ -115,6 +115,7 @@ function paint(el, draw = true) {
     tw.model = buildModel(top, tw.pal);
   }
   if (!draw) return;
+  tw.coming = false;
   let v = tw.cam || viewOf(tw.kind, tw.s, tw.m, top);
   // a hand on the tab's tower turns the camera round it and lifts or lowers it (look)
   if (tw.look) v = { ...v, phi: v.phi + tw.look.dphi, camY: v.camY + tw.look.dy, tgtY: v.tgtY + tw.look.dy };
@@ -315,7 +316,7 @@ export function drawTower(el, st, coming = false) {
   const hall = el.classList.contains("tw-hall");
   el.innerHTML = `<div class="tw-cam"><canvas class="tw-body" aria-hidden="true"></canvas></div>`;
   el.tower = { m: { W, H, hall, phone: W < 520 }, st: { ...st }, theme: themeOf(), pal: paletteOf(el), model: null, doors: doorsOf(st), kind: hall ? "hall" : "close",
-    s: doorOf(st), cam: null, look: null, view: null, lift: null, seen: true, anims: new Set(), loop: 0 };
+    s: doorOf(st), cam: null, look: null, view: null, lift: null, seen: true, anims: new Set(), loop: 0, coming };
   seen?.observe(el);
   if (hall) hand(el);
   paint(el, !coming);
@@ -332,7 +333,14 @@ const sameState = (a, b) => a.floor === b.floor && a.at === b.at && a.live === b
 export function standTower(el, st) {
   const was = el.tower;
   if (!was) { if (drawTower(el, st, !reduced())) el.tower.queue = entrance(el); return; }
-  if (was.m.W !== el.clientWidth || was.m.H !== el.clientHeight || was.theme !== themeOf()) { drawTower(el, st); return; }
+  if (was.theme !== themeOf()) { drawTower(el, st); return; }
+  /* a new size keeps the scene and any move under way: the camera is fitted to the box at the next frame (drawn again, the entrance
+     was cut where it stood, 2026-11-19) */
+  const W = el.clientWidth, H = el.clientHeight;
+  if (W && H && (was.m.W !== W || was.m.H !== H)) {
+    was.m = { ...was.m, W, H, phone: W < 520 };
+    if (!was.anims.size && !was.coming && !was.waiting) { paint(el); mark(el, false); }
+  }
   if (sameState(was.st, st)) return;
   const next = { ...st };
   was.want = next;
