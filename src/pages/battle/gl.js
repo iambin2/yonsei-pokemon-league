@@ -717,7 +717,7 @@ class Engine {
     if (!gl) throw new Error("webgl2");
     stage.prepend(canvas);
     this.canvas = canvas; this.gl = gl;
-    this.T = 0; this.R = 0; this.rate = 1; this.holdUntil = 0; this.slowRate = 1; this.slowUntil = 0;
+    this.T = 0; this.R = 0; this.rate = 1; this.slowRate = 1; this.slowUntil = 0;
     // the lab's controls: a slow-motion scale, a pause (the camera holds too), one step of game time while paused, a camera that stays wide
     this.scale = 1; this.paused = false; this.stepMs = 0; this.camFixed = !CAMERA_MOVES;
     this.light = document.documentElement.dataset.theme === "light" ? 1 : 0;
@@ -824,9 +824,8 @@ class Engine {
   }
 
   /* ---------- the clock ---------- */
-  hold(ms) { if (reduced()) return; this.holdUntil = Math.max(this.holdUntil, this.R + ms); }
   slow(ms, rate = .5) { if (reduced()) return; this.slowRate = rate; this.slowUntil = this.R + ms; }
-  // a callback on the game clock (it waits through a hit-stop and stretches in slow motion)
+  // a callback on the game clock (it stretches in slow motion)
   at(ms, fn) { this.timers.push({ at: this.T + ms, fn }); }
   after(ms) { return new Promise(resolve => { let done = false; const end = () => { if (!done) { done = true; resolve(); } }; this.at(ms, end); this.untilGone(end, () => done); }); }
   // a promise on the game clock gives up only if the stage goes (a slow or paused clock is waited for); the check stops once it is done
@@ -839,9 +838,8 @@ class Engine {
     this.last = now;
     const paused = this.paused && !this.stepMs;
     if (!paused) this.R += dt;
-    const held = this.R < this.holdUntil;
     const slow = this.R < this.slowUntil ? this.slowRate : 1;
-    let gdt = paused || held ? 0 : dt * this.rate * slow * this.scale;
+    let gdt = paused ? 0 : dt * this.rate * slow * this.scale;
     if (this.paused && this.stepMs) { gdt = this.stepMs; this.stepMs = 0; }
     this.T += gdt;
     if (this.timers.length) { const due = this.timers.filter(t => t.at <= this.T); if (due.length) { this.timers = this.timers.filter(t => t.at > this.T); due.forEach(t => t.fn()); } }

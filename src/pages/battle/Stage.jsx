@@ -98,6 +98,8 @@ const MSG_MS = 680;
 /* lines that are the result of the blow before them (critical, matchup, the damage itself, a guard or a substitute taking it):
    Showdown runs them as one beat with the move, so they land with the impact and the line before them does not hold its reading
    time; their words join the move's in the box (the move dim, the newest lit) */
+// the beat between a blow landing and its HP going down (2026-11-18: 포켓몬 챔피언스's plate starts counting about 300 after the impact)
+const HP_BEAT = 300;
 const RESULT = /^\|-(crit|supereffective|resisted|immune|miss|fail|activate|hitcount)\||^\|-damage\|(?!.*\|\[from\])/;
 const GUARD = /Protect|Detect|Shield|Bunker|Silk Trap|Bulwark|Max Guard|Wide Guard|Quick Guard|Mat Block|Obstruct/i;
 const part = (line, n) => line.split("|")[n] || "";
@@ -283,17 +285,17 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
             const knockout = direct && event.hp === 0;
             const run = (async () => {
               await busy[k];
-              // weight (DESIGN.md "Battle", Weight): the stage holds still at the impact, longer for a hard blow and longest for the
-              // one that knocks out, which then plays on at half speed with the camera on its target
-              if (direct && blow.on && nth === 0) {
-                await cam.hitStop(stage, knockout ? 160 : strike.crit || strike.strong ? 100 : 62);
-                if (knockout) { push(k, strike.crit ? 1.25 : 1.18, 260); fx.slowMo(stage, 680); }
-              }
+              // weight (DESIGN.md "Battle", Weight): the blow that knocks out plays on at half speed with the camera on its target
+              if (direct && blow.on && nth === 0 && knockout) { push(k, strike.crit ? 1.25 : 1.18, 260); fx.slowMo(stage, 680); }
               // a further hit of a multi-hit move lands its own blow, and its HP goes with it
               if (again) fx.burst(stage, k, blow.type, .8);
+              const lost = was && event.maxhp ? was.hp - event.hp : 0;
+              /* as in 포켓몬 챔피언스 (2026-11-18, counted in its footage frame by frame): nothing on the stage stops at a blow; the
+                 target reels at once and its HP goes down a beat after (HP_BEAT), so the blow is read before the number. A multi-hit
+                 move's hits keep their quick rhythm */
+              const reel = direct && !several && lost > 0 ? fx.hit(stage, k, { ...strike, share: lost / event.maxhp }) : null;
+              if (reel) await fx.wait(HP_BEAT);
               put(view);
-              if (!was || !event.maxhp) return;
-              const lost = was.hp - event.hp;
               if (!lost) return;
               // HP that flows: a draining move heals from its target (the gain fills once the motes arrive), Leech Seed feeds its seeder
               if (lost < 0 && event.from === "drain" && source) await fx.flow(stage, source, k);
@@ -301,7 +303,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
               const drain = fx.drain(stage, k, was.hp / was.maxhp, event.hp / event.maxhp, { quick: several });
               if (lost < 0) await Promise.all([drain, fx.heal(stage, k)]);
               else {
-                const shook = fx.hit(stage, k, { ...strike, share: several ? .1 : lost / event.maxhp });
+                const shook = reel || fx.hit(stage, k, { ...strike, share: several ? .1 : lost / event.maxhp });
                 await Promise.all([drain, several ? null : shook, direct ? null : fx.residual(stage, k, event.from)]);
               }
             })().catch(err => console.error("stage", err));

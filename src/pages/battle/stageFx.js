@@ -399,8 +399,9 @@ export function hit(stage, key, { share = .2, crit = false, strong = false, weak
     const now = performance.now();
     if (!(a.blinkUntil > now)) { a.blinkUntil = now + ms(300); runs.push(e.anim(a, { flash: [0, .26, 0, .14, 0] }, { dur: 300, ease: "linear" })); }
     if (a.src.startsWith("data:")) runs.push(e.anim(a, { sx: [1, 1.18, .94, 1], sy: [1, .8, 1.08, 1] }, { dur: 440 }));
-    if (crit) { runs.push(e.anim(e.grade, { ca: [0, .012, 0] }, { dur: 360, at: [0, .15, 1] })); e.shake(.4); flashStage(stage, .1, 220); }
-    else if (strong) e.shake(.25);
+    // a critical blow lights the stage a moment and parts its colours; the picture does not shake (2026-11-18: 포켓몬 챔피언스's
+    // footage shows no shake at a blow, critical or super effective; a quake or a landing body still shakes it)
+    if (crit) { runs.push(e.anim(e.grade, { ca: [0, .012, 0] }, { dur: 360, at: [0, .15, 1] })); flashStage(stage, .1, 220); }
   } else runs.push(e.anim(a, { x: [0, 2, -2, 1.5, 0], flash: [0, .35, 0] }, { dur: 320, ease: "linear" }));
   return Promise.all(runs);
 }
@@ -603,14 +604,7 @@ export function drain(stage, key, from, to, { quick = false } = {}) {
   if (!fill || instant() || span < .001) return Promise.resolve();
   const total = quick ? Math.min(520, Math.max(300, span * 900)) : Math.min(1100, Math.max(420, span * 1200));
   const when = x => (1 - Math.sqrt(Math.max(0, 1 - Math.abs(x - a) / span))) * total;
-  if (b < a) {
-    const trail = document.createElement("i");
-    trail.className = "bt-hp-lost";
-    trail.style.left = `${b * 100}%`;
-    trail.style.width = `${(a - b) * 100}%`;
-    bar.appendChild(trail);
-    done(trail.animate([{ opacity: .9 }, { opacity: .9, offset: .45 }, { opacity: 0 }], { duration: ms(total + 260), fill: "both" })).then(() => trail.remove());
-  }
+  // the bar goes down as itself, with no pale lost part behind it (2026-11-18, as 포켓몬 챔피언스's plate does)
   const run = done(fill.animate([{ transform: `scaleX(${a})` }, { transform: `scaleX(${b})` }], { duration: ms(total) * slowed, easing: OUT, fill: "backwards" }));
   const base = bar.className.replace(/\btype-[a-z]+/g, "").trim();
   if (toneAt(from) !== toneAt(to)) {

@@ -14,7 +14,6 @@ import { Dex } from "@pkmn/sim";
 import { recipeOf } from "./battle/moveFx.js";
 import { spriteUrl, onSpriteError } from "../services/teamBuilderCore.js";
 import * as fx from "./battle/stageFx.js";
-import { hitStop } from "./battle/stageCamera.js";
 import { glOf } from "./battle/gl.js";
 
 /* 배틀 실험실 (?view=lab, 개발 서버에서만). 쇼다운 엔진을 이 브라우저에서 돌려 두 자리를 모두 직접 조작하고,
@@ -416,7 +415,6 @@ function MoveBench({ res }) {
     // a guard's own line follows its move in a battle (-singleturn, battleLog GUARDS): the lab plays it too
     if (/^(protect|detect|spikyshield|kingsshield|banefulbunker|silktrap|burningbulwark|obstruct|maxguard)$/.test(id)) await fx.shield(st, from, id);
     if (m.category !== "Status" && outcome !== "빗나감" && outcome !== "방어") {
-      await hitStop(st, outcome === "급소" || outcome === "효과가 굉장함" ? 90 : 60);
       await Promise.all(targets.filter(k => k !== from).map(k => fx.hit(st, k, { share: .3, crit: outcome === "급소", strong: outcome === "효과가 굉장함", weak: outcome === "효과가 별로" })));
     }
     await e.after(450);
