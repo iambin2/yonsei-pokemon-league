@@ -5,7 +5,9 @@
 // tab-switch (lobby → 도전의 탑 → 배틀 열기 → 도전의 탑, 10 s). Measure on the built site (npm run build, vite preview): the dev
 // server serves modules one by one and measures its own loading.
 // --profile prints the functions that held the main thread longest (self time) from the start to the end of the last frame over 50 ms.
-// Exit code 1 when a frame in motion passes 50 ms (a still screen's long frame is reported, not failed). Playwright is not a dependency: it is taken from the npx cache (npx playwright once).
+// inMotion: long frames while anything moved. stopped: those while something the main thread moves was moving (the stage, the tower,
+// an animation of more than opacity and transform), the stops the eye sees; an opacity or transform animation alone goes on turning on
+// the compositor. Exit code 1 when a frame stops a motion (a still screen's long frame, or a compositor's, is reported, not failed). Playwright is not a dependency: it is taken from the npx cache (npx playwright once).
 const fs = require("fs"), path = require("path");
 function playwright() {
   try { return require("playwright"); } catch { /* not installed */ }
@@ -41,10 +43,28 @@ if (!SCENES[scene]) { console.error(`scenes: ${Object.keys(SCENES).join(", ")}`)
   await page.addInitScript(() => {
     /* each frame: when it began, how long it took, and whether anything was moving in it (a CSS or Web animation running, a stage's
        tween or particle, a tower's move): a long frame on a still screen is a wait, one in motion is a stutter the eye sees */
+    /* an animation of only opacity and transform runs on the compositor and goes on while the main thread is held (2026-11-18,
+       recorded: the busy cell's segments kept changing every 16 ms through a 233 ms load frame, and an SVG <g>'s fade went on as
+       evenly as a <span>'s through a 600 ms block); anything else, and the stage's and the tower's canvases, stop with it */
+    const OWN = new Set(["opacity", "transform", "translate", "scale", "rotate", "offset", "computedOffset", "easing", "composite"]);
+    const seenKinds = new WeakMap();
+    const composited = a => {
+      if (!seenKinds.has(a)) seenKinds.set(a, Boolean(a.effect?.target) && a.effect.getKeyframes().every(k => Object.keys(k).every(p => OWN.has(p))));
+      return seenKinds.get(a);
+    };
+    const label = a => `${a.animationName || a.transitionProperty || "animate"} .${String(a.effect?.target?.className?.baseVal ?? a.effect?.target?.className ?? "").split(" ")[0]}`;
     window.__frames = []; let last = performance.now();
-    const moving = () => document.getAnimations().some(a => a.playState === "running")
-      || [...document.querySelectorAll(".bs-stage, .tw")].some(el => el.__gl?.tweens?.length || el.__gl?.sprites?.length || el.tower?.anims?.size);
-    const f = now => { window.__frames.push([last, now - last, moving() ? 1 : 0]); last = now; requestAnimationFrame(f); };
+    // [how it moved, what the main thread moved]
+    const moving = () => {
+      const el = [...document.querySelectorAll(".bs-stage, .tw")].find(el => el.__gl?.tweens?.length || el.__gl?.sprites?.length || el.tower?.anims?.size);
+      if (el) return [2, el.className.split(" ")[0]];
+      const running = document.getAnimations().filter(a => a.playState === "running"), held = running.find(a => !composited(a));
+      return held ? [2, label(held)] : [running.length ? 1 : 0, ""];
+    };
+    /* what was moving as a frame began is what its length held still; a motion that starts as a long frame ends (a transition its
+       work set off) was late, not stopped */
+    let was = [0, ""];
+    const f = now => { window.__frames.push([last, now - last, ...was]); was = moving(); last = now; requestAnimationFrame(f); };
     requestAnimationFrame(f);
   });
   const t0 = Date.now();
@@ -56,9 +76,9 @@ if (!SCENES[scene]) { console.error(`scenes: ${Object.keys(SCENES).join(", ")}`)
   await page.waitForTimeout(Math.max(0, SCENES[scene].ms - (Date.now() - t0)));
   const frames = (await page.evaluate(() => window.__frames)).slice(1);
   const gaps = frames.map(f => f[1]), long = frames.filter(f => f[1] > 50);
-  const seen = long.filter(f => f[2]);
-  console.log(`${scene}${desktop ? " desktop" : ""}${reduced ? " reduced" : ""}: frames ${gaps.length} over34 ${gaps.filter(g => g > 34).length} over50 ${long.length} inMotion ${seen.length} worst ${Math.round(Math.max(0, ...gaps))} worstInMotion ${Math.round(Math.max(0, ...seen.map(f => f[1])))} sumLong ${Math.round(long.reduce((s, f) => s + f[1], 0))}`);
-  console.log("long frames at (ms from navigation start, length, * in motion):", long.map(f => `${Math.round(f[0])}+${Math.round(f[1])}${f[2] ? "*" : ""}`).join(" "));
+  const moved = long.filter(f => f[2]), seen = long.filter(f => f[2] === 2);
+  console.log(`${scene}${desktop ? " desktop" : ""}${reduced ? " reduced" : ""}: frames ${gaps.length} over34 ${gaps.filter(g => g > 34).length} over50 ${long.length} inMotion ${moved.length} stopped ${seen.length} worst ${Math.round(Math.max(0, ...gaps))} worstStopped ${Math.round(Math.max(0, ...seen.map(f => f[1])))} sumLong ${Math.round(long.reduce((s, f) => s + f[1], 0))}`);
+  console.log("long frames at (ms from navigation start, length; + while only the compositor moved, * a motion the main thread moves):", long.map(f => `${Math.round(f[0])}+${Math.round(f[1])}${["", "+", `*(${f[3]})`][f[2]]}`).join(" "));
   if (profile) {
     const { profile: p } = await cdp.send("Profiler.stop");
     const byId = new Map(p.nodes.map(n => [n.id, n]));
@@ -77,7 +97,7 @@ if (!SCENES[scene]) { console.error(`scenes: ${Object.keys(SCENES).join(", ")}`)
       self.set(key, (self.get(key) || 0) + d);
       per[k].set(key, (per[k].get(key) || 0) + d);
     }
-    long.forEach((f, k) => { if (per[k].size) console.log(`  ${Math.round(f[0])}+${Math.round(f[1])}: ${[...per[k]].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n, v]) => `${n} ${v.toFixed(0)}`).join(", ")}`); });
+    long.forEach((f, k) => { if (per[k].size) console.log(`  ${Math.round(f[0])}+${Math.round(f[1])}${["", "+", "*"][f[2]]}: ${[...per[k]].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n, v]) => `${n} ${v.toFixed(0)}`).join(", ")}`); });
     for (const [k, v] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(`${v.toFixed(0).padStart(6)} ms  ${k}`);
   }
   await browser.close();

@@ -4,7 +4,7 @@
    게임의 소리 파일은 하나도 쓰지 않는다: 모두 브라우저가 Web Audio로 그 자리에서 만든다(파일도 의존성도 없음). 무대의 그림과 같은
    시각에 울리고(at: 무대의 ms), 연출 속도를 따르고, 건너뛰기는 조용하고, 소리 칩이 꺼지면 울음과 함께 멎는다. 왼쪽은 우리, 오른쪽은
    상대: 소리가 나는 자리를 따라 좌우로 놓이고, 경기장의 울림(짧은 잔향)이 뒤에 깔린다. */
-import { audio, soundOn } from "./cries.js";
+import { madeAudio, primeAudio, soundOn } from "./cries.js";
 
 const LEVEL = .5; // the stage under the cries, never startling
 let speed = 1;
@@ -45,7 +45,9 @@ function wire(ctx) {
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
 }
 function ready(always) {
-  const ctx = audio();
+  // a context just made is not running yet either, so the sound that asked for it was never heard
+  const ctx = madeAudio();
+  if (!ctx) primeAudio();
   if (!ctx || ctx.state !== "running" || !soundOn() || (!speed && !always)) return null;
   if (!bus || bus.context !== ctx) wire(ctx);
   return ctx;

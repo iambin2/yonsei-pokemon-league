@@ -19,7 +19,7 @@ import { createBattleReader, fourMoves, josa, parseHP, requestKey, revives, slot
 import { LobbyArena, LobbyStage, STATUS, Stage, effLabel, effectiveness, nameOf, other, sceneOf, typesOf, useBox, useStageTape } from "./battle/Stage.jsx";
 import { goIn, prewarm, setSpeed as setStageSpeed } from "./battle/stageFx.js";
 import { sfx } from "./battle/sfx.js";
-import { audio, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
+import { audio, madeAudio, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
 import { readRunState } from "../services/battleService.js";
 import { BOARD_DRAFT_KEY, battleHref, battlePollDelay, canRematch, cancelBattle, chooseInBattle, createBattle, recordCpuBattle, readCpuReplay, forfeitBattle, forgetSeat, isDoubles, joinBattle, listEventBattles, listOpenRooms, playerViewIsCurrent, readBattleRow, readBattleVersion, readSeat, rematchBattle, runGames, takeOfficialSeat, viewBattle, warmBattle } from "../services/battleService.js";
 import { parseBoutKey } from "../services/teamBouts.js";
@@ -97,6 +97,23 @@ export default function BattlePage({ flash: say, go }) {
   });
   // 다시하기 with the computer starts the room over with a new battle
   const [cpuRound, setCpuRound] = useState(0);
+  /* a battle's names and moves are mostly outside the font's core slice: asked for as the battle page opens, before its data, the rest
+     of the 600 weight is there when they first stand. Asked for by the names themselves, they were laid out in fallback fonts while it
+     came, a frame of 118 ms at a phone's speed in a replay's opening (2026-11-18, a Chrome trace) */
+  useEffect(() => {
+    if (!(id || replay || cpu)) return undefined;
+    document.fonts?.load?.("600 1em Freesentation", "뷁").catch(() => {});
+    /* the battle's signs (▲▼ on a stat, ♀♂ in a name, the replay's arrows) are in none of the site's fonts, so the first to stand opens
+       the device's own font for them in its weight: on Windows the 10 MB Noto Sans KR, 60 to 105 ms of a frame at a phone's speed in
+       the middle of a replay (2026-11-18, a Chrome trace). Laid out once here, unseen, while the page loads */
+    const signs = [600, 700].map(weight => {
+      const el = Object.assign(document.createElement("span"), { textContent: String.fromCodePoint(0x25B2, 0x25BC, 0x2640, 0x2642, 0x2190, 0x2192) });
+      el.setAttribute("aria-hidden", "true");
+      Object.assign(el.style, { position: "absolute", visibility: "hidden", fontWeight: weight });
+      return document.body.appendChild(el);
+    });
+    return () => signs.forEach(el => el.remove());
+  }, [id, replay, cpu]);
   const res = useResources();
   // next: a battle's id, CPU_ROOM for the battle with the computer, null for the battle page; code: a code room's four digits
   // tab: the battle page's tab to come back to (연승 순위 from a game of a run opens 연승 도전)
@@ -1087,7 +1104,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   /* the browser keeps a page silent until its first tap or key (cries.js wakes the sound then). A replay that plays by itself has
      had none, so it played silent (2026-11-07, the user: "리플레이에서는 소리가 안 나오네"): the replay bar's sound key shows it and
      wakes it */
-  const [awake, setAwake] = useState(() => audio()?.state === "running");
+  const [awake, setAwake] = useState(() => madeAudio()?.state === "running");
   useEffect(() => {
     // the context is made at the page's first touch (cries.js audio), so the key follows it from then
     let c = null, gone = false;

@@ -6,6 +6,8 @@
 import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
 import { makeDraw, recipeOf, playScript } from "./moveFx.js";
 import { atlasPainted, atlasStep, glOf, rand, lerp, clamp, typeId, colorOf, TYPE_COLOR } from "./gl.js";
+import { paintAway, takeAtlas } from "./atlas.js";
+import { ballFrames, BALL_PX, FRAMES } from "./balls.js";
 import { audio, primeAudio } from "./cries.js";
 import { setField } from "./arena.js";
 import "./arena.js";
@@ -644,39 +646,14 @@ export function faint(stage, key) {
    Each frame is a sphere shaded pixel by pixel: the light from the upper left in front, a soft fall-off to its edge, a highlight,
    a faint cool rim the stadium throws back, and the red, the white, the band and the button turned with the ball, so it tumbles as
    it flies instead of spinning flat. FRAMES frames make one turn; they are painted once and kept for every stage. */
-const FRAMES = 24, BALL_PX = 160;
-// painted a few rows a step, like the atlas (gl.js prepareAtlas): ahead of time in idle moments, or all at once by the first throw
-let ballCanvases = null, ballJob = null;
+// painted by the worker as the page opens (prewarm), or a few rows a step here: ahead of time in idle moments, or all at once by the first throw
+let ballCanvases = null, ballJob = null, ballPixels = null;
 const ballSteps = () => (ballJob ||= paintBalls());
 function* paintBalls() {
-  const out = [], R = BALL_PX / 2 - 3, C = BALL_PX / 2;
-  const norm = v => { const l = Math.hypot(...v); return v.map(x => x / l); };
-  const L = norm([-.55, .62, .56]), Hv = norm([L[0], L[1], L[2] + 1]), axis = norm([1, .28, .22]);
-  const RED = [222, 38, 52], WHITE = [240, 243, 248], BAND = [26, 30, 42], RING = [34, 39, 56], BUTTON = [246, 247, 250];
-  for (let f = 0; f < FRAMES; f++) {
-    const th = -f / FRAMES * Math.PI * 2, cs = Math.cos(th), sn = Math.sin(th), [ax, ay, az] = axis;
-    // the ball's own frame: a point on the screen's sphere turned back by the spin (Rodrigues)
-    const local = ([x, y, z]) => { const d = ax * x + ay * y + az * z, cx = ay * z - az * y, cy = az * x - ax * z, cz = ax * y - ay * x;
-      return [x * cs + cx * sn + ax * d * (1 - cs), y * cs + cy * sn + ay * d * (1 - cs), z * cs + cz * sn + az * d * (1 - cs)]; };
-    const c = Object.assign(document.createElement("canvas"), { width: BALL_PX, height: BALL_PX }), g = c.getContext("2d"), img = g.createImageData(BALL_PX, BALL_PX), px = img.data;
-    for (let j = 0; j < BALL_PX; j++) for (let i = 0; i < BALL_PX; i++) {
-      // a step every 5 rows: a whole frame was a step of up to 60 ms at a phone's speed, and 20 rows still 35 to 48 (2026-11-18)
-      if (i === 0 && j && j % 5 === 0) yield;
-      const nx = (i + .5 - C) / R, ny = -(j + .5 - C) / R, d2 = nx * nx + ny * ny, edge = (1 - Math.sqrt(d2)) * R + .5;
-      if (edge <= 0) continue;
-      const nz = Math.sqrt(Math.max(0, 1 - d2)), n = [nx, ny, nz], q = local(n);
-      const fromFront = Math.acos(Math.max(-1, Math.min(1, q[2])));
-      let col, shine = .55;
-      if (fromFront < .17) { col = BUTTON; }
-      else if (fromFront < .27) { col = RING; shine = .3; }
-      else if (fromFront < .31 || Math.abs(q[1]) < .07) { col = BAND; shine = .3; }
-      else col = q[1] > 0 ? RED : WHITE;
-      const diff = Math.max(0, n[0] * L[0] + n[1] * L[1] + n[2] * L[2]);
-      const spec = Math.pow(Math.max(0, n[0] * Hv[0] + n[1] * Hv[1] + n[2] * Hv[2]), 60) * shine;
-      const rim = Math.pow(1 - nz, 3) * .22, k = .34 + .74 * diff, a = Math.min(1, edge) * 255, o = (j * BALL_PX + i) * 4;
-      px[o] = Math.min(255, col[0] * k + 255 * spec + 90 * rim); px[o + 1] = Math.min(255, col[1] * k + 255 * spec + 130 * rim); px[o + 2] = Math.min(255, col[2] * k + 255 * spec + 230 * rim); px[o + 3] = a;
-    }
-    g.putImageData(img, 0, 0);
+  const frames = ballPixels || (yield* ballFrames()), out = [];
+  for (const px of frames) {
+    const c = Object.assign(document.createElement("canvas"), { width: BALL_PX, height: BALL_PX });
+    c.getContext("2d").putImageData(new ImageData(px, BALL_PX, BALL_PX), 0, 0);
     out.push(c);
     yield;
   }
@@ -755,14 +732,28 @@ const frameMoment = () => new Promise(resolve => requestAnimationFrame(() => { c
 let prewarming = null, atlasReady = null, urgent = false;
 const ballStep = () => !ballCanvases && !ballSteps().next().done;
 const paintedBy = async step => { for (let more = true; more;) { const room = await (urgent ? frameMoment() : idleMoment()); do more = step(); while (more && room()); } };
+/* the atlas and the ball's frames are painted by a worker (paint.worker.js): painted here, even a few rows a step, they were the long
+   frames of a stage coming up while things moved (2026-11-18: paintAtlas, surfaceSteps and the noise 50 to 150 ms of a frame at a
+   phone's speed, the ball's rows 33 to 60). Resolves whether the worker brought them; without one the page paints them in steps */
+function paintOff() {
+  return new Promise(resolve => {
+    let w = null;
+    try { w = new Worker(new URL("./paint.worker.js", import.meta.url), { type: "module" }); } catch { resolve(false); return; }
+    paintAway(true);
+    const done = data => { w.terminate(); paintAway(false); if (data) { takeAtlas(data.atlas); ballPixels = data.balls; } resolve(Boolean(data)); };
+    w.onmessage = e => done(e.data);
+    w.onerror = () => done(null);
+  });
+}
 export function prewarm() {
-  return (prewarming ||= (async () => {
+  if (!prewarming) {
     /* the sound's context is made off the page's first task, after the audio service has been woken without holding the page
        (cries.js primeAudio; 2026-11-10, measured: made here at once it held the first visit to the battle page frozen 640 of its 650) */
     primeAudio(idleMoment);
-    await (atlasReady = paintedBy(atlasStep));
-    await paintedBy(ballStep);
-  })());
+    atlasReady = paintOff().then(off => off || paintedBy(atlasStep));
+    prewarming = atlasReady.then(() => paintedBy(ballStep));
+  }
+  return prewarming;
 }
 /* the first stage of a visit (the lobby's court) waits for the atlas, painted a frame's 8 ms at a time, and comes when it is there:
    mounted before it, the stage painted the whole atlas at once inside the page's first draw (2026-11-10, measured: 120 of a 270 stop

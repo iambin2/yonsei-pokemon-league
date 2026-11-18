@@ -15,6 +15,9 @@ export function audio() {
   return ctx;
 }
 export const whenAudio = fn => { if (ctx) fn(ctx); else waiting.push(fn); };
+// the context if it is made, never making it: a sound or a key asked before primeAudio made it at once, with the audio service still
+// asleep (2026-11-18: 340 ms of a replay's opening at a phone's speed, 23 once the device list had been asked)
+export const madeAudio = () => ctx;
 /* the first AudioContext of a browser's session waits on the audio service starting: half a second with the page frozen (2026-11-10,
    measured on Windows: 620 in the constructor, the whole first visit to the battle page). Asking for the device list first starts
    that service without holding the page (a promise, no prompt, nothing read from it), and the context is then made in 40: primeAudio
