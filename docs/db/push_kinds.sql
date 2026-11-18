@@ -1,4 +1,4 @@
--- 알림 종류 (2026-11-18, docs/PUSH.md). 공지 하나뿐이던 알림에 게시판, 대회 일정, 내 경기, 도전의 탑 순위, 오늘의 탑을 더하고
+-- 알림 종류 (2026-11-18, docs/PUSH.md). 공지 하나뿐이던 알림에 게시판, 대회 일정, 내 경기, 도전의 탑 순위와 신기록, 오늘의 탑을 더하고
 -- 구독마다 종류를 켜고 끈다. announcement_push.sql 과 application_close.sql 다음에 실행한다. 여러 번 실행해도 된다.
 --
 -- 생각
@@ -19,14 +19,10 @@ alter table public.push_subscriptions alter column kinds set default '{notice,ma
 alter table public.push_subscriptions add column if not exists auth_user_id uuid references auth.users (id) on delete set null;
 alter table public.push_subscriptions add column if not exists board_pushed_at timestamptz not null default now();
 alter table public.push_subscriptions add column if not exists tower_pushed_at timestamptz;
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname = 'push_subscriptions_kinds' and conrelid = 'public.push_subscriptions'::regclass) then
-    alter table public.push_subscriptions add constraint push_subscriptions_kinds
-      check (kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'daily']::text[]);
-  end if;
-end;
-$$;
+-- the check is laid again on every run, so a kind added later (record, 2026-11-18) reaches a database that ran an earlier copy
+alter table public.push_subscriptions drop constraint if exists push_subscriptions_kinds;
+alter table public.push_subscriptions add constraint push_subscriptions_kinds
+  check (kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'daily']::text[]);
 create index if not exists push_subscriptions_account on public.push_subscriptions (auth_user_id) where auth_user_id is not null;
 
 -- 2. 구독 저장: application_close.sql 의 한도는 그대로, 저장하는 사람의 로그인으로 계정을 잇는다(로그아웃한 기기는 풀린다).
@@ -73,7 +69,7 @@ as $$
 declare
   v_kinds text[] := array(select distinct k from unnest(coalesce(p_kinds, '{}')) k order by k);
 begin
-  if not v_kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'daily']::text[] then
+  if not v_kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'daily']::text[] then
     raise exception using errcode = 'P0001', message = '알 수 없는 알림 종류입니다.';
   end if;
   update public.push_subscriptions s
@@ -91,7 +87,7 @@ grant execute on function public.set_push_kinds(text, text[]) to anon, authentic
 create table if not exists public.push_outbox (
   id bigint generated always as identity primary key,
   dedup text not null unique,
-  kind text not null check (kind in ('notice', 'schedule', 'match', 'tower', 'daily')),
+  kind text not null check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'daily')),
   auth_user_id uuid references auth.users (id) on delete cascade,
   title text not null check (char_length(title) <= 40),
   body text not null check (char_length(body) <= 200),
@@ -99,6 +95,9 @@ create table if not exists public.push_outbox (
   created_at timestamptz not null default now(),
   taken_at timestamptz
 );
+-- laid again on every run, as push_subscriptions_kinds: a table made by an earlier copy takes the kinds added since
+alter table public.push_outbox drop constraint if exists push_outbox_kind_check;
+alter table public.push_outbox add constraint push_outbox_kind_check check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'daily'));
 create index if not exists push_outbox_due on public.push_outbox (created_at) where taken_at is null;
 alter table public.push_outbox enable row level security;
 revoke all on table public.push_outbox from public, anon, authenticated, service_role;
@@ -200,6 +199,38 @@ revoke all on function public.push_tower_passed() from public, anon, authenticat
 drop trigger if exists push_tower_passed on public.streak_runs;
 create trigger push_tower_passed after update of wins on public.streak_runs
   for each row when (new.daily is null and new.wins = old.wins + 1 and new.wins >= 2) execute function public.push_tower_passed();
+
+-- 6b. 도전의 탑 신기록: 이번 달 도전 하나가 다른 모든 도전의 최고 연승을 넘어서는 판(이번 달 1위가 되는 순간), 켠 모두에게 한 번.
+-- 1위가 계속 이겨 기록을 늘리는 판은 알리지 않는다(넘어선 순간만): 다른 도전의 최고가 그대로라 다시 넘는 일이 없다.
+-- 같은 계정의 새 도전이 제 지난 기록을 넘어도 알린다(기록이 바뀌었다). 같은 달 같은 연승은 한 번(dedup).
+create or replace function public.push_tower_record()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_best integer;
+begin
+  begin
+    select max(r.wins) into v_best
+      from public.streak_runs r
+     where r.month = new.month and r.daily is null and r.id <> new.id;
+    if coalesce(v_best, 0) <> old.wins then return null; end if;  -- 넘어선 판이 아니다(이미 1위였거나 아직 아래)
+    insert into public.push_outbox (dedup, kind, title, body, url)
+    values ('record:' || new.month || ':' || new.wins, 'record', '도전의 탑 신기록',
+            left(new.trainer_name, 20) || ' 님이 ' || new.wins || '연승으로 이번 달 1위 기록을 새로 썼습니다.', '?view=battle&tab=streak')
+    on conflict (dedup) do nothing;
+  exception when others then
+    raise warning 'push_tower_record: %', sqlerrm;
+  end;
+  return null;
+end;
+$$;
+revoke all on function public.push_tower_record() from public, anon, authenticated;
+drop trigger if exists push_tower_record on public.streak_runs;
+create trigger push_tower_record after update of wins on public.streak_runs
+  for each row when (new.daily is null and new.wins = old.wins + 1 and new.wins >= 2) execute function public.push_tower_record();
 
 -- 7. 공지의 신청 마감 시각(application_closed 와 같은 읽기). 읽을 수 없으면 null.
 create or replace function public.push_closes_at(p_value text)

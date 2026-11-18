@@ -191,6 +191,35 @@ try {
     assert.equal((await take()).length, 0);
   });
 
+  await check("taking this month's first place tells every device that keeps records, once a record, by day only", async () => {
+    await pg.exec("reset role");
+    const month = "2026-12-01";
+    const run = async (user, name, wins) => (await one(
+      "insert into public.streak_runs (auth_user_id, trainer_name, month, wins, last_win_at) values ($1, $2, $3, $4, now()) returning id", [user, name, month, wins])).id;
+    const win = async (id, wins) => { await pg.exec("reset role"); await q("update public.streak_runs set wins = $2, last_win_at = now() where id = $1", [id, wins]); };
+    await take(); // nothing left from the checks before
+    await setKinds("a", ["record"]); await setKinds("b", ["notice", "record"]); await setKinds("d", ["tower"]);
+    await pg.exec("reset role");
+    const top = await run(users.a, "이제빈", 5);
+    const chaser = await run(users.b, "김선수", 4);
+    await win(chaser, 5);                       // equal to first place is not past it
+    assert.equal((await take()).length, 0);
+    await win(chaser, 6);                       // past it: a record, to both devices that keep records, none that does not
+    assert.equal((await take(false, NIGHT)).length, 0, "waits for the morning");
+    const rows = await take();
+    assert.deepEqual(rows.map(r => [r.kind, r.endpoint, r.body]).sort(), [
+      ["record", EP("a"), "김선수 님이 6연승으로 이번 달 1위 기록을 새로 썼습니다."],
+      ["record", EP("b"), "김선수 님이 6연승으로 이번 달 1위 기록을 새로 썼습니다."]]);
+    await win(chaser, 7); await win(chaser, 8);  // first place growing its own record is not a new record taken
+    assert.equal((await take()).length, 0);
+    await win(top, 6); await win(top, 7); await win(top, 8); await win(top, 9); // a passes 8: a new record
+    assert.deepEqual((await take()).map(r => r.body), ["이제빈 님이 9연승으로 이번 달 1위 기록을 새로 썼습니다.", "이제빈 님이 9연승으로 이번 달 1위 기록을 새로 썼습니다."]);
+    await pg.exec("reset role");
+    const daily = (await one("insert into public.streak_runs (auth_user_id, trainer_name, month, wins, daily) values ($1, '대기중', $2, 1, '2026-12-02') returning id", [users.c, month])).id;
+    await win(daily, 30);                       // the day's tower never counts
+    assert.equal((await take()).length, 0);
+  });
+
   await check("the sweep announces a closing application, a new bracket, applied results and the day's tower, once each, by day", async () => {
     await pg.exec("reset role");
     const soon = new Date(Date.now() + 5 * 3600e3);

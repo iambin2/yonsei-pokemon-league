@@ -13,6 +13,7 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 | `match` | 내 경기 | 그 경기 상대 출전(팀이면 팀원 모두)의 계정 | 공식 경기의 배틀 방을 먼저 연 선수가 기다리기 시작한 직후 | `?view=battle&event=…&match=…` (제출 비밀번호로 앉는 화면) |
 | `board` | 게시판 새 글 | 켠 모두 | 지난 게시판 알림 뒤에 공개 글(자유, 샘플, 파티. 비밀글, 댓글, 사설 대진표 제외)이 올라왔을 때 | 글이 하나면 그 글, 여럿이면 `?view=board` |
 | `tower` | 도전의 탑 순위 | 앞질린 계정 | 이번 달 도전(오늘의 탑 제외)이 한 판 이겨, 같은 연승에 먼저 닿아 위에 있던 계정을 넘었을 때(2연승부터) | `?view=battle&tab=streak` |
+| `record` | 도전의 탑 신기록 | 켠 모두 | 이번 달 도전 하나가 다른 모든 도전의 최고 연승을 넘어선 판(이번 달 1위가 되는 순간, 2연승부터). 1위가 계속 이겨 기록을 늘리는 판은 알리지 않는다 | `?view=battle&tab=streak` |
 | `daily` | 오늘의 탑 | 켠 모두 | 하루 한 번, 아침 첫 정리 | `?view=battle&tab=streak` |
 
 - 이미 있던 구독은 `notice`만 받는다(예전과 같다). 새 구독은 `notice`와 `match`를 받는다. 나머지는 더보기에서 켠다.
@@ -31,7 +32,7 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 새 공지 저장 ──(운영진 토큰)──▶ notify-announcement { id } ─▶ push_queue_notice ─┐
 공식 배틀 방 생성 ─▶ 트리거 push_match_waiting ─▶ push_outbox ◀─────────────────────┤
   └ battle 함수가 바로 notify-announcement { } 를 부른다                              │
-도전 연승 +1 ─▶ 트리거 push_tower_passed ─▶ push_outbox                               │
+도전 연승 +1 ─▶ 트리거 push_tower_passed, push_tower_record ─▶ push_outbox           │
 15분마다 push-sweep.yml ─▶ notify-announcement { sweep } ─▶ push_take(true) ─────────┘
                                          (대회 일정, 오늘의 탑을 줄에 넣고, 게시판을 센다)
 push_take 가 줄을 한 번만 꺼내 준다 ─▶ VAPID로 각 기기에 보낸다 ─▶ 404, 410 구독은 지운다

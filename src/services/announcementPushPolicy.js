@@ -15,6 +15,7 @@ export const PUSH_KINDS = [
   { kind: "match", label: "내 경기", personal: true },
   { kind: "board", label: "게시판 새 글" },
   { kind: "tower", label: "도전의 탑 순위", personal: true },
+  { kind: "record", label: "도전의 탑 신기록" },
   { kind: "daily", label: "오늘의 탑" },
 ];
 
