@@ -178,8 +178,13 @@ function climbersHTML(tw) {
   }
   if (!marks.length) return "";
   marks.sort((a, b) => a.y - b.y);
+  /* labels keep apart by their own height and a gap (a label is a name of 16 over a streak of 20: at 28 apart two overlapped by 8,
+     2026-11-18, measured at 1440); one pushed out of the scene's foot is left out */
   let last = -Infinity;
-  for (const k of marks) { k.ly = Math.max(k.y, last + 28); last = k.ly; }
+  for (const k of marks) { k.ly = Math.max(k.y, last + 40); last = k.ly; }
+  const kept = marks.filter(k => k.ly < m.H - 24);
+  marks.length = 0; marks.push(...kept);
+  if (!marks.length) return "";
   const lines = marks.map(k => `<path class="${k.on ? "on" : ""}" d="M${f1(k.x)} ${f1(k.y)}H${f1(k.x + 14)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 4)}"/>`).join("");
   const labels = marks.map(k => `<span class="tw-tag${k.on ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
     + `<b>${k.c.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(k.c.name)}</b><span>${k.c.wins}<small>연승</small></span></span>`).join("");
