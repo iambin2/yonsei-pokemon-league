@@ -1,0 +1,33 @@
+name: Push sweep
+
+# Asks the push sender (supabase/functions/notify-announcement) to look for what is due: an application closing within a day,
+# a new bracket, applied results, the day's tower, new board posts, and anyone passed on the tower board (docs/PUSH.md).
+# The database decides what is due and hands each alert out once, so a late or doubled run sends nothing twice; it needs no secret,
+# only the publishable key the site itself uses. GitHub runs a schedule late when it is busy, which these alerts can bear.
+# GitHub also disables schedules in a public repo after 60 days without commits, so each run re-enables itself.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: push-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          set -a; . ./.env.production; set +a
+          curl --fail --silent --show-error -X POST \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+            -d '{"sweep":true}' "$VITE_SUPABASE_URL/functions/v1/notify-announcement"
+      - run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/push-sweep.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}

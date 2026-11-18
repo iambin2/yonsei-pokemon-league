@@ -89,7 +89,8 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
   for (const statement of statements) {
     if (statement.startsWith("grant select ")) continue;
     // A visitor's own notice alert and survey answer: the rows stay closed to anon (docs/db/announcement_push.sql, backend_hardening.sql).
-    if (/^grant execute on function public\.((save|delete)_push_subscription|submit_announcement_response|community_write)\(/.test(statement)) continue;
+    // The alert's kinds are read and set for the one subscription whose endpoint the caller holds, as its delete is (push_kinds.sql).
+    if (/^grant execute on function public\.((save|delete)_push_subscription|push_settings|set_push_kinds|submit_announcement_response|community_write)\(/.test(statement)) continue;
     // A battle's replay log: a read that hides an official battle's parties until the event reveals them (battle_integration.sql).
     if (/^grant execute on function public\.battle_full_log\(/.test(statement)) continue;
     // The 연승 도전 board: a stable read of names and counts that shows no account id (streak_runs.sql); the runs table stays closed.

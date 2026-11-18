@@ -971,17 +971,11 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
   .bt-moves.with-mega > .bt-mega { grid-column: 5; grid-row: 1; }
 }
 
-/* 중계 (2026-11-16, the owner's draft 3-B): one watching with no seat has nothing to press. From 860 the side column goes, the stage
-   takes the match's width, the strips stand a counter high with the party at 64, and the log is a lower-third band under it, its last three lines a row high; on a phone the
-   message window and the clock give the stage their room and the log band, its lines a row high, stands in the deck's place */
+/* 중계 (2026-11-16, the owner's draft 3-B): one watching with no seat has nothing to press. On a phone the message window and the clock
+   give the stage their room and the log band, its lines a row high, stands in the deck's place. From 860 a watcher stands in the
+   player's frame (2026-11-18: the frame of its own stacked everything over the window's height and left the stage 1200 by 150) */
 .bt-castlog { min-width: 0; }
 .bt-castlog .bt-log { contain: none; }
-@media (min-width: 860px) {
-  .bt-match.cast { --cast-h: calc(100svh - var(--nav-height) - var(--s5) * 2); grid-template-columns: minmax(0, 1fr); }
-  .bt-match.cast .bt-strip { --ball: 64px; min-height: var(--h-counter); }
-  .bt-match.cast .bs-stage.hud { width: 100%; max-height: max(220px, var(--cast-h) - var(--h-counter) * 3 - var(--h-row) * 3 - var(--seam) * 2 - var(--h-control) - var(--s3) * 4); }
-  .bt-match.cast .bt-castlog .bt-log { height: calc(var(--h-row) * 3 + var(--seam) * 2); max-height: none; }
-}
 .bt-match.cast .bt-castlog .bt-line { display: flex; align-items: center; min-height: var(--h-row); padding-block: 0; }
 @media (max-width: 859px) {
   .bt-match.cast .bs-stage.hud { --say-h: 0px; }

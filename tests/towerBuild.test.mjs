@@ -9,7 +9,8 @@ import { ratingOf } from "../src/services/partyBalance.js";
 test("every set of the pool has a main role, and no main role is empty", () => {
   const count = {};
   for (const e of wholePool()) for (const s of e.sets) count[roleOf(e.species, s).primary] = (count[roleOf(e.species, s).primary] || 0) + 1;
-  for (const role of ["setup", "physical", "special", "bulky", "support"]) assert.ok(count[role] >= 50, `${role}: ${count[role]}`);
+  // about 280 sets since the curating (scripts/curate-sets.mjs), 1318 before: support is the smallest at 16
+  for (const role of ["setup", "physical", "special", "bulky", "support"]) assert.ok(count[role] >= 10, `${role}: ${count[role]}`);
 });
 
 test("the foes are many and alike in strength: 4000 parties, a thousand of each builder (15.7)", () => {
@@ -21,7 +22,7 @@ test("the foes are many and alike in strength: 4000 parties, a thousand of each 
     const { team } = towerFoe(random, [], builder);
     assert.equal(team.length, 6);
     assert.ok(team.every(m => !STREAK_BAN.items.includes(m.item) && !m.moves.some(x => STREAK_BAN.moves.includes(x))), "free of the ban");
-    assert.ok(team.filter(m => /ite( [XYZ])?$/.test(m.item) && m.item !== "Eviolite").length <= 1, "one Mega at most");
+    assert.ok(team.every(m => wholePool().find(e => e.species === m.species).sets.some(s => s.items[0] === m.item && s.moves.join() === m.moves.join())), "each holds its own set whole");
     assert.equal(new Set(team.map(m => m.item)).size, 6, "no item twice");
     if (i % 50 === 0) assert.equal(validateTeam(STREAK_FORMAT_ID, team), null);
     const key = team.map(m => m.species).sort().join();

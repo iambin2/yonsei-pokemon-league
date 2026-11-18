@@ -4,7 +4,7 @@
    세기는 몫의 합으로 맞춘다(partyBalance.js): 어느 빌더가 뽑혀도 같고, 층의 세기는 컴퓨터의 계단이 맡는다(streak.js STREAK_STEPS). */
 import { Dex } from "@pkmn/sim";
 import * as champions from "@pkmn/mods/champions";
-import { fairPool, shuffled, validateTeam, weighted } from "./engine.mjs";
+import { fairPool, itemOf, shuffled, validateTeam, weighted } from "./engine.mjs";
 import { MEGA_STONE, STREAK_BAN, STREAK_FORMAT_ID } from "../../../src/services/streak.js";
 import { BAND, PLAN, ratingOf, tierOf } from "../../../src/services/partyBalance.js";
 import RANKER from "../../../src/data/ranker-teams.json" with { type: "json" };
@@ -16,13 +16,6 @@ const TYPES = dex.types.names();
 /* ---------- the tower's sets, as the draft and the foes take them (14.4) ---------- */
 export const LOCKS = /^(Choice (Band|Specs|Scarf)|Assault Vest)$/;
 export const statusMove = set => set.moves.some(m => Dex.moves.get(m).category === "Status");
-// the items each species is brought with on the ladder's top teams, by how often
-export const HELD = new Map();
-for (const t of RANKER.teams) for (const m of t.team) if (m.item) {
-  const held = HELD.get(m.species) || new Map();
-  held.set(m.item, (held.get(m.item) || 0) + 1);
-  HELD.set(m.species, held);
-}
 // the whole random pool under a ban (15장: the foes' material), and the ladder's species in it (14장: the draft's)
 export const wholePool = (ban = STREAK_BAN) => fairPool(STREAK_FORMAT_ID, ban);
 const pools = new Map();
@@ -143,33 +136,36 @@ function target() {
   return aim;
 }
 
-// a party being built: its members ({ species, set, item, role }), the base species, items and whether a Mega is in
+// a party being built: its members ({ species, set, item, role }), the base species and the items held
 function party(random, seen) {
-  return { random, seen, members: [], bases: new Set(), items: new Set(), mega: false, hazards: random() < learn().hazards };
+  return { random, seen, members: [], bases: new Set(), items: new Set(), hazards: random() < learn().hazards };
 }
 const SEEN_WEIGHT = 0.05;
-/* one more member whose set meets want(role): every species that has such a set weighs the same (a species seen in this run 0.05), and
-   among its fitting sets by the set's own weight. false when none fits */
-function add(p, want) {
+/* one more member whose set meets want(role) and holds an item the party does not (a set is whole, its own item with it, 2026-11-18;
+   Mega Stones may be many): every species that has such a set weighs the same (a species seen in this run 0.05), and among its
+   fitting sets by the set's own weight. false when none fits, or fewer than few species do */
+function add(p, want, few = 1) {
   const options = [];
   for (const entry of wholePool()) {
     const base = dex.species.get(entry.species).baseSpecies;
     if (p.bases.has(base)) continue;
-    const sets = entry.sets.filter(set => !(p.mega && set.mega) && want(roleOf(entry.species, set)) && set.items.some(i => !p.items.has(i)));
+    const sets = entry.sets.filter(set => want(roleOf(entry.species, set)) && !p.items.has(itemOf(set)));
     if (sets.length) options.push({ entry, base, sets, weight: p.seen.has(entry.species) ? SEEN_WEIGHT : 1 });
   }
-  if (!options.length) return false;
+  if (options.length < few) return false;
   const { entry, base, sets } = weighted(options, p.random);
-  const set = weighted(sets, p.random);
-  const item = set.items.find(i => !p.items.has(i));
+  const set = weighted(sets, p.random), item = itemOf(set);
   p.members.push({ species: entry.species, set, item, role: roleOf(entry.species, set) });
   p.bases.add(base);
   p.items.add(item);
-  if (set.mega) p.mega = true;
   return true;
 }
-// add, trying the wants in turn (the narrowest first)
-const addAny = (p, ...wants) => wants.some(w => add(p, w));
+/* add, trying the wants in turn (the narrowest first). A want only a handful of species meet gives way to the next while there is a
+   next: most species hold one build since the sets were curated (scripts/curate-sets.mjs, docs/SAMPLE_SETS.md 5장), and a narrow
+   want (a support that takes the party's hole, a hazard remover) then drew the same few species again and again (15.7: the most drawn
+   came 6.7 times the mean; 6.7 at FEW 1, 3.7 at 6, 3.2 at 12, as before the curating) */
+const FEW = 12;
+const addAny = (p, ...wants) => wants.some((w, i) => add(p, w, i < wants.length - 1 ? FEW : 1));
 const any = () => true;
 // the attacking types two or more members are weak to and none takes at half or less, the most shared first
 function holes(p) {

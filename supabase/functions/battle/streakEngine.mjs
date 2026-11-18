@@ -1,10 +1,10 @@
 /* 연승 도전의 판 (docs/BATTLE_STREAK.md). 배틀 함수(index.ts)가 쓰는 엔진 쪽 전부다: 판 만들기와 서버에서 두는 컴퓨터의 차례.
    컴퓨터는 휴대폰의 컴퓨터와 같고(battleCpu.js), 요청마다 새로 만들어 저장된 추리(memory)를 이어 받는다. */
 import { Dex } from "@pkmn/sim";
-import { CPU_NAME, choose, formatId, randomTeam, shuffled, startBattle, weighted } from "./engine.mjs";
+import { CPU_NAME, choose, formatId, itemOf, randomTeam, shuffled, startBattle, weighted } from "./engine.mjs";
 import { createCpu, quickChoice } from "../../../src/services/battleCpu.js";
-import { MEGA_STONE, STREAK_BAN, STREAK_BATTLE_FORMAT, STREAK_REGULATION, doorsOf, streakCpuOptions } from "../../../src/services/streak.js";
-import { HELD, LOCKS, setFor, statusMove, towerFoe, towerPool } from "./towerBuild.mjs";
+import { STREAK_BAN, STREAK_BATTLE_FORMAT, STREAK_REGULATION, doorsOf, streakCpuOptions } from "../../../src/services/streak.js";
+import { towerFoe, towerPool } from "./towerBuild.mjs";
 import TOWER_TIERS from "../../../src/data/tower-tiers.json" with { type: "json" };
 
 export const STREAK_FORMAT = formatId(STREAK_REGULATION, STREAK_BATTLE_FORMAT);
@@ -76,32 +76,27 @@ export function streakDoors(wins, random = Math.random, seen = []) {
 export const shownDoors = doors => (doors || []).map(d => (d.kind === "gate" ? { kind: d.kind, species: [] } : { kind: d.kind, species: d.team.map(m => m.species) }));
 
 /* 도전의 탑's opening draft (13장, streak.js STREAK_DRAFT; 14장: from the tower's pool): count candidates from each of the tower's six
-   tiers (src/data/tower-tiers.json), strongest first, every candidate of its own species, holding an item the ladder's top teams bring
-   it with (by how often) in the set that carries it. A candidate keeps back-up items (items), so a party picked from it never holds an
-   item twice (engine.mjs draftParty). */
+   tiers (src/data/tower-tiers.json), strongest first, every candidate of its own species and holding an item no other candidate of the
+   draft holds (2026-11-18): each is a whole sample set, its own item with it, drawn by weight among the species' sets whose item is
+   still free, so whatever is picked is the party shown, under the item clause, with no item handed on (engine.mjs draftParty). Mega
+   Stones may be many (the engine lets one Mega Evolve a battle). Before then a candidate held an item the ladder's top teams bring it
+   with and kept back-ups, and a row kept one place free of a Mega. */
 export function draftOffer(random = Math.random, { ban = STREAK_BAN, count = 3 } = {}) {
   const pool = towerPool(ban);
   const rows = Array.from({ length: 6 }, () => []);
   for (const [species, tier] of Object.entries(TOWER_TIERS)) if (pool.has(species)) rows[tier].push(pool.get(species));
-  const bases = new Set();
+  const bases = new Set(), items = new Set();
   return rows.map(list => {
     const row = [];
     for (const entry of shuffled(list, random)) {
       if (row.length >= count) break;
       const base = Dex.species.get(entry.species).baseSpecies;
-      if (bases.has(base)) continue;
-      // the row's last place is never a Mega when the others are, so every row has a choice that leaves room for one Mega in all
-      const noMega = row.length === count - 1 && row.every(c => c.mega);
-      const held = [...(HELD.get(entry.species) || [])].filter(([item]) => !ban.items.includes(item) && !(noMega && MEGA_STONE.test(item)));
-      const item = held.length ? weighted(held.map(([item, weight]) => ({ item, weight })), random).item : "";
-      const set = setFor(entry, item, random) || (noMega ? setFor(entry, "", random) : null);
-      if (!set || (noMega && set.mega)) continue;
-      const mega = Boolean(set.mega);
-      const own = item && (set.items.includes(item) || !mega) ? item : set.items[0];
-      // back-ups: the ladder's other items for it, then the set's own; a Mega keeps its stone only
-      const items = mega ? [own] : [...new Set([own, ...held.map(([i]) => i).filter(i => !MEGA_STONE.test(i) && !(LOCKS.test(i) && statusMove(set))), ...set.items])].filter(Boolean);
+      const sets = entry.sets.filter(set => !items.has(itemOf(set)));
+      if (bases.has(base) || !sets.length) continue;
+      const set = weighted(sets, random);
       bases.add(base);
-      row.push({ species: entry.species, ability: set.ability, item: own, items, moves: [...set.moves], nature: set.nature, evs: { ...set.evs }, ...(set.ivs ? { ivs: { ...set.ivs } } : {}), mega });
+      items.add(itemOf(set));
+      row.push({ species: entry.species, ability: set.ability, item: itemOf(set), moves: [...set.moves], nature: set.nature, evs: { ...set.evs }, ...(set.ivs ? { ivs: { ...set.ivs } } : {}), mega: Boolean(set.mega) });
     }
     return row;
   });

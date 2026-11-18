@@ -40,11 +40,12 @@ test("the computer plays a whole singles and doubles battle with choices the eng
   }
 });
 
-test("the computer's party is drawn by ladder usage; every species has at least three sample sets", () => {
+test("the computer's party is drawn by ladder usage; every species has a sample set (M-B, the ladder's, at least three)", () => {
   for (const reg of ["m-c", "m-b"]) for (const kind of ["singles", "doubles"]) {
     const pool = setPool(formatId(reg, kind));
     assert.ok(pool.length > 200, `${reg} ${kind}: ${pool.length} species`);
-    for (const entry of pool) assert.ok(entry.sets.length >= 3, `${reg} ${kind} ${entry.species}: ${entry.sets.length} sets`);
+    // M-C is curated to whole builds, one for most species (scripts/curate-sets.mjs)
+    for (const entry of pool) assert.ok(entry.sets.length >= (reg === "m-b" ? 3 : 1), `${reg} ${kind} ${entry.species}: ${entry.sets.length} sets`);
   }
   // the most used species turn up far more often than the rarest
   const formatid = formatId("m-c", "doubles");
@@ -151,14 +152,15 @@ test("a computer made afresh for every choice from the last one's memory chooses
   const formatid = formatId("m-c", "singles");
   // keep: one computer for the battle; carry: a new one each choice from the last one's memory, through JSON as the server stores it
   const run = mode => {
-    const random = seeded(41);
+    const random = seeded(44);
     let t = 0;
     // a clock that moves only when it is read, so every run thinks for the same samples
     const options = { random, now: () => (t += 5), budgetMs: 15 };
     const kept = createCpu(formatid, options);
     let memory, carried = 0;
-    // the parties as the even draw gives them for this seed: a battle in which the computer rules guesses out
-    const battle = startBattle({ formatid, seed: [41, 2, 3, 4], p1: { name: "사람", team: randomTeam(formatid, random, { even: true }) }, p2: { name: "컴퓨터", team: randomTeam(formatid, random, { meta: true, even: true }) } });
+    // the parties as the even draw gives them for this seed: a battle in which the computer rules guesses out (44 since 2026-11-18,
+    // when a set came to hold its own item only and the sets were curated to a build or two a species: under 41 nothing was ruled out)
+    const battle = startBattle({ formatid, seed: [44, 2, 3, 4], p1: { name: "사람", team: randomTeam(formatid, random, { even: true }) }, p2: { name: "컴퓨터", team: randomTeam(formatid, random, { meta: true, even: true }) } });
     for (let step = 0; step < 300 && !battle.ended; step++) {
       let moved = false;
       for (const side of ["p2", "p1"]) {
@@ -219,7 +221,7 @@ test("a finished battle with the computer is kept by its replay alone: no player
 function readOneTurn(foeName, foeItem, mineName, foeMove = "move 1") {
   const formatid = formatId("m-c", "singles");
   const pool = setPool(formatid);
-  const set = (name, item) => { const e = pool.find(x => x.species === name), s = e.sets.find(x => !x.mega); return { name: "", species: name, ability: s.ability, item: item || s.items[0], moves: s.moves, nature: s.nature, evs: s.evs, level: 50 }; };
+  const set = (name, item) => { const e = pool.find(x => x.species === name), s = e.sets.find(x => !x.mega) || e.sets[0]; return { name: "", species: name, ability: s.ability, item: item || s.items[0], moves: s.moves, nature: s.nature, evs: s.evs, level: 50 }; };
   const cpu = createCpu(formatid, { random: seeded(3), budgetMs: 30 });
   const battle = startBattle({ formatid, seed: [1, 2, 3, 4], p1: { name: "사람", team: [set(foeName, foeItem)] }, p2: { name: CPU_NAME, team: [set(mineName)] } });
   for (const p1 of ["team 1", foeMove]) {
@@ -232,11 +234,12 @@ function readOneTurn(foeName, foeItem, mineName, foeMove = "move 1") {
 }
 
 test("a Pokémon that should be slower but moves first is read as holding a Choice Scarf none of its sample sets lists", () => {
-  const { items, listed } = readOneTurn("Venusaur", "Choice Scarf", "Archaludon");
+  // Rillaboom's one sample set attacks only, so its Scarf variant is a guess (Venusaur's, the example until 2026-11-18, is now a Mega)
+  const { items, listed } = readOneTurn("Rillaboom", "Choice Scarf", "Archaludon", "move 2");
   assert.ok(!listed.includes("choicescarf"));
   assert.deepEqual([...items], ["choicescarf"]);
-  // the control: with its own item it moves second (Sludge Bomb, so Archaludon still stands), and the Scarf is what is ruled out
-  const own = readOneTurn("Venusaur", null, "Archaludon", "move 2").items;
+  // the control: with its own item it moves second (High Horsepower, so Archaludon still stands), and the Scarf is what is ruled out
+  const own = readOneTurn("Rillaboom", null, "Archaludon", "move 2").items;
   assert.ok(own.size && !own.has("choicescarf"));
 });
 

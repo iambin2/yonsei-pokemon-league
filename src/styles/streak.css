@@ -56,7 +56,6 @@
 .streak-break > .streak-swap { align-self: center; height: 100%; max-height: calc(var(--h-strip) + var(--h-row2) * 6 + var(--seam) * 6); }
 .streak-break > .streak-swap > .streak-trades { height: 100%; grid-template-rows: var(--h-strip); grid-auto-rows: minmax(var(--h-control), 1fr); }
 /* a refusal stands as a strip over the head row while it is the last word */
-.streak-break > .streak-swap > .streak-trades:has(> .streak-trades-title) { grid-template-rows: var(--h-strip) var(--h-strip); }
 /* on a phone a side is 165 wide, and its name was cut at four letters (한카리…, 가라르 …): the mark's column and the side's padding step
    down so five letters stand whole, and a longer name takes a second line at its space, which the taller row holds */
 @media (max-width: 639px) {
@@ -65,8 +64,9 @@
   .streak-break { gap: var(--seam); }
   .streak-break .streak-door-six { display: none; }
   .streak-break .streak-trades { grid-template-columns: minmax(0, 1fr) var(--s5) minmax(0, 1fr); }
-  .streak-break .streak-trade-key { padding: 0 var(--s1); }
-  .streak-break .streak-trade-key > b { white-space: normal; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  /* on a phone a Pokémon to take is its picture alone, its name read out (and opened by its set over the table once chosen) */
+  .streak-break .streak-take { justify-content: center; padding: 0; }
+  .streak-break .streak-take > b { display: none; }
 }
 @media (min-width: 860px) { .streak-break { padding: 0; } }
 /* its head: the run's count beside the next game, one counter high, at 1 to 1.618 */
@@ -110,32 +110,39 @@
 }
 .streak-stake-track { display: flex; align-items: center; min-height: var(--h-row); padding: 0 var(--pad); }
 
-/* the trades: a table whose head row names the two sides and whose rows are the tiers, ours left and theirs right, so a row reads as
-   the trade it is; each side its picture, its name and its info key on the seam; a chosen row inverts both sides */
+/* the trades (2026-11-18, the owner's draft A): a row for each of ours, its picture, name and info key on the left, and on the right,
+   at the golden split, every one of theirs it can be traded for, side by side, three places at least so one alone keeps its size.
+   The chosen one of ours, the mark and the one taken invert; one of ours with none stands off beside an empty panel; one of theirs
+   held by an item already in the party stands off in its row */
 .streak-swap { display: grid; gap: var(--seam); }
-.streak-trades { grid-template-columns: minmax(0, 1fr) var(--h-strip) minmax(0, 1fr); gap: var(--seam); }
+.streak-trades { grid-template-columns: minmax(0, 1fr) var(--h-strip) minmax(0, 1.618fr); gap: var(--seam); }
+.streak-takes { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--seam); min-width: 0; }
+.streak-take { display: flex; align-items: center; gap: var(--s2); min-width: 0; padding: 0 var(--s2); color: inherit; text-align: left; transition: background-color var(--move-tone); }
+.streak-take > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.streak-take > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t12); line-height: var(--l12); font-weight: 700; }
+.streak-take.off { cursor: default; color: var(--mute); }
+.streak-take.off > img { opacity: var(--opacity-disabled); }
+.streak-take:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { .streak-take.pn:not(.off):hover { background: var(--panel-2); } }
+.streak-trades-mark.off { opacity: var(--opacity-disabled); }
 /* the trade's mark between the two sides of a row, dim, lit (inverted) on the row chosen */
 .streak-trades-mark { display: grid; place-items: center; color: var(--mute); }
 .streak-trades-mark.inv { color: var(--ground); }
 /* the table's name as its own top strip across all three columns, a panel like every cell under it */
 .streak-trades-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-width: 0; min-height: var(--h-strip); padding: 0 var(--pad); font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit); }
-/* why the server refused a pair (an item the party already holds), at the strip's right end: it lights as anything arrives, gives way
-   by an ellipsis and never takes a second line; the whole reason is also in the row's i */
 .streak-trades-title > b { flex: none; white-space: nowrap; }
-.streak-trades-note { display: flex; align-items: center; gap: var(--s2); min-width: 0; font-size: var(--t12); line-height: var(--l12); font-weight: 600; animation: y-rise var(--move-light) backwards; }
-.streak-trades-note > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .streak-trades-head { display: flex; align-items: center; min-height: var(--h-strip); padding: 0 var(--pad); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
-.streak-trade { display: grid; grid-template-columns: minmax(0, 1fr) var(--h-control); min-width: 0; min-height: var(--h-control); }
-.streak-trade-key { display: flex; align-items: center; gap: var(--s2); min-width: 0; padding: 0 var(--s2); color: inherit; text-align: left; transition: background-color var(--move-tone); }
-.streak-trade-key > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
-.streak-trade-key > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
-.streak-trade-info { display: grid; place-items: center; color: var(--dim); }
-.streak-trade.inv { background: var(--lit); color: var(--ground); }
-.streak-trade.inv .streak-trade-info { color: var(--ground); }
-.streak-trade.off .streak-trade-key { cursor: default; color: var(--mute); }
-.streak-trade.off .streak-trade-key > img { opacity: var(--opacity-disabled); }
-.streak-trade :focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
-@media (hover: hover) { .streak-trade.pn:not(.off) .streak-trade-key:hover, .streak-trade.pn .streak-trade-info:hover { background: var(--panel-2); } }
+.streak-trade { display: flex; align-items: center; gap: var(--s2); min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--lit); text-align: left; }
+.streak-trade > img { flex: none; width: var(--h-strip); height: var(--h-strip); object-fit: contain; }
+.streak-trade > b:not(.bt-i) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
+.streak-trade > .bt-i { flex: none; margin-left: auto; color: var(--dim); }
+.streak-trade:disabled { cursor: default; }
+.streak-trade.inv, .streak-take.inv { background: var(--lit); color: var(--ground); }
+.streak-trade.inv > .bt-i { color: var(--ground); }
+.streak-trade.off { color: var(--mute); }
+.streak-trade.off > img { opacity: var(--opacity-disabled); }
+.streak-trade:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
+@media (hover: hover) { .streak-trade.pn:not(:disabled):hover { background: var(--panel-2); } }
 /* the chosen row's two sets side by side over the table (Streak.jsx SetPair, 2026-11-16 draft A): each its picture and name, its four
    moves as the cards draw them, its six as bars; it rises as it lights, the table keeps what is left under it */
 .streak-cmp { grid-template-columns: repeat(2, minmax(0, 1fr)); animation: y-rise var(--move-light) backwards; }
@@ -167,22 +174,21 @@
    candidates as whole sets, chosen inverted. A Mega candidate carries the Mega emblem at its top right, and the Mega's place ends the
    row with the emblem: empty it is dim, taken it holds that Pokémon, and every other Mega then stands off with its emblem dim */
 .streak-draft { display: grid; gap: var(--seam); }
-.streak-party { grid-template-columns: repeat(6, minmax(0, 1fr)) var(--h-row); }
+.streak-party { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .streak-slot { position: relative; display: grid; place-items: center; min-width: 0; height: var(--h-row); background: var(--panel); color: var(--mute); font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color var(--move-tone), color var(--move-tone); }
 .streak-slot > img { width: var(--h-control); height: var(--h-control); object-fit: contain; }
 .streak-slot.full { color: var(--lit); }
 .streak-slot.now { background: var(--panel-2); color: var(--lit); }
 .streak-slot.now::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--line); background: var(--lit); }
-.streak-slot.mega { cursor: default; }
-.streak-slot.mega > .streak-mega-mark { width: var(--s8); height: var(--s8); opacity: var(--opacity-disabled); }
-.streak-slot.mega.full > .streak-mega-mark { position: absolute; top: var(--s1); right: var(--s1); width: var(--s3); height: var(--s3); opacity: 1; }
+/* a place not reached yet stands off: its three are seen only when its turn comes (2026-11-18) */
+.streak-slot:disabled { opacity: var(--opacity-disabled); cursor: default; }
+.streak-slot > .streak-mega-mark { position: absolute; top: var(--s1); right: var(--s1); width: var(--s3); height: var(--s3); }
 .streak-slot:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
-@media (hover: hover) { button.streak-slot:not(.now):hover { background: var(--panel-2); } }
+@media (hover: hover) { button.streak-slot:not(.now):not(:disabled):hover { background: var(--panel-2); } }
 .streak-draft-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .streak-draft-row .bt-card-hp { display: none; }
 .streak-pick { position: relative; display: grid; min-width: 0; }
 .streak-pick > .streak-mega-mark { position: absolute; top: var(--s2); right: var(--s2); width: var(--s5); height: var(--s5); pointer-events: none; }
-.streak-pick.off > .streak-mega-mark { opacity: var(--opacity-disabled); }
 /* a set's six as bars on their tracks (Streak.jsx StatBars, the info sheet's bar form): the word, the bar, the number, one row each */
 .streak-stats { display: grid; gap: var(--seam); }
 .streak-stat { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--s8); align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -198,8 +204,7 @@
 .streak-pick-stats.on :is(.streak-stat, .streak-stat > b) { color: var(--ground); }
 .streak-pick-stats.on .tb-bar { background: var(--dim); }
 .streak-pick-stats.on .tb-bar > i { background: var(--ground); }
-.streak-pick.off > .streak-pick-stats { opacity: var(--opacity-disabled); }
-.streak-pick:not(.off) > .streak-pick-stats { cursor: pointer; }
+.streak-pick > .streak-pick-stats { cursor: pointer; }
 @media (max-width: 639px) {
   .streak-draft-row .bt-card { gap: var(--s2); padding: var(--s2); }
   /* three across a phone, a chosen-from card stands its picture over its name (the team preview's grid would cut the name) */
@@ -248,5 +253,5 @@
 @media (hover: hover) { .streak-door.pn:hover { background: var(--panel-2); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .streak-break, .streak-trades-note, .streak-cmp { animation: none; }
+  .streak-break, .streak-cmp { animation: none; }
 }

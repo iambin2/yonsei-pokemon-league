@@ -114,10 +114,13 @@ const id = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 const base = s => String(s).split("-")[0];
 const named = (species, shown) => id(species) === id(shown) || (String(shown).endsWith("-*") && id(base(species)) === id(String(shown).slice(0, -2)));
 
-/* 이긴 뒤 내 파티의 하나와 이긴 상대의 하나를 바꾼다(층 안에서만). give, take: 화면이 보인 종 이름으로 고른다. 엔진의 요청은 선출한
+/* 이긴 뒤 내 파티의 하나와 이긴 상대의 하나를 바꾼다. give, take: 화면이 보인 종 이름으로 고른다. 엔진의 요청은 선출한
    순서로 파티를 다시 늘어놓으므로 자리로는 고를 수 없다. 같은 급끼리만 바꾼다(2026-11-09): 파티의 힘이 이겨도 오르지 않아, 층의
    수문장과의 차이가 판마다 같다. 답은 새 파티, 아니면 왜 못 바꾸는지: "missing"(그 이름의 포켓몬이 없음), "tier"(급이 다름),
-   "clash"(같은 종이 둘이 됨. 같은 도구는 바뀌는 포켓몬의 도구를 받아 피한다). 서버는 그 뒤 검증기로 한 번 더 본다 */
+   "clash"(같은 종이 둘이 됨), "item"(들어오는 포켓몬의 도구를 남는 다섯 가운데 하나가 이미 듦). 들어오는 포켓몬은 언제나 제 세트
+   그대로 온다(2026-11-18, 사용자: "도구 중복 불가 때문에 의미 없어지는 샘플이 너무 많아"): 예전에는 나가는 포켓몬의 도구를 넘겨받아
+   기술과 맞지 않는 세트가 되었다. 메가스톤은 여럿이어도 된다(같은 날, 엔진이 한 판에 한 번만 진화시킨다). 화면은 이긴 판 뒤
+   상대 여섯의 세트를 받으므로(배틀 함수 beaten) 같은 함수로 누르기 전에 된다, 안 된다를 그린다. 서버는 그 뒤 검증기로 한 번 더 본다 */
 /* 2026-11-11 (14장): 급은 탑의 풀(랭커 구축에 나온 종) 안에서 나눈 것이다(src/data/tower-tiers.json). 풀 밖의 종(15장부터 상대가
    데려오는 종, 예전 도전의 파티)은 잰 몫(partyBalance.js ratingOf)으로 그 급의 경계(급마다 가장 낮은 몫)에 끼워 넣는다(사용자가 고름) */
 const TOWER_BY_ID = new Map(Object.entries(TOWER_TIERS).map(([k, v]) => [id(k), v]));
@@ -140,19 +143,8 @@ export function swapParty(party, foes, give, take, reach = 0) {
   if (!(up >= 0 && up <= reach)) return "tier";
   const rest = party.filter((_, i) => i !== out);
   if (rest.some(m => id(base(m.species)) === id(base(coming.species)))) return "clash";
-  // "mega": a second Mega Stone, as the draft refuses it (15장: a foe may bring one)
-  if (MEGA_STONE.test(coming.item || "") && rest.some(m => MEGA_STONE.test(m.item || ""))) return "mega";
-  /* an item already in our party: the one coming takes the item of the one it replaces, which the party never holds twice (the
-     screen cannot see the beaten party's items, so it could not keep a pair it offers from being refused, 2026-11-09). A Mega
-     Stone is not handed on: it belongs to its species */
-  let item = coming.item;
-  if (rest.some(m => m.item && m.item === item)) {
-    item = party[out].item;
-    // "item": the one coming would hold an item the party already holds, and the one it replaces has none to hand on (2026-11-09:
-    // it was told as a second species, so the screen named the wrong reason)
-    if (!item || MEGA_STONE.test(item)) return "item";
-  }
+  if (coming.item && rest.some(m => m.item && id(m.item) === id(coming.item))) return "item";
   const next = [...party];
-  next[out] = { ...coming, item, name: "" };
+  next[out] = { ...coming, name: "" };
   return next;
 }

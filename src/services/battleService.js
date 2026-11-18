@@ -56,7 +56,7 @@ const asSeat = (id, action, extra = {}, account = false) => {
 /* 연승 도전 (docs/BATTLE_STREAK.md): an ended game's answer carries the run (streak: { wins, lives, status, won, foe }). The run rests
    (status active) after a won game, and after a lost one while a lamp is left (2026-11-10, the three lamps), until its player opens
    the next game (streakNextGame); the ended game's seat keeps what happened (wins: the wins before the next game, lives: the lamps
-   left, won, ended: the run is over, foe: the sets a lost game was lost to), so its end screen and the tab's 이어서 하기 offer the next
+   left, won, ended: the run is over, foe: the sets a lost game was lost to, beaten and own: the six a won game beat and our six as it began, whole, 2026-11-18), so its end screen and the tab's 이어서 하기 offer the next
    game again after a reload. A seat's own view of the game the run stands on carries the same (a game the clock ended while its
    player was away). */
 /* the game of this device's run (the one being played, or the ended one the run rests on), so the tab offers 이어서 하기. A device
@@ -83,7 +83,7 @@ function keepRun(id, view) {
   const seat = readSeat(id);
   if (over && currentStreakGame(seat?.daily) === id) keepStreakGame(null, seat?.daily);
   // doors: the doors to the next game ({ kind, species }), reach: how far up its trade goes (2026-11-11)
-  if (seat) keepSeat(id, { ...seat, streak: true, wins: run.wins, lives: run.lives, won, ended: over, ...(run.foe ? { foe: run.foe } : {}), ...(run.doors ? { doors: run.doors, reach: run.reach ?? 0 } : {}) });
+  if (seat) keepSeat(id, { ...seat, streak: true, wins: run.wins, lives: run.lives, won, ended: over, ...(run.foe ? { foe: run.foe } : {}), ...(run.beaten ? { beaten: run.beaten, own: run.own } : {}), ...(run.doors ? { doors: run.doors, reach: run.reach ?? 0 } : {}) });
   return view;
 }
 export const viewBattle = id => asSeat(id, "view").then(view => keepRun(id, view));

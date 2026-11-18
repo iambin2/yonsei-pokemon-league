@@ -6,3 +6,17 @@ export function pushMode({ connected, hasPush, ios, standalone }) {
   if (hasPush) return "ready";
   return ios && !standalone ? "install" : "unsupported";
 }
+
+/* 알림 종류(docs/PUSH.md), 더보기에 이 차례로 선다. personal: 구글 계정에 이어진 기기에만 오는 것.
+   이름은 docs/db/push_kinds.sql 의 push_subscriptions_kinds 와 같아야 한다(tests/announcementPushPolicy.test.mjs). */
+export const PUSH_KINDS = [
+  { kind: "notice", label: "공지" },
+  { kind: "schedule", label: "대회 일정" },
+  { kind: "match", label: "내 경기", personal: true },
+  { kind: "board", label: "게시판 새 글" },
+  { kind: "tower", label: "도전의 탑 순위", personal: true },
+  { kind: "daily", label: "오늘의 탑" },
+];
+
+// one kind switched: the list the server keeps, in this order
+export const toggleKind = (kinds, kind) => PUSH_KINDS.map(k => k.kind).filter(k => (k === kind) !== kinds.includes(k));

@@ -49,7 +49,7 @@ test("a seeded draw is the same for the same key and differs between keys (오�
   assert.ok(take(seeded("x")).every(v => v >= 0 && v < 1));
 });
 
-test("the draft: three of each tier, all species apart; a party picked from it is legal, holds no item twice and at most one Mega", async () => {
+test("the draft: three of each tier, all species and all items apart, so any picks make a legal party of the sets shown", async () => {
   const { draftParty } = await import("../supabase/functions/battle/engine.mjs");
   const { draftOffer } = await import("../supabase/functions/battle/streakEngine.mjs");
   for (let i = 0; i < 20; i++) {
@@ -60,10 +60,14 @@ test("the draft: three of each tier, all species apart; a party picked from it i
     assert.equal(new Set(all).size, all.length);
     assert.ok(offer.every((row, t) => row.every(c => swapTier(c.species) === t)), "each row is its tier");
     assert.ok(offer.flat().every(c => c.species in TOWER_TIERS), "only species the ladder's top teams bring");
-    const picks = offer.map(row => (row.find(c => !c.mega) || row[0]).species);
+    const items = offer.flat().map(c => c.item);
+    assert.equal(new Set(items).size, items.length, "no two candidates hold one item");
+    assert.ok(offer.flat().every(c => !("items" in c)), "no back-up items");
+    // every row's last, so Megas come along whenever a row offers them (two or more may be held)
+    const picks = offer.map((row, k) => row[(i + k) % row.length].species);
     const team = draftParty(STREAK_FORMAT_ID, offer, picks);
     assert.ok(Array.isArray(team), String(team));
-    assert.equal(new Set(team.map(m => m.item)).size, 6);
+    assert.deepEqual(team.map(m => m.item), picks.map((sp, k) => offer[k].find(c => c.species === sp).item), "each holds the item it was shown with");
     assert.ok(team.every(m => !STREAK_BAN.items.includes(m.item)));
   }
   const offer = draftOffer(seeded("draft:x"), { ban: STREAK_BAN });
@@ -92,7 +96,7 @@ test("a foe is built for its game: legal, free of the ban, and the second door d
   assert.equal(seenWith([], Array.from({ length: 50 }, (_, i) => `s${i}`)).length, 36);
 });
 
-test("a species outside the ladder's pool trades in the tier its measured share reaches, and a second Mega is refused", () => {
+test("a species outside the ladder's pool trades in the tier its measured share reaches, and a second Mega Stone may come", () => {
   const outside = ["Arbok", "Houndstone", "Empoleon"].filter(s => !(s in TOWER_TIERS));
   assert.ok(outside.length);
   for (const s of outside) {
@@ -102,7 +106,7 @@ test("a species outside the ladder's pool trades in the tier its measured share 
   }
   const rated = Object.keys(TOWER_TIERS).filter(s => !s.includes("-"));
   const a = rated[0], b = rated.find(s => s !== a && swapTier(s) === swapTier(a)), other = rated.find(s => swapTier(s) !== swapTier(a));
-  assert.equal(swapParty([{ species: a, item: "Leftovers" }, { species: other, item: "Gengarite" }], [{ species: b, item: "Garchompite" }], a, b), "mega");
+  assert.deepEqual(swapParty([{ species: a, item: "Leftovers" }, { species: other, item: "Gengarite" }], [{ species: b, item: "Garchompite" }], a, b).map(m => m.item), ["Garchompite", "Gengarite"]);
 });
 
 test("the server's computer keeps its 난이도's play and thinks within the time that keeps its slowest choice under a second", () => {
@@ -113,7 +117,7 @@ test("the server's computer keeps its 난이도's play and thinks within the tim
   }
 });
 
-test("a swap is tier for tier, never brings two of a species, and an item twice is handed the one replaced", () => {
+test("a swap is tier for tier, never brings two of a species, and the one coming keeps its own set: an item twice is refused", () => {
   // species from the measured table: two of one tier and one of another (partyBalance.js)
   const rated = Object.keys(TOWER_TIERS).filter(s => !s.includes("-"));
   const a = rated[0], same = rated.filter(s => s !== a && swapTier(s) === swapTier(a)), other = rated.find(s => swapTier(s) !== swapTier(a));
@@ -122,8 +126,8 @@ test("a swap is tier for tier, never brings two of a species, and an item twice 
   const foes = [{ species: b, item: "Choice Scarf", name: "x" }, { species: c, item: "Leftovers" }, { species: rated.find(s => swapTier(s) !== swapTier(a) && s !== other), item: "Life Orb" }];
   assert.deepEqual(swapParty(party, foes, a, b), [{ species: b, item: "Choice Scarf", name: "" }, party[1]]);
   assert.equal(swapParty(party, foes, a, foes[2].species), "tier", "another tier");
-  assert.equal(swapParty(party, foes, a, c)[0].item, "Focus Sash", "a second Leftovers: it takes the item of the one it replaces");
-  assert.equal(swapParty([{ species: a, item: "Blazikenite" }, { species: other, item: "Leftovers" }], foes, a, c), "item", "a Mega Stone is not handed on");
+  assert.equal(swapParty(party, foes, a, c), "item", "a second Leftovers");
+  assert.equal(swapParty([{ species: a, item: "Leftovers" }, { species: other, item: "Focus Sash" }], foes, a, c)[0].item, "Leftovers", "the one it replaces held it");
   assert.equal(swapParty([{ species: a, item: "Focus Sash" }, { species: b, item: "Leftovers" }], [{ species: b, item: "Life Orb" }, ...foes], a, b), "clash", "a second species");
   assert.equal(swapParty(party, foes, "Mew", b), "missing");
 });

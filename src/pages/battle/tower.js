@@ -198,36 +198,89 @@ function mark(el, show = true) {
 }
 /* the tab's tower answers a hand: held and dragged, the camera goes round the tower with it and, under a mouse, up and down it (a
    finger's way up and down is the page's scroll); let go, it comes back to the door the run stands before, where it belongs. The
-   marks stand aside while it is away. Nothing is held while a move plays */
+   marks stand aside while it is away. Nothing is held while a move plays.
+   2026-11-18 (the user: "도전의 탑 3D 모델의 터치 상호작용이 부자연스러워"): a touch is taken only once it has moved 6 px and more across
+   than up or down, so a tap or a scroll no longer hides the marks for a moment; the tower turns under the finger one to one (its face
+   moves as far as the finger, by the tower's radius on the screen); let go, it glides on with the hand's speed and slows as a heavy
+   thing does (decay 325 ms), rests a moment where it stopped (REST) and only then turns home; and a hand may catch it again anywhere
+   on that way. The glide and the way home run on their own frames, not as a move, so they never hold the hand off */
+const SLOP = 6, GLIDE_DECAY = 325, REST = 1200, HOME = 680;
 function hand(el) {
   if (el.twHand) return;
   el.twHand = true;
-  let from = null;
+  let g = null, raf = 0;
+  const stop = () => { cancelAnimationFrame(raf); raf = 0; };
+  // the tower's radius on the screen at the door's height, so the face under a finger moves with it
+  const radius = tw => {
+    const v = tw.view, y = (tw.s + .5) / 5 * PITCH;
+    if (!v) return tw.m.W / 3.4;
+    const c = v.project([0, y, 0])[0], r = v.project([RR * Math.sin(v.phi + Math.PI / 2), y, RR * Math.cos(v.phi + Math.PI / 2)])[0];
+    return Math.max(tw.m.W / 8, Math.abs(r - c));
+  };
+  const lookAt = (tw, dphi, dy) => {
+    const top = topOf(tw.st.floor), base = viewOf(tw.kind, tw.s, tw.m, top).camY;
+    tw.look = { dphi, dy: Math.min(top * PITCH + 1.6 - base, Math.max(.9 - base, dy)) };
+    paint(el);
+  };
+  // after a release: glide on at v (radians a millisecond), rest, then turn home; each frame checks the scene is still this one
+  const glide = (tw, v) => {
+    let last = performance.now(), still = null, home = null;
+    const frame = now => {
+      if (el.tower !== tw || !el.isConnected || !tw.look) { raf = 0; return; }
+      const dt = Math.min(48, now - last);
+      last = now;
+      if (Math.abs(v) > 1e-4) {
+        v *= Math.exp(-dt / GLIDE_DECAY);
+        lookAt(tw, tw.look.dphi + v * dt, tw.look.dy);
+      } else if ((still ??= now) + REST > now) { /* resting where it stopped */ }
+      else {
+        home ??= { t0: now, from: { ...tw.look } };
+        const e = out3(Math.min(1, (now - home.t0) / HOME));
+        if (e >= 1) { tw.look = null; paint(el); raf = 0; mark(el); return; }
+        tw.look = { dphi: home.from.dphi * (1 - e), dy: home.from.dy * (1 - e) };
+        paint(el);
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  };
   el.addEventListener("pointerdown", e => {
     const tw = el.tower;
-    if (!tw?.m.hall || tw.anims.size || scene || reduced() || e.button) return;
-    from = { x: e.clientX, y: e.clientY };
-    el.setPointerCapture?.(e.pointerId);
-    el.classList.add("held");
-    // (their coming in still holds their opacity, so they are hidden outright)
-    marksOf(el).forEach(x => { x.style.visibility = "hidden"; });
+    if (!tw?.m.hall || tw.anims.size || scene || reduced() || e.button || g) return;
+    // a tower still gliding or turning home is caught where it is
+    stop();
+    g = { id: e.pointerId, x: e.clientX, y: e.clientY, touch: e.pointerType === "touch", on: false, base: tw.look || { dphi: 0, dy: 0 }, trail: [] };
   });
   el.addEventListener("pointermove", e => {
     const tw = el.tower;
-    if (!from || !tw) return;
-    const top = topOf(tw.st.floor), base = viewOf(tw.kind, tw.s, tw.m, top).camY;
-    const dy = e.pointerType === "touch" ? 0 : (e.clientY - from.y) / tw.m.H * 5;
-    tw.look = { dphi: -(e.clientX - from.x) / tw.m.W * 3.4, dy: Math.min(top * PITCH + 1.6 - base, Math.max(.9 - base, dy)) };
-    paint(el);
+    if (!g || e.pointerId !== g.id || !tw) return;
+    if (!g.on) {
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (Math.hypot(dx, dy) < SLOP) return;
+      // more up or down than across: the page's scroll, and the tower stays as it was
+      if (g.touch && Math.abs(dy) >= Math.abs(dx)) { g = null; if (tw.look) glide(tw, 0); return; }
+      Object.assign(g, { on: true, x: e.clientX, y: e.clientY, r: radius(tw) });
+      el.setPointerCapture?.(e.pointerId);
+      el.classList.add("held");
+      // (their coming in still holds their opacity, so they are hidden outright)
+      marksOf(el).forEach(x => { x.style.visibility = "hidden"; });
+    }
+    g.trail.push([e.timeStamp, e.clientX]);
+    while (g.trail.length > 2 && e.timeStamp - g.trail[0][0] > 80) g.trail.shift();
+    lookAt(tw, g.base.dphi - (e.clientX - g.x) / g.r, g.base.dy + (g.touch ? 0 : (e.clientY - g.y) / tw.m.H * 5));
   });
-  const end = () => {
-    const tw = el.tower;
-    if (!from) return;
-    from = null;
+  const end = e => {
+    const tw = el.tower, was = g;
+    if (!was || e.pointerId !== was.id) return;
+    g = null;
     el.classList.remove("held");
-    const was = tw?.look;
-    if (!was) { marksOf(el).forEach(x => { x.style.visibility = ""; }); return; }
-    void animate(el, 680, t => { tw.look = t >= 1 ? null : { dphi: was.dphi * (1 - t), dy: was.dy * (1 - t) }; }, out3).then(() => { if (el.tower === tw) mark(el); });
+    if (!tw) return;
+    if (!was.on) { if (tw.look) glide(tw, 0); return; }
+    // the hand's speed over its last 80 ms; none when it was held still before letting go or the browser took the touch away
+    const [a, b] = [was.trail[0], was.trail.at(-1)];
+    const moving = e.type === "pointerup" && a && b && b[0] > a[0] && e.timeStamp - b[0] < 50;
+    const v = moving ? -(b[1] - a[1]) / (b[0] - a[0]) / was.r : 0;
+    glide(tw, Math.max(-.006, Math.min(.006, v)));
   };
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", end);

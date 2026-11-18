@@ -1325,11 +1325,16 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const [foeOpen, setFoeOpen] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const narrow = useNarrow();
-  /* 중계 (2026-11-16, the owner's draft 3-B): one watching a battle being played has nothing to press, so from 860 there is no side
-     column: the stage takes the match's whole width, the strips stand a counter high, the head stands over the stage as a phone's does
-     with the menu behind its key, and the log is the deck. On a phone the log band takes the message window's place */
-  const cast = watching;
-  const compact = narrow || cast;
+  /* 중계 (2026-11-16, the owner's draft 3-B; 2026-11-18, the user: "데스크톱 중계 화면이 필요 없이 널찍하게 되어 있어. 배틀이 끝나면
+     화면 비율이 급격하게 바뀌어"). On a phone the log band takes the message window's place. From 860 one watching stands in the
+     player's own frame, the stage at 16 to 9 with the column beside it (head, both parties, the other battles, the log): with no
+     column the head, two strips, three log lines and the replay keys were all stacked over the window's height, and the stage that was
+     left stood 1200 by 150. And a page opened to watch a battle being played keeps its frame once the battle is over: watching turns
+     false at the end, and the match changed its frame under the eye. A battle opened after its end is a replay, and stands as before */
+  const castOf = useRef(null);
+  if (watching) castOf.current = row.id;
+  const cast = castOf.current === row.id;
+  const compact = narrow;
   const shortPick = useNarrow(SHORT_PICK), wide = useNarrow(WIDE);
   /* both heights are told by the browser when they change (useHeight), never read after a draw: read in every draw of the match they
      forced a layout for each line the stage played, twice (2026-11-10, measured at a phone's speed). The deck's floor only rises: with
@@ -1547,7 +1552,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   </div>;
   // the information bay (desktop) and the sheet a long press opens (phone): what the key, the card or the bench cell is
   const tipView = key => tipFor(key, { res, own: () => ownList(), picks: () => (previewParty.current ? ownCards(res, previewParty.current) : []),
-    foeCards: () => (scene ? seenCards(res, scene[foe].roster, moveField) : []), foeAt: slot => nameAt(foe, slot) });
+    foeCards: () => (scene ? seenCards(res, scene[foe].roster, moveField) : []), foeAt: slot => nameAt(foe, slot),
+    // a won 도전의 탑 game's beaten six are known whole (2026-11-18), so a trade's foe opens its whole set
+    beaten: () => (readSeat(row.id)?.beaten || []).map((m, i) => ({ key: m.species + i, species: m.species, ability: m.ability, item: m.item, moves: (m.moves || []).map(id => ({ id: toID(id), pp: "" })) })) });
   return (
     <div className={"bt-page bt-match" + (cast ? " cast" : "")} onPointerDown={pressStart} onPointerMove={pressEnd} onPointerUp={pressEnd} onPointerCancel={pressEnd}
       onClickCapture={pressClick} onContextMenu={pressMenu}>
@@ -1558,7 +1565,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               board saying who plays, never on the team preview (2026-11-07, the user: "처음에 선택 창이 미묘하게 보이는 문제") */}
           {started || ended
             ? <Stage scene={scene} stageRef={tape.stageRef} perspective={perspective} doubles={doubles} res={res} names={names} clock={left} mine={Boolean(seat && !waiting)} dark={Boolean(opening?.play)}
-                said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} />
+                said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} />
             : seat && previewParty.current
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}
                 locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} onInfo={narrow || shortPick ? i => setSheetTip(`pick:${i}`) : null}
@@ -1575,7 +1582,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
           sound={sound} awake={awake} onSound={soundKey} />}
         {watching && started && liveStops && liveStops.stops.length > 1 && <ReplayBar stops={liveStops.stops} at={at} playing={autoplay} onJump={jump} onStep={stepOn} onPlay={play}
           sound={sound} awake={awake} onSound={soundKey} live={cue == null} onLive={() => jump(Infinity)} />}
-        {cast && started && <div className="bt-castlog"><Log box={tape.lines} live /></div>}
+        {cast && narrow && started && <div className="bt-castlog"><Log box={tape.lines} live /></div>}
         {shownEnded && <section className="bt-end" aria-label="배틀 결과">
           {following && !followed && <div className="pn bt-waiting"><Busy h={32} /><span className="t15">다음 판을 기다리는 중…</span></div>}
           {/* the end in the deck's own room (2026-11-09 second round, the user: "승리했을 때 갑자기 전체화면이 되는 것도 안 좋고",
@@ -1648,14 +1655,14 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
 
 /* what a thing in the battle is, for the information bay and the long press's sheet (DESIGN.md "Battle", Information at hand).
    key: move:<id>:<type>:<power>:<pp>, own:<index> (our brought party), pick:<index> (the team preview's six), mega:<species>:<item>:<why> */
-function tipFor(key, { res, own, picks, foeCards = () => [], foeAt = () => "상대" }) {
+function tipFor(key, { res, own, picks, foeCards = () => [], foeAt = () => "상대", beaten = () => [] }) {
   const [kind, ...rest] = String(key).split(":");
   if (kind === "swap") {
     const [side, species, why] = rest;
     /* a Pokémon that changed its form in the game (a Mega) stands in the cards under its new name: it is still the one the row names
        (2026-11-10: its i opened a sheet with nothing in it) */
     const same = c => c.species === species || toID(c.species).startsWith(toID(species)) || toID(species).startsWith(toID(c.species));
-    const card = (side === "own" ? own() : foeCards()).find(same);
+    const card = (side === "own" ? own() : [...beaten(), ...foeCards()]).find(same);
     return card ? <div className="bt-tip">{why && <p className="bt-tip-say">{why}</p>}<MonCard res={res} {...card} key={card.key} explain /></div> : null;
   }
   if (kind === "own" || kind === "pick") {

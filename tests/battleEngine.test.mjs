@@ -2,7 +2,7 @@
 // and a finished battle replayed from its input log to the very same log.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatId, validateTeam, startBattle, loadBattle, choose, forfeit, readout, replay, randomTeam } from "../supabase/functions/battle/engine.mjs";
+import { formatId, validateTeam, startBattle, loadBattle, choose, forfeit, readout, replay, randomTeam, setPool } from "../supabase/functions/battle/engine.mjs";
 import { requestKey, slotPasses } from "../src/services/battleLog.js";
 import { explicit, picker } from "./battlePicker.mjs";
 
@@ -38,7 +38,9 @@ test("a random party is six legal species, one of each, every one holding an ite
       assert.ok(items.every(Boolean), "every Pokémon holds an item");
       assert.equal(new Set(items).size, items.length, "no item twice");
       assert.ok(team.every(set => set.moves.length === 4 || set.species === "Ditto"), "four moves each (Ditto has only Transform)");
-      assert.ok(team.filter(set => /ite( [XYZ])?$/.test(set.item) && !["Eviolite"].includes(set.item)).length <= 1, "one Mega Stone at most");
+      // a whole set: the item is the set's own, never another's handed on (2026-11-18); Mega Stones may be many
+      const pool = setPool(formatid);
+      assert.ok(team.every(m => pool.find(e => e.species === m.species).sets.some(s => s.items[0] === m.item && s.moves.join() === m.moves.join())), "each holds its own set whole");
     }
   }
   const battle = startBattle({ formatid: formatId("m-c", "doubles"), seed: [5, 6, 7, 8], p1: { name: "갑", team: randomTeam(formatId("m-c", "doubles")) }, p2: { name: "을", team: randomTeam(formatId("m-c", "doubles")) } });

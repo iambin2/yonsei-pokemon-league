@@ -267,8 +267,13 @@ function foeSets(inputLog: unknown) {
   const brought = String(inputLog ?? "").split("\n").find(l => l.startsWith(">p2 team "))?.slice(">p2 team ".length).match(/\d/g) || [];
   const six = sideTeam(inputLog, "p2");
   return brought.map(n => six[Number(n) - 1]).filter(Boolean)
-    .map((m: Record<string, any>) => ({ species: m.species, ability: m.ability, item: m.item, moves: m.moves, nature: m.nature }));
+    .map(shownSet);
 }
+const shownSet = (m: Record<string, any>) => ({ species: m.species, ability: m.ability, item: m.item, moves: m.moves, nature: m.nature, evs: m.evs });
+/* the party a won game beat, all six whole, and our own six as the game began, before any berry was eaten (2026-11-18): the trade
+   takes any of theirs, and the screen draws which of ours each can replace before a tap, item clashes included (streak.js
+   swapParty). Both are public from the game's end as the lost one's are (the replay) */
+const beatenSets = (inputLog: unknown) => ({ beaten: sideTeam(inputLog, "p2").map(shownSet), own: sideTeam(inputLog, "p1").map(shownSet) });
 /* After a streak game has ended and been saved (streak_settle, the three lamps, 2026-11-10): a win counts, and a gatekeeper beaten
    lights a lamp again; a game lost any way (the battle, a forfeit, the clock, a tie) puts one out, and the run ends only when none is
    left. The next game is not opened here: its clock starts when its player presses 다음 판 (streakNext), so the run rests between
@@ -294,7 +299,7 @@ async function streakAfter(battle: Record<string, any>, memory: StreakMemory | n
   const kept = going && Array.isArray(run?.offer?.doors) ? run.offer : { doors, reach };
   return {
     wins: run?.wins ?? before, lives: run?.lives ?? 0, status: run?.status ?? "ended", won,
-    ...(going ? { doors: shownDoors(kept.doors), reach: kept.reach ?? 0 } : {}), ...(won ? {} : { foe: foeSets(out.inputLog) }),
+    ...(going ? { doors: shownDoors(kept.doors), reach: kept.reach ?? 0 } : {}), ...(won ? beatenSets(out.inputLog) : { foe: foeSets(out.inputLog) }),
   };
 }
 /* the run as an ended game's own seat reads it again (a game the clock ended, a page opened again): only from the game the run
@@ -307,16 +312,14 @@ async function streakSeen(battle: Record<string, any>, secret: Record<string, an
   if (!run || run.battle_id !== battle.id) return {};
   const won = battle.winner === "p1";
   const uncounted = Boolean(secret.state) && run.status === "active";
-  let inputLog = "";
-  if (!won || uncounted) {
-    const { data, error } = await db.from("battles").select("input_log").eq("id", battle.id).maybeSingle();
-    if (error) throw error;
-    inputLog = data?.input_log ?? "";
-  }
+  // the lost game's foe and the won game's beaten six are both read off its input log
+  const { data, error } = await db.from("battles").select("input_log").eq("id", battle.id).maybeSingle();
+  if (error) throw error;
+  const inputLog = data?.input_log ?? "";
   if (uncounted) return { streak: await streakAfter(battle, secret.cpu_memory as StreakMemory | null, { winner: battle.winner, inputLog }) };
   const foe = won ? null : foeSets(inputLog);
   const going = run.status === "active" && run.offer?.doors;
-  return { streak: { wins: run.wins, lives: run.lives, status: run.status, won, ...(going ? { doors: shownDoors(run.offer.doors), reach: run.offer.reach ?? 0 } : {}), ...(foe ? { foe } : {}) } };
+  return { streak: { wins: run.wins, lives: run.lives, status: run.status, won, ...(going ? { doors: shownDoors(run.offer.doors), reach: run.offer.reach ?? 0 } : {}), ...(foe ? { foe } : beatenSets(inputLog)) } };
 }
 // a draft as the screen shows it: each candidate's whole set, without the back-up items the party is settled with (draftParty)
 const shownDraft = (draft: Record<string, any>[][]) => draft.map(row => row.map(({ items, ...c }) => c));
@@ -619,7 +622,6 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     if (!run?.offer?.draft || run.battle_id) refuse(409, "고를 파티가 없습니다. 도전을 다시 시작해 주세요.", { reason: "gone" });
     const party = draftParty(STREAK_FORMAT, run.offer.draft, Array.isArray(picks) ? picks.map(String) : []);
     if (party === "pick") refuse(409, "급마다 후보 가운데 하나씩 골라 주세요.");
-    if (party === "mega") refuse(409, "메가진화 포켓몬은 하나만 데려갈 수 있습니다.");
     if (party === "item" || party === "illegal") refuse(409, "이 조합은 규정에 맞지 않습니다. 다른 후보를 골라 주세요.", { reason: party });
     const game = await nextGame(run.trainer_name, 0, party as unknown[], { random: drawFor(run.daily, "game:0:0"), seen: run.daily ? null : [] });
     const { data, error } = await db.rpc("streak_first", { p_run: run.run_id, ...game.args });
@@ -677,7 +679,6 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
         if (swapped === "tier") refuse(409, Number(run?.offer?.reach) ? "한 급 위까지만 바꿀 수 있습니다." : "힘이 같은 급의 포켓몬끼리만 바꿀 수 있습니다.", { pair });
         if (swapped === "clash") refuse(409, "같은 포켓몬이 둘이 되어 바꿀 수 없습니다.", { pair });
         if (swapped === "item") refuse(409, "파티에 같은 도구가 있어 바꿀 수 없습니다.", { pair });
-        if (swapped === "mega") refuse(409, "메가진화 포켓몬은 하나만 데려갈 수 있습니다.", { pair });
         party = swapped;
       }
       if (validateTeam(STREAK_FORMAT, party)) refuse(409, "이 교환으로는 파티가 규정에 맞지 않습니다. 다시 골라 주세요.");
@@ -833,6 +834,10 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
         });
         if (error?.code === "23505") return undefined; // the other player opened it a moment earlier: read again
         if (error) throw error;
+        // the opponent's 내 경기 alert: the new room's trigger queued it (docs/db/push_kinds.sql), the sender sends it now (docs/PUSH.md)
+        later(fetch(`${URL_BASE}/functions/v1/notify-announcement`, {
+          method: "POST", headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" }, body: "{}",
+        }));
         return { id, token, side: "p1" };
       }
       const mine = open.p1_entry_id === seatInfo.entryId ? "p1" : open.p2_entry_id === seatInfo.entryId ? "p2" : null;

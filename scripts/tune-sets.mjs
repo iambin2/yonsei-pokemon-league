@@ -15,7 +15,7 @@
 //
 //   STATS_CACHE=<dir> node scripts/tune-sets.mjs [--kind singles|doubles] [--lanes 8]
 //   (the 2026-10 chaos files of gen9championsbssregmc and gen9championsvgc2026regmc, -1760 and -0, in <dir>), then
-//   node scripts/render-sample-sets.mjs
+//   node scripts/curate-sets.mjs (one build, one item, docs/SAMPLE_SETS.md 5장) and node scripts/render-sample-sets.mjs
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fork } from "node:child_process";
 import { cpus } from "node:os";

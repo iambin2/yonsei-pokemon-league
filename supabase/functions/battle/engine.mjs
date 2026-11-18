@@ -70,9 +70,11 @@ export function validateTeam(formatid, sets) {
 
 /* A random party (the committee, 2026-11-05: random battles for friendlies and as a way Light events are played): six species from
    the sample sets scripts/build-random-sets.mjs builds from the ladder's usage statistics, kept to the regulation. One of each species,
-   one set of each drawn by how often it is played, at most one Mega Stone, and no item twice (the item clause): a set's first item that
-   is still free, from back-ups chosen for that set, so no Pokémon goes without. It is checked by the validator like any party, and drawn
-   again in the rare case it is refused. meta draws the species by how often the ladder brings them (the computer's party), instead of
+   one set of each drawn by how often it is played, and no item twice (the item clause). A set is whole: it holds its own item, the first
+   it lists, and is never handed another (2026-11-18, the user: "도구 중복 불가 때문에 의미 없어지는 샘플이 너무 많아"); when that item is
+   taken, another set of the species whose item is free stands in, or the next species. Mega Stones may be many, as in the game; the
+   engine lets one Mega Evolve a battle (the same day, "메가진화를 하나만 허용하는 게 이해가 안 돼"). It is checked by the validator like
+   any party, and drawn again in the rare case it is refused. meta draws the species by how often the ladder brings them (the computer's party), instead of
    every species alike. */
 const KIND_OF = Object.fromEntries(Object.entries(FORMAT_IDS).flatMap(([reg, ids]) => Object.entries(ids).map(([kind, id]) => [id, [reg, kind]])));
 export function shuffled(list, random) {
@@ -96,8 +98,8 @@ const weightedOrder = (list, weight, random) => list.map(entry => [Math.pow(rand
    meta: within a tier, drawn by ladder usage, as the computer's party is. master: MASTER_PLAN, a tier up (scripts/rate-species.mjs).
    even: every species alike with no balance, as before 2026-11-09 (scripts/rate-species.mjs measures the tiers on these, and the
    computer's benchmark keeps the parties its table was measured on). top: only from the most used this many (even draws only).
-   ban: { items, moves } kept out of the party (도전의 탑, streak.js STREAK_BAN): a set with a banned move is not drawn, and a banned
-   item gives way to the set's next one. (도전의 탑's foes are built by towerBuild.mjs since 2026-11-11, 15장.) */
+   ban: { items, moves } kept out of the party (도전의 탑, streak.js STREAK_BAN): a set with a banned move or a banned item of its own is
+   not drawn. (도전의 탑's foes are built by towerBuild.mjs since 2026-11-11, 15장.) */
 export function randomTeam(formatid, random = Math.random, { meta = false, top = 0, even = false, master = false, ban = null } = {}) {
   const all = ban ? fairPool(formatid, ban) : setPool(formatid);
   if (!all.length) throw new Error(`no random sets for ${formatid}`);
@@ -121,32 +123,30 @@ export function fairPool(formatid, ban) {
     const items = new Set(ban.items), moves = new Set(ban.moves);
     made.set(formatid, setPool(formatid).map(entry => ({
       ...entry,
-      sets: entry.sets.filter(set => !set.moves.some(m => moves.has(m))).map(set => ({ ...set, items: set.items.filter(i => !items.has(i)) })).filter(set => set.items.length),
+      sets: entry.sets.filter(set => !set.moves.some(m => moves.has(m)) && !items.has(itemOf(set))),
     })).filter(entry => entry.sets.length));
   }
   return made.get(formatid);
 }
-/* one Pokémon from each list in turn (the next of the list that fits): one of each species, one set of each drawn by how often it is
-   played, at most one Mega Stone, no item twice. A single list fills all six from it */
+// a sample set's own item: the first it lists (the rest were the species' back-ups before 2026-11-18, never handed on now)
+export const itemOf = set => set.items[0];
+/* one Pokémon from each list in turn (the next of the list that fits): one of each species, one whole set of each drawn by how often
+   it is played among its sets whose item is still free. A single list fills all six from it */
 function drawInto(formatid, lists, random) {
   const dex = DEX_OF_FORMAT[formatid];
   const team = [], bases = new Set(), items = new Set();
-  let mega = false;
   for (const list of lists) {
     const want = lists.length === 1 ? 6 : team.length + 1;
     for (const entry of list) {
       if (team.length >= want) break;
       const base = dex.species.get(entry.species).baseSpecies;
       if (bases.has(base)) continue;
-      const sets = mega ? entry.sets.filter(set => !set.mega) : entry.sets;
+      const sets = entry.sets.filter(set => !items.has(itemOf(set)));
       if (!sets.length) continue;
       const set = weighted(sets, random);
-      const item = set.items.find(name => !items.has(name));
-      if (!item) continue;
       bases.add(base);
-      items.add(item);
-      if (set.mega) mega = true;
-      team.push({ name: "", species: entry.species, ability: set.ability, item, moves: [...set.moves], nature: set.nature, evs: { ...set.evs }, ...(set.ivs ? { ivs: { ...set.ivs } } : {}), level: 50 });
+      items.add(itemOf(set));
+      team.push({ name: "", species: entry.species, ability: set.ability, item: itemOf(set), moves: [...set.moves], nature: set.nature, evs: { ...set.evs }, ...(set.ivs ? { ivs: { ...set.ivs } } : {}), level: 50 });
     }
   }
   return team;
@@ -168,7 +168,7 @@ function balancedTeam(formatid, all, random, meta, plan) {
   const target = plan.reduce((s, t) => s + mean[t], 0);
   let best = null, bestGap = Infinity;
   for (let tries = 0; tries < 80; tries++) {
-    // the tiers in a new order each time, so the one Mega a party may hold is not always the strongest tier's
+    // the tiers in a new order each time, so the items free for a tier are not always what the strongest left
     const lists = shuffled(plan, random).map(t => (meta ? weightedOrder(tiers[t], e => (e.usage || 0) + 0.01, random) : shuffled(tiers[t], random)));
     const team = drawInto(formatid, lists, random);
     if (team.length !== 6) continue;
@@ -182,18 +182,16 @@ function balancedTeam(formatid, all, random, meta, plan) {
 }
 
 /* the party a draft's picks make (picks: one species from each tier's row, in the rows' order): the reason it cannot be, "pick" (not
-   one of the row's), "mega" (a second Mega Stone), "item" (no free item left for one), "illegal" (refused by the validator), or the
-   party. An item already taken goes to the set's next one, in the rows' order. */
-const SPARE_ITEMS = ["Sitrus Berry", "Lum Berry", "Leftovers", "Shell Bell", "Expert Belt", "Life Orb"];
+   one of the row's), "item" (an item twice), "illegal" (refused by the validator), or the party. Every candidate of a draft holds an
+   item no other candidate holds (streakEngine.mjs draftOffer, 2026-11-18), so whatever is picked is whole as shown. A draft offered
+   before then kept back-up items (items), and an item taken twice goes to the next of them */
 export function draftParty(formatid, offer, picks) {
   if (!Array.isArray(offer) || !Array.isArray(picks) || picks.length !== offer.length) return "pick";
   const chosen = offer.map((row, i) => row.find(c => c.species === picks[i]));
   if (chosen.some(c => !c)) return "pick";
-  if (chosen.filter(c => c.mega).length > 1) return "mega";
   const used = new Set(), team = [];
   for (const c of chosen) {
-    // when every item of its set is taken, an item every party may carry that is still free (1 in 1000 random picks, 2026-11-11)
-    const item = c.items.find(name => !used.has(name)) || SPARE_ITEMS.find(name => !used.has(name));
+    const item = [c.item, ...(c.items || [])].find(name => name && !used.has(name));
     if (!item) return "item";
     used.add(item);
     const { items, mega, ...set } = c;

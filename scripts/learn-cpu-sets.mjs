@@ -20,6 +20,7 @@ import { pathToFileURL } from "node:url";
 import { Teams, toID } from "@pkmn/sim";
 import { formatId, validateTeam } from "../supabase/functions/battle/engine.mjs";
 import { idleMoves } from "./setFit.mjs";
+import { sameBuild } from "./curate-sets.mjs";
 
 export const RATE = 0.3, HALF = 20, MIN_SEEN = 3, MIN_PLAYERS = 30, NEW_PER_SPECIES = 2;
 
@@ -106,19 +107,26 @@ export function learn(sets, records, { validate = (formatid, set) => !validateTe
       entry.sets = entry.sets.filter(s => !s.ypl).map(s => ({ ...s, baseWeight: s.baseWeight ?? s.weight }));
       const baseTotal = entry.sets.reduce((sum, s) => sum + s.baseWeight, 0) || 1;
       const alpha = tally ? RATE * tally.players / (tally.players + HALF) : 0;
-      const share = key => (tally?.keys[key]?.votes || 0) / (tally?.players || 1);
-      for (const s of entry.sets) s.weight = (1 - alpha) * s.baseWeight / baseTotal + alpha * share(keyOf(s.ability, s.moves, s.items[0]));
-      if (tally) {
-        const known = new Set(entry.sets.map(s => keyOf(s.ability, s.moves, s.items[0])));
-        const fresh = Object.entries(tally.keys).filter(([key, k]) => k.players >= MIN_SEEN && !known.has(key)).sort((a, b) => b[1].votes - a[1].votes)
-          .map(([key, { set }]) => ({ key, set: { name: "", species: entry.species, ability: set.ability, item: set.item, moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}), level: 50 } }))
-          // a set that plays as it should in this kind of battle (no Follow Me in singles, scripts/setFit.mjs)
-          .filter(({ set }) => validate(formatid, set) && !idleMoves({ kind, ...set }).length).slice(0, NEW_PER_SPECIES);
-        for (const { key, set } of fresh) entry.sets.push({
-          weight: alpha * share(key), baseWeight: 0, ypl: true, ability: set.ability, items: [set.item],
-          moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}),
-        });
+      // the sets are whole builds with one item (scripts/curate-sets.mjs): a player's set votes for the build it is a near copy of,
+      // and sets no build has gather into new builds the same way, so learning never brings back the near copies curating merged
+      // ponytail: a player who tried two near copies of one new build counts twice toward MIN_SEEN
+      const votes = entry.sets.map(() => 0), fresh = [];
+      for (const { votes: v, players: n, set } of Object.values(tally?.keys || {}).sort((a, b) => b.votes - a.votes)) {
+        const i = entry.sets.findIndex(s => sameBuild({ ...s, item: s.items[0] }, set));
+        if (i >= 0) { votes[i] += v; continue; }
+        const into = fresh.find(f => sameBuild(f.set, set));
+        if (into) { into.votes += v; into.players += n; } else fresh.push({ votes: v, players: n, set });
       }
+      const share = v => v / (tally?.players || 1);
+      entry.sets.forEach((s, i) => { s.weight = (1 - alpha) * s.baseWeight / baseTotal + alpha * share(votes[i]); });
+      const joining = fresh.filter(f => f.players >= MIN_SEEN).sort((a, b) => b.votes - a.votes)
+        .map(({ votes: v, set }) => ({ v, set: { name: "", species: entry.species, ability: set.ability, item: set.item, moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}), level: 50 } }))
+        // a set that plays as it should in this kind of battle (no Follow Me in singles, scripts/setFit.mjs)
+        .filter(({ set }) => validate(formatid, set) && !idleMoves({ kind, ...set }).length).slice(0, NEW_PER_SPECIES);
+      for (const { v, set } of joining) entry.sets.push({
+        weight: alpha * share(v), baseWeight: 0, ypl: true, ability: set.ability, items: [set.item],
+        moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}),
+      });
       const total = entry.sets.reduce((sum, s) => sum + s.weight, 0) || 1;
       for (const s of entry.sets) s.weight = Math.round(Math.max(0.01, s.weight / total) * 100) / 100;
     }

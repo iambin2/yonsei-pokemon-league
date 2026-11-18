@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Teams } from "@pkmn/sim";
 import { learn, MIN_PLAYERS, MIN_SEEN, RATE } from "../scripts/learn-cpu-sets.mjs";
+import { curateKind, MAJOR_RANK } from "../scripts/curate-sets.mjs";
 
 const SETS = JSON.parse(readFileSync(new URL("../src/data/random-sets.json", import.meta.url), "utf8"));
 const FORMAT = "gen9championsbssregmc";
@@ -49,8 +50,10 @@ test("player sets blend in lightly, random and repeated parties do not count, an
 
 test("one person playing many times, changing a Pokémon each time, counts as one player", () => {
   const people = Array.from({ length: 40 }, (_, i) => record(person(i)));
-  const tail = others.slice(-80);
-  const core = tail.slice(0, 4).map(e => asSet(e, e.sets[0]));
+  // the core from four different people and the sixth from people who hold none of it, so the grinder shares at most one set with
+  // anyone else however many species the pool has
+  const core = [0, 5, 10, 15].map(i => asSet(others[i], others[i].sets[0]));
+  const tail = [null, null, null, null, ...others.slice(20, 80)];
   // the same ODD Venusaur and four Pokémon, the sixth changed every time, 60 battles
   const grinder = Array.from({ length: 60 }, (_, k) => record([ODD, ...core, asSet(tail[4 + k], tail[4 + k].sets[0])]));
   const out = learn(SETS, [...people, ...grinder]);
@@ -59,4 +62,22 @@ test("one person playing many times, changing a Pokémon each time, counts as on
   const entry = out.sets["m-c"].singles.find(e => e.species === "Venusaur");
   assert.equal(entry.sets.filter(s => s.ypl).length, 1, `ODD needs ${MIN_SEEN} players to join`);
   assert.deepEqual(entry.sets.find(s => s.ypl).items, ["Life Orb"]);
+});
+
+test("a player's near copy of a build votes for that build instead of joining as a set of its own", () => {
+  const near = { ...asSet(venusaur(), venusaur().sets[0]), moves: ["Earth Power", "Giga Drain", "Sludge Bomb", "Sleep Powder"] };
+  const out = learn(SETS, Array.from({ length: 40 }, (_, i) => record([near, ...others.slice(i * 5, i * 5 + 5).map(e => asSet(e, e.sets[0]))])));
+  assert.equal(out.learned, true);
+  const entry = out.sets["m-c"].singles.find(e => e.species === "Venusaur");
+  assert.equal(entry.sets.length, venusaur().sets.length, "no near copy joins");
+});
+
+test("the sample sets are whole builds with one item, and curating them again changes nothing", () => {
+  for (const kind of ["singles", "doubles"]) {
+    const entries = SETS["m-c"][kind];
+    assert.ok(entries.every(e => e.sets.every(s => s.items.length === 1)), `${kind}: one item a set`);
+    const rank = [...entries].sort((a, b) => b.usage - a.usage).map(e => e.species);
+    for (const e of entries) if (rank.indexOf(e.species) >= MAJOR_RANK && new Set(e.sets.filter(s => s.mega).map(s => s.items[0])).size < 2) assert.equal(e.sets.length, 1, e.species);
+    assert.deepEqual(curateKind(entries), entries);
+  }
 });
