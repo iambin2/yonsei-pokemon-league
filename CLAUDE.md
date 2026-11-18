@@ -18,6 +18,7 @@ node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json and to
                         # (refresh-champions-data.yml reruns data:champions weekly and opens a PR when it changed; no workflow runs this one)
 npm run data:cpu-learn  # blend players' parties into src/data/random-sets.json (what learn-cpu-sets.yml runs weekly)
 npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own Korean text for each move, ability and item
+node scripts/build-sprite-ink.cjs  # rebuild src/data/sprite-ink.json, every Pokémon picture's ink read ahead (rerun after build-sprites.py)
 npm run font:slices     # re-cut Freesentation into unicode-range slices (needs pip install -r scripts/requirements-fonts.txt)
                         # (deploy.yml runs it before every build; the result ships but is not committed back)
 npm run build:battle    # bundle the engine into supabase/functions/battle before deploying that function

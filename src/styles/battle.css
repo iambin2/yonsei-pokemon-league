@@ -119,11 +119,12 @@
   .bt-main { display: flex; flex-direction: column; gap: 0; min-height: 100dvh; }
   .bt-main > .bt-head { flex: none; padding-top: env(safe-area-inset-top, 0px); background: var(--ground); }
   /* the stage takes what the head and the deck leave (the deck is as tall as what it holds: the moves, or the end), from 2 to 1 of
-     the width to a little taller than square; past that the ground runs on above it. 2 to 1 and not 16 to 9: an iPhone SE's Safari
+     the width up, all of it (2026-11-18: it stopped a little taller than square and the ground ran on above it, a dead band of 137
+     over the foe's strip on a replay at 390 by 844, where the deck is short). 2 to 1 and not 16 to 9: an iPhone SE's Safari
      window is 375 by 548, and at 16 to 9 the play screen scrolled 21 there (2026-11-10) */
   .bt-stagebox { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
   .bt-stagebox > .bt-arena { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
-  .bt-stagebox .bs-stage.hud { flex: 1 1 auto; aspect-ratio: auto; min-height: 50vw; max-height: 112vw; }
+  .bt-stagebox .bs-stage.hud { flex: 1 1 auto; aspect-ratio: auto; min-height: 50vw; }
   .bt-stagebox > .bt-preview { padding: var(--s3) var(--s3) 0; }
   /* the frame a battle is read in (MatchWait): its court stands at the top where the head and the strips will stand round it, not
      pushed to the foot of an empty window */
@@ -264,6 +265,9 @@
 /* on a phone six keys of 52 left the track 18 wide, a handle with nowhere to go (2026-11-10, measured at 390): the keys keep their 52
    of height and stand 44 wide, a finger's width, so the rail has room to be dragged along */
 @media (max-width: 600px) { .bt-rkey:not(.bt-rlive) { width: var(--h-control); } }
+/* and 처음 and 끝 stand back there (2026-11-18: with five keys and the sound the timeline was 66 wide at 390, its turns' ticks
+   touching): the track's two ends are a drag away, and Home and End still answer */
+@media (max-width: 600px) { .bt-rend { display: none; } }
 .bt-rkey.main { color: var(--lit); background: var(--panel-2); }
 .bt-rkey.main.on { color: var(--ground); background: var(--lit); }
 .bt-rkey:disabled { color: var(--mute); cursor: default; }
@@ -784,22 +788,14 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 
 /* ---------- the team preview: the foe's six small along the top, ours large as the sets they are, chosen by a tap ---------- */
 .bt-preview { display: grid; gap: var(--s5); align-content: start; }
-.bt-pv-foe { display: grid; gap: var(--s2); }
-.bt-pv-title { font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--dim); }
-.bt-foe-six { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
 .bt-foe-cell { display: grid; justify-items: center; align-content: start; gap: var(--s1); min-width: 0; padding: var(--s2) 6px var(--s3); background: var(--panel); text-align: center; }
 .bt-foe-cell > img { width: 72px; height: 72px; object-fit: contain; }
-/* a cell whose Pokémon is not drawn yet (연승 도전's 새로 뽑기): a ? where the picture stands, as the lobby's random party shows it */
-.bt-foe-cell > .bt-bare { display: grid; place-items: center; width: 72px; height: 72px; font-style: normal; color: var(--mute); font-size: var(--t32); line-height: var(--l32); font-weight: 700; }
-.bt-foe-cell > b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 18px; font-weight: 700; }
-.bt-foe-cell > .bt-card-types { justify-content: center; max-width: 100%; }
 .bt-preview > .dock { margin-top: 0; }
 
 /* a phone: two cards across, each a little tighter; the foe's six three across */
 @media (max-width: 859px) {
   .bt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bt-foe-six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .bt-foe-cell > img, .bt-foe-cell > .bt-bare { width: 52px; height: 52px; }
+  .bt-foe-cell > img { width: 52px; height: 52px; }
 }
 @media (max-width: 600px) {
   .bt-card { gap: var(--s2); padding: 10px; }
@@ -917,7 +913,7 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 @media (min-width: 1200px) {
   .bt-match .bt-preview { gap: var(--s3); }
   .bt-match .bt-foe-cell { padding-block: var(--s2); }
-  .bt-match .bt-foe-cell > img, .bt-match .bt-foe-cell > .bt-bare { width: var(--h-row); height: var(--h-row); }
+  .bt-match .bt-foe-cell > img { width: var(--h-row); height: var(--h-row); }
   .bt-match .bt-preview .bt-card { gap: var(--s2); }
   .bt-match .bt-preview .bt-card-pic { width: var(--h-row); height: var(--h-row); }
   .bt-match .bt-preview .bt-cmove { min-height: 28px; }
@@ -1010,6 +1006,10 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 /* the court: the battle's, filling the room the window leaves; the lead chosen is thrown onto it */
 .bt-pv-room { flex: 1 1 auto; display: grid; min-height: calc(var(--s21) + var(--s13)); height: 304px; }
 .bt-pv-room > .bs-stage { aspect-ratio: auto; height: 100%; min-height: 0; }
+/* one watching has no cards under the court: the court keeps the battle's 4 to 3 and the frame stands at the top, as the waiting
+   frame does (on a phone, given the whole height, the court was drawn from its middle circle, 2026-11-18) */
+.bt-preview.watch .bt-pv-room { flex: none; height: auto; aspect-ratio: 4 / 3; }
+.bt-stagebox:has(> .bt-preview.watch) { justify-content: flex-start; }
 /* our strip: the places in order, each who goes there on its floor, lit once filled */
 .bt-pv-order { display: flex; gap: var(--s1); min-width: 0; margin: 0; padding: 0; list-style: none; }
 .bt-pv-order > li { display: grid; place-items: center; width: var(--s13); height: var(--h-control); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }

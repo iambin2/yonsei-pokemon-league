@@ -26,11 +26,22 @@ function keep(kind, src, shift) {
   if (keeping) return;
   keeping = setTimeout(() => { keeping = 0; try { localStorage.setItem(KEPT, JSON.stringify(kept)); } catch { /* 다음 방문에 다시 읽는다 */ } }, 1500);
 }
+/* every picture of public/sprites/pokemon read ahead (2026-11-18, scripts/build-sprite-ink.cjs runs these same functions in Chrome):
+   [centre x, centre y, feet x, feet y]. A picture measured in the page held frames of 20 to 100 ms at a phone's speed, each first
+   time it was seen (docs/BATTLE_FRAMES.md). The table comes in its own chunk a moment after the page; until then, and for a picture
+   it does not hold, the page measures as before */
+let table = null;
+if (typeof window !== "undefined") import("../../data/sprite-ink.json").then(m => { table = m.default; }, () => {});
+const fromTable = (src, at) => {
+  const slug = /\/sprites\/pokemon\/([^/?#]+)\.webp/.exec(src)?.[1], row = slug && table?.[slug];
+  return row === undefined ? undefined : row && [row[at], row[at + 1]];
+};
 const seen = new Map(Object.entries(kept.c || {}));
 let ctx = null;
 export function centreInk(img) {
   const { src, naturalWidth: nw, naturalHeight: nh } = img;
   if (!nw || !nh) return;
+  if (!seen.has(src) && fromTable(src, 0) !== undefined) seen.set(src, fromTable(src, 0));
   if (!seen.has(src)) {
     let shift = null;
     try {
@@ -68,6 +79,7 @@ let footCtx = null;
 export function standInk(img) {
   const { src, naturalWidth: nw, naturalHeight: nh } = img;
   if (!nw || !nh) return;
+  if (!feet.has(src) && fromTable(src, 2) !== undefined) feet.set(src, fromTable(src, 2));
   if (!feet.has(src)) {
     let shift = null;
     try {

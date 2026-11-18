@@ -32,7 +32,7 @@ import { shareLink } from "../services/communityStore.js";
 import { logUpTo, nextStop, prevStop, replayStops, secondsLeft, turnStop } from "../services/battleReplay.js";
 import { claimTimeout, expireStreakGame, rememberBattle } from "../services/battleWatch.js";
 import { BattleLists, ReplayBar, downloadReplay, replayKey } from "./battle/Replay.jsx";
-import { FoeSix, MonCard, PickDock, TeamInfo, TeamPick, ownCards, packedCards, seenCards } from "./battle/Sets.jsx";
+import { MonCard, PickDock, TeamInfo, TeamPick, WatchPick, ownCards, packedCards, seenCards } from "./battle/Sets.jsx";
 import { StreakBand, StreakEnd, StreakOpen, StreakStake, TrackBar, floorCall, useAccount } from "./battle/Streak.jsx";
 import { liftArrive, towerDrop } from "./battle/tower.js";
 import { floorGame, gameWords, runTrack, streakFloor, streakMaster } from "../services/streak.js";
@@ -806,7 +806,9 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           <Button variant="link" className="bt-cancel" onClick={onCancel}>대기 취소</Button>
         </div>
         <div className="bt-lobby-set">
-          <Row title={rematch ? "상대의 다시하기를 기다리는 중입니다." : "상대를 기다리는 중입니다."} line={`${rule} ${kind}`} lamp="참가 대기" />
+          {/* 참가 대기 with its lamp stands once, on the foe's strip over the court where the one coming in will stand (2026-11-18: it
+              stood here too, read twice side by side) */}
+          <Row title={rematch ? "상대의 다시하기를 기다리는 중입니다." : "상대를 기다리는 중입니다."} line={`${rule} ${kind}`} />
           {/* a code room's four digits stand first and largest: they are what the opener reads out to the one coming in */}
           <div className="bt-wait-counters">
             {code && !rematch && <Counter label="방 코드" value={code} cells={4} h={84} />}
@@ -1041,7 +1043,7 @@ function useMatchLit() {
     /* a card with an info key stands in .bt-pick with the key beside it: the two light as one (2026-11-10: the i keys stood lit on
        the bare ground before their cards came) */
     const OURS = ".bt-pick, .bt-card:not(.bt-pick > .bt-card)";
-    lineup([preview.querySelector(".bt-pv-foe .bt-pv-title"), ...Array(6).fill(null)], [...preview.querySelectorAll(OURS)], -wait);
+    lineup(Array(7).fill(null), [...preview.querySelectorAll(OURS)], -wait);
     const began = performance.now();
     let frame = 0;
     /* the other side's six, and our own cards when the request comes a moment after the preview mounted (a rematch: 2026-11-09, five
@@ -1594,9 +1596,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}
                 locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} doubles={doubles} onInfo={i => setSheetTip(`pick:${i}`)}
                 stake={row.kind === "streak" && narrow ? <StreakBand wins={seat.wins ?? 0} lives={seat.lives} /> : null} keeper={row.kind === "streak" && streakMaster(seat.wins ?? 0)} />
-            : <div className="bt-preview">
-                {[foe, perspective].map(side => <FoeSix key={side} res={res} species={preview[side].preview} title={`${names[side]}의 파티`} />)}
-              </div>}
+            : <WatchPick res={res} foe={preview[foe].preview} own={preview[perspective].preview} foeName={names[foe]} ownName={names[perspective]} />}
           {/* the end (2026-11-16, the owner's draft 3-C): once the replay stands at its end, both parties' sets side by side in the stage's
               place, for the players and anyone watching; stepping back into the replay gives the stage back */}
         </div>

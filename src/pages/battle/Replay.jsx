@@ -30,12 +30,13 @@ export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, a
   const prev = at > stops[i].at ? i : Math.max(0, i - 1);
   return (
     <div className="bt-replay" role="group" aria-label="리플레이">
-      <Key d={KEY.first} label="처음" keys="Home" hint="Home" onClick={() => onJump(stops[0].at)} disabled={at <= stops[0].at} />
+      {/* 처음 and 끝 stand back on a phone (bt-rend): the track's ends are a drag away there, and the five keys left it 66 wide */}
+      <Key d={KEY.first} label="처음" keys="Home" hint="Home" onClick={() => onJump(stops[0].at)} disabled={at <= stops[0].at} className="bt-rkey bt-rend" />
       <Key d={KEY.prev} label="이전 턴" keys="ArrowLeft" hint="←" onClick={() => onJump(stops[prev].at)} disabled={at <= stops[0].at} />
       <Key d={playing ? KEY.pause : KEY.play} label={playing ? "일시정지" : live !== undefined ? "재생" : i >= last ? "처음부터 재생" : "재생"} keys="Space" hint="Space" aria-pressed={playing} onClick={onPlay}
         disabled={following} className={"bt-rkey main" + (playing ? " on" : "")} />
       <Key d={KEY.next} label="다음 턴" keys="ArrowRight" hint="→" onClick={onStep} disabled={following || i >= last} />
-      {live === undefined ? <Key d={KEY.last} label="끝" keys="End" hint="End" onClick={() => onJump(stops[last].at)} disabled={i >= last} />
+      {live === undefined ? <Key d={KEY.last} label="끝" keys="End" hint="End" onClick={() => onJump(stops[last].at)} disabled={i >= last} className="bt-rkey bt-rend" />
         : <button type="button" className={"bt-rkey bt-rlive" + (following ? " on-air" : " main")} onClick={following ? undefined : onLive} aria-pressed={following} title="실시간 (End)">
           {following && <i className="lamp sig" aria-hidden="true" />}실시간</button>}
       {/* where the replay stands, as a timeline of its turns (2026-11-18, the owner's pick): a tick a stop, a red square over a turn

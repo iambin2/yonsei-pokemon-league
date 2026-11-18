@@ -88,9 +88,11 @@
   .bt-stagebox .bs-stage.hud .bs-slot[data-pos="own"] { height: min(56%, 52vw); }
   .bt-stagebox .bs-stage.hud .bs-slot[data-pos="foe"] { height: min(42%, 46vw); }
   /* in doubles the near pair is a little smaller and the far pair stands a little further up the court, so the far pair's feet show
-     over the near pair's heads (2026-11-10, measured at 390: 30 of them lay behind) */
-  .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="own-d0"], [data-pos="own-d1"]) { height: min(40%, 36vw); }
-  .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="foe-d0"], [data-pos="foe-d1"]) { height: min(33%, 34vw); bottom: 53%; }
+     over the near pair's heads (2026-11-10, measured at 390: 30 of them lay behind). Each of a pair is no wider than the step
+     between the two (2026-11-18: at 36 and 34 of the width a pair's boxes overlapped by 19 and 24 at 390, a wide Pokémon over its
+     partner and the four read as a heap): the near two 31 apart and 31 wide, the far two 28 apart and 28 wide */
+  .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="own-d0"], [data-pos="own-d1"]) { height: min(40%, 31vw); }
+  .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="foe-d0"], [data-pos="foe-d1"]) { height: min(33%, 28vw); bottom: 55%; }
 }
 
 /* ---------- 도전의 탑's tower (tower.js, towerGL.js; DESIGN.md "Battle", 도전의 탑, The tower; the tenth pass 2026-11-16) ----------

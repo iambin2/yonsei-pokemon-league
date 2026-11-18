@@ -65,18 +65,20 @@ export function MonCard({ res, species, hp, share, status, fainted, ability, ite
   </Box>;
 }
 
-/* the foe's six in the team preview: small, a picture, the name and the types, as the game shows them before the choice */
-export function FoeSix({ res, species, title }) {
-  return <section className="bt-pv-foe">
-    <h2 className="bt-pv-title">{title}</h2>
-    <div className="stack bt-foe-six">
-      {species.map((s, i) => <div key={s + i} className="bt-foe-cell">
-        <img src={spriteUrl(s)} alt="" draggable="false" onError={onSpriteError()} />
-        <b>{nameOf(res, s)}</b>
-        <Types res={res} species={s} />
-      </div>)}
+/* the team preview as one watching sees it (2026-11-18): the frame the players pick in (TeamPick), the other side's six on its strip
+   over the court and the near side's under it, nobody out until the battle begins. Until then both sixes stood as two tables of
+   cells over an empty page, the one screen of a battle with no stage */
+export function WatchPick({ res, foe, own, foeName, ownName }) {
+  const six = (list, name) => <span className="bt-pv-six" role="img" aria-label={`${name}의 파티, ${list.map(sp => nameOf(res, sp)).join(", ")}`}>
+    {list.map((sp, i) => <span key={sp + i} className="bt-foe-cell"><img src={spriteUrl(sp)} alt="" draggable="false" onError={onSpriteError()} /></span>)}
+  </span>;
+  return <div className="bt-preview board watch">
+    <div className="bt-pv-stage">
+      <div className="bt-pv-strip foe">{six(foe, foeName)}</div>
+      <div className="bt-pv-room"><LobbyStage leads={[]} label="경기장" /></div>
+      <div className="bt-pv-strip own">{six(own, ownName)}</div>
     </div>
-  </section>;
+  </div>;
 }
 
 // our brought Pokémon as cards, from the request: the whole set, with PP when it is known

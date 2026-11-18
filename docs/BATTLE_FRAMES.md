@@ -40,9 +40,10 @@
 
 Task 10(2026-11-18, `c0ab287` 위의 빌드): 휴대폰 속도 replay-open 18 / 450 / 2335, tower-tab 7 / 550 / 1468, lobby 8 / 317 / 1051, tab-switch 13 / 984 / 2586. 데스크톱 replay-open 5 / 100, tower-tab 3 / 117. 움직임 줄이기 replay-open 움직이는 중 2 / 117, tower-tab 2 / 100. tab-switch를 HEAD `bd42508`(이 단계들 전) 빌드와 번갈아 두 번 재니 14 / 951, 10 / 684 대 15 / 500, 12 / 717로 같은 범위였다. 어느 장면도 0이 아니다.
 
+남은 것 정리(2026-11-18): 그림의 잉크를 미리 계산한 표(`src/data/sprite-ink.json`, `scripts/build-sprite-ink.cjs`가 페이지의 같은 함수를 Chrome에서 1324장에 돌린다)로 바꿨다. replay-open의 프로파일에서 잉크 측정(`centreInk`)이 사라졌다(전에는 184 ms). 같은 날 같은 기계에서 replay-open은 23 / 534, 24 / 517, tower-tab 7 / 767, 6 / 751, lobby 13 / 350, 7 / 350, tab-switch 15 / 851, 14 / 817이다. 휴대폰 무대의 높이 상한(112vw)을 되돌린 빌드와 번갈아 잰 replay-open도 23, 24, 23으로 같아, 이날의 수가 아침보다 높은 것은 기계의 흔들림이다. 남은 긴 작업의 주인은 텍스처 올리기(`upload`, 225 ms), 배틀 묶음의 모듈 평가(200 ms 안팎), 무대 크기 읽기(`measure`, 77 ms)다.
+
 ## 3. 남은 것
 
-- 잉크 측정(`inkCentre.js standInk`): 첫 방문에 그림마다 256×256을 그려 읽는다(그림마다 30에서 100 ms). 기기에 남으므로 두 번째부터는 없다. 그림은 정해진 파일(`public/sprites/pokemon`)이라, 같은 함수를 브라우저에서 한 번 돌려 표로 싣는 길이 있다.
 - 소리 컨텍스트: 손길이 있은 페이지에서는 여전히 만들어진다(윈도우에서 오디오 장치를 깨우는 데 100에서 250 ms). 실제 휴대폰에서는 재지 않았다.
 - 무대의 크기 읽기(`gl.js measure`, `getBoundingClientRect`, `checkVisibility`)와 셰이더 묶기(`compileEnd`)가 프레임마다 20에서 50 ms.
 - 텍스처 올리기(`upload`)는 그림 하나에 20에서 30 ms다. 이미 한 프레임에 하나씩이다.
