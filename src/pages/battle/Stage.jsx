@@ -717,8 +717,19 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
 // foeLead: the opponent known before the battle (the computer, as its 난이도's Pokémon) stands on the far side, out of the same light
 // the lobby court's Pokémon already sent in during this visit (LobbyStage): place, slot, species and format
 const courtShown = new Set();
-export function LobbyStage({ leads, doubles, label, awaiting = false, random = false, foeLead = null }) {
+/* ball: the team preview's court (2026-11-18, the user: "그냥 정보 없이 배틀 무대로 하자. 몬스터볼 등장 연출 그대로 활용해서"): each lead
+   chosen is thrown from its ball as in a battle, every time, and one that gives its place up is called back first */
+export function LobbyStage({ leads: asked, doubles, label, awaiting = false, random = false, foeLead = null, ball = false }) {
   const ref = useRef(null);
+  const [held, setHeld] = useState(asked);
+  const leads = ball ? held : asked;
+  const turn = useRef(0);
+  useEffect(() => {
+    if (!ball || held.join("|") === asked.join("|")) return;
+    const t = ++turn.current;
+    const gone = held.map((sp, slot) => (sp && asked[slot] !== sp ? slot : -1)).filter(slot => slot >= 0);
+    Promise.all(gone.map(slot => fx.leave(ref.current, slotKey("p1", slot)))).then(() => { if (t === turn.current) setHeld(asked); });
+  }, [ball, asked.join("|")]);
   const scene = { p1: { active: leads.map(species => ({ name: species, species, volatiles: [] })) }, p2: { active: foeLead ? [{ name: foeLead, species: foeLead, volatiles: [] }] : [] } };
   /* the first court of a visit comes once the stage's paintings are there (stageFx whenPainted), a few frames after its frame, and
      switches on as it comes; every court after it stands at once. Until then nobody stands in it */
@@ -733,8 +744,15 @@ export function LobbyStage({ leads, doubles, label, awaiting = false, random = f
   /* before paint, so a new lead never shows for a frame before it comes out of the light. One already sent in on this court during the
      visit stands as it stood: a tab switched away and back sent the same Porygon in again every time (2026-11-18,
      docs/BATTLE_TRANSITIONS.md T1) */
-  const comes = (side, slot, species) => { const k = `${side}:${slot}:${species}:${doubles}`; if (courtShown.has(k)) return false; courtShown.add(k); return true; };
-  useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); leads.forEach((sp, slot) => { if (comes("p1", slot, sp)) fx.enter(ref.current, slotKey("p1", slot), { ball: false }); }); }, [painted, leads.join("|"), doubles]);
+  const comes = (side, slot, species) => { if (ball) return true; const k = `${side}:${slot}:${species}:${doubles}`; if (courtShown.has(k)) return false; courtShown.add(k); return true; };
+  const before = useRef([]);
+  useLayoutEffect(() => {
+    if (!painted) return;
+    fx.sync(ref.current);
+    // in the team preview only the lead that is new to its place is thrown; the one that kept its place stands
+    leads.forEach((sp, slot) => { if (sp && (!ball || before.current[slot] !== sp) && comes("p1", slot, sp)) fx.enter(ref.current, slotKey("p1", slot), { ball }); });
+    before.current = leads;
+  }, [painted, leads.join("|"), doubles]);
   useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); if (foeLead && comes("p2", 0, foeLead)) fx.enter(ref.current, slotKey("p2", 0), { ball: false }); }, [painted, foeLead, doubles]);
   useLayoutEffect(() => {
     if (painted && late.current && !reduced()) ref.current?.querySelector(".bs-gl")?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.tone, easing: EASE_OUT });

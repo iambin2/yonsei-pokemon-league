@@ -786,11 +786,8 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 
 /* ---------- the team preview: the foe's six small along the top, ours large as the sets they are, chosen by a tap ---------- */
 .bt-preview { display: grid; gap: var(--s5); align-content: start; }
-.bt-pv-foe, .bt-pv-own { display: grid; gap: var(--s2); }
-.bt-pv-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.bt-pv-foe { display: grid; gap: var(--s2); }
 .bt-pv-title { font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--dim); }
-.bt-pv-count { font-size: var(--t15); line-height: var(--l15); color: var(--dim); font-weight: 600; font-variant-numeric: tabular-nums; }
-.bt-pv-count > b { font-size: var(--t20); line-height: var(--l20); color: var(--lit); font-weight: 700; }
 .bt-foe-six { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
 .bt-foe-cell { display: grid; justify-items: center; align-content: start; gap: var(--s1); min-width: 0; padding: var(--s2) 6px var(--s3); background: var(--panel); text-align: center; }
 .bt-foe-cell > img { width: 72px; height: 72px; object-fit: contain; }
@@ -845,9 +842,6 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 /* and while a turn plays the empty console takes no place in the column either: as a grid item it added a second gap between the
    head and 기권 (feedback 2026-11-06) */
 @media (min-width: 1200px) { .bt-console { min-height: 0 !important; } .bt-console:empty { display: none; } }
-/* the side column's title in the team preview: only beside it, at the same height as the preview's titles (title, 8, panel) */
-.bt-side-title { display: none; }
-@media (min-width: 1200px) { .bt-side > .bt-side-title { display: block; order: -4; margin-bottom: calc(var(--s2) - var(--s3)); } }
 
 /* the target picker (doubles; Choices in BattlePage.jsx): the move keys give way to the field as the stage shows it, the foe's two
    over ours, each place a key the moves' height with the picture, the name, the HP and how the move lands there; a place the move
@@ -1001,57 +995,35 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 }
 
 /* ---------- the team preview on the stage (2026-11-18, the owner's draft A; DESIGN.md "Battle", The team preview) ----------
-   the stage's frame as the battle will stand it: the foe's strip with their six (each a key that shows it), the board of the one looked
-   at in the court's room, our strip with the places in order; our six under it as short cards. The board takes what the window
-   leaves, so nothing scrolls but the board itself */
+   the stage's frame as the battle will stand it: the foe's six on their strip, the court with the lead chosen on it, our strip with the
+   places in order; our six under it as short cards. No name on a strip, no number on a place: the side
+   is where it stands, the order is the line. The room takes what the window leaves, so nothing scrolls */
 .bt-stagebox > .bt-preview.board { padding: 0; }
 .bt-preview.board { display: flex; flex-direction: column; gap: var(--seam); }
 .bt-preview.board > .streak-band { flex: none; }
 .bt-pv-stage { display: flex; flex-direction: column; min-height: 0; }
 .bt-pv-strip { flex: none; display: flex; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s1) var(--pad); background: var(--ground); }
 :root[data-theme="light"] .bt-pv-strip { background: var(--panel); }
-.bt-pv-strip.foe { flex-direction: row-reverse; }
-.bt-pv-strip > .bt-trainer { flex: 0 1 auto; }
-.bt-pv-six { flex: 0 1 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, var(--s21)); gap: var(--s1); min-width: 0; }
-.bt-pv-six > .bt-foe-cell { gap: 2px; padding: var(--s1) 0; background: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); transition: background-color var(--move-tone); }
-.bt-pv-six > .bt-foe-cell > img { width: var(--h-control); height: var(--h-control); }
-.bt-pv-six > .bt-foe-cell > .bt-card-types { flex-wrap: wrap; justify-content: center; gap: 2px; }
-.bt-pv-six > .bt-foe-cell.look { background: var(--panel-2); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
-@media (hover: hover) { .bt-pv-six > .bt-foe-cell:hover { background: var(--panel-2); } }
-.bt-pv-six > .bt-foe-cell:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
-.bt-preview.keeper .bt-pv-six > .bt-foe-cell:first-child { background: var(--lit); color: var(--ground); }
-/* the board: the one looked at standing large on its floor at the left (38.2), what it is at the right; it scrolls inside if it must */
-.bt-pv-focus { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 38.2%) minmax(0, 1fr); min-height: calc(var(--s21) + var(--s13)); height: 304px; overflow: hidden; background: var(--panel); }
-.bt-pv-hero { display: grid; place-items: end center; min-height: 0; padding: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
-.bt-pv-hero > img { width: 100%; max-width: 200px; max-height: 100%; aspect-ratio: 1; object-fit: contain; object-position: 50% 100%; }
-.bt-pv-focus > .bt-card { min-height: 0; overflow: hidden auto; background: none; }
-.bt-pv-focus .bt-card-pic { display: none; }
-.bt-pv-focus .bt-card-name { font-size: var(--t20); line-height: var(--l20); }
-.bt-card-stats.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.bt-pv-weak { display: grid; gap: var(--seam); }
-.bt-pv-weak > span { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); padding: 6px var(--s2); background: var(--ground); }
-.bt-pv-weak small { flex: none; width: var(--s8); font-size: 11px; line-height: 14px; color: var(--dim); font-weight: 600; }
-/* our strip: the places in order, each its number and who goes there, and how many are chosen */
-.bt-pv-order { flex: 0 1 auto; display: flex; gap: var(--s1); min-width: 0; margin: 0; padding: 0; list-style: none; }
-.bt-pv-order > li { position: relative; display: grid; place-items: center; width: var(--s13); height: var(--h-control); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
+.bt-pv-strip.foe { justify-content: flex-end; }
+.bt-pv-six { display: grid; grid-auto-flow: column; grid-auto-columns: var(--s13); gap: var(--s1); min-width: 0; }
+.bt-pv-six > .bt-foe-cell { display: grid; place-items: center; padding: var(--s1) 0; background: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
+.bt-pv-six > .bt-foe-cell > img { width: 40px; height: 40px; }
+.bt-preview.keeper .bt-pv-six > .bt-foe-cell:first-child { background: var(--lit); }
+/* the court: the battle's, filling the room the window leaves; the lead chosen is thrown onto it */
+.bt-pv-room { flex: 1 1 auto; display: grid; min-height: calc(var(--s21) + var(--s13)); height: 304px; }
+.bt-pv-room > .bs-stage { aspect-ratio: auto; height: 100%; min-height: 0; }
+/* our strip: the places in order, each who goes there on its floor, lit once filled */
+.bt-pv-order { display: flex; gap: var(--s1); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.bt-pv-order > li { display: grid; place-items: center; width: var(--s13); height: var(--h-control); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
 .bt-pv-order > li.on { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .bt-pv-order img { width: 40px; height: 40px; object-fit: contain; }
-.bt-pv-n { color: var(--mute); font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; }
-.bt-pv-order > li.on > .bt-pv-n { position: absolute; left: 0; top: 0; min-width: 16px; height: 16px; background: var(--lit); color: var(--ground); font-size: 11px; line-height: 16px; text-align: center; }
-.bt-pv-strip.own > .bt-pv-count { margin-left: auto; }
-/* a card's order is the strip's (one fact, one place): a chosen card only inverts; the one looked at carries a lit line on its top */
+/* a chosen card only inverts: its order is the strip's line */
 .bt-preview.board .bt-card-order { display: none; }
-.bt-pick.look > .bt-card { box-shadow: inset 0 var(--line) 0 var(--lit); }
-.bt-pick.look > .bt-card.on { box-shadow: inset 0 var(--line) 0 var(--ground); }
 @media (max-width: 859px) {
   .bt-stagebox:has(> .bt-preview.board) { flex: 1 1 auto; }
   .bt-preview.board { flex: 1 1 auto; min-height: 0; }
   .bt-pv-stage { flex: 1 1 auto; }
-  .bt-pv-focus { height: auto; flex-basis: 0; }
-  .bt-pv-six { grid-auto-columns: minmax(0, var(--s13)); gap: 2px; }
-  .bt-pv-six > .bt-foe-cell > img { width: 40px; height: 40px; }
-  .bt-pv-six > .bt-foe-cell > .bt-card-types { display: none; }
+  .bt-pv-room { height: auto; flex-basis: 0; }
+  .bt-pv-six { grid-auto-columns: var(--h-control); gap: 2px; }
   .bt-pv-order > li { width: var(--h-control); }
-  .bt-pv-hero > img { max-width: 140px; }
-  .bt-pv-focus .bt-card-name { font-size: var(--t15); line-height: var(--l15); }
 }

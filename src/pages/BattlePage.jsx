@@ -1040,7 +1040,7 @@ function useMatchLit() {
     const cells = () => [...preview.querySelectorAll(".bt-foe-cell")];
     /* a card with an info key stands in .bt-pick with the key beside it: the two light as one (2026-11-10: the i keys stood lit on
        the bare ground before their cards came) */
-    const OURS = ".bt-pv-head, .bt-pick, .bt-card:not(.bt-pick > .bt-card)";
+    const OURS = ".bt-pick, .bt-card:not(.bt-pick > .bt-card)";
     lineup([preview.querySelector(".bt-pv-foe .bt-pv-title"), ...Array(6).fill(null)], [...preview.querySelectorAll(OURS)], -wait);
     const began = performance.now();
     let frame = 0;
@@ -1592,7 +1592,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
                 said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} result={endBand} />
             : seat && previewParty.current
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}
-                locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} ownName={names[perspective]}
+                locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} doubles={doubles} onInfo={i => setSheetTip(`pick:${i}`)}
                 stake={row.kind === "streak" && narrow ? <StreakBand wins={seat.wins ?? 0} lives={seat.lives} /> : null} keeper={row.kind === "streak" && streakMaster(seat.wins ?? 0)} />
             : <div className="bt-preview">
                 {[foe, perspective].map(side => <FoeSix key={side} res={res} species={preview[side].preview} title={`${names[side]}의 파티`} />)}
@@ -1651,8 +1651,6 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         </div>
       </div>
       {!compact && <div className="bt-side">
-        {/* on a wide screen the team preview's sections open with a title; the column beside it opens with one too, so both start on one line */}
-        {!started && !ended && <span className="bt-pv-title bt-side-title" aria-hidden="true">경기</span>}
         {head}
         {/* a 도전의 탑 game's stake on its team preview stands under the head on a desktop, so the pick stays in one window */}
         {!started && !ended && row.kind === "streak" && seat && <StreakBand wins={seat.wins ?? 0} lives={seat.lives} />}
