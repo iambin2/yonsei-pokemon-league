@@ -109,6 +109,11 @@ const RULES = {
   "motion: a duration is a token (Motion)": d => /^(transition|animation)/.test(d.prop) && /(?<![\w.-])\d*\.?\d+m?s\b/.test(noVars(d.value)),
   "opacity: 0, 1, a token, or an unlit bar (Colour and light)": d => d.prop === "opacity" && !/^(0|1|var\(--opacity-[a-z]+\)|var\(--off\))$/.test(d.value),
   "depth: a z-index is a named step": d => d.prop === "z-index" && !/^(auto|calc\(var\(--z-sticky\) \+ 1\)|var\(--z-[a-z]+\))$/.test(d.value),
+  "set: a Korean word never breaks inside itself; a spaceless run breaks by overflow-wrap (Typesetting)": d => d.prop === "word-break" && !/^(keep-all|normal|inherit)$/.test(d.value),
+  "set: upright only, nothing slants (Typesetting)": d => d.prop === "font-style" && !/^(normal|inherit)$/.test(d.value),
+  "set: ragged at the end, never justified or hyphenated (Typesetting)": d => (/^text-align(-last)?$/.test(d.prop) && /justify/.test(d.value)) || (/^(-webkit-)?hyphens$/.test(d.prop) && !/^(none|manual)$/.test(d.value)),
+  "set: a paragraph is never centred (Typesetting)": d => /^text-align$/.test(d.prop) && /center/.test(d.value) && d.sel.split(",").some(s => /(^|[\s>])(p|\.prose|\.read|\.nw-body|\.bd-body)\b/.test(s.trim())),
+  "set: nothing is faked or turned off in the faces (Typesetting)": d => (d.prop === "font-synthesis" && d.value !== "none") || (d.prop === "font-variant-numeric" && !/^(tabular-nums|inherit)$/.test(d.value)) || (d.prop === "font-kerning" && d.value === "none"),
   "text: wrap is pretty for paragraphs, balanced for headlines (Type)": d => d.prop === "text-wrap" && !((/pretty/.test(d.value) && d.sel === "p") || (/balance/.test(d.value) && /^(h1, h2, h3, h4|\.display|\.title|\.hof-plate)$/.test(d.sel))),
   "bridge: a rebuilt file reads no YPL Navy name": d => strict(d) && [...d.value.matchAll(/var\((--[\w-]+)/g)].some(m => BRIDGE.has(m[1])),
 };
@@ -267,8 +272,21 @@ test("no emoji in the site's own words (Made by people)", () => {
   assert.deepEqual(COPY.filter(({ t }) => /\p{Extended_Pictographic}/u.test(t.replace(/[©®™↗→←↑↓✓×]/g, ""))).map(h => h.at), []);
 });
 test("no sales words a machine reaches for (Made by people)", () => {
-  const words = /혁신적|특별한 경험|새로운 차원|완벽한|손쉽게|간편하게|한눈에|지금 바로|만나보세요|경험하세요|여정|당신을 위한|모든 것을 한 곳에|단순한 [가-힣]+(이|가) 아니라/;
+  const words = /혁신적|특별한 경험|새로운 차원|완벽한|손쉽게|간편하게|한눈에|지금 바로|만나보세요|경험하세요|여정|당신을 위한|모든 것을 한 곳에|단순한 [가-힣]+(이|가) 아니라|환영합니다|함께해요|함께하세요|다양한|최고의|강력한|스마트한|원활한|효율적인|최적의|다채로운|언제 어디서나|누구나 쉽게|놓치지 마세요|즐겨 ?보세요|즐기세요|자세히 보기|더 알아보기|준비 중인 기능/;
   assert.deepEqual(COPY.filter(({ t }) => words.test(t)).map(h => `${h.at}: ${words.exec(h.t)[0]}`), []);
+});
+test("no stock English keys and no placeholder people (Made by people)", () => {
+  const words = /["'`>]\s*(Welcome|Get started|Learn more|Dashboard|Coming soon|Read more|Sign up now)\b|홍길동|John Doe|Jane Doe|[Ll]orem ipsum/;
+  assert.deepEqual(COPY.filter(({ t }) => words.test(t)).map(h => `${h.at}: ${words.exec(h.t)[0]}`), []);
+});
+test("the body sets the type: keep-all, no faked faces, tabular digits (Typesetting)", () => {
+  const body = /\nbody \{([\s\S]*?)\n\}/.exec(TOKENS)[1];
+  for (const rule of [/word-break: keep-all/, /font-synthesis: none/, /font-variant-numeric: tabular-nums/, /-webkit-tap-highlight-color: transparent/])
+    assert.match(body, rule);
+  assert.match(TOKENS, /--font: "Albert Sans", "Freesentation",/, "Albert Sans first, so Latin and digits in a Korean line are Albert Sans");
+  assert.match(TOKENS, /i, em \{ font-style: normal; \}/, "upright only");
+  assert.match(TOKENS, /--ls20: -\.01em; --ls32: -\.02em;/, "tracking only tightens, with size");
+  assert.deepEqual(DECLS.filter(d => d.prop === "letter-spacing" && /^\.?\d|^var\(--ls(?!20|32)/.test(d.value) && d.value !== "0").map(keyOf), [], "no open tracking");
 });
 
 // ---------- motion ----------

@@ -98,7 +98,7 @@
   /* four sizes, each line on the 4 grid; reading paragraphs take 15/24 */
   --t12: .75rem; --t15: .9375rem; --t20: 1.25rem; --t32: 2rem;
   --l12: 16px; --l15: 20px; --l20: 28px; --l32: 40px; --l-read: 24px;
-  --ls20: -.01em; --ls32: -.02em; --ls-banner: .12em;
+  --ls20: -.01em; --ls32: -.02em;
   /* a strip, the touch floor, a row, a two-line row, a counter */
   --h-strip: 32px; --h-control: 44px; --h-row: 52px; --h-row2: 64px; --h-counter: 84px;
   --hair: 1px; --line: 2px; --lamp: 8px;
@@ -143,6 +143,8 @@ body {
   font: 400 var(--t15)/var(--l-read) var(--font);
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
   word-break: keep-all; overflow-wrap: break-word; overflow-x: clip; -webkit-tap-highlight-color: transparent;
+  /* set, not poured (DESIGN.md "Typesetting"): no weight or slant the files lack, every digit tabular */
+  font-synthesis: none; font-variant-numeric: tabular-nums;
 }
 ::selection { background: var(--lit); color: var(--ground); }
 h1, h2, h3, h4, h5, p { margin: 0; }

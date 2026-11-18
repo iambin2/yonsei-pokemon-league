@@ -192,6 +192,18 @@ Outside the law on purpose: the 44 a finger needs; the 2px seam and the 1 and 2p
 | Emoji in a heading or a key, an em dash in a sentence, bold scattered for stress | None (Voice and tone); emphasis is light |
 | A stock pair of keys (시작하기 beside 더 알아보기); section titles that fit any site (모든 것을 한 곳에, 당신을 위한) | A key names its act here (이번 대회 신청); a section is named for what it holds (YPL 시즌 3 순위) |
 | A builder's leftovers: its favicon, its share image, a badge, a meta generator, an empty legal page | The Wing Y on every surface (Head and share surfaces); a written privacy page |
+| Centred text everywhere: a centred hero, centred paragraphs, a centred column of lines | Words hang from the start edge; centred is one line alone in a box of its own (Typesetting) |
+| Every gap alike, every block halved, everything symmetrical | Space by the relation it shows, splits at 1.618 to 1, one instrument leading (Space, Panels 7, Composing a screen 25) |
+| A body line running the whole width of a wide screen | Reading stands in the 709, about 47 syllables a line (Typesetting) |
+| Italic, faux bold, positive tracking, a default system face | Two faces upright, three weights from their own files, tracking only tightening (Typesetting) |
+| Numbers that count up as they appear, typing or streaming text, a shimmer skeleton | A figure switches on as hardware does; loading is the board switched off with the busy cell (Motion) |
+| A cheerful empty state: an illustration, an emoji, 아직 아무것도 없어요 | One sentence of the fact (아직 공지가 없습니다.) and the board stays dark |
+| A tooltip or a helper line on everything; a modal that explains the screen | The form says it (Composing a screen 17, 22, 24) |
+| A section announced before it exists: Coming soon, 준비 중인 기능 | What is not built is not shown |
+| Welcome copy and words of quality: 환영합니다, 함께해요, 다양한, 최고의, 강력한, 스마트한, 원활한, 효율적인, 최적의, 다채로운, 언제 어디서나, 누구나 쉽게, 놓치지 마세요, 즐겨 보세요 | The fact, plainly; `tests/designLaw.test.mjs` refuses these too |
+| English stock keys and labels: Welcome, Get started, Learn more, Dashboard, Coming soon, 자세히 보기, 더 알아보기 | A key names its act in Korean (Voice and tone, Labels) |
+| Placeholder people and text: 홍길동, John Doe, Lorem ipsum | Every name is a real trainer; a field hint is 예: and a real value |
+| The browser's own parts left as they come: a blue link, a glowing focus, a native select arrow, a grey scrollbar, a tap flash | Every native part is set to the board: links inherit, the one focus ring, `accent-color` and `caret-color` lit, the scrollbar hidden or muted, no tap highlight |
 
 These cover the site's own words and screens only. What people write in it (a notice, a post, a comment) and what the game prints are theirs.
 
@@ -322,7 +334,88 @@ Albert Sans for Latin and digits, Freesentation for Korean, as before (unicode-r
 
 Desktop is read from further away, so at 860 and up the label and grey line step up to 15/20 (one change to `--t12` and `--l12`); there they part from row titles by weight and light alone, which is the board's one emphasis anyway. What matters stands bold: 700 for titles, names and figures. A title stands first; nothing small sits above a title except a page's back link and a notice's date line. A long title holds two lines and ends in an ellipsis.
 
-**A line runs to its column.** A line of words breaks where its column ends or where its sentence ends, never earlier: no measure narrower than the column (the desktop columns, 709 and 1200, are the measure), and no hand-placed break in the site's own copy. The one exception is the home's no-event sentence, set in two lines on a phone. `tests/designLaw.test.mjs` holds both.
+**A line runs to its column.** A line of words breaks where its column ends or where its sentence ends, never earlier: no measure narrower than the column, and no hand-placed break in the site's own copy. The one exception is the home's no-event sentence, set in two lines on a phone. `tests/designLaw.test.mjs` holds both. Reading is the one kind of text with a widest measure: see Typesetting.
+
+## Typesetting
+
+**The type is set, not poured.** Type gives the sizes; this chapter is how a line of them is set: the face, where a line breaks, how long it runs, how far apart lines stand, which edge it hangs from, and what never parts. Each rule holds on every screen, the admin and the battle's page parts included, in both themes. Most are written once in `tokens.css`'s base and held by `tests/designLaw.test.mjs`; the rest are measured on the page (The eye).
+
+**The faces**
+
+- **Two faces and no third.** `--font` sets Albert Sans first, so the Latin letters and every digit in a Korean line are Albert Sans and the Hangul falls through to Freesentation; the system fonts after them only stand in until a slice arrives. No serif, no monospace, no display face, no handwriting, no web font from a CDN.
+- **Upright only.** Nothing is italic or oblique: Hangul has no italic, and a slanted Hangul is a machine's. `i` and `em` are upright, and a word is stressed by light or weight 700, never by a slant, an underline that is not a link, or quotation marks.
+- **Nothing is faked.** `font-synthesis: none`: a weight or a style the files do not have is never drawn by the browser, so a missing 700 shows as a missing file, never as a smeared bold.
+- **Three weights, each with a job.** 400 reads (a paragraph, a grey line), 600 labels and operates (a label, a field, a tab, a chip), 700 names and counts (a title, a name, a figure, a key's word). A line never mixes weights to decorate; a 700 inside a 400 sentence is a figure or a name, never a phrase for stress.
+- **Every digit is tabular.** Figures in a column line up by place, a clock that changes does not jitter, and a score never shifts its neighbours. Albert Sans has no `tnum` feature, so the file itself is built with tabular digits (2026-11-19, the owner's pick A): `scripts/build-albert-sans.py` gives all ten the zero's width at every weight, each centred on it, and leaves every other glyph as drawn. `font-variant-numeric: tabular-nums` on the body stays as the statement of the rule.
+- **Tracking tightens with size and never opens.** 0 at 12 and 15, -.01em at 20, -.02em at 32. Korean is never tracked open: spaced-out letters are a slogan's, not a board's.
+
+**Leading: the more a text may run, the more room between its lines**
+
+| Text | Size / line | Ratio | Why |
+|---|---|---|---|
+| a label, a grey line | 12/16 | 1.33 | one line, read in a glance |
+| a row title, a key, a field | 15/20 | 1.33 | one line inside a box whose height is set |
+| reading, and anything that may run to a third line | 15/24 | 1.6 | Hangul is dense and square; the eye needs the open line to find the next one |
+| a section title | 20/28 | 1.4 | at most two lines |
+| a page title | 32/40 | 1.25 | large type holds itself together |
+
+- A line height is a token, never `normal` (it differs between the two faces, so a line would jump when a slice loads) and never a bare ratio. `1` only on a box whose height its container sets (a digit in a counter, a figure in a chip).
+- Text that can wrap to a third line is reading and takes 15/24, whatever its weight.
+
+**Measure: how long a line of reading runs**
+
+- **A reading line holds about 20 to 47 syllables.** On a phone that is the column (about 22 at 390); on desktop it is the 709, about 47 at 15. Reading never runs across the 1200: at about 80 syllables a line the eye loses its way back to the next one. A page of one kind that holds reading (a policy, a long notice) keeps its reading in the 709, as a notice does; its 439 holds what belongs beside it, never nothing (Composing a screen 26).
+- The measure comes from the column, never from a width in characters (`ch`, `em`) on the text itself (Type).
+- A short line (a label, a row's title, a grey line) has no widest measure; it runs to its cell.
+
+**Where a line breaks**
+
+- **Korean breaks between words, never inside one** (`word-break: keep-all` on the body). `word-break: break-all` and `break-word` are never used: they split 트레이너 into 트레이 and 너.
+- **A run with no space** (an address, a long English name, a code someone typed) may break anywhere (`overflow-wrap: anywhere`), and only inside what people write: a notice, a post, a comment, a form's answers.
+- **No hyphens and no hand breaks.** A break is never forced with `<br>` or a space run in the site's own words (Type).
+- **The last line is never one word alone.** A paragraph is `text-wrap: pretty`; a title is `balance`, so its two lines stand near one length.
+- **What never parts** stands as one unit (`white-space: nowrap` on its own box), and when a row is short of room the free words around it give way first and end in an ellipsis: a figure and its unit (32명, 6대, 05 일), a date with its weekday (11월 7일 (토)), a time (오후 3:05), a range (68 ~ 81), a score (2 : 1), a trainer's name, a Pokémon's name, a key's or a tab's word, a tag, a chip. A key's word is one line always: a key too narrow for its word gets a shorter word, never two lines.
+- **How long a thing may run** is its tier's: a page title two lines, a section title two lines, a row's title one line, each then an ellipsis; reading has no limit; a label one line.
+
+**Which edge a line hangs from**
+
+- **Words hang from the start edge, ragged at the end.** Never justified: justified Hangul stretches the gaps between words into rivers.
+- **Centred is for one line that stands alone in a box of its own:** a key's or a choice's word, a grid cell's name (a title medal, a type cell), a figure in a fixed cell, a display's caption on a page led by its display. A paragraph, a list of lines, a page title over a stack and a section's head are never centred: a column of centred lines is the first look of a machine-made page.
+- **Figures in a column hang from the end edge** on their tabular digits, so places line up; a rank number stands centred in its fixed cell.
+- **Two lines that belong together share one start edge** by their ink, a title and its grey line, a label and its value (The eye).
+
+**Space inside a line**
+
+- One space between words, never two. A figure and its unit join with none (32명, 6대, 15%). Hangul beside Latin or digits takes a space only where Korean grammar puts one (YPL 시즌 3, 39회 파이컵).
+- Paragraphs part by 32 and a heading inside reading stands 20 over its paragraph (`.prose`); a paragraph is never indented and never parted by an empty line of `<br>`.
+- A mark stands before its word in one unit (→ 파티 보기), and the pair never parts (What never parts).
+
+## What stands on what
+
+**Every thing has its ground, and only one.** The surfaces are four (Hierarchy), the lights five (Light); this table is which thing may stand on which, gathered so a new part never has to guess. A thing that is not in it takes the row of the thing whose role it shares (When the law is silent).
+
+| Surface | Holds | Words on it | Never on it |
+|---|---|---|---|
+| Ground `--ground` | the bars, a page's title and back link, a section's title and its link, reading (a notice, a post, a policy), the dock's strip, the stack of panels, the hero display on a page led by it | lit, dim, muted | a Pokémon, a row's name without its panel, a type colour as a fill |
+| Panel `--panel` | a row, a cell, a counter and its display, a Pokémon on its floor, a field, a choice, a chip, a key, a sheet's plate | lit, dim, muted; amber only as the lamp's square | a second panel of the same tone inside it, a page's reading (a notice's or a post's body stands on the ground) |
+| Next step `--panel-2` (`--rule` on a sheet) | a hover, a track and its bar, a tag, a field inside a panel, every panel on a sheet, the lamp's housing | lit, dim, muted | anything one more step up: a surface is never two steps above what holds it |
+| Inverted (`--lit` fill) | the one decided, current or chosen thing of a group: a winner's row, the champion, a chosen option, the main action, a toast | the ground's colour only, at one weight per line | amber (it falls under 3), a paragraph (one sentence at most, a toast's), a second inverted thing in the same group, an island of the old tone (Composing a screen 13) |
+
+- **A type's colour is content** and stands only as the 8 square of its tag or the fill of a type's own cell, its word in `--on-type-light` or `--on-type-dark`. **The champions' gold** stands only on their rail, a banner's cap and a generation's figure. **Amber** is only a lamp's 8 square. None of them is ever a word's colour on the board's surfaces or a surface of the board.
+- **A Pokémon** stands on a panel (or the step up on a sheet) with its feet on its floor, never on the ground and never on its own box (Where a Pokémon stands); on an inverted panel its cell turns transparent.
+- **A segment display** stands on the panel of the instrument it belongs to, or on the ground where it leads the page; its unlit bars are always there.
+- **Light falls with distance from the point.** On any surface the thing the visitor came for is lit, what describes it is dim, what waits or lost is muted. A surface never holds two lit things of different tiers side by side without the tier's size between them (Hierarchy).
+
+## When the law is silent
+
+**Nothing new is an exception.** The law is meant to answer every case; when a new part seems to fall outside it, the answer is found in this order, and the first step that answers ends the search.
+
+1. **The same role already stands somewhere.** Use that form exactly: its tier, its tokens, its component in `Board.jsx`, its motion. A list of things is a stack of rows, a figure someone asks for is a counter or a figure in type, a pick is a choice, a filter is a chip, a refusal is a sentence in a kept place (Composing a screen 24).
+2. **The nearest role by meaning.** A new thing takes the tier, the surface and the light of what it most resembles in use, never in look: a thing pressed is a key of one of the three actions, a thing read once is a label, a thing that changes live is a display with a lamp.
+3. **Fewer parts.** If two forms seem to fit, the one with fewer parts and fewer words wins (Composing a screen 23).
+4. **Only then a change to the law.** A new value, a new form or a new kind of motion is written here first, with the owner's word and the reason it could not be one of the above, then in `tokens.css` and the shared parts, then on the screen. A value is never invented in place, a component never carries a private copy of a shared part, and `EXCEPT` in `tests/designLaw.test.mjs` names only a reason written in this file.
+
+A screen built this way cannot be told from one the owner approved, which is the test: put it beside its neighbours, and nothing about it says it came later.
 
 ## Controls
 
@@ -412,6 +505,8 @@ Distances are measured on rendered ink at 390 and 1440, within 1px.
 | a segment display's baseline to its unit's baseline | 0 |
 | the longest band without ink inside a panel | 40 at most |
 | the bottoms of two columns side by side | 0 apart |
+| a line of reading at 1440 | 709 at most, about 47 syllables (Typesetting) |
+| a title and its grey line, a label and its value | one start edge, by ink |
 
 Centring is by ink: text through the fonts' metrics (Albert Sans with its ascent override), pictures through `inkCentre.js`, except that a Pokémon is placed by its feet, not its centre.
 
@@ -689,10 +784,13 @@ Words are under the law too. Korean, plain and factual: what happens, then what 
 - Do not animate a shadow, filter, clip, mask or background; move transform and opacity on a picture already drawn.
 - Do not use View Transitions snapshots or copy the page for a transition.
 - Do not put a small label above a title, or repeat one fact twice on a screen.
+- Do not slant, fake a weight, justify, hyphenate, track open, or break a Korean word; do not centre a paragraph or run reading across the 1200 (Typesetting).
+- Do not invent a value, a form or an exception in place: find it by When the law is silent, or change the law first.
 - Do not change data behaviour from a visual change.
 
 ## Open
 
+Written 2026-11-19 and not yet in the code: 개인정보처리방침 runs its reading across the 1200 on desktop (about 80 syllables a line, measured at 1440); by Typesetting it stands in the 709 as a notice does, and what its 439 holds waits on the owner's pick of a draft.
 Written 2026-11-18 and not yet in the code: draft B on the home and the records (Layout and pages, The stadium board), segments taken off the league's counts, the ranking's points, the notices' dates and 소개's first date (Seven-segment displays), panels below the first screen drawn at once instead of lighting as they near the view (Motion), and the other screens checked against Composing a screen 25 and 26 and against Made by people (소개's step and feature cards are the first known case).
 
 Measured in the browser but not yet on a real phone at the venue: the strength of the unlit bars (8% and 6%), the 44 touch floor on the bracket's 36 rows (the whole match box is the target), and each sprite's feet on its floor. Not yet played on two real phones: an official bracket match, and the battle stage's smoothness on a phone GPU. Waiting on the owner's word (2026-11-09): a practice run of 도전의 탑 that needs no account, which needs the battle function and `streak_runs.sql` to take an unranked run; until then the tab's second action is a battle with the computer. Frame measurements of the battle and 도전의 탑, and what they leave, live in `docs/BATTLE_FRAMES.md` (baseline 2026-11-18). Not yet tried on a real phone: the battle's long press against the browser's own text selection and callout, and the deck over the home indicator's safe area.
