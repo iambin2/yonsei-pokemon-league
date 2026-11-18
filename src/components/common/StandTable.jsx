@@ -1,5 +1,5 @@
 import React from "react";
-import { Podium, Row } from "./Board.jsx";
+import { Podium, Row, koNumber } from "./Board.jsx";
 import Button from "./Button.jsx";
 
 /* 점수 순으로 정렬하고 같은 점수는 같은 순위, 다음 순위는 건너뛴다(6, 6, 8). */
@@ -42,7 +42,7 @@ export default function StandTable({ rows, total, onName, open = false, onMore, 
           const n = (seen.get(r.name) || 0) + 1; seen.set(r.name, n);
           const line = [recordLine(r), r.note].filter(Boolean).join(", ");
           return <Row key={`${r.name}#${n}`} lead={<span className="num t20">{tied(r) ? `공동 ${r.rank}` : r.rank}</span>} title={r.name} line={line || undefined}
-            value={<><span className="num t20">{(r.points || 0).toLocaleString("ko-KR")}</span><span className="t12 dim">{unit}</span></>}
+            value={<><span className="num t20">{koNumber(r.points || 0)}</span><span className="t12 dim">{unit}</span></>}
             lamp={r.live ? "도전 중" : undefined} sig
             onClick={r.open || (onName ? (e) => onName(r.name, e.currentTarget) : undefined)} label={`${tied(r) ? "공동 " : ""}${r.rank}위 ${r.name}, ${r.points || 0}${unit}${r.live ? ", 도전 중" : ""}`} />;
         })}

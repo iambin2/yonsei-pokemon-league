@@ -4,6 +4,11 @@ import Seg from "./Seg.jsx";
 import { standInk } from "./inkCentre.js";
 import { DUR, forgetLine, light, lightAfter, place, slideLine } from "./motion.js";
 
+/* a number with its thousands marked (12,345), from one formatter: toLocaleString makes a new one for every number, 43 ms of the frame a
+   ranking stood up in at a phone's speed (2026-11-18, the 도전의 탑 tab) */
+const KO_NUMBER = new Intl.NumberFormat("ko-KR");
+export const koNumber = n => KO_NUMBER.format(n);
+
 /* the chosen word's line slides from the word before it (motion.js slideLine); the line itself is the word's own ::before.
    lights: a change of word also lights what the row swaps, even when the page drew the row afresh for the new word. */
 export function useSlideLine(key, lights = false) {
@@ -109,7 +114,7 @@ export function Podium({ rows, onName, unit = "점" }) {
           <b className="t15 podium-name">{r.name}</b>
           <span className="podium-pts">{pts < 1000
             ? <Seg value={String(pts)} h={40} cells={Math.max(2, String(pts).length)} label={`${pts}${unit}`} />
-            : <b className="num t20">{pts.toLocaleString("ko-KR")}</b>}<span className="t12 dim">{unit}</span></span>
+            : <b className="num t20">{koNumber(pts)}</b>}<span className="t12 dim">{unit}</span></span>
         </Box>;
       })}
     </div>

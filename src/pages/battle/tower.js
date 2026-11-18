@@ -104,7 +104,7 @@ function lampsOf(tw) {
 
 /* the picture as it stands now: the model's camera before the door stood before (s, a real number while it walks the road), or
    where a move has put it (cam) */
-function paint(el) {
+function paint(el, draw = true) {
   const tw = el.tower, canvas = el.querySelector("canvas.tw-body");
   if (!tw || !canvas) return;
   const top = topOf(tw.st.floor);
@@ -114,6 +114,7 @@ function paint(el) {
     if (!modelBuilt(top, tw.pal)) { tw.waiting ||= prebuildModel(top, tw.pal).then(() => { tw.waiting = null; if (el.tower === tw) { paint(el); mark(el, false); } }); return; }
     tw.model = buildModel(top, tw.pal);
   }
+  if (!draw) return;
   let v = tw.cam || viewOf(tw.kind, tw.s, tw.m, top);
   // a hand on the tab's tower turns the camera round it and lifts or lowers it (look)
   if (tw.look) v = { ...v, phi: v.phi + tw.look.dphi, camY: v.camY + tw.look.dy, tgtY: v.tgtY + tw.look.dy };
@@ -304,7 +305,10 @@ const seen = typeof IntersectionObserver === "undefined" ? null
 /* the tower drawn in el (the tab's hall, or the scene laid over a stage). floor: the floor stood on; at: its game (1 to 5, 6 the floor
    won whole, 0 none yet); live: a game is gone into or played (its door amber), else the run rests (its door at .382); hold: the
    game at stands unlit. The tab adds climbers ({ name, wins, live }) */
-export function drawTower(el, st) {
+/* coming (standTower: the entrance fades it in from nothing), its first picture is not painted here but in the entrance's first frame:
+   painted here, it went into the frame the tab's whole screen was put up in, 33 to 85 ms more of it at a phone's speed, and at an
+   opacity of 0 (2026-11-18, a profile of the tab's click) */
+export function drawTower(el, st, coming = false) {
   const W = el.clientWidth, H = el.clientHeight;
   if (!W || !H) return false;
   el.tower?.anims.forEach(a => a.done());
@@ -314,7 +318,7 @@ export function drawTower(el, st) {
     s: doorOf(st), cam: null, look: null, view: null, lift: null, seen: true, anims: new Set(), loop: 0 };
   seen?.observe(el);
   if (hall) hand(el);
-  paint(el);
+  paint(el, !coming);
   mark(el, false);
   run(el);
   return true;
@@ -326,7 +330,7 @@ const sameState = (a, b) => a.floor === b.floor && a.at === b.at && a.live === b
 export function standTower(el, st) {
   const was = el.tower;
   if (was && was.m.W === el.clientWidth && was.m.H === el.clientHeight && was.theme === themeOf() && sameState(was.st, st)) return;
-  if (drawTower(el, st) && !was) void entrance(el);
+  if (drawTower(el, st, !was && !reduced()) && !was) void entrance(el);
 }
 // the theme turned: every tower standing is painted again in the other one's tones
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
@@ -344,6 +348,10 @@ async function entrance(el) {
   if (tw.waiting) { await tw.waiting; if (el.tower !== tw) return; }
   const top = topOf(tw.st.floor), a = viewOf("whole", tw.s, tw.m, top), b = viewOf("hall", tw.s, tw.m, top), target = tw.doors.slice(), k = doorOf(tw.st);
   marksOf(el).forEach(x => { x.style.opacity = "0"; });
+  // a frame of its own first: the screen goes up in one, the tower's first picture in the next (drawTower coming); unpainted, the canvas
+  // shows nothing, as it showed nothing at the fade's start
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  if (el.tower !== tw) return;
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.light);
   tw.doors.fill(0);
   await animate(el, ENTRANCE, e => {

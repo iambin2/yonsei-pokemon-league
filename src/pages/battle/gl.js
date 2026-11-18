@@ -133,6 +133,7 @@ ramp("aurora.v", [[0, "#7FFFE0", 0], [.2, "#7FFFE0", .7], [.45, "#7FD8FF", .8], 
 ramp("bar.gold", [[0, "#FFF6D0", 0], [.15, "#FFE89A", 1], [.85, "#FFD45A", 1], [1, "#FFD45A", 0]]);
 ramp("bar.pink", [[0, "#FFF0FA", 0], [.15, "#FFD8F2", 1], [.85, "#F0B8FF", 1], [1, "#F0B8FF", 0]]);
 const RAMP_ROWS = 128;
+let rampsMade = null;
 function buildRamps() {
   const W = 256, out = new Uint8Array(W * RAMP_ROWS * 4);
   RAMPS.forEach((stops, row) => {
@@ -422,7 +423,8 @@ class Engine {
     };
     takeAtlas();
     this.mats = new Float32Array(ROWS * GRID * 4); MATERIALS.forEach((m, i) => this.mats.set(m, i * 4));
-    this.ramps = texture(gl, 256, RAMP_ROWS, buildRamps());
+    // the ramps are fixed: worked out once for every stage (each stage worked them out again, 26 ms of the first frame at a phone's speed)
+    this.ramps = texture(gl, 256, RAMP_ROWS, rampsMade ||= buildRamps());
     // the unit quad every sprite and particle is drawn on
     this.quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
     const instanced = cap => {
