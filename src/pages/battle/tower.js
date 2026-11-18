@@ -376,6 +376,17 @@ async function step(el, st) {
   tw.doors = doorsOf(tw.st); paint(el);
 }
 
+/* the break's last beat, the next door (2026-11-18, Task 9): the tower stands in the stage's place as the tab sees it (el is a .tw-hall),
+   comes up from the game just played and walks to the next door, whose lamp is amber, the game the key goes into. Going in is then
+   towerShow on this same hall. climbing and again as towerShow's */
+export async function towerBreak(el, { floor, at: game, climbing = false, again = false }) {
+  const now = { floor, at: game, live: true, climbers: null };
+  const before = again ? now : climbing ? { floor: floor - 1, at: 5, live: true, climbers: null } : game > 1 ? { floor, at: game - 1, live: true, climbers: null } : now;
+  if (!drawTower(el, reduced() ? now : before) || reduced()) return;
+  await arrive(el);
+  if (el.tower?.st && doorOf(before) !== doorOf(now)) await step(el, now);
+}
+
 /* 1 and 2: the tower is shown on target for the game gone into (floor, at). hall: the tab's hall, where it already stands; otherwise
    it comes up over the stage. climbing: the floor's first game after a gatekeeper. again: a lost game gone into again, where no
    lamp was won and the amber lamp stands where it stood. Resolves once it has been read */

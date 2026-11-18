@@ -30,6 +30,23 @@
   .streak-break .streak-take > b { display: none; }
 }
 @media (min-width: 860px) { .streak-break { padding: 0; } }
+/* the break a run rests on, in three beats (2026-11-18, the owner's draft B, Task 9), one question a beat.
+   The result: in the middle of the stage's place the game with 승리 or 패배, the streak at 84, the floor's track and the lamps, and
+   after a loss the three it was lost to */
+.streak-break.beat-result { align-content: safe center; }
+.streak-result { display: grid; justify-items: center; gap: var(--s3); min-width: 0; text-align: center; }
+.streak-result-count { display: flex; align-items: flex-end; gap: var(--s2); }
+.streak-result-count > .t20 { line-height: 1; }
+.streak-result-track { display: flex; align-items: center; gap: var(--s5); }
+.streak-result > .streak-recap { justify-self: stretch; margin-top: var(--s5); text-align: left; }
+/* the trade: the table alone, filling the stage's place */
+.streak-break.beat-trade { grid-template-rows: minmax(0, 1fr); }
+/* the next door: the tower takes the stage's place over the doors as the tab sees it (the door it looks up from at its foot, so the
+   doors stand under it, never over it), the game's name at its top left */
+.streak-break.beat-door { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; gap: var(--seam); padding: var(--s3); }
+.streak-break.beat-door > .tw-hall { position: relative; inset: auto; aspect-ratio: auto; max-height: none; height: 100%; }
+.streak-break-name { position: absolute; top: var(--s3); left: var(--s3); z-index: var(--z-raised); gap: var(--s5); padding: var(--s2) var(--s3); }
+.streak-break.beat-door > .streak-doors { position: relative; z-index: var(--z-raised); }
 /* its head: the run's count beside the next game, one counter high, at 1 to 1.618 */
 .streak-break-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
 .streak-next { height: var(--h-counter); padding: var(--s2) var(--pad); display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--s2); text-align: left; }
@@ -162,6 +179,10 @@
 .streak-pick-stats.on .tb-bar { background: var(--dim); }
 .streak-pick-stats.on .tb-bar > i { background: var(--ground); }
 .streak-pick > .streak-pick-stats { cursor: pointer; }
+/* a card's plain back while it turns over (Streak.jsx turnOver), the two not chosen gone off, the chosen picture on its way up */
+.streak-back { position: absolute; inset: 0; z-index: var(--z-raised); background: var(--panel-2); box-shadow: inset 0 0 0 var(--line) var(--rule); pointer-events: none; }
+.streak-pick.off { opacity: var(--opacity-disabled); transition: opacity var(--move-leave); }
+.streak-fly { position: fixed; z-index: var(--z-sticky); object-fit: contain; pointer-events: none; }
 @media (max-width: 639px) {
   .streak-draft-row .bt-card { gap: var(--s2); padding: var(--s2); }
   /* three across a phone, a chosen-from card stands its picture over its name (the team preview's grid would cut the name) */
@@ -198,14 +219,10 @@
 .streak-door.inv .streak-gain.none { color: var(--ground); opacity: var(--opacity-disabled); }
 .streak-trades-head > .streak-gain { margin-left: var(--s2); color: var(--lit); }
 .streak-door-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
-/* each of the six its picture over its types, one tick a type in the type's colour, as wide as the picture (2026-11-16 draft A); on a
-   filled door a tick keeps a hairline of the door's words, so a tick of the door's own colour still stands */
-.streak-door-mon { display: grid; justify-items: center; gap: var(--seam); min-width: 0; }
+/* each of the six its picture alone (2026-11-18: the type ticks under them said nothing a door's choice needs) */
+.streak-door-mon { display: grid; justify-items: center; min-width: 0; }
 .streak-door-mon > img { width: 100%; max-width: var(--h-strip); height: var(--s5); object-fit: contain; }
 @media (min-width: 640px) { .streak-door-mon > img { height: var(--h-strip); } }
-.streak-ticks { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--seam); width: 100%; max-width: var(--h-strip); }
-.streak-ticks > i { height: var(--s1); background: var(--type); }
-.streak-door:is(.on, .inv) .streak-ticks > i { outline: var(--hair) solid currentColor; }
 .streak-door:focus-visible { outline: var(--line) solid currentColor; outline-offset: calc(var(--line) * -1); }
 @media (hover: hover) { .streak-door.pn:hover { background: var(--panel-2); } }
 @media (prefers-reduced-motion: reduce) {

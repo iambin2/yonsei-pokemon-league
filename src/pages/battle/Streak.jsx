@@ -19,12 +19,13 @@ import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
 import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, readBattleRow, readSeat, readStreakDraft, streakNextGame, viewBattle, warmBattle } from "../../services/battleService.js";
 import { VISITOR_EVENT, myPlayerLink, pickStreakDraft, readDailyBoard, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun, visitorSignedIn } from "../../services/visitorAuth.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
-import { nameOf, typesOf } from "./Stage.jsx";
-import { DUR, STAGGER, climb, light, place } from "../../components/common/motion.js";
+import { nameOf } from "./Stage.jsx";
+import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
 import { ALIGNMENTS, STAT_KEYS, calculatedStat, onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
 import { josa, toID } from "../../services/battleLog.js";
-import { standTower, towerDive, towerDrop, towerShow } from "./tower.js";
+import { drawTower, standTower, towerBreak, towerDive, towerDrop, towerShow } from "./tower.js";
 import { MonCard } from "./Sets.jsx";
+import { centreInk } from "../../components/common/inkCentre.js";
 
 // the board's months are the run's months in KST, as the database counts them: "2026-11-01"
 const monthOf = back => {
@@ -127,19 +128,71 @@ function StatBars({ stats, other = null }) {
     })}
   </span>;
 }
+/* pictures a coming scene will show, decoded and their ink read (inkCentre.js) in idle moments before it, so the scene never reads
+   them while it moves (2026-11-18: the doors' twelve read on the break's last beat held frames of 117 ms at a phone's speed) */
+const idle = f => (typeof requestIdleCallback === "function" ? requestIdleCallback(f) : setTimeout(f, 60));
+export function readAhead(species) {
+  for (const sp of species || []) {
+    const im = new Image();
+    im.src = spriteUrl(sp);
+    im.decode().then(() => idle(() => centreInk(im)), () => {});
+  }
+}
+/* a step's three come face down and turn over one after another (2026-11-18, the owner's draft B, Task 9): each card folds to its edge
+   over its plain back (150) and opens on its face (150), 140 after the one before. Under reduced motion they stand turned */
+const FOLD = 150, TURN_STEP = 140;
+function turnOver(row) {
+  if (!row || reduced() || typeof row.animate !== "function") return;
+  const cards = [...row.children], backs = cards.map(card => {
+    const back = document.createElement("i");
+    back.className = "streak-back";
+    back.setAttribute("aria-hidden", "true");
+    card.append(back);
+    return back;
+  });
+  // the faces are decoded and placed (their ink read on load) while the backs stand still, then they turn
+  const faces = cards.map(c => c.querySelector("img")?.decode().catch(() => {}));
+  Promise.race([Promise.all(faces), new Promise(r => setTimeout(r, 900))]).then(() => requestAnimationFrame(() => cards.forEach((card, i) => {
+    const back = backs[i];
+    card.animate([{ transform: "perspective(900px) rotateY(0deg)" }, { transform: "perspective(900px) rotateY(90deg)" }], { duration: FOLD, delay: i * TURN_STEP, easing: EASE_IN, fill: "backwards" })
+      .finished.then(() => {
+        back.remove();
+        card.animate([{ transform: "perspective(900px) rotateY(-90deg)" }, { transform: "none" }], { duration: FOLD, easing: EASE_OUT });
+      }, () => back.remove());
+  })));
+}
+/* the chosen card's picture travels up into its place in the row (DUR.light) and the other two go off */
+function travel(row, species, slot) {
+  const card = [...(row?.children || [])].find(c => c.dataset.species === species);
+  if (!card) return;
+  for (const c of row.children) c.classList.toggle("off", c !== card);
+  const img = card.querySelector(".bt-card-pic img, img");
+  if (!img || !slot || reduced() || typeof img.animate !== "function") return;
+  const a = img.getBoundingClientRect(), b = slot.getBoundingClientRect(), fly = img.cloneNode();
+  fly.className = "streak-fly";
+  Object.assign(fly.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px` });
+  document.body.append(fly);
+  const to = Math.min(b.width, b.height) * .8 / Math.max(1, a.height);
+  fly.animate([{ transform: "none" }, { transform: `translate(${b.left + b.width / 2 - a.left - a.width / 2}px, ${b.top + b.height / 2 - a.top - a.height / 2}px) scale(${to})` }],
+    { duration: DUR.light, easing: INOUT, fill: "forwards" }).finished.then(() => fly.remove(), () => fly.remove());
+}
 export function DraftBoard({ res, draft, picks, onPick }) {
   // the first place not chosen: the furthest a run's draft has come (the last when all six are)
   const open = () => { const i = draft.findIndex((_, k) => !picks[k]); return i < 0 ? draft.length - 1 : i; };
   const [step, setStep] = useState(open);
   const strip = useRef(null), cards = useRef(null), next = useRef(0);
-  // switching on: the strip's places one after another, then each step's three rising into their light
+  // switching on: the strip's places one after another, then each step's three turning over (turnOver)
   useLayoutEffect(() => { place([...(strip.current?.children || [])], { step: STAGGER.row }); }, []);
-  useLayoutEffect(() => { light(cards.current); }, [step]);
+  useLayoutEffect(() => turnOver(cards.current), [step]);
+  // the next place's three are read while this step's stand turned, so they turn over without a wait
+  useEffect(() => { const t = setTimeout(() => readAhead(draft[step + 1]?.map(c => c.species)), FOLD * 2 + TURN_STEP * 2); return () => clearTimeout(t); }, [step]);
   useEffect(() => () => clearTimeout(next.current), []);
   const reached = open();
   const megaOf = k => draft[k]?.find(c => c.species === picks[k])?.mega;
   const choose = species => {
     const was = picks[step] === species;
+    if (!was) travel(cards.current, species, strip.current?.children[step]);
+    else for (const c of cards.current?.children || []) c.classList.remove("off");
     onPick(step, species);
     clearTimeout(next.current);
     if (was) return;
@@ -163,7 +216,7 @@ export function DraftBoard({ res, draft, picks, onPick }) {
     <div key={step} ref={cards} className="stack streak-draft-row" role="radiogroup" aria-label={`${step + 1}번째 자리`}>
       {draft[step].map(c => {
         const on = picks[step] === c.species;
-        return <span key={c.species} data-rise className="streak-pick">
+        return <span key={c.species} data-species={c.species} className={"streak-pick" + (picks[step] && !on ? " off" : "")}>
           <MonCard res={res} species={c.species} ability={c.ability} item={c.item} moves={(c.moves || []).map(id => ({ id, pp: "" }))} compact
             pick={{ order: on ? step + 1 : 0, onPick: () => choose(c.species) }} />
           {/* its six at level 50 on tracks under the moves, part of the card: a tap on them chooses it as the card does (2026-11-16 draft B) */}
@@ -201,10 +254,9 @@ export function DoorPick({ res, doors, value, onChange }) {
           {d.kind === "even" ? <span className="streak-gain none">없음</span>
             : <>{d.kind === "gate" && <span className="streak-gain"><i className="lamp" aria-hidden="true" />램프 +1</span>}<span className="streak-gain">교환 승급</span></>}
         </span>
-        {/* each of the six with its types under its picture, one tick a type in the type's colour (2026-11-16 draft A) */}
+        {/* the six as their pictures alone (2026-11-18, the user: the type squares under them were "상당히 무의미") */}
         {d.species.length > 0 && <span className="streak-door-six">{d.species.map(s => <span key={s} className="streak-door-mon">
           <img src={spriteUrl(s)} alt={nameOf(res, s)} draggable="false" onError={onSpriteError()} />
-          <span className="streak-ticks" aria-hidden="true">{typesOf(res, s).map(t => <i key={t} className={`type-${toID(t)}`} />)}</span>
         </span>)}</span>}
       </button>)}
     </div>
@@ -586,6 +638,19 @@ export function SwapTable({ rows, chosen, onPick, onInfo = null, up = false, res
    나가기). Playing the replay puts the break away (away) and the stage shows it; back at the end it lights again. The run rests after a
    win until 다음 판 opens the next game, so 나가기 loses nothing. ours, theirs: the two parties' species, as the team preview showed
    them (none after a reload: then there is no swap) */
+/* the break's last beat: the tower in the stage's place, from the foot of the next game's door (tower.js towerBreak); going in walks
+   in through that door (floorCall finds this hall) */
+function BreakTower({ wins, climbing, again }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    void towerBreak(el, { floor: streakFloor(wins), at: floorGame(wins), climbing, again });
+    const seen = new ResizeObserver(() => { const tw = el.tower; if (tw && (tw.m.W !== el.clientWidth || tw.m.H !== el.clientHeight)) drawTower(el, tw.st); });
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, []);
+  return <div ref={ref} className="tw tw-hall" role="img" aria-label={`다음 판 ${gameWords(wins)}`} />;
+}
 export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, standUp, leaveNow = async () => {}, settle = async () => {}, onInfo = null, sets = null, stage = null, away = false, ours: ourSix = [], theirs: theirSix = [] }) {
   const seat = readSeat(id);
   const board = useBoard(Boolean(seat?.daily));
@@ -595,6 +660,10 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
   const [error, setError] = useState("");
   // the trade chosen, { give, take }: one a game (2026-11-10, the user: "한 라운드에 한 포켓몬만 바꿀 수 있게 해줘")
   const [chosen, setChosen] = useState(null);
+  /* the break a run rests on asks one thing at a time (2026-11-18, the owner's draft B, Task 9): the result, then the trade (after a
+     won game whose sixes are known), then the next door, the deck's key going from one to the next */
+  const [beat, setBeat] = useState("result");
+  useEffect(() => readAhead(seat?.doors?.flatMap(d => d.species)), []);
   // trades the server refused (what the screen could not see: a run from before the sets were sent): they stand off with its reason
   const [blocked, setBlocked] = useState([]);
   const wins = seat?.wins ?? 0;
@@ -655,21 +724,35 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
       /* a refused trade stands off in its row and is let go, its reason one press away where the eye already is (a toast in the
          deck's flow pushed 다음 판 down, 2026-11-10, the user: "왜곡이 생겨"). Without a named trade the toast says it, and the key
          says 다음 판 again */
-      if (e.pair?.give && e.pair?.take) { setBlocked(b => [...b, { ...e.pair, why: e.message }]); setChosen(null); }
+      if (e.pair?.give && e.pair?.take) { setBlocked(b => [...b, { ...e.pair, why: e.message }]); setChosen(null); setBeat("trade"); }
       else { setError(e.message); setChosen(null); }
     }
   };
-  const brk = <section ref={box} className={"streak-break" + (away ? " away" : "")} aria-label={resting ? "다음 판" : "도전 끝"}>
+  const played = won ? Math.max(0, wins - 1) : wins;
+  const brk = resting ? <section ref={box} className={"streak-break beat-" + beat + (away ? " away" : "")} aria-label={beat === "door" ? "다음 판" : beat === "trade" ? "교환" : "결과"}>
+    {beat === "result" && <div className="streak-result">
+      <span className="t15 dim">{gameWords(played)} {won ? "승리" : "패배"}</span>
+      <span className="streak-result-count" role="img" aria-label={`${best ? "이번 달 내 최고 기록" : "이번 도전"} ${shown}연승`}><Seg value={String(shown)} h={84} cells={2} label="" /><span className="t20">연승</span></span>
+      {best && <span className="t12 dim">이번 달 내 최고 기록</span>}
+      <span className="streak-result-track"><FloorTrack wins={wins} /><RunLamps lives={lives} /></span>
+      {recap && <div className="stack streak-recap" role="group" aria-label="상대 파티">
+        <span className="pn streak-trades-title"><b>상대 파티</b></span>
+        {recap.map(m => <MonCard key={m.species} res={res} species={m.species} ability={m.ability} item={m.item || null} moves={(m.moves || []).map(name => ({ id: name, pp: "" }))} compact />)}
+      </div>}
+    </div>}
+    {beat === "trade" && <SwapTable rows={rows} up={reach > 0} chosen={chosen} onPick={setChosen} onInfo={onInfo} res={res}
+      sets={(mine, sp) => (mine ? sets?.(true, sp) : beatenCard(sp) || sets?.(false, sp)) || null} />}
+    {beat === "door" && <>
+      <BreakTower wins={wins} climbing={won && wins > 0 && floorGame(wins) === 1} again={!won} />
+      <b className={(master ? "inv" : "pn") + " t15 streak-named streak-break-name"}>{gameWords(wins)}<RunLamps lives={lives} /></b>
+      <DoorPick res={res} doors={seat?.doors} value={door} onChange={setDoor} />
+    </>}
+  </section> : <section ref={box} className={"streak-break" + (away ? " away" : "")} aria-label="도전 끝">
     <div className="stack streak-break-head">
       <Counter label={best ? "이번 달 내 최고 기록" : "이번 도전"} value={shown} after={<span className="t15">연승</span>} />
-      {resting
-        ? <div className={(master ? "inv" : "pn") + " streak-next"} role="img" aria-label={`다음 판 ${gameWords(wins)}`}>
-            <b className="t15 streak-named">{gameWords(wins)}<RunLamps lives={lives} /></b>
-            <FloorTrack wins={wins} />
-          </div>
-        /* a lost run: its place on the month's board as a counter of the same size beside the streak (the two stood at 84 and 116,
-           the place's panel holding the track under it); the floor it fell on stays in the head's window */
-        : place != null ? <Counter label={`${monthOf(0).label} 순위`} value={place} after={<span className="t15">위</span>} />
+      {/* a lost run: its place on the month's board as a counter of the same size beside the streak (the two stood at 84 and 116,
+          the place's panel holding the track under it); the floor it fell on stays in the head's window */}
+      {place != null ? <Counter label={`${monthOf(0).label} 순위`} value={place} after={<span className="t15">위</span>} />
         : <div className="pn streak-next"><b className="t15 streak-named">{gameWords(wins)}<RunLamps lives={lives} /></b><FloorTrack wins={wins} lost /></div>}
     </div>
     {recap && <div className="stack streak-recap" role="group" aria-label="상대 파티">
@@ -677,25 +760,26 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
       {recap.map(m => <MonCard key={m.species} res={res} species={m.species} ability={m.ability} item={m.item || null} moves={(m.moves || []).map(name => ({ id: name, pp: "" }))} compact />)}
     </div>}
     {/* a lost run stands as a scene of its own: the floors it climbed as a tower, the highest on top, then the month's first three */}
-    {!resting && <div className="stack streak-tower" role="img" aria-label={`${streakFloor(wins)}층 ${gameWords(wins)}에서 끝났습니다.`}>
+    <div className="stack streak-tower" role="img" aria-label={`${streakFloor(wins)}층 ${gameWords(wins)}에서 끝났습니다.`}>
       {Array.from({ length: Math.min(streakFloor(wins), 5) }, (_, i) => streakFloor(wins) - i).map(f => <span key={f} className="pn streak-tower-floor">
         <Seg value={String(f)} h={32} cells={String(streakFloor(wins)).length} label="" />
         <TrackBar at={f < streakFloor(wins) ? STREAK_STEP + 1 : floorGame(wins)} lost={f === streakFloor(wins)} />
       </span>)}
-    </div>}
-    {!resting && board?.length > 0 && <section className="streak-break-board" aria-labelledby="streak-end-board">
+    </div>
+    {board?.length > 0 && <section className="streak-break-board" aria-labelledby="streak-end-board">
       <SectionHead id="streak-end-board" title={`${monthOf(0).label} 순위`} />
       <StandTable rows={board.slice(0, 3).map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live }))} placed unit="연승" head="연승" />
     </section>}
-    {resting && <DoorPick res={res} doors={seat?.doors} value={door} onChange={setDoor} />}
-    {swapping && <SwapTable rows={rows} up={reach > 0} chosen={chosen} onPick={setChosen} onInfo={onInfo} res={res}
-      sets={(mine, sp) => (mine ? sets?.(true, sp) : beatenCard(sp) || sets?.(false, sp)) || null} />}
   </section>;
+  // the key goes from beat to beat, and from the next door into the game (2026-11-18)
+  const onward = beat === "result" ? <Button variant="main" onClick={() => setBeat(swapping ? "trade" : "door")}>다음</Button>
+    : beat === "trade" ? <Button variant="main" onClick={() => setBeat("door")}>{swap ? "바꾸고 다음" : "바꾸지 않고 다음"}</Button>
+    : <Button variant="main" loading={busy} onClick={() => goInto(() => streakNextGame(id, swap, door), wins)}>{won ? "다음 판" : "이어서 하기"}</Button>;
   return <>
     {stage && createPortal(brk, stage)}
     <Dock toast={error ? <Toast error>{error}</Toast> : null}>
       <div className="bt-end-keys">
-        {resting ? <Button variant="main" loading={busy} onClick={() => goInto(() => streakNextGame(id, swap, door), wins)}>{!won ? "이어서 하기" : swap ? "바꾸고 다음 판" : "다음 판"}</Button>
+        {resting ? onward
           /* a new run begins with its draft, on the tab (2026-11-11); 오늘의 탑 is once a day, so its end has no 다시 도전 */
           /* a lost game the seat has not been told of yet (the clock, before its view comes back) may still have a lamp: 다시 도전 there
              would end the run unasked (2026-11-13), so it waits for the run's answer */
