@@ -6,6 +6,7 @@ import { onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
 import { parseHP, toID } from "../../services/battleLog.js";
 import { STATUS, nameOf, typesOf } from "./Stage.jsx";
 import { maxPP, moveType } from "./battleWords.js";
+import { defensiveMatchups, statRange } from "../../services/calculatorCore.js";
 
 /* 파티를 읽는 카드 (DESIGN.md "Battle", The party). 선출 화면과 배틀 중의 파티 정보가 같은 카드를 쓴다.
    내 포켓몬은 엔진이 가져온 그대로(특성, 도구, 네 기술과 남은 PP, 능력치), 상대는 보인 만큼(특성, 도구, 쓴 기술과 쓴 횟수).
@@ -133,39 +134,80 @@ export function packedCards(res, inputLog, side) {
   });
 }
 
-/* the team preview, a player's: the foe's six small along the top, our six large as the sets they are, each chosen by a tap and
-   numbered in the order it will be sent. The count and 선출 확정 are PickDock, beside the cards on a wide screen and docked on a phone.
-   locked: chosen and sent, waiting for the foe */
-/* onInfo (a phone): the cards are short, each with the info mark that opens its whole set; stake: a 연승 도전 game's band over the
-   foe's six (Streak.jsx StreakBand) */
-export function TeamPick({ res, foe, foeName, pokemon, count, locked, picks, setPicks, onInfo = null, stake = null, keeper = false }) {
-  const n = Math.min(count, pokemon.length);
-  const toggle = i => setPicks(list => list.includes(i) ? list.filter(x => x !== i) : list.length < n ? [...list, i] : list);
-  const cards = ownCards(res, pokemon);
-  // keeper: a 도전의 탑 gatekeeper's game, whose gatekeeper's cell among the foe's six inverts (the band may stand elsewhere)
-  return <div className={"bt-preview" + (onInfo ? " short" : "") + (keeper ? " keeper" : "")}>
-    {stake}
-    <FoeSix res={res} species={foe} title={`${foeName}의 파티`} />
-    <section className="bt-pv-own">
-      <div className="bt-pv-head">
-        <h2 className="bt-pv-title">내 파티</h2>
-        <span className="bt-pv-count" aria-live="polite"><b>{picks.length}</b>{` / ${n} 선출`}</span>
-      </div>
-      <div className="stack bt-cards">
-        {/* out={false}: the engine's preview request marks the first of the party active, but nobody is out before the choice */}
-        {cards.map(({ key, ...c }, i) => {
-          const card = <MonCard key={key} res={res} {...c} hp={null} share={null} out={false} short={Boolean(onInfo)}
-            pick={{ order: picks.indexOf(i) + 1, onPick: () => toggle(i), off: picks.length >= n && !picks.includes(i), locked }} />;
-          return onInfo ? <div key={key} className="bt-pick" data-info={`pick:${i}`}>{card}
-            <button type="button" className="bt-info-key" onClick={() => onInfo(i)} aria-label={`${nameOf(res, c.species)} 세트 보기`}><b className="bt-i" aria-hidden="true">i</b></button>
-          </div> : card;
-        })}
-      </div>
-    </section>
+/* the team preview on the stage (2026-11-18, the owner's draft A, the user: "선출 과정에서 더 많은 정보를 쉽게 조회 가능했으면 좋겠음.
+   중요한 정보일수록 더더욱. 무대 때문에 낭비되는 공간이 있으니"): it stands in the stage's frame as the battle will, the foe's strip with
+   their six, the court's room and our strip with the places in order, and under it our six as short cards. The court's room is the
+   board of the Pokémon looked at: ours whole (its moves, ability and item with what they do, its stats), a foe's as far as its kind
+   says (its types, its possible abilities, what hits it hard, its base stats and its speed at Lv50). A card's tap chooses it and
+   shows it there, its i key shows it without choosing, a foe's picture shows that foe. Nothing comes up because a pointer rests.
+   ownName: our strip's name; stake: a run's band over the stage; keeper: a 도전의 탑
+   gatekeeper's game, whose gatekeeper's cell among the foe's six inverts */
+const STAT_BASE = [["hp", "HP"], ["atk", "공격"], ["def", "방어"], ["spa", "특공"], ["spd", "특방"], ["spe", "스피드"]];
+function FoeBoard({ res, species }) {
+  const dex = res.detail.pokedex[toID(species)] || {};
+  const types = typesOf(res, species);
+  const weak = defensiveMatchups(types);
+  const tag = t => <span key={t} className={`tb-type type-${toID(t)}`}>{res.text.types[t] || t}</span>;
+  const [lo, hi] = dex.baseStats ? statRange(dex.baseStats.spe, "spe") : [0, 0];
+  return <div className="bt-card bt-pv-card">
+    <span className="bt-card-head"><span className="bt-card-id"><b className="bt-card-name">{nameOf(res, species)}</b><Types res={res} species={species} /></span></span>
+    <span className="bt-card-facts">
+      <span><small>특성 후보</small><b>{Object.values(dex.abilities || {}).map(a => named(res, "abilities", a)).join(", ")}</b></span>
+      <span><small>스피드 (Lv50)</small><b>{`${lo}에서 ${hi}`}</b></span>
+    </span>
+    <span className="bt-pv-weak">{[[4, "4배"], [2, "2배"], [0, "무효"]].filter(([k]) => weak[k]?.length).map(([k, w]) => <span key={k}><small>{w}</small><span className="tb-types">{weak[k].map(tag)}</span></span>)}</span>
+    {dex.baseStats && <span className="bt-card-stats six">{STAT_BASE.map(([k, w]) => <span key={k}><small>{w}</small>{dex.baseStats[k]}</span>)}</span>}
   </div>;
 }
 
-/* the choice so far, in the order they go (on a wide screen, beside the cards), and 선출 확정 */
+export function TeamPick({ res, foe, foeName, ownName = "나", pokemon, count, locked, picks, setPicks, stake = null, keeper = false }) {
+  const n = Math.min(count, pokemon.length);
+  const [look, setLook] = useState({ side: "own", i: 0 });
+  const toggle = i => { setLook({ side: "own", i }); setPicks(list => list.includes(i) ? list.filter(x => x !== i) : list.length < n ? [...list, i] : list); };
+  const cards = ownCards(res, pokemon);
+  const seen = look.side === "foe" ? foe[look.i] : cards[look.i]?.species;
+  const { key: _k, ...card } = cards[look.i] || {};
+  return <div className={"bt-preview board" + (keeper ? " keeper" : "")}>
+    {stake}
+    <div className="bt-pv-stage">
+      <div className="bt-pv-strip foe">
+        <b className="bt-trainer">{foeName}</b>
+        <span className="bt-pv-six" role="group" aria-label={`${foeName}의 파티`}>
+          {foe.map((s, i) => <button key={s + i} type="button" className={"bt-foe-cell" + (look.side === "foe" && look.i === i ? " look" : "")} onClick={() => setLook({ side: "foe", i })}
+            aria-pressed={look.side === "foe" && look.i === i} aria-label={`${nameOf(res, s)} 보기`}>
+            <img src={spriteUrl(s)} alt="" draggable="false" onError={onSpriteError()} />
+            <Types res={res} species={s} />
+          </button>)}
+        </span>
+      </div>
+      <div className={"bt-pv-focus " + look.side} aria-live="polite">
+        {seen && <span className="bt-pv-hero" aria-hidden="true"><img src={spriteUrl(seen)} alt="" draggable="false" onError={onSpriteError()} /></span>}
+        {look.side === "foe" ? foe[look.i] && <FoeBoard res={res} species={foe[look.i]} />
+          : cards[look.i] && <MonCard res={res} {...card} hp={null} share={null} out={false} explain />}
+      </div>
+      <div className="bt-pv-strip own">
+        <b className="bt-trainer">{ownName}</b>
+        <ol className="bt-pv-order" aria-label="선출 순서">
+          {Array.from({ length: n }, (_, k) => <li key={k} className={picks[k] != null ? "on" : ""}>
+            <span className="bt-pv-n">{k + 1}</span>
+            {picks[k] != null ? <img src={spriteUrl(cards[picks[k]].species)} alt={nameOf(res, cards[picks[k]].species)} draggable="false" onError={onSpriteError()} /> : null}
+          </li>)}
+        </ol>
+        <span className="bt-pv-count" aria-live="polite"><b>{picks.length}</b>{` / ${n}`}</span>
+      </div>
+    </div>
+    <div className="stack bt-cards">
+      {/* out={false}: the engine's preview request marks the first of the party active, but nobody is out before the choice */}
+      {cards.map(({ key, ...c }, i) => <div key={key} className={"bt-pick" + (look.side === "own" && look.i === i ? " look" : "")} data-info={`pick:${i}`}>
+        <MonCard res={res} {...c} hp={null} share={null} out={false} short
+          pick={{ order: picks.indexOf(i) + 1, onPick: () => toggle(i), off: picks.length >= n && !picks.includes(i), locked }} />
+        <button type="button" className="bt-info-key" onClick={() => setLook({ side: "own", i })} aria-label={`${nameOf(res, c.species)} 보기`}><b className="bt-i" aria-hidden="true">i</b></button>
+      </div>)}
+    </div>
+  </div>;
+}
+
+/* 선출 확정, docked on a phone and in the column on a desktop (the order stands on our strip, TeamPick) */
 export function PickDock({ res, pokemon, count, picks, setPicks, onSend, toast, locked = false }) {
   const [sending, setSending] = useState(false);
   const n = Math.min(count, pokemon.length);
@@ -177,12 +219,6 @@ export function PickDock({ res, pokemon, count, picks, setPicks, onSend, toast, 
     if (!went) setPicks([]);
   };
   return <div className="bt-pickdock">
-    <ol className="stack bt-picked" aria-label="선출 순서">
-      {Array.from({ length: n }, (_, k) => <li key={k} className={picks[k] != null ? "on" : ""}>
-        <span className="bt-picked-n">{k + 1}</span>
-        {picks[k] != null ? <><img src={spriteUrl(species(picks[k]))} alt="" draggable="false" /><b>{nameOf(res, species(picks[k]))}</b></> : <span className="dim">{k === 0 ? "선두" : ""}</span>}
-      </li>)}
-    </ol>
     <Dock toast={toast}>
       <Button variant="main" icon="check" loading={sending || (locked && picks.length === n)} disabled={picks.length !== n || locked} onClick={go}>
         {picks.length === n ? "선출 확정" : `${n - picks.length}마리 더 고르기`}

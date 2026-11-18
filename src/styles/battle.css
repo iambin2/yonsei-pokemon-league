@@ -7,9 +7,8 @@
 
 /* ---------- before the battle (Opening and waiting, redesigned 2026-11-07). The battle is the point, so the arena is the hero: on the
    709 the arena as the battle will stand it (the foe's strip, the court, our strip with the name typed in it and our six), the main
-   action right under it, then 방 참가 and the lists; on the 439 what is chosen (상대, 형식, 파티), from the arena's top line. Both
-   columns scroll with the page (2026-11-07, the user: a side that scrolled apart from the other had no reason to). On a phone: the
-   arena, the choices, the lists, and the action docked. ---------- */
+   action right under it. What is chosen opens from the strips as sheets (2026-11-18, draft B), so the lobby is one column; the
+   waiting room keeps its 439 for the wait's rows and counters. On a phone: the arena and the action docked. ---------- */
 .bt-lobby { display: grid; gap: var(--s5); }
 .bt-lobby-main, .bt-lobby-set { display: grid; gap: var(--s5); align-content: start; min-width: 0; }
 .bt-lobby-set .q + .q { margin-top: 0; }
@@ -22,6 +21,8 @@
 }
 @media (min-width: 860px) {
   .bt-lobby { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); align-items: start; justify-content: space-between; }
+  /* the lobby with its menu on the strips (2026-11-18, draft B) is one column, the court and its key, in the page's middle */
+  .bt-lobby.one { grid-template-columns: minmax(0, 709px); justify-content: center; }
   .bt-lobby-main { gap: var(--s3); }
   /* the arena's top edge meets the first choice's top edge across the columns, not the label over it (2026-11-07, the user: the
      matchup's line met no line on the other side) */
@@ -398,6 +399,17 @@
 .bt-strip-more { flex: none; display: inline-flex; align-items: center; gap: 2px; margin-left: auto; color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 700; white-space: nowrap; }
 .bt-strip.key:active:not(:disabled) { scale: 1; }
 @media (hover: hover) { .bt-strip.key:hover { background: var(--panel-2); } .bt-strip.key:hover .bt-strip-more { color: var(--lit); } }
+/* the lobby's strips are its menu (2026-11-18, the owner's draft B): the foe's who and our party are keys with a chevron at their end,
+   lit a tone under a pointer as a strip key is; what they say is the choice (the format, the computer's level, the random party in
+   words, a team's six), so nothing unknown is drawn on bare floors */
+.bt-strip-key { display: flex; align-items: center; gap: var(--s2); min-width: 0; min-height: var(--h-control); margin: calc(var(--s1) * -1) 0; padding: 0 var(--s2); color: var(--lit); text-align: left; transition: background-color var(--move-tone); }
+.bt-strip-key > svg { flex: none; color: var(--dim); }
+.bt-strip.foe .bt-strip-key { margin-right: calc(var(--s2) * -1); }
+.bt-party-key { flex: 1 1 auto; justify-content: space-between; margin-right: calc(var(--s2) * -1); }
+.bt-party-key > .bt-roster { flex: 0 1 auto; }
+.bt-strip-word { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dim); font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
+@media (hover: hover) { .bt-strip-key:hover { background: var(--panel-2); } .bt-strip-key:hover > svg { color: var(--lit); } }
+.bt-strip-key:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .bt-strip.key:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 
 
@@ -763,8 +775,6 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 .bt-info-key { position: absolute; right: 0; bottom: 0; display: grid; place-items: center; width: var(--h-control); height: var(--h-control); color: var(--dim); }
 .bt-pick:has(> .bt-card.on) > .bt-info-key { color: var(--ground); }
 .bt-info-key:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
-.bt-preview.short { gap: var(--s3); }
-.bt-preview.short .bt-foe-cell { padding-bottom: var(--s2); }
 /* a run's stake over the foe's six: the game and the streak riding on it, inverted on a gatekeeper's game with the gatekeeper's cell */
 .streak-band { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-row); padding: var(--s1) var(--pad); }
 .bt-preview:is(.keeper, :has(> .streak-band.inv)) .bt-foe-cell:first-child { background: var(--lit); color: var(--ground); }
@@ -824,57 +834,9 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
   button.bt-card > .bt-card-head { grid-template-rows: auto auto; grid-template-areas: "pic name end" "types types types"; }
 }
 
-/* the team preview stands in one window at every size (2026-11-10, the user: "선출화면에서 스크롤이 없도록 다시 설계해줄래?"). As the
-   window shortens it lets go of what is read least, in steps, and nothing scrolls: on a desktop first the cards' stats row, then the
-   whole cards for the phone's short ones with the i key that opens the set (BattlePage.jsx SHORT_PICK); on a phone the foe's six
-   stand in one row of six, each type on its own line */
-@media (min-width: 1200px) and (max-height: 775px), (min-width: 860px) and (max-width: 1199px) and (max-height: 927px) {
-  .bt-preview button.bt-card .bt-card-stats { display: none; }
-}
-@media (max-width: 859px) and (max-height: 759px) {
-  .bt-preview .bt-foe-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .bt-preview .bt-foe-cell { padding: var(--s1) var(--seam) var(--s2); }
-  .bt-preview .bt-foe-cell > :is(img, .bt-bare) { width: 40px; height: 40px; }
-  .bt-preview .bt-foe-cell > b { font-size: 11px; line-height: 15px; }
-  .bt-preview .bt-foe-cell > .bt-card-types { flex-direction: column; align-items: center; }
-}
-/* a short phone (a small one, or the browser's bars standing): our cards keep the name, the types and the i key; the item is in the
-   set the i key opens */
-@media (max-width: 859px) and (max-height: 659px) {
-  .bt-preview { gap: var(--s3); }
-  .bt-preview .bt-card-item { display: none; }
-  .bt-preview .bt-card { padding: var(--s2); }
-  .bt-preview .bt-card-pic { width: var(--s8); height: var(--s8); }
-  .bt-preview .bt-info-key { width: var(--s8); height: var(--s8); }
-}
-/* a 도전의 탑 game's preview carries its stake band (52) on a phone, so each step comes 52 sooner */
-@media (max-width: 859px) and (max-height: 811px) {
-  .bt-preview:has(> .streak-band) .bt-foe-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .bt-preview:has(> .streak-band) .bt-foe-cell { padding: var(--s1) var(--seam) var(--s2); }
-  .bt-preview:has(> .streak-band) .bt-foe-cell > :is(img, .bt-bare) { width: 40px; height: 40px; }
-  .bt-preview:has(> .streak-band) .bt-foe-cell > b { font-size: 11px; line-height: 15px; }
-  .bt-preview:has(> .streak-band) .bt-foe-cell > .bt-card-types { flex-direction: column; align-items: center; }
-}
-@media (max-width: 859px) and (max-height: 711px) {
-  .bt-preview:has(> .streak-band) { gap: var(--s3); }
-  .bt-preview:has(> .streak-band) .bt-card-item { display: none; }
-  .bt-preview:has(> .streak-band) .bt-card { padding: var(--s2); }
-  .bt-preview:has(> .streak-band) .bt-card-pic { width: var(--s8); height: var(--s8); }
-  .bt-preview:has(> .streak-band) .bt-info-key { width: var(--s8); height: var(--s8); }
-}
-
-/* the choice so far beside the cards on a wide screen: one row for each place, its number, then who goes there; on a phone only
-   선출 확정 docks (the cards carry the numbers) */
+/* 선출 확정: docked on a phone, in the column on a desktop; the order stands on our strip */
 .bt-pickdock { display: grid; gap: var(--s3); }
 .bt-pickdock > .dock { margin-top: 0; }
-.bt-picked { gap: var(--seam); margin: 0; padding: 0; list-style: none; }
-.bt-picked > li { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: 0 var(--s3) 0 0; background: var(--panel); }
-.bt-picked-n { display: grid; place-items: center; flex: none; width: var(--h-row); align-self: stretch; background: var(--panel-2); color: var(--dim); font-size: var(--t20); line-height: var(--l20); font-weight: 700; }
-.bt-picked > li.on .bt-picked-n { background: var(--lit); color: var(--ground); }
-.bt-picked img { flex: none; width: 40px; height: 40px; object-fit: contain; }
-.bt-picked b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
-.bt-picked .dim { font-size: 13px; }
-@media (max-width: 1199px) { .bt-picked { display: none; } }
 /* a phone: the ability and the item each one line, its label before it */
 @media (max-width: 600px) {
   .bt-card-facts > span { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 6px; padding: 5px var(--s2); }
@@ -1036,4 +998,60 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 /* reduced motion (DESIGN.md "Motion"): everything appears at once and only tone remains, in a battle as on every page */
 @media (prefers-reduced-motion: reduce) {
   .bt-end-head, .bt-plate-top, .bt-fieldchips > span, .bt-say > p { animation: none; }
+}
+
+/* ---------- the team preview on the stage (2026-11-18, the owner's draft A; DESIGN.md "Battle", The team preview) ----------
+   the stage's frame as the battle will stand it: the foe's strip with their six (each a key that shows it), the board of the one looked
+   at in the court's room, our strip with the places in order; our six under it as short cards. The board takes what the window
+   leaves, so nothing scrolls but the board itself */
+.bt-stagebox > .bt-preview.board { padding: 0; }
+.bt-preview.board { display: flex; flex-direction: column; gap: var(--seam); }
+.bt-preview.board > .streak-band { flex: none; }
+.bt-pv-stage { display: flex; flex-direction: column; min-height: 0; }
+.bt-pv-strip { flex: none; display: flex; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s1) var(--pad); background: var(--ground); }
+:root[data-theme="light"] .bt-pv-strip { background: var(--panel); }
+.bt-pv-strip.foe { flex-direction: row-reverse; }
+.bt-pv-strip > .bt-trainer { flex: 0 1 auto; }
+.bt-pv-six { flex: 0 1 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, var(--s21)); gap: var(--s1); min-width: 0; }
+.bt-pv-six > .bt-foe-cell { gap: 2px; padding: var(--s1) 0; background: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); transition: background-color var(--move-tone); }
+.bt-pv-six > .bt-foe-cell > img { width: var(--h-control); height: var(--h-control); }
+.bt-pv-six > .bt-foe-cell > .bt-card-types { flex-wrap: wrap; justify-content: center; gap: 2px; }
+.bt-pv-six > .bt-foe-cell.look { background: var(--panel-2); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+@media (hover: hover) { .bt-pv-six > .bt-foe-cell:hover { background: var(--panel-2); } }
+.bt-pv-six > .bt-foe-cell:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
+.bt-preview.keeper .bt-pv-six > .bt-foe-cell:first-child { background: var(--lit); color: var(--ground); }
+/* the board: the one looked at standing large on its floor at the left (38.2), what it is at the right; it scrolls inside if it must */
+.bt-pv-focus { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 38.2%) minmax(0, 1fr); min-height: calc(var(--s21) + var(--s13)); height: 304px; overflow: hidden; background: var(--panel); }
+.bt-pv-hero { display: grid; place-items: end center; min-height: 0; padding: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
+.bt-pv-hero > img { width: 100%; max-width: 200px; max-height: 100%; aspect-ratio: 1; object-fit: contain; object-position: 50% 100%; }
+.bt-pv-focus > .bt-card { min-height: 0; overflow: hidden auto; background: none; }
+.bt-pv-focus .bt-card-pic { display: none; }
+.bt-pv-focus .bt-card-name { font-size: var(--t20); line-height: var(--l20); }
+.bt-card-stats.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.bt-pv-weak { display: grid; gap: var(--seam); }
+.bt-pv-weak > span { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); padding: 6px var(--s2); background: var(--ground); }
+.bt-pv-weak small { flex: none; width: var(--s8); font-size: 11px; line-height: 14px; color: var(--dim); font-weight: 600; }
+/* our strip: the places in order, each its number and who goes there, and how many are chosen */
+.bt-pv-order { flex: 0 1 auto; display: flex; gap: var(--s1); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.bt-pv-order > li { position: relative; display: grid; place-items: center; width: var(--s13); height: var(--h-control); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--rule); }
+.bt-pv-order > li.on { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.bt-pv-order img { width: 40px; height: 40px; object-fit: contain; }
+.bt-pv-n { color: var(--mute); font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; }
+.bt-pv-order > li.on > .bt-pv-n { position: absolute; left: 0; top: 0; min-width: 16px; height: 16px; background: var(--lit); color: var(--ground); font-size: 11px; line-height: 16px; text-align: center; }
+.bt-pv-strip.own > .bt-pv-count { margin-left: auto; }
+/* a card's order is the strip's (one fact, one place): a chosen card only inverts; the one looked at carries a lit line on its top */
+.bt-preview.board .bt-card-order { display: none; }
+.bt-pick.look > .bt-card { box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bt-pick.look > .bt-card.on { box-shadow: inset 0 var(--line) 0 var(--ground); }
+@media (max-width: 859px) {
+  .bt-stagebox:has(> .bt-preview.board) { flex: 1 1 auto; }
+  .bt-preview.board { flex: 1 1 auto; min-height: 0; }
+  .bt-pv-stage { flex: 1 1 auto; }
+  .bt-pv-focus { height: auto; flex-basis: 0; }
+  .bt-pv-six { grid-auto-columns: minmax(0, var(--s13)); gap: 2px; }
+  .bt-pv-six > .bt-foe-cell > img { width: 40px; height: 40px; }
+  .bt-pv-six > .bt-foe-cell > .bt-card-types { display: none; }
+  .bt-pv-order > li { width: var(--h-control); }
+  .bt-pv-hero > img { max-width: 140px; }
+  .bt-pv-focus .bt-card-name { font-size: var(--t15); line-height: var(--l15); }
 }

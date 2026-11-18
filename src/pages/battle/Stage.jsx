@@ -762,22 +762,31 @@ export function LobbyStage({ leads, doubles, label, awaiting = false, random = f
    (the battle lights their HP), or six bare floors for a random party. foe: the opponent's name or where it will come from (muted
    until someone is there), foeNote a dim word after it (the computer's level), waiting the amber lamp of 참가 대기. ours: our name,
    or the field it is typed in. */
-export function LobbyArena({ res, foe, foeNote = "", foeMuted = false, waiting = false, ours, six = [], children }) {
+/* the strips are the lobby's menu (2026-11-18, the owner's draft B, "무대가 메뉴"): onFoe makes the foe's strip a key that opens what
+   is chosen of the match (상대, 난이도, 형식), onOurs makes our party a key that opens the parties (규정, the random party, the saved
+   teams). Nothing unknown is drawn: no ? on bare floors; the foe's strip says the format (foeWord), ours the random party in words
+   (oursWord) or the team's six */
+export function LobbyArena({ res, foe, foeNote = "", foeMuted = false, waiting = false, ours, six = [], foeWord = "", oursWord = "", onFoe = null, onOurs = null, children }) {
   const list = six.map(species => ({ species, light: "lit", share: null }));
+  const who = <>{waiting && <i className="lamp" aria-hidden="true" />}<b className={"bt-trainer" + (foeMuted ? " mute" : "")}>{foe}</b>{foeNote && <span className="bt-who-note">{foeNote}</span>}</>;
+  const party = list.length ? <Roster list={list} label={`내 파티, ${rosterSaid(res, list)}`} /> : oursWord ? <span className="bt-strip-word">{oursWord}</span> : null;
   /* the arena lights as one thing with the page (data-rise, motion.js light): its strips stood lit in the first frame beside panels
      still dark, and the court's box stood black for the frame before its picture was drawn (2026-11-10, coming back from a battle) */
   return <div className="bt-arena bt-lobby-arena" data-rise="">
     <div className="bt-strip foe">
       <span className="bt-strip-row">
-        <span className="bt-who">{waiting && <i className="lamp" aria-hidden="true" />}<b className={"bt-trainer" + (foeMuted ? " mute" : "")}>{foe}</b>{foeNote && <span className="bt-who-note">{foeNote}</span>}</span>
-        <Roster list={[]} slots={SIX} label={`${foe}의 파티, 배틀이 열리면 보입니다.`} />
+        {onFoe ? <button type="button" className="bt-who bt-strip-key" onClick={onFoe} aria-haspopup="dialog" aria-label={`상대 바꾸기, ${foe} ${foeNote} ${foeWord}`}>
+          {foeWord && <span className="bt-strip-word">{foeWord}</span>}{who}<Icon n="chevr" size={16} /></button>
+          : <span className="bt-who">{who}</span>}
+        {!onFoe && foeWord && <span className="bt-strip-word">{foeWord}</span>}
       </span>
     </div>
     {children}
     <div className="bt-strip own">
       <span className="bt-strip-row">
         {ours}
-        <Roster list={list} slots={SIX} label={list.length ? `내 파티, ${rosterSaid(res, list)}` : "내 파티, 배틀이 열리면 정해집니다."} />
+        {onOurs ? <button type="button" className="bt-strip-key bt-party-key" onClick={onOurs} aria-haspopup="dialog" aria-label={`파티 바꾸기, ${list.length ? rosterSaid(res, list) : oursWord}`}>
+          {party}<Icon n="chevr" size={16} /></button> : party}
       </span>
     </div>
   </div>;

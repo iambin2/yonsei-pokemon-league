@@ -48,11 +48,6 @@ const NAME_KEY = "ypl-battle:name";
 const HINT_KEY = "ypl-battle:hold-hint";
 // a phone (under 860): the battle takes the window and the deck stands at its foot (DESIGN.md "Battle", The play screen)
 const NARROW = "(max-width: 859px)";
-/* the team preview stands in one window at every size (2026-11-10, the user: "선출화면에서 스크롤이 없도록 다시 설계해줄래?"): on a
-   desktop too short for the whole cards, the cards are the phone's short ones with the i key that opens the set (DESIGN.md "Battle",
-   The team preview). The heights are where the cards without their stats row stop fitting under the bar (from 1200), or above 선출
-   확정 under them (860 to 1199) */
-const SHORT_PICK = "(min-width: 1200px) and (max-height: 699px), (min-width: 860px) and (max-width: 1199px) and (max-height: 839px)";
 // from 1200 the column beside the stage holds the pick; under it the pick stands right under the cards
 const WIDE = "(min-width: 1200px)";
 function useNarrow(query = NARROW) {
@@ -190,26 +185,27 @@ function rematchTeam(teamId, regulation, res) {
   return saved ? { id: saved.id, send: showdownTeam(saved, res.detail) } : { id: RANDOM + regulation, send: "random" };
 }
 
-/* 랜덤 파티 (2026-11-06): one panel of its own, apart from the saved teams, however many rules there are. The rule is a choice joined
-   under it on the seam (M-C, M-B, ...); pressing the panel or a rule picks the random party of that rule. With one rule (a room's) the
-   choice is not shown. The rule last picked is kept while the panel is not chosen, so picking it again brings the same rule back. */
-function RandomPick({ regs, value, onChange }) {
-  const chosen = String(value).startsWith(RANDOM) ? value.slice(RANDOM.length) : "";
-  const [reg, setReg] = useState(chosen || regs[0]);
-  useEffect(() => { if (chosen) setReg(chosen); }, [chosen]);
-  const on = Boolean(chosen);
-  const pick = r => { setReg(r); onChange(RANDOM + r); };
-  return <div className="stack">
-    <label className={"opt-row " + (on ? "inv" : "pn")}>
-      <input type="radio" className="sr-only" name="battle-team" checked={on} onChange={() => pick(reg)} />
-      <span className="opt-copy"><b className="t15">무작위 여섯 마리</b><span className="t12 reg opt-line">{REGULATIONS[reg] || reg} 규정</span></span>
-      {on && <Icon n="check" size={20} />}
-    </label>
-    {regs.length > 1 && <div className="choice stack" role="radiogroup" aria-label="랜덤 파티 규정">
-      {regs.map(r => <label key={r} className={"choice-opt " + (r === reg ? "inv" : "pn")}>
-        <input type="radio" className="sr-only" name="battle-random-reg" checked={r === reg} onChange={() => pick(r)} />{REGULATIONS[r] || r}
-      </label>)}
-    </div>}
+/* the parties, in the sheet our strip opens (2026-11-18, the owner's draft B, the user: "레귤레이션 같이 앞으로 계속 쌓일 수밖에 없는
+   것들은 구조적으로 해결해줘"): the rules are a list, one row each with how many teams are saved for it, so a new rule is one more row
+   and never a wider row of buttons; under it the parties of the chosen rule, the random party first, then the saved teams. A room's
+   joiner has the room's rule alone, so no rule is asked. Choosing a party closes the sheet; choosing a rule keeps it open on that
+   rule's parties, its random party chosen unless the team chosen already plays it. */
+function PartyPick({ teams, teamId, setTeamId, res, onDone }) {
+  const team = teams.find(t => t.id === teamId);
+  const regs = teams.filter(t => t.random).map(t => t.regulationId);
+  const reg = team?.regulationId || regs[0];
+  const saved = teams.filter(t => !t.random && t.regulationId === reg);
+  const pick = id => { setTeamId(id); onDone?.(); };
+  return <div className="stack bt-partypick">
+    {regs.length > 1 && <Question id="bt-reg" label="규정" group>
+      <OptionRows name="bt-reg" value={reg} onChange={r => { if (r !== reg) setTeamId(RANDOM + r); }}
+        options={regs.map(r => { const n = teams.filter(t => !t.random && t.regulationId === r).length; return { value: r, title: `${REGULATIONS[r] || r} 규정`, line: n ? `저장한 팀 ${n}개` : "저장한 팀 없음" }; })} />
+    </Question>}
+    <Question id="bt-party" label={regs.length > 1 ? `${REGULATIONS[reg] || reg} 파티` : "파티"} group>
+      <OptionRows name="battle-random" value={team?.random ? "random" : ""} onChange={() => pick(RANDOM + reg)}
+        options={[{ value: "random", title: "무작위 여섯 마리", line: "배틀이 열리면 정해집니다." }]} />
+    </Question>
+    <div className="q"><span className="q-label t12 dim">저장한 팀</span>{saved.length ? <TeamRows teams={saved} value={teamId} onChange={pick} res={res} /> : <NoTeams />}</div>
   </div>;
 }
 
@@ -225,26 +221,30 @@ const focusName = () => document.getElementById("bt-name")?.focus();
 
 /* 배틀 전 화면(DESIGN.md "Battle", Opening and waiting, 2026-11-07 다시 설계). 배틀이 핵심이라 경기장이 주인공이다: 709에 배틀이 설
    모습 그대로의 경기장(상대의 줄, 고른 팀의 앞 포켓몬과 상대가 선 경기장, 내 이름을 쓰는 우리 줄과 여섯)이 서고 주 행동이 그 바로
-   아래, 그 밑에 방 참가와 목록. 439에는 고르는 것(상대, 형식, 파티)이 같은 윗선에서 시작한다. 두 열은 페이지와 함께 스크롤한다.
-   휴대폰은 경기장, 고르는 것, 목록 순서이고 주 행동은 아래에 붙는다. 여는 사람과 링크로 참가하는 사람이 같은 화면을 쓴다.
+   아래. 고르는 것은 두 줄이 연다(2026-11-18, 시안 B "무대가 메뉴"): 상대의 줄은 상대, 난이도, 형식의 시트(foeSheet), 우리 파티는
+   규정과 파티의 시트(PartyPick). below는 경기장 아래에 서는 것(참가하는 사람의 방 줄과 방 코드). 여는 사람과 참가하는 사람이 같은
+   화면을 쓴다.
    foe는 참가하는 쪽에서 본 연 사람의 이름(없으면 foeHint를 흐리게), foeNote는 그 뒤의 흐린 말(컴퓨터의 난이도). */
-function Lobby({ res, teams, teamId, setTeamId, teamLabel, name, setName, nameError = "", foe, foeHint = "링크로 참가", foeNote = "", foeLead = null, doubles, setup, action, tabs, before, after, onEnter }) {
+function Lobby({ res, teams, teamId, setTeamId, name, setName, nameError = "", foe, foeHint = "링크로 참가", foeNote = "", foeWord = "", foeLead = null, doubles, foeSheet = null, below = null, action, tabs, before, after, onEnter }) {
   const team = teams.find(t => t.id === teamId);
-  const saved = teams.some(t => !t.random);
   const random = Boolean(team?.random);
   const six = random ? [] : (team?.members || []).map(m => res.detail.pokedex[m.pokemonId]?.name || m.pokemonName);
   const leads = six.slice(0, doubles ? 2 : 1);
   const stageLabel = random ? "경기장, 랜덤 파티는 배틀이 열리면 정해집니다." : team ? `경기장, ${leads.map(species => nameOf(res, species)).join(", ")}` : "빈 경기장";
+  // the sheet a strip opened: "foe" (상대, 난이도, 형식) or "party" (규정, the parties)
+  const [sheet, setSheet] = useState(null);
+  const reg = REGULATIONS[team?.regulationId] || team?.regulationId || "";
   return (
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
       {tabs}
       {before}
-      <div className="bt-lobby">
+      <div className="bt-lobby one">
         <div className="bt-lobby-main">
           {/* the court for every party (2026-11-06, the user: one look for a random party and a saved team): a random party's leads are
-              not drawn yet, so a light breathes on our floor where they will come out */}
-          <LobbyArena res={res} foe={foe || foeHint} foeMuted={!foe} foeNote={foeNote} six={six}
+              not drawn yet, so a light breathes on our floor where they will come out. The strips are the menu (2026-11-18, draft B) */}
+          <LobbyArena res={res} foe={foe || foeHint} foeMuted={!foe} foeNote={foeNote} foeWord={foeWord} six={six}
+            oursWord={random ? `무작위 여섯 마리, ${reg}` : ""} onFoe={foeSheet ? () => setSheet("foe") : null} onOurs={() => setSheet("party")}
             ours={/* a field on the strip, its line always drawn and the edit mark after it, so it never reads as a caption (2026-11-09) */
               <label className="bt-name-field"><input id="bt-name" className="bt-name" aria-label="내 이름" value={name} maxLength={20} autoComplete="nickname" enterKeyHint="go" placeholder="내 이름"
                 aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? "bt-name-error" : undefined}
@@ -252,15 +252,13 @@ function Lobby({ res, teams, teamId, setTeamId, teamLabel, name, setName, nameEr
             <LobbyStage leads={leads} doubles={doubles} random={random} foeLead={foeLead} label={`${stageLabel}${foeLead ? `, 상대 ${nameOf(res, foeLead)}` : ""}`} />
           </LobbyArena>
           {nameError && <p className="q-error t12 bt-name-error" id="bt-name-error" role="alert"><Bang />{nameError}</p>}
+          {below}
           {action}
           {after && <div className="bt-after">{after}</div>}
         </div>
-        <div className="bt-lobby-set">
-          {setup}
-          <div className="q"><span className="q-label t12 dim">랜덤 파티</span><RandomPick regs={teams.filter(t => t.random).map(t => t.regulationId)} value={teamId} onChange={setTeamId} /></div>
-          <div className="q"><span className="q-label t12 dim">{teamLabel}</span>{saved ? <TeamRows teams={teams.filter(t => !t.random)} value={teamId} onChange={setTeamId} res={res} /> : <NoTeams />}</div>
-        </div>
       </div>
+      {sheet === "foe" && <Modal title="상대" onClose={() => setSheet(null)}><div className="stack bt-foepick">{foeSheet}</div></Modal>}
+      {sheet === "party" && <Modal title="파티" onClose={() => setSheet(null)}><PartyPick teams={teams} teamId={teamId} setTeamId={setTeamId} res={res} onDone={() => setSheet(null)} /></Modal>}
     </div>
   );
 }
@@ -598,10 +596,11 @@ function BattleSetup({ res, onOpen, preset, tabs, firstFoe }) {
   };
   const typeName = v => { setName(v); setNameError(""); };
   const roomRow = ROOMS.find(([key]) => key === room);
-  return <Lobby res={res} teams={teams} teamId={teamId} setTeamId={setTeamId} teamLabel="저장한 팀" name={name} setName={typeName} nameError={nameError} doubles={format === "doubles"} onEnter={submit}
+  return <Lobby res={res} teams={teams} teamId={teamId} setTeamId={setTeamId} name={name} setName={typeName} nameError={nameError} doubles={format === "doubles"} onEnter={submit}
     foe={foe === "cpu" ? "컴퓨터" : null} foeNote={foe === "cpu" ? levelOf(level).label : ""} foeHint={roomRow[2]} foeLead={foe === "cpu" ? levelOf(level).species : null}
+    foeWord={FORMATS.find(([key]) => key === format)[1]}
     before={saved?.status === "active" && <Row className="bt-resume" title="컴퓨터와의 배틀" line={levelOf(saved.level ?? saved.start?.level).label} lamp="진행 중" onClick={() => onOpen(CPU_ROOM)} label="컴퓨터와의 배틀 이어서 하기" />}
-    setup={<>
+    foeSheet={<>
       <Question id="bt-foe" label="상대" group>
         <Choice name="bt-foe" options={OPPONENTS.map(([, label]) => label)} value={OPPONENTS.find(([key]) => key === foe)[1]} onChange={label => { setFoe(OPPONENTS.find(([, l]) => l === label)[0]); setError(""); setNameError(""); }} />
       </Question>
@@ -934,9 +933,9 @@ function Join({ row, res, code: linkCode, onJoined, onRefresh }) {
     }
   };
   const typeName = v => { setName(v); if (error === NAME_MISSING) setError(""); };
-  return <Lobby res={res} teams={teams} teamId={teamId} setTeamId={setTeamId} teamLabel={`저장한 팀 (${REGULATIONS[row.regulation]})`} name={name} setName={typeName} nameError={error === NAME_MISSING ? error : ""}
-    foe={row.p1_name} doubles={doubles} onEnter={submit}
-    setup={<>
+  return <Lobby res={res} teams={teams} teamId={teamId} setTeamId={setTeamId} name={name} setName={typeName} nameError={error === NAME_MISSING ? error : ""}
+    foe={row.p1_name} foeWord={doubles ? "더블" : "싱글"} doubles={doubles} onEnter={submit}
+    below={<>
       <Row title={`${REGULATIONS[row.regulation]} ${doubles ? "더블" : "싱글"} 친선 배틀`} lamp="참가 대기" />
       {askCode && <Question id="bt-code" label="방 코드">
         <input id="bt-code" className="in" inputMode="numeric" autoComplete="off" maxLength={4} enterKeyHint="go" value={code} placeholder="숫자 4자리"
@@ -1345,7 +1344,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   if (watching) castOf.current = row.id;
   const cast = castOf.current === row.id;
   const compact = narrow;
-  const shortPick = useNarrow(SHORT_PICK), wide = useNarrow(WIDE);
+  const wide = useNarrow(WIDE);
   /* both heights are told by the browser when they change (useHeight), never read after a draw: read in every draw of the match they
      forced a layout for each line the stage played, twice (2026-11-10, measured at a phone's speed). The deck's floor only rises: with
      it set the deck stands at least as tall, so its height is the most it has stood */
@@ -1593,7 +1592,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
                 said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} result={endBand} />
             : seat && previewParty.current
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}
-                locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} onInfo={narrow || shortPick ? i => setSheetTip(`pick:${i}`) : null}
+                locked={!choosing || !request?.teamPreview} picks={picks} setPicks={setPicks} ownName={names[perspective]}
                 stake={row.kind === "streak" && narrow ? <StreakBand wins={seat.wins ?? 0} lives={seat.lives} /> : null} keeper={row.kind === "streak" && streakMaster(seat.wins ?? 0)} />
             : <div className="bt-preview">
                 {[foe, perspective].map(side => <FoeSix key={side} res={res} species={preview[side].preview} title={`${names[side]}의 파티`} />)}
