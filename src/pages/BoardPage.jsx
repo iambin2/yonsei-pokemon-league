@@ -8,7 +8,7 @@ import { CUP_RULES, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
 import { formatDate } from "../services/dateFormat.js";
 import { freshRead, peekRead } from "../services/readCache.js";
 import { FREE_BOARD_KEY, SHOWCASE_KEY, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
-import { PIN_DENIED } from "../services/communityItems.js";
+import { PIN_DENIED, threadComments } from "../services/communityItems.js";
 import { DRAFT_STORAGE_KEY, INCOMING_TEAM_KEY, TEAM_STORAGE_KEY, normalizeDraft, normalizeSavedTeam, onSpriteError, spriteUrl } from "../services/teamBuilderCore.js";
 import { takeBoardDraft } from "../services/battleService.js";
 import Button from "../components/common/Button.jsx";
@@ -127,7 +127,7 @@ function EditSheet({ heading, initial, onClose, onSave }){
 }
 const Edited=({ at })=>at?<span>, 수정됨</span>:null;
 
-function CommentForm({ onSubmit }){
+function CommentForm({ onSubmit, label="댓글" }){
   const [nick,setNick]=useState(savedNick); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [link,setLink]=useState("");
   // what is missing is said under its own row, both at once, never by a dialog (DESIGN.md "Sheets, dialogs, toasts")
   const [tried,setTried]=useState(false);
@@ -143,12 +143,31 @@ function CommentForm({ onSubmit }){
     </div>
     {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
     <div className="bd-cform-row">
-      <label className="cell bd-cform-body"><span className="cell-label">댓글</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
+      <label className="cell bd-cform-body"><span className="cell-label">{label}</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
       <Button variant="main" icon="check" size="sm" onClick={submit}>등록</Button>
     </div>
-    {tried&&noBody&&<FormError id="bd-cform-body-error">댓글이나 링크를 입력해 주세요.</FormError>}
+    {tried&&noBody&&<FormError id="bd-cform-body-error">{label}이나 링크를 입력해 주세요.</FormError>}
     <label className="cell bd-cform-link"><span className="cell-label">이미지 또는 유튜브 링크 (선택)</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/></label>
   </div>);
+}
+
+/* 댓글과 답글. 답글은 한 단계만: 답글에 단 답글도 같은 원댓글 아래에 선다. */
+function Comments({ comments=[], onAdd, onEdit, onDel }){
+  const [replying,setReplying]=useState(null);
+  const one=(c,root)=>(<div className={"pn bd-cmt"+(c.id===root?"":" reply")} key={c.id}>
+    <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/>
+      <button className="bd-act t12" aria-expanded={replying===root} onClick={()=>setReplying(replying===root?null:root)}>답글</button>
+      <button className="bd-act t12" onClick={()=>onEdit(c)}>수정</button><button className="bd-act t12" onClick={()=>onDel(c)}>삭제</button></div>
+    <div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
+  </div>);
+  return (<>
+    {threadComments(comments).map(c=>(<React.Fragment key={c.id}>
+      {one(c,c.id)}
+      {c.replies.map(r=>one(r,c.id))}
+      {replying===c.id&&<div className="bd-reply-form"><CommentForm label="답글" onSubmit={r=>{ setReplying(null); onAdd({...r,replyTo:c.id}); }}/></div>}
+    </React.Fragment>))}
+    <CommentForm onSubmit={onAdd}/>
+  </>);
 }
 
 /* 게시판: 공지와 같은 문법. 목록에서 글을 누르면 본문 화면으로 넘어가고, 누른 제목이 본문 제목 자리로 이어진다(I2).
@@ -204,10 +223,7 @@ function FreeBoard({ admin, flash, tabs }){
         </div>}
         <div className="bd-cmts">
           <SectionHead title={cc>0?`댓글 ${cc}`:"댓글"}/>
-          {(p.comments||[]).map(c=>(<div className="pn bd-cmt" key={c.id}>
-            <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/><button className="bd-act t12" onClick={()=>editComment(p,c)}>수정</button><button className="bd-act t12" onClick={()=>delComment(p,c)}>삭제</button></div><div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
-          </div>))}
-          <CommentForm onSubmit={(c)=>addComment(c,p)}/>
+          <Comments comments={p.comments} onAdd={c=>addComment(c,p)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>
         </div>
       </article>
       {editSheet}
@@ -415,10 +431,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         </section>
         <section className="bd-cmts" aria-labelledby={"bd-cmts-"+p.id}>
           <SectionHead id={"bd-cmts-"+p.id} title={cc>0?`댓글 ${cc}`:"댓글"}/>
-          {(p.comments||[]).map(c=>(<div className="pn bd-cmt" key={c.id}>
-            <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/><button className="bd-act t12" onClick={()=>editComment(p,c)}>수정</button><button className="bd-act t12" onClick={()=>delComment(p,c)}>삭제</button></div><div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
-          </div>))}
-          <CommentForm onSubmit={(c)=>addComment(p,c)}/>
+          <Comments comments={p.comments} onAdd={c=>addComment(p,c)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>
         </section>
       </article>
       {editing&&<EditSheet {...editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}

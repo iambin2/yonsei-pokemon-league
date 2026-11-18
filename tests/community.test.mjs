@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { applyLocalWrite, assembleCommunityItems } from "../src/services/communityItems.js";
+import { applyLocalWrite, assembleCommunityItems, threadComments } from "../src/services/communityItems.js";
 import { buildPrivateBracketPatch, buildPrivateGraph, createPrivateBracket, parseParticipantNames } from "../src/services/privateBracket.js";
 import { buildTeamSheet, makeMember, savedTeamSheet, serializeMembers } from "../src/services/teamBuilderCore.js";
 
@@ -104,6 +104,13 @@ test("community rows come back in the shape the boards read", () => {
   assert.equal(items[1].hasPin, true);
   assert.deepEqual(items[1].comments.map(comment => comment.id), ["c1", "c2"], "comments oldest first");
   assert.deepEqual(items[0].comments, []);
+});
+
+test("replies hang under their comment, and an orphan reply stands as a comment", () => {
+  const thread = threadComments([{ id: "c1" }, { id: "r1", replyTo: "c1" }, { id: "c2" }, { id: "r2", replyTo: "c1" }, { id: "r3", replyTo: "gone" }]);
+  assert.deepEqual(thread.map(c => c.id), ["c1", "c2", "r3"]);
+  assert.deepEqual(thread[0].replies.map(c => c.id), ["r1", "r2"]);
+  assert.deepEqual(thread[1].replies, []);
 });
 
 test("the offline store applies the same writes", () => {

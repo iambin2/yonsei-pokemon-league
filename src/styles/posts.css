@@ -74,6 +74,9 @@
 .bd-act { min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); padding: 0 var(--s1); font-weight: 600; color: var(--dim); }
 .bd-act:first-of-type { margin-left: auto; }
 @media (hover: hover) { .bd-act:hover { color: var(--lit); } }
+/* a reply stands 32 in under the comment it answers, its form in the same column */
+.bd-cmt.reply, .bd-reply-form { margin-left: var(--s8); }
+.bd-reply-form > .bd-cform { margin-block: var(--s2) var(--s3); }
 .bd-cform { margin-top: var(--s5); }
 .bd-cform-row { display: flex; gap: var(--seam); }
 /* what is missing is said under its own row, 8 from it as under any field */

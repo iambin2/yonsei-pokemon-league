@@ -14,6 +14,15 @@ export function assembleCommunityItems(rows = []) {
     .sort(byTime).reverse();
 }
 
+/* 댓글을 한 단계 대화로 묶는다. 답글은 replyTo 로 원댓글을 가리키는 같은 글의 댓글이고,
+   원댓글이 지워진 답글은 댓글 자리로 올라온다. */
+export function threadComments(comments = []) {
+  const roots = new Set(comments.filter(c => !c.replyTo).map(c => c.id));
+  const replies = new Map();
+  for (const c of comments) if (roots.has(c.replyTo)) replies.set(c.replyTo, [...(replies.get(c.replyTo) || []), c]);
+  return comments.filter(c => !roots.has(c.replyTo)).map(c => ({ ...c, replies: replies.get(c.id) || [] }));
+}
+
 export const PIN_DENIED = {
   wrong_pin: "비밀번호가 일치하지 않습니다.",
   locked: "여러 번 틀려 15분 동안 잠겼습니다.",
