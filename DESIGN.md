@@ -2,7 +2,7 @@
 name: YPL — Yonsei Pokémon League (Scoreboard)
 description: "A stadium scoreboard in navy. The ground is a board switched off; facts light up on square panels joined by a 2px seam; numbers are real seven-segment displays; one amber lamp means live. Every measure comes from one ratio, phi. Dark first, light equal."
 source: "this file; the values in src/styles/tokens.css, the shared parts in src/components/common/Board.jsx and src/styles/board.css, the measurable rules in tests/designLaw.test.mjs"
-status: "Live in production since 2026-11-03. The site as built is the reference; there are no drafts to follow."
+status: "Live in production since 2026-11-03. Draft B, the stadium board (2026-11-18), is adopted and being built into the home and the records; until each screen is built, the site as built is its reference."
 scale:
   base: 4
   seam: 2
@@ -37,6 +37,8 @@ YPL is the league's official record, read on a phone at the venue between matche
 - **Hardware, not graphics.** Square panels joined by a seam, numbers in real seven-segment cells with their dark bars showing, a lamp housing that stays even when it is off. Nothing is rounded, shadowed, blurred or glowing, because a board is none of those.
 - **It switches on; it does not fly.** Things arrive by lighting and rising the last 12 into place, and nothing that is lit moves again. Motion is there so the site feels finished, never to perform.
 - **One ratio decides.** Space, type, heights, splits and time all come from phi, so no value is chosen by eye and every screen, the admin included, is the same board.
+- **A stadium, not a spreadsheet.** A real stadium's board is many instruments of different sizes: a big screen, a ribbon, a line score, a wall of names. The site is that, not one sheet of equal cells repeated (2026-11-18, the owner's pick of draft B: "엑셀처럼 단순한 요소가 반복돼서 딱딱하고 진부하게").
+- **Made by people.** Nothing on the site may read as made by a machine: no generic section, sentence or effect that any other site could carry unchanged (Made by people).
 
 ## Where the law lives
 
@@ -52,6 +54,8 @@ This file is the law. `src/styles/tokens.css` holds its numbers, `src/components
 | Numbers the board announces are segments | It is what makes it a board | Draw a reading number (a table cell, a date in a line) in segments, or draw segments under 32 |
 | Things switch on, they do not fly | A board lights; it never moves its lamps | Slide pages, bounce cards or move what is already lit |
 | The venue phone is the measure | It is the main scene | Hide function behind hover, or go under 44 to touch |
+| Instruments, not cells | A stadium board is many devices; a sheet of equal cells reads as a spreadsheet | Repeat one panel shape down a screen, or give a list a header row of column names |
+| Only this league could say it | Specific facts are what make a site look made by people | Ship a section, sentence or effect any other site could carry unchanged |
 
 ## How the law is written
 
@@ -155,6 +159,42 @@ Outside the law on purpose: the 44 a finger needs; the 2px seam and the 1 and 2p
 23. **Finished, not a prototype.** A screen or a scene is judged as the shipped product of a current game or a brand's own site, never as a draft. When a flaw shows, take away: fewer parts, and what stays larger, smoother and clearer; a flaw is never covered by another layer of decoration, and something added that became a flaw goes again. Every joint gets the same finish as the whole (an arch's inside, a window against its spiral, a line's end). Failure: "파워포인트 기본 도형을 마구 덧붙여서 만든 미완성품 같아", "프로토타입 느낌", "닌텐도 64 탑 모델 같아", "뒤틀린 부분이 너무 많아", "벡터로 그린 것이 다 티날 정도로".
 24. **What comes now and then has a place kept for it.** A refusal, an alert, a hint or a description lights inside a place the frame already keeps, beside its cause (a table's own head strip, the message window, the dock's toast), and moves nothing: it never widens a strip, pushes a key down or lays a box over the screen. Information opens on purpose (a press, a long press), never by a pointer resting on something. Failure: "기존의 것을 왜곡하고 비틀지 않으면서 알람을 띄우고", "타이머보다 위로 칸이 넓어지는 문제", "커서만 올려놔도 계속 설명이 뜨는 것도 문제".
 
+**A stadium, not a spreadsheet** (2026-11-18, the owner's pick of draft B, `.design-board/2026-11-18-board-variety/`)
+
+25. **One instrument leads, and its neighbours are other instruments.** A screen is a stadium's instruments, not one sheet of equal cells. The big screen holds the one thing the screen is for and is the largest thing on it, at least 1.618 squared the height of any other block (the home: the next event and the reigning champion as one device). The ribbon is an inverted 52 strip carrying a row of figures in type (the league's counts). The line score draws figures as bars on their tracks or as 8 squares (points, wins, places). The wall stands people with their Pokémon side by side on one floor (the past champions). Two blocks next to each other never share both a size and a form. A list never wears a header row of column names (`# 트레이너 우승 준우승 4강`): each row says its figures with their units, or draws them with one legend for the whole list, and the first three of a ranking stand as larger panels over the rest. Failure: "엑셀처럼 단순한 요소가 반복돼서", "딱딱하고 진부하게".
+26. **No space without a reason.** Inside a panel no band without ink is longer than 40 (measured on the rendered page at 390 and 1440, The eye). Two columns side by side end on one line because the shorter one's rows stretch, never because its panel is left empty under them. Room beside a display goes to the facts that belong to it (an event's 일시, 신청 마감 and 형식 beside its countdown; a champion's six under the champion), and a grid fills its last row with real entries or ends a row early, never with an empty cell. Failure: "무의미한 공백이나 여백", "전혀 그럴 필요가 없는데 남아있는 빈 공간".
+
+## Made by people
+
+**A visitor must never be able to tell that a machine made the site** (2026-11-18, the owner: "사람이 만든 것처럼 보이는 것이 목표야"). The tells below were gathered from Wikipedia's "Signs of AI writing" and from developers' guides to machine-made sites (no404, Scalr, Falia, Tundra, Illos). One tell alone is weak evidence and a cluster is a confession, so every one is kept out. Under all of them is one test: **could another league's site, or any site, carry this sentence, this section or this screen unchanged? Then it goes.** What only YPL can show (its trainers' names, its dates, its scores, its Pokémon, its words: 파이컵, 포센연, 6대) is what makes a page look made by people. When a screen feels generic, the fix is never a new effect; it is a fact only this league has.
+
+| The tell | The law here |
+|---|---|
+| Three or four equal cards, each an icon, a heading and two lines | Never. A thing with facts of its own gets its own form (Composing a screen 3, 25); a list of benefits is not written (Voice and tone, No filler) |
+| The stock page order: hero, logo strip, features, steps, testimonials, pricing, FAQ, closing banner | A page's order is what is happening now, then the record, then the archive (Philosophy); no section exists to fill a template |
+| A pill or badge over a headline; chips scattered for colour | A chip is a filter or a count, a tag is a type, a league or 나; nothing small stands above a title (Hierarchy) |
+| A bento grid, or every block one size | Instruments of different sizes, one leading (Composing a screen 25) |
+| A strip of stat cards for show | A figure stands only where someone would ask for it, read from data; the league's counts once, in the ribbon |
+| One radius and one soft shadow on everything | No radius and no shadow at all (Panels) |
+| Mock interfaces, placeholder data, `[Company Name]`, an invented quote, name or press logo, "N명이 사용 중" | Real data or the board stays dark; a draft uses the real values too; every name is a real trainer |
+| Every section fading in as it scrolls into view, invisible until then | Only the first screen lights as the site opens; below it everything is already drawn (Motion) |
+| Hover on everything: lift, scale, glow, a bouncing arrow | A door lifts one tone and an arrow leans 4; nothing grows (Motion) |
+| A kicker, a headline and a blurb repeated in every section | A section is its title and its stack, nothing between |
+| One neutral sans at near sizes for everything | Freesentation and Albert Sans on four sizes far apart, the segments for what the board announces |
+| Gradient text, one italic serif word, small spaced capitals over a heading, monospace labels | None |
+| Headlines made of fragments, slogans or rhetorical questions | A title is the thing's name |
+| A purple or indigo gradient, neon glow, glass, blurred orbs, a dot grid, grain, a coloured stripe down a card | Navy, solid, one amber lamp (Colour and light) |
+| A colour for each feature | Colour only as content: the types |
+| A stock outline icon set, icons in tinted squares, emoji as icons or bullets, sparkles | Icons drawn for this site, only where words cannot say it (Icons); no emoji in the site's own words; the picture is the Pokémon |
+| 01, 02, 03 on what is not a sequence | A number is a fact: a generation, a rank, a round |
+| Sales words: 혁신적인, 특별한 경험, 새로운 차원, 완벽한, 손쉽게, 간편하게, 한눈에, 지금 바로, 만나보세요, 경험하세요, 여정 | The fact, plainly (Voice and tone); `tests/designLaw.test.mjs` refuses these words in the site's own copy |
+| "단순한 X가 아니라 Y", three adjectives in a row, a closing summary, "중요한 점은" | Say the one fact once |
+| Emoji in a heading or a key, an em dash in a sentence, bold scattered for stress | None (Voice and tone); emphasis is light |
+| A stock pair of keys (시작하기 beside 더 알아보기); section titles that fit any site (모든 것을 한 곳에, 당신을 위한) | A key names its act here (이번 대회 신청); a section is named for what it holds (YPL 시즌 3 순위) |
+| A builder's leftovers: its favicon, its share image, a badge, a meta generator, an empty legal page | The Wing Y on every surface (Head and share surfaces); a written privacy page |
+
+These cover the site's own words and screens only. What people write in it (a notice, a post, a comment) and what the game prints are theirs.
+
 ## Space
 
 | Space | For |
@@ -224,7 +264,7 @@ Contrast, computed from the tokens (AA text is 4.5, a lamp 3):
 
 ## Seven-segment displays
 
-**The board announces, the type reads.** Days left, a start time, a match score, the counters (대회, 트레이너, 시즌, 신청, 파티 제출), the calculator's damage range and base speed, the points of a ranking's top three, the date of a lead panel (10 월 28 일, two displays with their units in type), the first event on 소개 (2023 년 05 월, the same way), a season's number of events in the records, and 404 are seven-segment displays. Everything read in a line (a date, a rank in a table, a number in a sentence, points in a list) is Albert Sans with tabular digits.
+**The board announces, the type reads.** Segments are the board's voice, so they are kept for what it announces and never become the wallpaper (2026-11-18, draft B): days left, a start time and a clock, a match score, a champion's generation, a counter that is live (신청, 파티 제출 on the event's own page), the calculator's damage range and base speed, and 404. The league's counts (대회, 트레이너, 시즌) read as type 20 in the ribbon; a ranking's points are type (32 for the first, 20 for the rest) beside their bars; a date is type. Everything read in a line (a date, a rank, a number in a sentence, points in a list) is Albert Sans with tabular digits.
 
 - **A cell is real.** Seven bars, each a hexagon mitred at 45 degrees, standing a hair apart. Width is height over phi, a bar is .16 of the width thick, cells stand .32 of the width apart. Unlit bars stay at `--off`, so the cell reads as hardware, not as a font.
 - **A display has a fixed number of cells.** A total leaves its unused leading cells dark (71 in a two-cell counter, 6 shows a dark cell before it). A countdown lights its leading zero, like a stadium clock (05). A clock is four cells and two dot cells (13:00). An unplayed score is one dark cell.
@@ -341,7 +381,7 @@ Drawn for this site on a 24 grid: 1.5 stroke, square caps, mitred corners, no cu
 | light | things arrive by lighting: panels, then bars and words, then pictures | 420 in all | ease-out |
 
 - **First open:** the ground, the bars and every unlit segment are in the HTML's first paint, so there is no loading screen and no white frame. Panels, page titles and section heads come on top to bottom, 38 apart (the stagger stops growing at 260), each rising 12 into place over 420; then segment bars light, 62 apart per display; pictures come last. On a return nothing replays. A returning visitor's board opens on the facts it last read (the last `site_data` kept in the browser) and lights as on first open; when the new read differs, the changed facts switch at once, as a score does, and nothing replays. A first visit, or one whose kept copy is gone, waits for the read as before; on the home the reign (the champion panel and its six) and the league's counters are one block and light together, the champion waiting at most a second for the counters while its picture is fetched.
-- **Below the first screen:** a panel waits dark and lights, rising the same 12, the first time it nears the view (a screen's fifth before it arrives, so a reader does not meet dark panels), top to bottom. A grey line under a stack lights with the stack. It happens once; nothing is tied to the scroll after that.
+- **Below the first screen:** everything is already drawn and lit. Nothing waits dark for the scroll to reach it (2026-11-18: sections that appear only as they scroll into view are a tell of a machine-made site, Made by people); the first screen's lighting on open is the site's one entrance.
 - **A unit lights with its digits.** 일 beside the countdown is a word of the display and comes on with its lit bars, never before them.
 - **A picture that arrives late** (a sprite still loading when its panel lit) comes on by tone when it has loaded, so no picture pops in.
 - **Page change:** the moment a page is pressed, the line under the top bar's words slides to it and the page being left dims; if the next page takes longer than 260 (its code, its data), the busy cell stands over it. The new page then lights as on first open. Going back is the same motion (2026-11-06: a back that only swapped the page read as a cut): the page returned to lights where it was left, from the first line in view. A page within a page (a notice, a post, a bracket, a form, making a bracket) goes in and comes out the same way. The bars never move.
@@ -370,10 +410,20 @@ Distances are measured on rendered ink at 390 and 1440, within 1px.
 | a panel's edge to its first ink | 12 on a phone, 20 on desktop |
 | a Pokémon's feet to its floor's top edge | 0 |
 | a segment display's baseline to its unit's baseline | 0 |
+| the longest band without ink inside a panel | 40 at most |
+| the bottoms of two columns side by side | 0 apart |
 
 Centring is by ink: text through the fonts' metrics (Albert Sans with its ascent override), pictures through `inkCentre.js`, except that a Pokémon is placed by its feet, not its centre.
 
 ## Layout and pages
+
+**The stadium board: the home and the records under draft B** (adopted 2026-11-18, being built; once a screen is built this replaces its paragraph below).
+
+- **Home, the big screen.** One device across the top, 709 and 439 joined by the seam on desktop, one above the other on a phone. The next event's half: its lamp and state with the date at the right, its name at 32 with its kind dim under it, the countdown (120 on a phone, a display on the segment scale on desktop) with 일, and beside it on desktop, under it on a phone, three spec rows on `--panel-2` (일시, 신청 마감, 형식) so no room beside the digits is empty; the main action at its foot. The champion's half: 현 챔피언, the generation at 40 with 대, the name at 32, the season dim, the champion's Pokémon standing on the panel's floor at the right, then the six as one row of six cells across the panel, then → 파티 보기. With no event ahead the event's half becomes the last event's result (지난 대회).
+- **Home, the ribbon.** An inverted 52 strip across the content: 대회, 트레이너 and 역대 시즌, each a 12 label, its figure at 20 and its unit, spread across the strip in equal thirds.
+- **Home, the line score and the notices.** On desktop two columns on one line, 709 and 439. YPL 시즌 N 순위: the first an inverted row 84 tall with the name at 20, its bar on a track and the points at 32; the rest 52 rows with the place, the name, the bar and the points at 20; the bars are the points over the first's. 공지: the newest with its 새 글 lamp and its title at 20, then the others; on desktop the notices stretch to the ranking's last line.
+- **Home, the wall.** 역대 챔피언 as one panel of five columns parted by the seam, each the champion's Pokémon on the column's floor, the generation at 20, the name and the season.
+- **Records.** The title with 2023년 5월부터 on its line, the ribbon of the same counts, the tabs, then the first three as panels in a row (1.618, 1, 1 on desktop; stacked on a phone; the first inverted), each the name at 32 and the place, and 우승, 준우승, 4강 as three cells; then every other trainer as a 52 row: the place muted, the name, the wins, second places and top fours as 8 squares (lit, dim, `--rule`) under one legend at the list's head, and on desktop the same figures in words at the row's end. No header row of column names.
 
 **Home, phone.** Under the bar: the label row (a lamp, 다음 대회까지, or the amber lamp and 신청 접수 중 while the event takes applications, the date at the right), the countdown at 120 with 일 and nothing beside it (the event's name is the `h1` for screen readers only; the board says only how long until the next event), on the event day before its start a counter 파티 제출 마감까지 with the hours left and 시간 under an amber lamp (party submission closes when the event starts; on the days before, the countdown already says it, so there is no counter; it opens the notice), the main action, then the champion panel (216, its floor 52), then three counters (대회, 트레이너, 역대 시즌; 84 tall, cells 115, 116, 115). With no event ahead the hero is the last event's result (2026-11-16, the owner's pick of draft A: a dark 88 was the largest thing on the page and said nothing): 지난 대회 by an unlit housing, the lead panel (the date as 월 and 일 displays, the event's name, each league's count as its grey line), one strip a league's winner joined by the seam (the place in a cell of its own, the master league's inverted and its name at 20, the league and 준우승 as its grey line), and 대진표 보기 as the main action; once a notice brings an event ahead, the countdown returns. Signed in with a record, the hero opens with 내 다음, three cells on the seam like the counters, 32 over the label row: 신청 (신청함 or 미신청, opening the notice), 파티 제출 (제출함 or 미제출, opening the builder for that event), 다음 경기 (the round and the opponent of an undecided match, opening its sheet on the bracket); a cell with no fact keeps its label and its place, switched off. Below, each section is its own module of the board, so the page has a beat: the season's ranking as a podium, the top three as three columns like the counters (the rank, the name, the points lit in segments at 40 with 점; a tie reads as equal columns, each rank named 공동 (공동 1위), a sole leader's column inverts), and the table going on with the fourth and fifth as rows, as on the records' ranking; while the ranking is read its place stands switched off, three dark columns, so nothing under it moves when it lights; the notices as a lead panel (the date as 월 and 일 displays at 32, 새 글 with its lamp, the title at 20 in two lines, a grey line) and the rest as the notices page's own rows of 64 (the title, a grey line with the date), one component in both places; the past champions as a line score, one column a generation: the number lit at 32 on `--panel-2`, the Pokémon on its floor, the name and season, five across a phone, more scroll sideways.
 
@@ -589,7 +639,7 @@ Words are under the law too. Korean, plain and factual: what happens, then what 
 
 | Where | Form | Example |
 |---|---|---|
-| Explanation, guidance | ~합니다 | 대진표에서 확정된 결과가 기록에 반영됩니다. |
+| Why a key is off or waits (the one place guidance stays, Composing a screen 22) | ~합니다 | 운영진이 트레이너 이름을 확인하면 도전할 수 있습니다. |
 | Asking someone to act | ~해 주세요 | 제목을 입력해 주세요. |
 | Confirming an action | ~할까요? | 이 공지를 삭제할까요? |
 | Something finished | ~했습니다 | 저장했습니다. |
@@ -642,5 +692,7 @@ Words are under the law too. Korean, plain and factual: what happens, then what 
 - Do not change data behaviour from a visual change.
 
 ## Open
+
+Written 2026-11-18 and not yet in the code: draft B on the home and the records (Layout and pages, The stadium board), segments taken off the league's counts, the ranking's points, the notices' dates and 소개's first date (Seven-segment displays), panels below the first screen drawn at once instead of lighting as they near the view (Motion), and the other screens checked against Composing a screen 25 and 26 and against Made by people (소개's step and feature cards are the first known case).
 
 Measured in the browser but not yet on a real phone at the venue: the strength of the unlit bars (8% and 6%), the 44 touch floor on the bracket's 36 rows (the whole match box is the target), and each sprite's feet on its floor. Not yet played on two real phones: an official bracket match, and the battle stage's smoothness on a phone GPU. Waiting on the owner's word (2026-11-09): a practice run of 도전의 탑 that needs no account, which needs the battle function and `streak_runs.sql` to take an unranked run; until then the tab's second action is a battle with the computer. Frame measurements of the battle and 도전의 탑, and what they leave, live in `docs/BATTLE_FRAMES.md` (baseline 2026-11-18). Not yet tried on a real phone: the battle's long press against the browser's own text selection and callout, and the deck over the home indicator's safe area.

@@ -219,7 +219,9 @@ test("a segment cell is real: h tall, h / phi wide, its unlit bars at --off (Sev
 });
 test("a display is never under 32 and stands on the segment scale (Seven-segment displays)", () => {
   const sizes = new Set(["32", "40", "84", "120", "240"]);
-  const hits = SRC.flatMap(f => [...read(f).matchAll(/<Seg\b[^>]*?\bh=\{(\d+)\}/g)].filter(m => !sizes.has(m[1])).map(m => `${rel(f)}: ${m[1]}`));
+  // a Counter draws its value as a Seg, so its h is held too, a ternary's every branch included
+  const hs = tag => [...tag.matchAll(/\bh=\{([^}]*)\}/g)].flatMap(m => m[1].match(/\b\d+\b(?![.\]])/g) || []);
+  const hits = SRC.flatMap(f => [...read(f).matchAll(/<(?:Seg|Counter)\b[^>]*?>/g)].flatMap(m => hs(m[0])).filter(h => !sizes.has(h)).map(h => `${rel(f)}: ${h}`));
   assert.deepEqual(hits, []);
 });
 
@@ -255,6 +257,18 @@ test("Korean copy has no middle dot separators (Voice and tone)", () => {
   const hits = SRC.flatMap(f => read(f).split("\n").map((l, i) => ({ l, at: `${rel(f)}:${i + 1}` })))
     .filter(({ l }) => l.includes("·") && !/^\s*(\/\/|\/?\*)/.test(l) && !/\/[^/\n]*·[^/\n]*\/[gimsuy]*/.test(l)); // a regex that strips dots is fine
   assert.deepEqual(hits.map(h => h.at), []);
+});
+
+// ---------- made by people ----------
+// The site's own words, the strings in its source, never what people write in it (Made by people).
+const COPY = SRC.flatMap(f => read(f).split("\n").map((l, i) => ({ l, at: `${rel(f)}:${i + 1}` })))
+  .filter(({ l }) => !/^\s*(\/\/|\/?\*)/.test(l)).map(({ l, at }) => ({ at, t: l.replace(/\/\/.*$|\/\*.*?\*\//g, "") }));
+test("no emoji in the site's own words (Made by people)", () => {
+  assert.deepEqual(COPY.filter(({ t }) => /\p{Extended_Pictographic}/u.test(t.replace(/[©®™↗→←↑↓✓×]/g, ""))).map(h => h.at), []);
+});
+test("no sales words a machine reaches for (Made by people)", () => {
+  const words = /혁신적|특별한 경험|새로운 차원|완벽한|손쉽게|간편하게|한눈에|지금 바로|만나보세요|경험하세요|여정|당신을 위한|모든 것을 한 곳에|단순한 [가-힣]+(이|가) 아니라/;
+  assert.deepEqual(COPY.filter(({ t }) => words.test(t)).map(h => `${h.at}: ${words.exec(h.t)[0]}`), []);
 });
 
 // ---------- motion ----------

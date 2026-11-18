@@ -810,7 +810,7 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           {/* a code room's four digits stand first and largest: they are what the opener reads out to the one coming in */}
           <div className="bt-wait-counters">
             {code && !rematch && <Counter label="방 코드" value={code} cells={4} h={84} />}
-            <Counter label="기다린 시간" value={clock} cells={3} h={code && !rematch ? 84 : 52} />
+            <Counter label="기다린 시간" value={clock} cells={3} h={code && !rematch ? 84 : 40} />
           </div>
         </div>
       </div>

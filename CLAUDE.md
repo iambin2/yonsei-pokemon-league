@@ -14,8 +14,10 @@ STATS_CACHE=<dir> node scripts/tune-sets.mjs  # M-C sample sets: the ladder's (s
                         # with stat points spent by targets into src/data/random-sets.json; then node scripts/curate-sets.mjs (one build, one item;
                         # most species one set) and node scripts/render-sample-sets.mjs (docs/SAMPLE_SETS.md)
 node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json and tower-tiers.json (what 도전의 탑's foe builders learn from, and its draft pool)
-                        # from champs.pokedb.tokyo's open top-team files; rerun when a season's file comes out (docs/BATTLE_STREAK.md 14장)
-                        # (refresh-champions-data.yml does this weekly and opens a PR when it changed)
+                        # from champs.pokedb.tokyo's open top-team files; rerun by hand when a season's file comes out (docs/BATTLE_STREAK.md 14장)
+                        # (refresh-champions-data.yml reruns data:champions weekly and opens a PR when it changed; no workflow runs this one)
+npm run data:cpu-learn  # blend players' parties into src/data/random-sets.json (what learn-cpu-sets.yml runs weekly)
+npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own Korean text for each move, ability and item
 npm run font:slices     # re-cut Freesentation into unicode-range slices (needs pip install -r scripts/requirements-fonts.txt)
                         # (deploy.yml runs it before every build; the result ships but is not committed back)
 npm run build:battle    # bundle the engine into supabase/functions/battle before deploying that function
@@ -28,7 +30,7 @@ Run one test file directly — each is a standalone `node:test` module with no r
 node tests/championsCore.test.mjs
 ```
 
-There is no linter and no TypeScript. `.jsx`/`.mjs` only, except the Edge Functions' `index.ts` (Deno).
+There is no linter and no TypeScript, except the Edge Functions' `index.ts` (Deno). Source is `.js`/`.jsx`/`.mjs`, plus a few `.cjs`/`.py` scripts.
 
 ## Deployment
 
@@ -53,14 +55,17 @@ React 18 + Vite SPA, no router library and no state library.
 - **Visitor space** (board 자유/샘플/파티 tabs, 사설 대진표 tab) lives in `public.community_items` through `src/services/communityStore.js`, written only by the `community_write` RPC with server-checked pins (`docs/db/visitor_gates.sql`); it never touches official data or records. Team sheets (`buildTeamSheet`) feed both the board and the PNG export (`src/components/teamSheetImage.js`).
 - **Alerts** are Web Push (`docs/PUSH.md`): `public/sw.js` only shows notifications (no fetch handler, no cache), `src/services/announcementPush.js` subscribes and sets each device's kinds through the RPCs in `docs/db/announcement_push.sql` and `docs/db/push_kinds.sql`. What is due waits in `push_outbox` (a new notice, triggers on official battle rooms and tower runs, a 15-minute sweep from `.github/workflows/push-sweep.yml`), and the one sender, the `notify-announcement` Edge Function (`supabase/functions/`, holding `VAPID_KEYS`), takes it out once through `push_take`. iOS only offers push inside the home-screen app, hence `public/manifest.webmanifest`.
 - **`src/storage.js`** is a three-tier data adapter — `window.storage` (Claude artifact) → Supabase → `localStorage` — exposed as `STORAGE_MODE`. It serves the key/value `site_data` table only, not the normalized schema.
-- **`src/styles/`** is plain CSS, 23 files imported in order by `src/main.jsx`: `tokens.css` is the foundation (the scoreboard tokens, both themes via `<html data-theme>`, base elements, panels, lamps, motion), `board.css` the shared parts, then one file per screen. Theme is a required product feature; never hardcode a color that exists as a token.
+- **`src/styles/`** is plain CSS, 23 files imported in order by `src/main.jsx`: `tokens.css` is the foundation (the scoreboard tokens, both themes via `<html data-theme>`, base elements, panels, lamps, motion), then `components.css`, `shell.css` and `board.css` (the shared parts), then one file per screen, `admin.css` last. Theme is a required product feature; never hardcode a color that exists as a token.
 - **Shell** (`src/components/layout/`): top bar, phone tab bar, `history.js` (history index for back direction and scroll restore). The bars stand still; nothing is tied to the scroll. `src/components/common/Modal.jsx` is the one sheet/dialog; pages portal into `.ypl`.
 - **Battle** (`src/pages/BattlePage.jsx`, `src/pages/battle/`): Showdown's engine (`@pkmn/sim`) in the browser and in `supabase/functions/battle`; the stage is one WebGL2 canvas (`gl.js`, `arena.js`), and 도전의 탑 is its own scene (`Streak.jsx`, `tower.js`, `towerGL.js`). 도전의 탑's rules are `docs/BATTLE_STREAK.md`; its code and data keep the old name, streak (`kind` streak, `streak_runs`).
 - **Battle computer** (`src/services/battleCpu.js`, run in `src/pages/battle/cpu.worker.js`): read `docs/BATTLE_COMPUTER.md` before changing it. It is binding: every change to how the computer chooses is measured with `npm run bench:cpu -- --games 300` against the last commit, kept only by that chapter's rules, and logged in its experiment table, failures included. The weekly `learn-cpu-sets.yml` blends players' parties into `src/data/random-sets.json` through a pull request.
 
 - **Title medals** (`src/components/titleMedal.js`, specs in `src/services/titleLooks.js`, boards in `src/components/TitleFaces.jsx`): every title is a struck medal drawn as heights and lit in WebGL2. DESIGN.md "Titles and hall of fame" holds the whole law (every radius, height, light and finish, how a device is drawn); change a number there and in the code together. A medal never carries a Pokémon picture, a character, an official icon (the games' type symbols included) or the league's logo: devices are original marks drawn in `GLYPHS`, `DEVICES`, `SCENES` (the Mega emblem, the owner's image, and 몽키매직's 야나프, 바오프 and 앗차프, drawn at the owner's word, are the only exceptions). A title that needs its own device gets one drawn there, named in `TITLE_DEVICES`, and preset in `PRESETS`; no two titles may share a medal. Check a medal change on all six title tabs (기타 칭호 is the fifth, once skipped by mistake), the title sheet and a trainer's sheet, at 390 and 1440 in both themes, one medal at twice its size before and after, and the time a full board takes with no task over 50ms.
+- **Battle records:** `docs/BATTLE_FRAMES.md` (frames dropped at phone speed) and `docs/BATTLE_TRANSITIONS.md` (how each scene changes, from recorded frames) are what a battle or 도전의 탑 change is measured against; the plans they serve are in `docs/superpowers/plans/`.
 
 ### Data source boundary (read `docs/ARCHITECTURE.md` before touching data code)
+
+Read with it: `docs/COMPETITION_EDITIONS.md` (an edition's number belongs to the competition, `(family, round_number)`), `docs/LEAGUE_INTAKE.md` (one intake for 루키 and 마스터) and `docs/db-access-lockdown.md` (who may write what).
 
 Two sources coexist and must not be mixed:
 
