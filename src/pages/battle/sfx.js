@@ -19,7 +19,15 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // a stadium's air: two seconds of noise that falls away, a little different in each ear
 function room(ctx) {
   const len = Math.round(ctx.sampleRate * 1.6), buf = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.4) * (i < 400 ? i / 400 : 1); }
+  // the fall-off taken every 256 samples and drawn straight between (a power for each sample was 60 ms of a phone's frame, 2026-11-18)
+  const fall = i => Math.pow(1 - Math.min(len, i) / len, 3.4);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i0 = 0; i0 < len; i0 += 256) {
+      const a = fall(i0), b = fall(i0 + 256), end = Math.min(len, i0 + 256);
+      for (let i = i0; i < end; i++) d[i] = (Math.random() * 2 - 1) * (a + (b - a) * (i - i0) / 256) * (i < 400 ? i / 400 : 1);
+    }
+  }
   return buf;
 }
 // the keys and the clock are not effects: they sound under 건너뛰기 too

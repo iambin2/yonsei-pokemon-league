@@ -651,7 +651,7 @@ export function faint(stage, key) {
    a faint cool rim the stadium throws back, and the red, the white, the band and the button turned with the ball, so it tumbles as
    it flies instead of spinning flat. FRAMES frames make one turn; they are painted once and kept for every stage. */
 const FRAMES = 24, BALL_PX = 160;
-// painted a frame a step, like the atlas (gl.js prepareAtlas): ahead of time in idle moments, or all at once by the first throw
+// painted a few rows a step, like the atlas (gl.js prepareAtlas): ahead of time in idle moments, or all at once by the first throw
 let ballCanvases = null, ballJob = null;
 const ballSteps = () => (ballJob ||= paintBalls());
 function* paintBalls() {
@@ -666,6 +666,8 @@ function* paintBalls() {
       return [x * cs + cx * sn + ax * d * (1 - cs), y * cs + cy * sn + ay * d * (1 - cs), z * cs + cz * sn + az * d * (1 - cs)]; };
     const c = Object.assign(document.createElement("canvas"), { width: BALL_PX, height: BALL_PX }), g = c.getContext("2d"), img = g.createImageData(BALL_PX, BALL_PX), px = img.data;
     for (let j = 0; j < BALL_PX; j++) for (let i = 0; i < BALL_PX; i++) {
+      // a step every 20 rows: a whole frame was a step of up to 60 ms at a phone's speed (2026-11-18)
+      if (i === 0 && j && j % 20 === 0) yield;
       const nx = (i + .5 - C) / R, ny = -(j + .5 - C) / R, d2 = nx * nx + ny * ny, edge = (1 - Math.sqrt(d2)) * R + .5;
       if (edge <= 0) continue;
       const nz = Math.sqrt(Math.max(0, 1 - d2)), n = [nx, ny, nz], q = local(n);

@@ -19,7 +19,7 @@ import { createBattleReader, fourMoves, josa, parseHP, requestKey, revives, slot
 import { LobbyArena, LobbyStage, STATUS, Stage, effLabel, effectiveness, nameOf, other, sceneOf, typesOf, useBox, useStageTape } from "./battle/Stage.jsx";
 import { goIn, prewarm, setSpeed as setStageSpeed } from "./battle/stageFx.js";
 import { sfx } from "./battle/sfx.js";
-import { audio, setSoundOn, soundOn } from "./battle/cries.js";
+import { audio, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
 import { readRunState } from "../services/battleService.js";
 import { BOARD_DRAFT_KEY, battleHref, battlePollDelay, canRematch, cancelBattle, chooseInBattle, createBattle, recordCpuBattle, readCpuReplay, forfeitBattle, forgetSeat, isDoubles, joinBattle, listEventBattles, listOpenRooms, playerViewIsCurrent, readBattleRow, readBattleVersion, readSeat, rematchBattle, runGames, takeOfficialSeat, viewBattle, warmBattle } from "../services/battleService.js";
 import { parseBoutKey } from "../services/teamBouts.js";
@@ -1077,12 +1077,11 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
      wakes it */
   const [awake, setAwake] = useState(() => audio()?.state === "running");
   useEffect(() => {
-    const c = audio();
-    if (!c) return undefined;
+    // the context is made at the page's first touch (cries.js audio), so the key follows it from then
+    let c = null, gone = false;
     const f = () => setAwake(c.state === "running");
-    f();
-    c.addEventListener("statechange", f);
-    return () => c.removeEventListener("statechange", f);
+    whenAudio(made => { if (gone) return; c = made; f(); c.addEventListener("statechange", f); });
+    return () => { gone = true; c?.removeEventListener("statechange", f); };
   }, []);
   const soundKey = () => { if (sound && !awake) audio()?.resume().catch(() => {}); else toggleSound(); };
   /* The replay (DESIGN.md "Battle", Replay): cue is how many lines of the finished log the stage shows, null all of them.

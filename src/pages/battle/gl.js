@@ -59,6 +59,9 @@ const PATHS = {
   caltrop: "M12 0 14.4 4.6 24 6 14.4 7.4 12 12 9.6 7.4 0 6 9.6 4.6Z|24|12",
   star5: "M12 0L14.9 8.2H23.4L16.5 13.3L19.1 21.6L12 16.5L4.9 21.6L7.5 13.3L.6 8.2H9.1Z|24|22",
 };
+// the noise tile, made once and shared by the atlas and every stage's sprites
+let noiseMade = null;
+const noiseOnce = () => (noiseMade ||= noiseTile());
 function noiseTile(N = C) {
   // tileable value noise, four octaves
   const h = (x, y, p) => { const s = Math.sin(((x % p) + p) % p * 127.1 + ((y % p) + p) % p * 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -293,13 +296,17 @@ function chamfer(inside, n) {
   for (let y = n - 1; y >= 0; y--) for (let x = n - 1; x >= 0; x--) { const i = y * n + x; if (!d[i]) continue; d[i] = Math.min(d[i], at(x + 1, y) + 1, at(x, y + 1) + 1, at(x + 1, y + 1) + 1.414, at(x - 1, y + 1) + 1.414); }
   return d;
 }
-function surface(name, alpha, n) {
+/* a cell's surface, in steps of ROWS_A_STEP rows: a facet cell was one step of 260 ms at a phone's speed, a frame of 734 while a
+   replay opened (2026-11-18, scripts/measure-frames.cjs) */
+const ROWS_A_STEP = 16;
+function* surfaceSteps(name, alpha, n) {
   const [kind, param = 0, extra] = SURF[name] || ["flat"], out = new Uint8Array(n * n * 4);
   for (let i = 0; i < n * n; i++) { out[i * 4] = 128; out[i * 4 + 1] = 128; out[i * 4 + 2] = 255; out[i * 4 + 3] = 255; }
   if (kind === "flat") return out;
   const inside = new Uint8Array(n * n);
   for (let i = 0; i < n * n; i++) inside[i] = alpha[i] > 90 ? 1 : 0;
   const dt = chamfer(inside, n);
+  yield;
   let maxd = 0; for (let i = 0; i < n * n; i++) maxd = Math.max(maxd, dt[i]);
   if (!maxd) return out;
   const D = kind === "bevel" ? Math.min(maxd, param) : maxd;
@@ -308,7 +315,7 @@ function surface(name, alpha, n) {
   if (extra === "moon") { let seed = 9; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }; for (let k = 0; k < 9; k++) { const cx = 30 + r() * 68, cy = 30 + r() * 68, cr = 5 + r() * 11; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const q = Math.hypot(x - cx, y - cy) / cr; if (q < 1.15) h[y * n + x] -= (q < 1 ? (1 - q * q) * cr * .35 : 0) - (q > .9 ? (1.15 - q) * cr * .5 : 0); } } }
   // smooth the field once, so its ridges turn rather than crease
   const s = new Float32Array(n * n);
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let v = 0, w = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const xx = x + i, yy = y + j; if (xx < 0 || yy < 0 || xx >= n || yy >= n) continue; v += h[yy * n + xx]; w++; } s[y * n + x] = v / w; }
+  for (let y = 0; y < n; y++) { if (y % ROWS_A_STEP === 0) yield; for (let x = 0; x < n; x++) { let v = 0, w = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const xx = x + i, yy = y + j; if (xx < 0 || yy < 0 || xx >= n || yy >= n) continue; v += h[yy * n + xx]; w++; } s[y * n + x] = v / w; } }
   // a cut thing: its pixels belong to the nearest of a few points scattered in it, and each such face leans away from the middle
   let faces = null;
   if (kind === "facet") {
@@ -322,6 +329,7 @@ function surface(name, alpha, n) {
     faces = pts.map(([x, y], k) => { const ox = (x - cx) / rad, oy = (y - cy) / rad, v = [ox * 1.25 + (r() - .5) * .35, oy * 1.25 + (r() - .5) * .35, k === pts.length - 1 ? 1.6 : 1]; const l = Math.hypot(...v); return { x, y, nrm: v.map(c => c / l) }; });
   }
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    if (x === 0 && y % ROWS_A_STEP === 0) yield;
     const i = y * n + x;
     if (!inside[i]) continue;
     const g = (xx, yy) => s[Math.min(n - 1, Math.max(0, yy)) * n + Math.min(n - 1, Math.max(0, xx))];
@@ -345,14 +353,13 @@ export const MATERIALS = CELLS.map(([n]) => MATERIAL[n] || MAT_DEFAULT);
    (2026-11-07: painted all at once as the stage came up, it froze the arena before a replay's opening) */
 let atlasData = null, atlasJob = null;
 const atlasSteps = () => (atlasJob ||= paintAtlas());
-function buildAtlas() {
-  if (!atlasData) for (const _ of atlasSteps()) { /* each step a cell */ }
-  return atlasData;
-}
 // one step of it; true while more are left (stageFx prewarm runs them)
 export const atlasStep = () => !atlasData && !atlasSteps().next().done;
 export const atlasPainted = () => Boolean(atlasData);
 function* paintAtlas() {
+  // the noise first, a step of its own: a stage that stands before the atlas is painted takes it at once (setup)
+  noiseOnce();
+  yield;
   const N = C * GRID, NH = C * ROWS, mk = () => { const c = document.createElement("canvas"); c.width = N; c.height = NH; return c; };
   const shape = mk(), high = mk(), gs = shape.getContext("2d", { willReadFrequently: true }), gb = high.getContext("2d", { willReadFrequently: true });
   CELLS.forEach(([, draw], i) => {
@@ -366,23 +373,22 @@ function* paintAtlas() {
   yield;
   const a = gs.getImageData(0, 0, N, NH).data;
   yield;
-  const b = gb.getImageData(0, 0, N, NH).data, nz = noiseTile();
+  const b = gb.getImageData(0, 0, N, NH).data, nz = noiseOnce();
   yield;
-  const out = new Uint8Array(N * NH * 4), nrm = new Uint8Array(N * NH * 4), jobs = [];
+  const out = new Uint8Array(N * NH * 4), nrm = new Uint8Array(N * NH * 4);
   for (let y = 0; y < NH; y++) for (let x = 0; x < N; x++) {
+    if (x === 0 && y && y % (ROWS_A_STEP * 4) === 0) yield;
     const i = (y * N + x) * 4, cellI = Math.floor(y / C) * GRID + Math.floor(x / C);
     out[i] = a[i + 3]; out[i + 1] = nz[((y + cellI * 37) % C) * C + ((x + cellI * 53) % C)] * 255; out[i + 2] = b[i + 3]; out[i + 3] = 255;
   }
   yield;
-  CELLS.forEach(([name], ci) => {
+  for (const [ci, [name]] of CELLS.entries()) {
+    yield;
     const x0 = (ci % GRID) * C, y0 = Math.floor(ci / GRID) * C, al = new Uint8Array(C * C);
     for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) al[y * C + x] = a[((y0 + y) * N + x0 + x) * 4 + 3];
-    jobs.push(() => {
-      const sf = surface(name, al, C);
-      for (let y = 0; y < C; y++) nrm.set(sf.subarray(y * C * 4, (y + 1) * C * 4), ((y0 + y) * N + x0) * 4);
-    });
-  });
-  for (const job of jobs) { yield; job(); }
+    const sf = yield* surfaceSteps(name, al, C);
+    for (let y = 0; y < C; y++) nrm.set(sf.subarray(y * C * 4, (y + 1) * C * 4), ((y0 + y) * N + x0) * 4);
+  }
   atlasData = { N, NH, out, nrm, noise: nz };
 }
 
@@ -740,15 +746,28 @@ class Engine {
       particle: compileStart(gl, PARTICLE_VS, PARTICLE_FS), strip: compileStart(gl, STRIP_VS, STRIP_FS), sprite: compileStart(gl, SPRITE_VS, SPRITE_FS),
       down: compileStart(gl, FULL_VS, DOWN_FS), up: compileStart(gl, FULL_VS, UP_FS), comp: compileStart(gl, FULL_VS, COMP_FS),
     };
-    // the atlas is taken (or finished, when the stage came before it was painted) while the programs compile
-    const atlas = buildAtlas();
     this.prog = Object.fromEntries(Object.entries(started).map(([name, s]) => [name, compileEnd(gl, s)]));
-    this.atlas = texture(gl, atlas.N, atlas.NH, atlas.out);
-    gl.bindTexture(gl.TEXTURE_2D, this.atlas); gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    this.normals = texture(gl, atlas.N, atlas.NH, atlas.nrm);
-    gl.bindTexture(gl.TEXTURE_2D, this.normals); gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    /* the atlas (the particles' shapes and their normals) is taken when it is painted, and until then the stage stands on an empty one
+       and paints the rest of it 6 ms a frame itself. Taken at once, a stage that came before it was painted finished it inside one
+       frame: 984 ms at a phone's speed as a replay opened (2026-11-18, scripts/measure-frames.cjs). Nothing draws a particle before
+       then: the opening waits for the atlas (stageFx warm) */
+    this.atlas = texture(gl, 1, 1, new Uint8Array(4));
+    this.normals = texture(gl, 1, 1, new Uint8Array([128, 128, 255, 255]));
+    const takeAtlas = () => {
+      if (this.disposed) return;
+      const t = performance.now();
+      while (!atlasData && performance.now() - t < 6) atlasStep();
+      if (!atlasData) { requestAnimationFrame(takeAtlas); return; }
+      const atlas = atlasData;
+      gl.deleteTexture(this.atlas); gl.deleteTexture(this.normals);
+      this.atlas = texture(gl, atlas.N, atlas.NH, atlas.out);
+      gl.bindTexture(gl.TEXTURE_2D, this.atlas); gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      this.normals = texture(gl, atlas.N, atlas.NH, atlas.nrm);
+      gl.bindTexture(gl.TEXTURE_2D, this.normals); gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    };
+    takeAtlas();
     this.mats = new Float32Array(ROWS * GRID * 4); MATERIALS.forEach((m, i) => this.mats.set(m, i * 4));
-    const nz = new Uint8Array(C * C); atlas.noise.forEach((v, i) => { nz[i] = v * 255; });
+    const nz = new Uint8Array(C * C); noiseOnce().forEach((v, i) => { nz[i] = v * 255; });
     this.noise = texture(gl, C, C, nz, { wrap: gl.REPEAT, format: gl.RED, internal: gl.R8 });
     this.ramps = texture(gl, 256, RAMP_ROWS, buildRamps());
     // the unit quad every sprite and particle is drawn on

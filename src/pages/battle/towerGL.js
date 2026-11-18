@@ -513,24 +513,35 @@ void main() {
   o = vec4(mix(c, uMistC, uMist) * a, a);
 }`;
 
-let ctx = null;
-function context() {
-  if (ctx && !ctx.gl.isContextLost()) return ctx;
-  ctx = null;
+/* the context in two halves: begun (the programs handed to the driver to compile and link) and finished (their links checked, their
+   uniforms looked up, the buffers bound). Checking a link waits for it, so the warm-up begins them and finishes only once the driver
+   says they are done (KHR_parallel_shader_compile): begun and finished at once, the three programs held the page 150 to 220 ms at a
+   phone's speed, on a replay that shows no tower (2026-11-18, scripts/measure-frames.cjs) */
+let ctx = null, begun = null;
+const UNIFORMS = {
+  main: ["uVP", "uDoor", "uLight", "uEye", "uRim", "uFog", "uWarm", "uAmber", "uLift", "uG0", "uG1", "uRoad", "uMistC", "uDay", "uFogN", "uFogD",
+    "uLiftMix", "uLiftDoor", "uTopY", "uMist", "uPL", "uPC", "uNL"],
+  back: ["uRes", "uF", "uRt", "uUp", "uMoonD", "uSkyTop", "uSkyLow", "uFar", "uNear", "uMoonC", "uStar", "uMistC", "uFocal", "uShift", "uDay", "uMist"],
+  soft: ["uVP", "uRt", "uUp", "uMode", "uEye", "uMoonD", "uFog", "uCloudLo", "uCloudHi", "uMoonC", "uMistC", "uTime", "uLayer", "uMist", "uOut"],
+};
+function begin() {
   const canvas = document.createElement("canvas");
   const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: true });
   if (!gl) return null;
   const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
-  const program = (vs, fs, names) => {
-    const p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  const link = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
+  return { canvas, gl, parallel: gl.getExtension("KHR_parallel_shader_compile"), progs: { main: link(VS, FS), back: link(BVS, BFS), soft: link(SVS, SFS) } };
+}
+// whether the driver has finished the begun programs (always, without the extension: finishing then waits as it always did)
+const compiled = b => !b.parallel || Object.values(b.progs).every(p => b.gl.getProgramParameter(p, b.parallel.COMPLETION_STATUS_KHR));
+function finish(b) {
+  const { gl, canvas } = b;
+  const program = name => {
+    const p = b.progs[name];
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.warn(gl.getProgramInfoLog(p)); return null; }
-    return { p, u: Object.fromEntries(names.map(n => [n, gl.getUniformLocation(p, n)])) };
+    return { p, u: Object.fromEntries(UNIFORMS[name].map(n => [n, gl.getUniformLocation(p, n)])) };
   };
-  const main = program(VS, FS, ["uVP", "uDoor", "uLight", "uEye", "uRim", "uFog", "uWarm", "uAmber", "uLift", "uG0", "uG1", "uRoad", "uMistC", "uDay", "uFogN", "uFogD",
-    "uLiftMix", "uLiftDoor", "uTopY", "uMist", "uPL", "uPC", "uNL"]);
-  const back = program(BVS, BFS, ["uRes", "uF", "uRt", "uUp", "uMoonD", "uSkyTop", "uSkyLow", "uFar", "uNear", "uMoonC", "uStar", "uMistC", "uFocal", "uShift", "uDay", "uMist"]);
-  const soft = program(SVS, SFS, ["uVP", "uRt", "uUp", "uMode", "uEye", "uMoonD", "uFog", "uCloudLo", "uCloudHi", "uMoonC", "uMistC", "uTime", "uLayer", "uMist", "uOut"]);
+  const main = program("main"), back = program("back"), soft = program("soft");
   if (!main || !back || !soft) return null;
   const bind = (prog, buf, stride, attrs) => {
     const vao = gl.createVertexArray();
@@ -547,19 +558,33 @@ function context() {
   const bvao = bind(back, quad, 2, [["aQ", 2, 0]]);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const svao = bind(soft, sbuf, 9, [["aP", 3, 0], ["aQ", 2, 3], ["aC", 4, 5]]);
-  ctx = { canvas, gl, main, back, soft, vao, bvao, svao, buf, sbuf, key: null, solid: 0 };
+  return { canvas, gl, main, back, soft, vao, bvao, svao, buf, sbuf, key: null, solid: 0 };
+}
+function context() {
+  if (ctx && !ctx.gl.isContextLost()) return ctx;
+  if (!begun || begun.gl.isContextLost()) begun = begin();
+  ctx = begun ? finish(begun) : null;
+  begun = null;
   return ctx;
 }
-/* the context made and the programs compiled and drawn once in an idle moment before any tower is asked for (the battle page loads
-   this module), so the first tower drawn pays only for its mesh */
+/* the context made and the programs compiled and drawn once in idle moments before any tower is asked for (the battle page loads
+   this module), so the first tower drawn pays only for its mesh. The driver compiles while the page goes on (begin above) */
 export function warmTower() {
-  const c = context();
-  if (!c) return;
-  const { gl } = c;
-  gl.useProgram(c.main.p); gl.bindVertexArray(c.vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, c.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(STRIDE * 3), gl.STATIC_DRAW);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
-  c.key = null;
+  if (ctx || begun) return;
+  begun = begin();
+  if (!begun) return;
+  const wait = () => {
+    if (ctx) return;
+    if (begun && !compiled(begun)) { requestAnimationFrame(wait); return; }
+    const c = context();
+    if (!c) return;
+    const { gl } = c;
+    gl.useProgram(c.main.p); gl.bindVertexArray(c.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, c.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(STRIDE * 3), gl.STATIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    c.key = null;
+  };
+  requestAnimationFrame(wait);
 }
 
 /* the picture without WebGL2: the drum and its doors, flat in their tones, from the same camera */
