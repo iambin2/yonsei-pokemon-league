@@ -124,6 +124,10 @@
   .bt-stagebox > .bt-arena { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
   .bt-stagebox .bs-stage.hud { flex: 1 1 auto; aspect-ratio: auto; min-height: 50vw; max-height: 112vw; }
   .bt-stagebox > .bt-preview { padding: var(--s3) var(--s3) 0; }
+  /* the frame a battle is read in (MatchWait): its court stands at the top where the head and the strips will stand round it, not
+     pushed to the foot of an empty window */
+  .bt-wait .bt-stagebox { flex: none; }
+  .bt-wait .bt-stagebox .bs-stage.hud { flex: none; aspect-ratio: 4 / 3; min-height: 0; }
   .bt-deck { flex: none; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--s3); padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom, 0px)); }
   .bt-deck .bt-choices { gap: var(--s3); }
   /* a move key is 64 tall; a tall phone gives it the three lines a desktop key has */
@@ -537,7 +541,7 @@
 /* a move held (a finger or the mouse's button): a light fills along its foot as the hold counts (420, the long press), so even a tap
    shows that holding does something; full, the move's card stands over the deck (.bt-peek) until it is let go */
 .bt-move { position: relative; }
-.bt-move::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--s1); background: #FFFFFF; transform: scaleX(0); transform-origin: 0 50%; pointer-events: none; }
+.bt-move::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--s1); background: #FFFFFF; transform: scaleX(0); transform-origin: 0 50%; pointer-events: none; }
 .bt-move.holding::after { transform: scaleX(1); transition: transform 420ms linear; }
 /* a move card: one solid colour, the type's own darkened toward the night so white words read on every type */
 .bt-move { display: grid; align-content: center; gap: var(--s1); min-height: var(--h-row2); padding: var(--s2) var(--s3); text-align: left; color: #FFFFFF;
@@ -910,6 +914,10 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
    drawn locked, a key that was usable (data-was) starts lit and goes down to the disabled light; drawn open, every key starts at that
    light and the usable ones come up (a move a Choice item locks out stays where it was). Locked keys nothing was asked on yet (.fresh:
    the stage taking the team preview's place) come at the disabled light: starting lit they flashed under the blank board (2026-11-10) */
+/* a deck that cannot be pressed now (the opening, a turn playing) stands at the disabled light (2026-11-18, docs/BATTLE_TRANSITIONS.md
+   T4, T7): the board's one form for disabled (muted words on the panel's own tone, 2026-11-16) left a move's type colour lit, so a locked
+   deck read as one to choose from under the dark opening and through every turn, and the light the rules below start from was gone */
+.bt-match .bt-choices.locked :is(.bt-move, .bt-sw, .bt-mega) { opacity: var(--opacity-disabled); }
 @starting-style {
   .bt-match .bt-choices.forced .bt-moves { opacity: 1; }
   .bt-match .bt-choices.locked:not(.fresh) [data-was] { opacity: 1; }
@@ -936,10 +944,19 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 .bt-console > .bt-hint { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s3)); z-index: var(--z-raised); display: flex; justify-content: center; pointer-events: none; }
 .bt-console > .bt-hint .toast-panel { position: static; }
 
-/* how many hits a move takes (battleDamage.js), one mark at the key's first line's right end, after the matchups: a sure one-hit
-   inverted as a ×2 is, a chance of one lit, two and three plain, four and more faint (2026-11-16, the owner's draft 1-B) */
+/* how much of the foe's HP left now a move takes (battleDamage.js), as the key's own gauge on its foot across its width (2026-11-18,
+   the owner's KO draft A without its word, the user: "\"난수 1타\" 와 같은 배틀 도우미가 너무 붕 떠 보여. 마땅히 있어야 할 위치에 있는
+   것이라기 보다는 마치 억지로 붙여놓은 것 같아"): lit what the lowest roll takes, at .45 what the highest adds, on the key's own dark
+   track. A gauge full to its end is a knock-out. On the chosen key (white) it is drawn in the navy. The hold's bar is the key's top
+   edge, so the two never meet */
+.bt-move-gauge { position: absolute; left: 0; right: 0; bottom: 0; height: var(--s1); background: #050D1F66; pointer-events: none; }
+.bt-move-gauge > i, .bt-move-gauge > u { position: absolute; top: 0; bottom: 0; background: #FFFFFF; }
+.bt-move-gauge > i { left: 0; width: calc(var(--lo) * 100%); }
+.bt-move-gauge > u { left: calc(var(--lo) * 100%); width: calc((var(--hi) - var(--lo)) * 100%); opacity: .45; }
+.bt-move.on .bt-move-gauge > :is(i, u) { background: #050D1F; }
+/* the mark the target list carries still: how many hits on each foe beside its name (until 2026-11-18 the move key's first line
+   carried it too, after the matchups: a sure one-hit inverted, a chance of one lit, two and three plain, four and more faint) */
 .bt-ko { flex: none; display: inline-flex; align-items: center; height: 20px; margin-left: auto; padding: 0 var(--s1); background: #050D1F; color: #DCE8FF; font-size: var(--t12); line-height: var(--l12); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bt-effs + .bt-ko { margin-left: var(--s1); }
 .bt-ko.sure { background: #FFFFFF; color: #050D1F; font-weight: 700; }
 .bt-ko.one { color: #FFFFFF; font-weight: 700; }
 .bt-ko.far { background: none; color: #FFFFFF; opacity: .618; }
@@ -947,7 +964,6 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 /* a key too narrow for its name, two matchups and the mark (doubles with the Mega column) lets 4타 이상 go before the name gives way
    to one glyph: the mark that says least goes first (measured 2026-11-16 at 1440: 바디프레스 stood as 바…) */
 .bt-move { container: bt-key / inline-size; }
-@container bt-key (max-width: 192px) { .bt-effs:has(> :nth-child(2)) + .bt-ko.far { display: none; } }
 .bt-target-line > .bt-ko { margin-left: 0; }
 /* the held card's damage: the range in type, the foe's HP now dim beside it, the mark at the right; under it the range as a lit bar on
    the track of the foe's whole HP (what every roll takes dim before it), then the track's 0, 50 and 100 (draft 1-C) */

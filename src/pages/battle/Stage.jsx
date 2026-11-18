@@ -509,7 +509,9 @@ function Plate({ slotKey: key, mon, own, res, onInfo }) {
         <span className="bt-plate-num">{gone ? "쓰러짐" : exact ? `${hp}/${mon.maxhp}` : `${hp}%`}</span>
       </span>
       {(boosts.length > 0 || vols.length > 0) && <span className="bt-marks">
-        {boosts.map(([k, v]) => <span key={k} className={"bt-mark " + (v > 0 ? "up" : "down")}>{`${STAT[k] || k} ${multiplier(k, v)}`}</span>)}
+        {/* a stage as the games show it, an arrow and its count (2026-11-18: 방어 ×1.5 read as a calculator's figure); the multiplier
+            stays in the Pokémon's card, where its stats are */}
+        {boosts.map(([k, v]) => <span key={k} className={"bt-mark " + (v > 0 ? "up" : "down")}>{`${STAT[k] || k} ${v > 0 ? "▲" : "▼"}${Math.abs(v)}`}</span>)}
         {vols.map(v => <span key={v} className="bt-mark">{effectWord(res, v)}</span>)}
       </span>}
     </button>
@@ -704,6 +706,8 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
 // random: our party is drawn when the battle opens, so the same light breathes on our near floor where our leads will come out
 // (2026-11-06: the random party showed six switched-off panels while a saved team showed the court; both are the court now)
 // foeLead: the opponent known before the battle (the computer, as its 난이도's Pokémon) stands on the far side, out of the same light
+// the lobby court's Pokémon already sent in during this visit (LobbyStage): place, slot, species and format
+const courtShown = new Set();
 export function LobbyStage({ leads, doubles, label, awaiting = false, random = false, foeLead = null }) {
   const ref = useRef(null);
   const scene = { p1: { active: leads.map(species => ({ name: species, species, volatiles: [] })) }, p2: { active: foeLead ? [{ name: foeLead, species: foeLead, volatiles: [] }] : [] } };
@@ -717,9 +721,12 @@ export function LobbyStage({ leads, doubles, label, awaiting = false, random = f
     fx.whenPainted().then(() => { if (on) setPainted(true); });
     return () => { on = false; };
   }, []);
-  // before paint, so a new lead never shows for a frame before it comes out of the light
-  useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); leads.forEach((_, slot) => fx.enter(ref.current, slotKey("p1", slot), { ball: false })); }, [painted, leads.join("|"), doubles]);
-  useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); if (foeLead) fx.enter(ref.current, slotKey("p2", 0), { ball: false }); }, [painted, foeLead, doubles]);
+  /* before paint, so a new lead never shows for a frame before it comes out of the light. One already sent in on this court during the
+     visit stands as it stood: a tab switched away and back sent the same Porygon in again every time (2026-11-18,
+     docs/BATTLE_TRANSITIONS.md T1) */
+  const comes = (side, slot, species) => { const k = `${side}:${slot}:${species}:${doubles}`; if (courtShown.has(k)) return false; courtShown.add(k); return true; };
+  useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); leads.forEach((sp, slot) => { if (comes("p1", slot, sp)) fx.enter(ref.current, slotKey("p1", slot), { ball: false }); }); }, [painted, leads.join("|"), doubles]);
+  useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); if (foeLead && comes("p2", 0, foeLead)) fx.enter(ref.current, slotKey("p2", 0), { ball: false }); }, [painted, foeLead, doubles]);
   useLayoutEffect(() => {
     if (painted && late.current && !reduced()) ref.current?.querySelector(".bs-gl")?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.tone, easing: EASE_OUT });
   }, [painted]);

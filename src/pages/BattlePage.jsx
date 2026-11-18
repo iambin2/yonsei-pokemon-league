@@ -120,7 +120,8 @@ export default function BattlePage({ flash: say, go }) {
   useLayoutEffect(() => { if (moved.current) { moved.current = false; window.scrollTo(0, 0); } }, [cpu, id, replay, cpuRound]);
   // the stage's first paintings are made in idle moments while the page waits for its data (stageFx prewarm), not as a battle opens
   useEffect(() => { prewarm(); }, []);
-  if (!res) return <Loader />;
+  // a battle's own address waits on its frame with the court dark, not on the site's loader alone (T8)
+  if (!res) return cpu || replay || id ? <MatchWait /> : <Loader />;
   if (res.error) return <ErrorNote onRetry={res.retry}>배틀을 준비하지 못했습니다.</ErrorNote>;
   // a replay's link may open it at a turn and from a side (?turn=5&side=p2)
   if (cpu) return <RoomGuard key={`cpu${cpuRound}`}><CpuRoom res={res} say={say} go={go} onLeave={() => open(null)} onRestart={() => { moved.current = true; setCpuRound(n => n + 1); }} /></RoomGuard>;
@@ -128,6 +129,16 @@ export default function BattlePage({ flash: say, go }) {
   if (id) return <RoomGuard key={id}><BattleRoom id={id} res={res} say={say} go={go} onLeave={() => open(null)} onOpen={open} code={params.get("code")} start={{ turn: params.get("turn"), side: params.get("side") }} /></RoomGuard>;
   if (official) return <OfficialSeat {...official} res={res} onOpen={open} />;
   return <BattleOpen res={res} onOpen={open} go={go} preset={params.get("team")} />;
+}
+
+/* the match's frame with its court dark, standing while a battle is read (2026-11-18, docs/BATTLE_TRANSITIONS.md T2, T8): the court
+   that went dark on the screen left goes on dark here, where the match will stand, instead of the site's loader alone on a blank page
+   (going in from the lobby showed a quarter second of empty navy with one busy cell between the dark court and the team preview, and a
+   replay's link three seconds of it) */
+function MatchWait() {
+  return <div className="bt-page bt-match bt-wait" aria-busy="true" aria-label="배틀을 불러오는 중">
+    <div className="bt-main"><div className="bt-stagebox"><div className="bs-stage hud" /></div></div>
+  </div>;
 }
 
 /* a battle that fails to draw stands up again by itself: everything it shows is read again from the server, so starting the room
@@ -419,7 +430,7 @@ function CpuRoom({ res, say, go, onLeave, onRestart }) {
     if (readCpuBattle()?.inputLog === kept.inputLog) keepCpuBattle({ ...readCpuBattle(), recorded: true, replayId: id });
     return id;
   };
-  if (!state) return <Loader />;
+  if (!state) return <MatchWait />;
   return <Arena row={state.row} view={state.view} seat={{ side: "p1" }} res={res} onView={view => setState(s => ({ ...s, view }))} go={go} say={say} api={api} onLeave={onLeave} onRematch={rematch} replayId={replayId} />;
 }
 
@@ -429,7 +440,7 @@ function CpuReplay({ id, res, say, go, onLeave, start }) {
   const [error, setError] = useState("");
   useEffect(() => { readCpuReplay(id).then(setRow, e => setError(failText(e, res))); }, [id]);
   if (error) return <ErrorNote action="배틀 화면으로" onRetry={onLeave}>{error}</ErrorNote>;
-  if (!row) return <Loader />;
+  if (!row) return <MatchWait />;
   return <Arena row={row} seat={null} res={res} go={go} say={say} start={start} onLeave={onLeave} />;
 }
 
@@ -729,7 +740,7 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
     return () => clearInterval(timer);
   }, [owes, id, view]);
 
-  if (row === undefined) return lost ? <ErrorNote onRetry={() => window.location.reload()}>연결이 끊겼습니다. 연결을 확인하고 다시 시도해 주세요.</ErrorNote> : <Loader />;
+  if (row === undefined) return lost ? <ErrorNote onRetry={() => window.location.reload()}>연결이 끊겼습니다. 연결을 확인하고 다시 시도해 주세요.</ErrorNote> : <MatchWait />;
   if (row === null) return <Empty title="배틀을 찾을 수 없습니다." desc="링크가 맞는지 확인해 주세요."><Button variant="second" onClick={onLeave}>배틀로 돌아가기</Button></Empty>;
   // a code room's link carries its code, so the one who opens it comes straight in
   const share = async () => { const how = await shareLink({ view: "battle", id, ...(seat?.code ? { code: seat.code } : {}) }, "YPL 배틀"); if (how === "copied") say?.("링크를 복사했습니다."); };
@@ -1364,7 +1375,10 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const [peek, setPeek] = useState(null);
   const [hint, setHint] = useState(() => { try { return !localStorage.getItem(HINT_KEY); } catch { return false; } });
   const hintTurns = useRef(0);
-  useEffect(() => { if (choosing && hint && ++hintTurns.current > 3) setHint(false); }, [choosing]);
+  /* the hint stands through the first choice only (2026-11-18, docs/BATTLE_TRANSITIONS.md T6): over three turns it covered our party's
+     strip each turn again, the same words in the same place */
+  // counted on the moves' choices only: the team preview is a choice too, and it spent the one turn the hint had
+  useEffect(() => { if (choosing && started && hint && ++hintTurns.current > 1) setHint(false); }, [choosing]);
   useEffect(() => { if (!hint) try { localStorage.setItem(HINT_KEY, "1"); } catch { /* the hint shows again next time */ } }, [hint]);
   // the stage's box: a run's break between games stands in it once a game is over (Streak.jsx StreakEnd)
   const [stageBox, setStageBox] = useState(null);
@@ -1583,7 +1597,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
           sound={sound} awake={awake} onSound={soundKey} live={cue == null} onLive={() => jump(Infinity)} />}
         {cast && narrow && started && <div className="bt-castlog"><Log box={tape.lines} live /></div>}
         {shownEnded && <section className="bt-end" aria-label="배틀 결과">
-          {following && !followed && <div className="pn bt-waiting"><Busy h={32} /><span className="t15">다음 판을 기다리는 중…</span></div>}
+          {/* the end's words wait for the end: a replay played from its start showed 다음 판을 기다리는 중… and 나가기 through its opening
+              (2026-11-18, docs/BATTLE_TRANSITIONS.md T8) */}
+          {following && !followed && revealed && <div className="pn bt-waiting"><Busy h={32} /><span className="t15">다음 판을 기다리는 중…</span></div>}
           {/* the end in the deck's own room (2026-11-09 second round, the user: "승리했을 때 갑자기 전체화면이 되는 것도 안 좋고",
               "스크롤을 한참 해야 다음 판 도전이 나오는 것도 어이가 없어"): the result and the keys on one row under the replay keys, so
               the deck keeps the height it had while the moves stood and nothing moves or scrolls. A player reads their own result
@@ -1598,7 +1614,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
             </div>}
             {streak ? <StreakEnd id={row.id} won={row.winner === seat?.side} res={res} {...streak} settle={settle} onInfo={setSheetTip}
               sets={(mine, s) => (mine ? ownList() : scene ? seenCards(res, scene[foe].roster, moveField) : []).find(c => c.species === s || toID(c.species).startsWith(toID(s))) || null} stage={stageBox} away={autoplay || cue != null}
-              ours={(preview[perspective]?.preview || []).map(mon)} theirs={(preview[foe]?.preview || []).map(mon)} /> : (rematch || official || leave) && <Dock>
+              ours={(preview[perspective]?.preview || []).map(mon)} theirs={(preview[foe]?.preview || []).map(mon)} /> : revealed && (rematch || official || leave) && <Dock>
               <div className="bt-end-keys">
                 {rematch ? <Button variant="main" icon="refresh" loading={again} onClick={rematch}>{offered ? "다시하기 수락" : "다시하기"}</Button>
                   : official ? <Button variant="main" onClick={() => go?.("bracket", { eventId: row.event_id })}>대진표</Button> : null}
@@ -1836,6 +1852,11 @@ function Choices({ request, locked = false, fresh = false, ghost = null, doubles
            itself waits in the held card */
         const hits = data.category && data.category !== "Status" ? foes.filter(Boolean).map(f => ({ slot: f.slot, e: hitsOn(move, foeSide, f.slot) })).filter(x => x.e) : [];
         const ko = hits.reduce((m, x) => weaker(m, x.e.mark), null);
+        /* the gauge on the key's foot (2026-11-18, the owner's KO draft A without its word; the user: "\"난수 1타\" 와 같은 배틀 도우미가
+           너무 붕 떠 보여"): the foe's HP left now is the key's width, lit what the lowest roll takes, dim what the highest adds, for the
+           foe the mark is for (the lower of two in doubles). The word stays in the key's name for assistive technology and in the held card */
+        const at = hits.find(x => x.e.mark === ko)?.e;
+        const gauge = at && at.cur > 0 ? { "--lo": Math.min(1, at.lo / at.cur).toFixed(3), "--hi": Math.min(1, at.hi / at.cur).toFixed(3) } : null;
         const range = hits.map(x => [x.slot, Math.floor(x.e.lo * 10) / 10, Math.floor(x.e.hi * 10) / 10, x.e.cur, x.e.mark?.n || 0, x.e.mark?.sure ? 1 : 0].join("~")).join(",");
         // two lines, every move alike, as a game's move key: the name and how it lands; its type, category and power, its accuracy and priority, and its PP
         const power = powerOf(move), moved = power !== (data.basePower || 0);
@@ -1848,7 +1869,6 @@ function Choices({ request, locked = false, fresh = false, ghost = null, doubles
           <span className="bt-move-top">
             <b className="bt-move-name">{moveName(move.id)}</b>
             {shown.length > 0 && <span className="bt-effs" aria-hidden="true">{shown.map(x => <span key={x.f.slot} className={effClass(x.m)}>{effLabel(x.m)}</span>)}</span>}
-            {ko && <span className={koClass(ko)} aria-hidden="true">{ko.word}</span>}
           </span>
           <span className="bt-move-line" aria-hidden="true">
             <span className="bt-move-type">{res.text.types[type] || type}</span>
@@ -1857,6 +1877,7 @@ function Choices({ request, locked = false, fresh = false, ghost = null, doubles
             {/* a move locked in (Outrage, a charging move) is asked without its PP */}
             <span className="bt-move-pp">{move.pp != null ? `${move.pp}/${move.maxpp}` : ""}</span>
           </span>
+          {gauge && <span className="bt-move-gauge" style={gauge} aria-hidden="true"><i /><u /></span>}
         </button>;
       })}
       {megaEl}
