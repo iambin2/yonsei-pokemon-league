@@ -2,7 +2,8 @@
 -- 구독마다 종류를 켜고 끈다. announcement_push.sql 과 application_close.sql 다음에 실행한다. 여러 번 실행해도 된다.
 --
 -- 생각
---   - 이미 있는 구독은 공지만 받는다(예전과 같다). 새 구독은 공지와 내 경기를 받는다. 내 경기는 계정이 이어진 기기에만 온다.
+--   - 이미 있는 구독은 공지만 받는다(예전과 같다). 새 구독은 공지, 내 경기, 내 글의 댓글을 받는다. 둘은 계정이 이어진 기기에만 온다.
+--   - 내 글의 댓글(reply)의 줄은 community_accounts.sql 의 트리거가 넣는다(계정으로 쓴 글과 댓글에 답이 달릴 때).
 --   - 구독은 저장할 때의 로그인(auth.uid())으로 계정에 이어진다. 화면이 보내는 계정 id는 받지 않는다.
 --   - 보낼 것은 push_outbox 한 줄로 모인다. 공지는 Edge Function이, 내 경기와 도전의 탑은 아래 트리거가, 대회 일정과 오늘의 탑은
 --     push_take(true)(15분마다 부르는 정리)가 넣는다. 게시판은 줄을 만들지 않고 구독마다 지난 알림 뒤의 새 글을 센다.
@@ -15,14 +16,14 @@ begin;
 
 -- 1. 구독마다 받을 종류, 이어진 계정, 묶어 보내는 종류의 마지막 알림 시각
 alter table public.push_subscriptions add column if not exists kinds text[] not null default '{notice}';
-alter table public.push_subscriptions alter column kinds set default '{notice,match}';
+alter table public.push_subscriptions alter column kinds set default '{notice,match,reply}';
 alter table public.push_subscriptions add column if not exists auth_user_id uuid references auth.users (id) on delete set null;
 alter table public.push_subscriptions add column if not exists board_pushed_at timestamptz not null default now();
 alter table public.push_subscriptions add column if not exists tower_pushed_at timestamptz;
 -- the check is laid again on every run, so a kind added later (record, 2026-11-18) reaches a database that ran an earlier copy
 alter table public.push_subscriptions drop constraint if exists push_subscriptions_kinds;
 alter table public.push_subscriptions add constraint push_subscriptions_kinds
-  check (kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'daily']::text[]);
+  check (kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'reply', 'daily']::text[]);
 create index if not exists push_subscriptions_account on public.push_subscriptions (auth_user_id) where auth_user_id is not null;
 
 -- 2. 구독 저장: application_close.sql 의 한도는 그대로, 저장하는 사람의 로그인으로 계정을 잇는다(로그아웃한 기기는 풀린다).
@@ -69,7 +70,7 @@ as $$
 declare
   v_kinds text[] := array(select distinct k from unnest(coalesce(p_kinds, '{}')) k order by k);
 begin
-  if not v_kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'daily']::text[] then
+  if not v_kinds <@ array['notice', 'board', 'schedule', 'match', 'tower', 'record', 'reply', 'daily']::text[] then
     raise exception using errcode = 'P0001', message = '알 수 없는 알림 종류입니다.';
   end if;
   update public.push_subscriptions s
@@ -87,7 +88,7 @@ grant execute on function public.set_push_kinds(text, text[]) to anon, authentic
 create table if not exists public.push_outbox (
   id bigint generated always as identity primary key,
   dedup text not null unique,
-  kind text not null check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'daily')),
+  kind text not null check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'reply', 'daily')),
   auth_user_id uuid references auth.users (id) on delete cascade,
   title text not null check (char_length(title) <= 40),
   body text not null check (char_length(body) <= 200),
@@ -97,7 +98,7 @@ create table if not exists public.push_outbox (
 );
 -- laid again on every run, as push_subscriptions_kinds: a table made by an earlier copy takes the kinds added since
 alter table public.push_outbox drop constraint if exists push_outbox_kind_check;
-alter table public.push_outbox add constraint push_outbox_kind_check check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'daily'));
+alter table public.push_outbox add constraint push_outbox_kind_check check (kind in ('notice', 'schedule', 'match', 'tower', 'record', 'reply', 'daily'));
 create index if not exists push_outbox_due on public.push_outbox (created_at) where taken_at is null;
 alter table public.push_outbox enable row level security;
 revoke all on table public.push_outbox from public, anon, authenticated, service_role;

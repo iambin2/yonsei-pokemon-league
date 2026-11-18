@@ -30,7 +30,9 @@ const authFetch = async (url, init = {}) => {
   // 폰이 잠기면 갱신 타이머가 멈춘다. 깨어난 뒤의 첫 저장이 만료된 토큰으로 실패하지 않게 여기서도 확인한다.
   if (session && Date.now() >= expiresAt) await refreshSession();
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${session?.access_token || SUPA_KEY}`);
+  /* an operator's session wins; without one, a request that carries a signed-in visitor's token (the board written as an account,
+     communityStore.js) keeps it, and every other goes as the anonymous key */
+  headers.set("Authorization", session?.access_token ? `Bearer ${session.access_token}` : headers.get("Authorization") || `Bearer ${SUPA_KEY}`);
   const read = !init.method || init.method === "GET" || init.method === "HEAD";
   return fetch(url, { ...init, headers, signal: init.signal ?? (read ? AbortSignal.timeout?.(READ_TIMEOUT_MS) : undefined) });
 };

@@ -1,5 +1,5 @@
 /* 게시판 행을 화면이 쓰는 모양으로 묶는다. 저장소를 모르는 순수 함수만 둔다. */
-const toItem = row => ({ ...row.payload, id: row.id, createdAt: row.created_at, secret: row.secret, hasPin: row.has_pin });
+const toItem = row => ({ ...row.payload, id: row.id, createdAt: row.created_at, secret: row.secret, hasPin: row.has_pin, byAccount: Boolean(row.by_account) });
 
 export function assembleCommunityItems(rows = []) {
   const byTime = (a, b) => (a.createdAt < b.createdAt ? -1 : 1);
@@ -27,6 +27,7 @@ export const PIN_DENIED = {
   wrong_pin: "비밀번호가 일치하지 않습니다.",
   locked: "여러 번 틀려 15분 동안 잠겼습니다.",
   no_pin: "비밀번호가 없는 글입니다. 관리자에게 요청해 주세요.",
+  not_yours: "이 글을 쓴 계정으로 로그인해 주세요.",
   stale: "다른 기기에서 대진표를 변경했습니다. 최신 결과를 확인한 뒤 다시 입력해 주세요.",
 };
 

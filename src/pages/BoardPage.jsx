@@ -7,7 +7,7 @@ import { saveTeamSheetImage } from "../components/teamSheetImage.js";
 import { CUP_RULES, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
 import { formatDate } from "../services/dateFormat.js";
 import { freshRead, peekRead } from "../services/readCache.js";
-import { FREE_BOARD_KEY, SHOWCASE_KEY, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
+import { FREE_BOARD_KEY, SHOWCASE_KEY, accountWriting, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
 import { PIN_DENIED, threadComments } from "../services/communityItems.js";
 import { DRAFT_STORAGE_KEY, INCOMING_TEAM_KEY, TEAM_STORAGE_KEY, normalizeDraft, normalizeSavedTeam, onSpriteError, spriteUrl } from "../services/teamBuilderCore.js";
 import { takeBoardDraft } from "../services/battleService.js";
@@ -20,6 +20,8 @@ import TeamSheet, { sheetOf, useTeamDisplay } from "../components/common/TeamShe
 import Field from "../components/common/Field.jsx";
 import { useItemTitle } from "../components/layout/title.js";
 import { viewHref } from "../services/appRouting.js";
+import { visitorSignedIn } from "../services/visitorAuth.js";
+import { useAccount } from "../components/common/useMe.js";
 
 const PAGE_SIZE = 8;
 /* 닉네임은 한 번 쓰면 이 브라우저가 기억한다: 글, 댓글, 소개글, 사설 대진표가 같은 이름을 쓴다 */
@@ -45,20 +47,33 @@ function MediaEmbed({ url }){
   return <a className="ann-link" href={m.url} target="_blank" rel="noopener noreferrer" style={{marginTop:"var(--s2)"}}><Icon n="ext" size={16}/>{m.url}</a>;
 }
 
+/* 계정 이름으로 쓰기(docs/superpowers/specs/2026-11-18-board-account-replies-design.md): 승인된 계정으로 로그인했고 서버가 받을 수
+   있을 때(community_accounts.sql 뒤) 고를 수 있고, 처음에는 켜져 있다. 켜면 닉네임과 비밀번호 칸이 빠지고 계정의 이름이 선다 */
+function useWriteAs(){
+  const account=useAccount();
+  const name=account?.status==="approved"?String(account.requested_name||"").trim().slice(0,20):"";
+  const can=Boolean(name)&&accountWriting();
+  const [on,setOn]=useState(true);
+  return {can,name,on:can&&on,setOn};
+}
+const AsAccount=({ as })=>as.can?<label className="bk-check"><input type="checkbox" checked={as.on} onChange={e=>as.setOn(e.target.checked)}/><span>계정 이름으로 쓰기 <i>({as.name})</i></span></label>:null;
+
 function BoardCompose({ onClose, onSubmit, initial=null }){
   const [nick,setNick]=useState(savedNick); const [title,setTitle]=useState(initial?.title||""); const [body,setBody]=useState(initial?.body||""); const [pin,setPin]=useState(""); const [link,setLink]=useState(""); const [secret,setSecret]=useState(false);
   // what is missing is said under its own field, both at once, never by a dialog over this sheet (2026-11-10)
   const [tried,setTried]=useState(false);
-  const pinShort=pin.length>0&&pin.length<4;
-  const submit=()=>{ if(!nick.trim()||!title.trim()||pinShort){ setTried(true); return; }
-    keepNick(nick.trim().slice(0,20));
-    onSubmit({nick:nick.trim().slice(0,20),title:title.trim().slice(0,60),body:body.trim(),pin:pin.trim(),link:link.trim(),secret}); };
+  const as=useWriteAs();
+  const pinShort=!as.on&&pin.length>0&&pin.length<4;
+  const submit=()=>{ if((!as.on&&!nick.trim())||!title.trim()||pinShort){ setTried(true); return; }
+    if(!as.on) keepNick(nick.trim().slice(0,20));
+    onSubmit({nick:as.on?as.name:nick.trim().slice(0,20),title:title.trim().slice(0,60),body:body.trim(),pin:as.on?"":pin.trim(),link:link.trim(),secret,byAccount:as.on}); };
   return (<Modal title="새 글 작성" onClose={onClose}>
     <div className="swap" key="compose">
-      <div className="bk-grow2">
+      <AsAccount as={as}/>
+      {!as.on&&<div className="bk-grow2">
         <Field label="닉네임" error={tried&&!nick.trim()&&"닉네임을 입력해 주세요."}><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20}/></Field>
         <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
-      </div>
+      </div>}
       <Field label="제목" error={tried&&!title.trim()&&"제목을 입력해 주세요."}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="제목을 입력해 주세요." maxLength={60}/></Field>
       <Field label="내용"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} placeholder="자유롭게 작성해 주세요."/></Field>
       <div className="field"><label htmlFor="bd-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-link" value={link} onChange={e=>setLink(e.target.value)} placeholder="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요." aria-label="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요."/>
@@ -74,6 +89,16 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
 /* 본인 확인. 비밀번호는 서버가 대조한다. 확인되면 뒤따르는 쓰기에 쓸 비밀번호를, 멈추면 null 을 돌려준다. 관리자는 묻지 않는다. */
 async function authorize(key,record,what,verb,admin){
   if(admin){
+    if(verb==="삭제"&&!(await siteConfirm({title:`${what} 삭제`,body:`이 ${what}을 삭제할까요? 삭제한 ${what}은 되돌릴 수 없습니다.`,confirmLabel:"삭제",danger:true}))) return null;
+    return "";
+  }
+  // 계정으로 쓴 것: 비밀번호 대신 로그인한 계정을 서버가 대조한다
+  if(record.byAccount){
+    if(!visitorSignedIn()){ siteAlert(`계정으로 쓴 ${what}입니다.`,`쓴 계정으로 로그인한 뒤 ${verb}해 주세요.`); return null; }
+    try{
+      const status=await verifyCommunityPin(key,record.id,"");
+      if(status!=="ok"){ siteAlert(PIN_DENIED[status]||`${what}을 확인하지 못했습니다.`); return null; }
+    }catch(error){ siteAlert(`${what}을 확인하지 못했습니다.`,error?.message||"잠시 뒤 다시 시도해 주세요."); return null; }
     if(verb==="삭제"&&!(await siteConfirm({title:`${what} 삭제`,body:`이 ${what}을 삭제할까요? 삭제한 ${what}은 되돌릴 수 없습니다.`,confirmLabel:"삭제",danger:true}))) return null;
     return "";
   }
@@ -131,16 +156,18 @@ function CommentForm({ onSubmit, label="댓글" }){
   const [nick,setNick]=useState(savedNick); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [link,setLink]=useState("");
   // what is missing is said under its own row, both at once, never by a dialog (DESIGN.md "Sheets, dialogs, toasts")
   const [tried,setTried]=useState(false);
-  const noNick=!nick.trim(), noBody=!body.trim()&&!link.trim();
+  const as=useWriteAs();
+  const noNick=!as.on&&!nick.trim(), noBody=!body.trim()&&!link.trim();
   const submit=()=>{ if(noNick||noBody){ setTried(true); return; }
-    keepNick(nick.trim().slice(0,20));
-    onSubmit({nick:nick.trim().slice(0,20),body:body.trim(),pin:pin.trim(),link:link.trim()}); setTried(false); setBody(""); setPin(""); setLink(""); };
+    if(!as.on) keepNick(nick.trim().slice(0,20));
+    onSubmit({nick:as.on?as.name:nick.trim().slice(0,20),body:body.trim(),pin:as.on?"":pin.trim(),link:link.trim(),byAccount:as.on}); setTried(false); setBody(""); setPin(""); setLink(""); };
   return (<div className="bd-cform stack">
+    <AsAccount as={as}/>
     {/* each field is a cell: its label 12 over what is typed, so a placeholder never stands in for the label (DESIGN.md "Controls") */}
-    <div className="bd-cform-row">
+    {!as.on&&<div className="bd-cform-row">
       <label className="cell bd-cform-nick"><span className="cell-label">닉네임</span><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20} aria-invalid={tried&&noNick?true:undefined} aria-describedby={tried&&noNick?"bd-cform-nick-error":undefined}/></label>
       <label className="cell bd-cform-pin"><span className="cell-label">비밀번호 (선택)</span><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="숫자 4자리" inputMode="numeric"/></label>
-    </div>
+    </div>}
     {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
     <div className="bd-cform-row">
       <label className="cell bd-cform-body"><span className="cell-label">{label}</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
@@ -195,9 +222,9 @@ function FreeBoard({ admin, flash, tabs }){
   const closePost=()=>{ const id=article; if(window.history.state?.post) return backWith("b-"+id);
     const url=new URL(window.location.href); url.searchParams.delete("post"); window.history.replaceState(window.history.state,"",url); transition(()=>flushSync(()=>setArticle(null)),{shared:"b-"+id,dir:"back",scrollY:listScroll.current}); };
   const [editing,setEditing]=useState(null);
-  const addPost=async({pin,secret,...post})=>{ if(await run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),post,{pin,secret}),"글을 등록했습니다.")) setCompose(false); };
+  const addPost=async({pin,secret,byAccount,...post})=>{ if(await run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),post,{pin,secret,byAccount}),"글을 등록했습니다.")) setCompose(false); };
   const delPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(FREE_BOARD_KEY,p.id,pin),"삭제했습니다.")) closePost(); };
-  const addComment=({pin,...c},p)=>run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),c,{parentId:p.id,pin}),"댓글을 등록했습니다.");
+  const addComment=({pin,byAccount,...c},p)=>run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),c,{parentId:p.id,pin,byAccount}),"댓글을 등록했습니다.");
   const delComment=async(p,c)=>{ const pin=await authorize(FREE_BOARD_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(FREE_BOARD_KEY,c.id,pin)); };
   const editPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","수정",admin); if(pin!==null) setEditing({heading:"글 수정",id:p.id,pin,initial:{title:p.title||"",body:p.body||"",link:p.link||"",secret:Boolean(p.secret)}}); };
   const editComment=async(p,c)=>{ const pin=await authorize(FREE_BOARD_KEY,c,"댓글","수정",admin); if(pin!==null) setEditing({heading:"댓글 수정",id:c.id,pin,initial:{body:c.body||"",link:c.link||""}}); };
@@ -314,22 +341,23 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
   const nameAt=i=>sheet[i]?.name||members[i]?.pokemonName||"";
   const autoTitle=kind==="sample"?`${nameAt(index)} 샘플`:(team?.name&&!team.working?team.name:`${nameAt(0)} 파티`);
   const [tried,setTried]=useState(false); const [failed,setFailed]=useState("");
-  const pinShort=pin.length>0&&pin.length<4;
+  const as=useWriteAs();
+  const pinShort=!as.on&&pin.length>0&&pin.length<4;
   const submit=async()=>{
     if(busy)return;
-    if(!nick.trim()||pinShort){ setTried(true); return; }
+    if((!as.on&&!nick.trim())||pinShort){ setTried(true); return; }
     if(!members.length){ setFailed("올릴 포켓몬이 없습니다."); return; }
     setBusy(true); setFailed("");
     try{
       const id=newCommunityId();
       const picked=kind==="sample"?[members[index]]:members;
       const names=(kind==="sample"?[sheet[index]]:sheet).map(r=>r?.name).filter(Boolean);
-      const post={ id, kind, format, nick:nick.trim().slice(0,20), title:(title.trim()||autoTitle).slice(0,60), body:body.trim().slice(0,4000),
+      const post={ id, kind, format, nick:as.on?as.name:nick.trim().slice(0,20), title:(title.trim()||autoTitle).slice(0,60), body:body.trim().slice(0,4000),
         createdAt:new Date().toISOString(), names,
         team:{ name:team?.working?"":String(team?.name||"").slice(0,40), regulationId:team?.regulationId, cupRuleId:team?.cupRuleId||"none", cupRuleSettings:team?.cupRuleSettings||{assignedType:""}, members:picked },
         comments:[] };
-      await createCommunityItem(SHOWCASE_KEY,id,post,{pin});
-      keepNick(post.nick);
+      await createCommunityItem(SHOWCASE_KEY,id,post,{pin,byAccount:as.on});
+      if(!as.on) keepNick(post.nick);
       onPosted?.(post);
     }catch(error){ setFailed(readErrorText(error,"글을 올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.")); }
     finally{ setBusy(false); }
@@ -344,10 +372,11 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
             <img src={spriteUrl(m.pokemonName)} alt="" onError={onSpriteError()}/><span>{nameAt(i)}</span>
           </button>))}</div></div>}
       {kind==="party"&&<div className="field"><PartySprites members={members} big/></div>}
-      <div className="bk-grow2">
+      <AsAccount as={as}/>
+      {!as.on&&<div className="bk-grow2">
         <Field label="닉네임" error={tried&&!nick.trim()&&"닉네임을 입력해 주세요."}><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20}/></Field>
         <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
-      </div>
+      </div>}
       <Field label="제목"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={autoTitle} maxLength={60}/></Field>
       <Field label="소개"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} placeholder={kind==="sample"?"채용 이유, 노리는 상대, 운용법을 적어 주세요.":"컨셉, 선출 방법, 주의할 상대를 적어 주세요."}/></Field>
       {failed&&<FormError>{failed}</FormError>}
@@ -389,7 +418,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
 
   const [editing,setEditing]=useState(null);
   const delPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(SHOWCASE_KEY,post.id,pin),"삭제했습니다.")) closePost(); };
-  const addComment=async(post,{pin,...c})=>{ await run(()=>createCommunityItem(SHOWCASE_KEY,newCommunityId(),c,{parentId:post.id,pin}),"댓글을 등록했습니다."); };
+  const addComment=async(post,{pin,byAccount,...c})=>{ await run(()=>createCommunityItem(SHOWCASE_KEY,newCommunityId(),c,{parentId:post.id,pin,byAccount}),"댓글을 등록했습니다."); };
   const delComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(SHOWCASE_KEY,c.id,pin)); };
   const editPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","수정",admin); if(pin!==null) setEditing({heading:"글 수정",id:post.id,pin,cap:true,initial:{title:post.title||"",body:post.body||""}}); };
   const editComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","수정",admin); if(pin!==null) setEditing({heading:"댓글 수정",id:c.id,pin,initial:{body:c.body||"",link:c.link||""}}); };

@@ -26,3 +26,16 @@ export function useMe() {
   }, []);
   return me;
 }
+
+/* the signed-in visitor's account as it stands: { requested_name, status, player_id, email }, { status: "none" } before a request,
+   null signed out, undefined while it is read. 도전의 탑 and the board's 계정 이름으로 쓰기 read it */
+export function useAccount() {
+  const [account, setAccount] = useState(undefined);
+  useEffect(() => {
+    const read = () => (visitorSignedIn() ? myPlayerLink().then(a => setAccount(a || { status: "none" }), () => setAccount(null)) : setAccount(null));
+    read();
+    window.addEventListener(VISITOR_EVENT, read);
+    return () => window.removeEventListener(VISITOR_EVENT, read);
+  }, []);
+  return account;
+}

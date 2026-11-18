@@ -7,6 +7,7 @@ import { fileURLToPath,pathToFileURL } from "node:url";
 const file=new URL("../src/services/communityStore.js",import.meta.url);
 const source=readFileSync(file,"utf8")
   .replace('import { getData, setData, supa } from "../storage.js";','const supa={rpc:(...args)=>globalThis.__communityTestRpc(...args)};')
+  .replace('import { visitorToken } from "./visitorAuth.js";','const visitorToken=async()=>null;')
   .replace(/from "(\.[^"]+)"/g,(_,path)=>`from "${pathToFileURL(resolve(dirname(fileURLToPath(file)),path)).href}"`);
 const store=await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 

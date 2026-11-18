@@ -67,6 +67,22 @@ const sql = readFileSync("docs/db/push_kinds.sql", "utf8");
 await pg.exec(sql);
 await pg.exec(sql); // the file must be safe to run again
 
+// the board written as an account (docs/db/community_accounts.sql) on top: the closed pins of visitor_gates.sql, an admin switch, the
+// read grants the live table has, then the file twice
+const gates = readFileSync("docs/db/visitor_gates.sql", "utf8");
+await pg.exec(gates.slice(gates.indexOf("-- 1."), gates.indexOf("-- 2.")));
+await pg.exec(`
+  create or replace function ypl_schema_validation.is_ypl_admin() returns boolean language sql stable as $$
+    select coalesce(current_setting('test.admin', true), '') = 'on' $$;
+  grant usage on schema ypl_schema_validation to anon, authenticated, service_role;
+  grant execute on function ypl_schema_validation.is_ypl_admin() to anon, authenticated, service_role;
+  alter table public.community_items enable row level security;
+  grant select on table public.community_items to anon, authenticated;
+`);
+const accounts = readFileSync("docs/db/community_accounts.sql", "utf8");
+await pg.exec(accounts);
+await pg.exec(accounts);
+
 const users = {};
 for (const key of ["a", "b", "c", "d"]) { users[key] = randomUUID(); await q("insert into auth.users values ($1)", [users[key]]); }
 const DAY = "2026-11-18T03:00:00Z", NIGHT = "2026-11-18T15:00:00Z"; // 12:00 and 24:00 in Seoul
@@ -76,10 +92,10 @@ const setKinds = async (n, kinds) => { await as("anon"); return (await one("sele
 const to = (rows, n) => rows.filter(r => r.endpoint === EP(n));
 
 try {
-  await check("a subscription saved before keeps only notices; a new one takes notices and its own matches", async () => {
+  await check("a subscription saved before keeps only notices; a new one takes notices, its own matches and replies to it", async () => {
     assert.deepEqual(await settings("old"), { kinds: ["notice"], linked: false });
     await save("new");
-    assert.deepEqual(await settings("new"), { kinds: ["notice", "match"], linked: false });
+    assert.deepEqual(await settings("new"), { kinds: ["notice", "match", "reply"], linked: false });
     assert.equal(await settings("nobody"), null);
   });
 
@@ -278,6 +294,99 @@ try {
     await setKinds("c", ["board"]);
     await pg.exec("reset role");
     assert.ok((await one("select board_pushed_at > now() - interval '1 minute' as fresh from public.push_subscriptions where endpoint = $1", [EP("c")])).fresh);
+  });
+
+  await check("an approved account writes in its own name, and only it edits or deletes what it wrote", async () => {
+    await pg.exec("reset role");
+    await q("insert into public.player_accounts (auth_user_id, requested_name, status) values ($1, '이제빈', 'approved'), ($2, '김선수', 'approved'), ($3, '대기중', 'pending') on conflict (auth_user_id) do update set requested_name = excluded.requested_name, status = excluded.status", [users.a, users.b, users.c]);
+    const write = (user, action, id, payload = {}, { parent = null, pin = "", board = "free", secret = false } = {}) =>
+      as(user ? "authenticated" : "anon", user).then(() => one("select public.community_write($1, $2, $3, $4, $5, $6, $7) as r", [action, board, id, parent, payload, secret, pin])).then(r => r.r);
+    assert.equal(await write(users.a, "create", "acct1", { nick: "가짜이름", title: "제목", body: "본문", _byAccount: true }), "ok");
+    await pg.exec("reset role");
+    let row = await one("select payload, has_pin, by_account from public.community_items where id = 'acct1'");
+    assert.deepEqual([row.payload.nick, row.payload._byAccount, row.has_pin, row.by_account], ["이제빈", undefined, false, true]);
+    await assert.rejects(write(users.c, "create", "acct2", { nick: "x", _byAccount: true }), /승인된 계정/);
+    await assert.rejects(write(null, "create", "acct3", { nick: "x", _byAccount: true }), /승인된 계정/);
+    await assert.rejects(write(users.a, "create", "acct4", { name: "x", _byAccount: true }, { board: "private_bracket", pin: "1234" }), /사설 대진표/);
+    await as("anon");
+    await assert.rejects(q("select * from public.community_authors"), /permission denied/);
+    // the author edits without a pin and cannot rename itself; another account, a stranger and a pin are refused; an admin may
+    assert.equal(await write(users.a, "update", "acct1", { nick: "바꾼이름", body: "고친 본문" }), "ok");
+    await pg.exec("reset role");
+    row = await one("select payload from public.community_items where id = 'acct1'");
+    assert.deepEqual([row.payload.nick, row.payload.body], ["이제빈", "고친 본문"]);
+    assert.equal(await write(users.b, "update", "acct1", { body: "남의 글" }), "not_yours");
+    assert.equal(await write(null, "delete", "acct1", {}, { pin: "1234" }), "not_yours");
+    assert.equal(await write(users.b, "verify", "acct1"), "not_yours");
+    assert.equal(await write(users.a, "verify", "acct1"), "ok");
+    await pg.exec("set test.admin = 'on'");
+    assert.equal(await write(null, "update", "acct1", { body: "운영진" }), "ok");
+    await pg.exec("reset test.admin");
+    // a pin post is as before
+    assert.equal(await write(null, "create", "pin1", { nick: "손님", title: "t" }, { pin: "1234" }), "ok");
+    assert.equal(await write(users.a, "update", "pin1", { body: "x" }, { pin: "0000" }), "wrong_pin");
+    assert.equal(await write(null, "update", "pin1", { body: "x" }, { pin: "1234" }), "ok");
+    assert.equal(await write(users.b, "delete", "acct1"), "not_yours");
+    assert.equal(await write(users.a, "delete", "acct1"), "ok");
+    await pg.exec("reset role");
+    assert.equal((await one("select count(*)::int as n from public.community_authors where item_id = 'acct1'")).n, 0);
+  });
+
+  await check("private brackets keep their pin and their stale check under the new writer", async () => {
+    const write = (action, id, payload = {}, pin = "2468") => as("anon").then(() => one("select public.community_write($1, 'private_bracket', $2, null, $3, false, $4) as r", [action, id, payload, pin])).then(r => r.r);
+    await assert.rejects(write("create", "nopin", {}, ""), /비밀번호/);
+    assert.equal(await write("create", "privatea", { name: "A", graph: { first: null } }), "ok");
+    assert.equal(await write("verify", "privatea", {}, "0000"), "wrong_pin");
+    await pg.exec("reset role");
+    const at = (await one("select payload->>'updatedAt' as at from public.community_items where id = 'privatea'")).at;
+    assert.equal(await write("update", "privatea", { graph: { first: "A" }, _expectedUpdatedAt: at }), "ok");
+    assert.equal(await write("update", "privatea", { graph: { first: "B" }, _expectedUpdatedAt: at }), "stale");
+    assert.equal(await write("update", "privatea", { name: "old client" }), "stale");
+    await pg.exec("reset role");
+    const row = await one("select payload from public.community_items where id = 'privatea'");
+    assert.deepEqual([row.payload.graph.first, "_expectedUpdatedAt" in row.payload], ["A", false]);
+    assert.equal(await write("delete", "privatea"), "ok");
+  });
+
+  await check("an account reads its own secret post and what was said under it; nobody else does", async () => {
+    const write = (user, id, payload, opts = {}) => as(user ? "authenticated" : "anon", user)
+      .then(() => one("select public.community_write('create', 'free', $1, $2, $3, $4, '') as r", [id, opts.parent || null, payload, opts.secret || false]));
+    await write(users.a, "secret1", { title: "건의", body: "비밀", _byAccount: true }, { secret: true });
+    await pg.exec("set test.admin = 'on'");
+    await write(null, "secret1c", { nick: "운영진", body: "답변" }, { parent: "secret1" });
+    await pg.exec("reset test.admin");
+    const seen = async (role, user) => { await as(role, user); return (await q("select id from public.community_items where id like 'secret1%' order by id")).map(r => r.id); };
+    assert.deepEqual(await seen("authenticated", users.a), ["secret1", "secret1c"]);
+    assert.deepEqual(await seen("authenticated", users.b), []);
+    assert.deepEqual(await seen("anon"), []);
+  });
+
+  await check("a reply to what an account wrote tells that account's devices, never the writer itself, by day", async () => {
+    await take(); // nothing left from the checks before
+    await setKinds("a", ["reply"]); await setKinds("b", ["reply"]); await setKinds("d", ["notice"]);
+    const write = (user, id, payload, parent) => as(user ? "authenticated" : "anon", user)
+      .then(() => one("select public.community_write('create', 'free', $1, $2, $3, false, '') as r", [id, parent || null, payload]));
+    await write(users.a, "post1", { title: "글", body: "본문", _byAccount: true });
+    await write(users.a, "post1a", { body: "내가 단 댓글", _byAccount: true }, "post1");       // the writer's own comment: nobody
+    assert.equal((await take()).length, 0);
+    await write(users.b, "post1b", { body: "김선수의 댓글", _byAccount: true }, "post1");     // to a (the post's)
+    assert.equal((await take(false, NIGHT)).length, 0, "waits for the morning");
+    let rows = await take();
+    assert.deepEqual(rows.map(r => [r.kind, r.endpoint, r.body, r.url]), [["reply", EP("a"), "김선수 님이 내 글에 댓글을 남겼습니다: 김선수의 댓글", "?view=board&tab=free&post=post1"]]);
+    await write(null, "post1c", { nick: "손님", body: "답글", replyTo: "post1b" }, "post1");   // to b (the comment's) and a (the post's)
+    rows = await take();
+    assert.deepEqual(rows.map(r => [r.endpoint, r.body]).sort(), [
+      [EP("a"), "손님 님이 내 글에 댓글을 남겼습니다: 답글"],
+      [EP("b"), "손님 님이 내 댓글에 답글을 남겼습니다: 답글"]]);
+    await write(users.a, "post1d", { body: "고마워요", replyTo: "post1b", _byAccount: true }, "post1"); // a answers b: only b
+    rows = await take();
+    assert.deepEqual(rows.map(r => [r.endpoint, r.body]), [[EP("b"), "이제빈 님이 내 댓글에 답글을 남겼습니다: 고마워요"]]);
+    // a secret post's alert says nothing of what was written
+    await pg.exec("set test.admin = 'on'");
+    await write(null, "secret1d", { nick: "운영진", body: "비밀 답변" }, "secret1");
+    await pg.exec("reset test.admin");
+    rows = await take();
+    assert.deepEqual(rows.map(r => [r.endpoint, r.body]), [[EP("a"), "운영진 님이 내 글에 댓글을 남겼습니다."]]);
   });
 
   await check("outbox rows older than a day are never sent", async () => {

@@ -11,14 +11,15 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 | `notice` | 공지 | 켠 모두 | 운영진이 새 공지를 올린 직후 | `?view=news&notice=…` |
 | `schedule` | 대회 일정 | 켠 모두 | 신청 마감 하루 전 안쪽(한 번), 대회의 대진표가 처음 생긴 뒤, 대회 결과를 기록에 반영한 뒤 | 공지, 그 대회의 대진표 |
 | `match` | 내 경기 | 그 경기 상대 출전(팀이면 팀원 모두)의 계정 | 공식 경기의 배틀 방을 먼저 연 선수가 기다리기 시작한 직후 | `?view=battle&event=…&match=…` (제출 비밀번호로 앉는 화면) |
+| `reply` | 내 글의 댓글 | 계정으로 쓴 글과 댓글의 계정 | 계정으로 쓴 글에 댓글이나 대댓글이 달렸을 때(글쓴이에게), 계정으로 쓴 댓글에 대댓글이 달렸을 때(그 댓글쓴이에게). 자기가 쓴 것으로는 보내지 않고, 비밀글의 알림에는 내용을 담지 않는다(`docs/db/community_accounts.sql`) | 그 글 |
 | `board` | 게시판 새 글 | 켠 모두 | 지난 게시판 알림 뒤에 공개 글(자유, 샘플, 파티. 비밀글, 댓글, 사설 대진표 제외)이 올라왔을 때 | 글이 하나면 그 글, 여럿이면 `?view=board` |
 | `tower` | 도전의 탑 순위 | 앞질린 계정 | 이번 달 도전(오늘의 탑 제외)이 한 판 이겨, 같은 연승에 먼저 닿아 위에 있던 계정을 넘었을 때(2연승부터) | `?view=battle&tab=streak` |
 | `record` | 도전의 탑 신기록 | 켠 모두 | 이번 달 도전 하나가 다른 모든 도전의 최고 연승을 넘어선 판(이번 달 1위가 되는 순간, 2연승부터). 1위가 계속 이겨 기록을 늘리는 판은 알리지 않는다 | `?view=battle&tab=streak` |
 | `daily` | 오늘의 탑 | 켠 모두 | 하루 한 번, 아침 첫 정리 | `?view=battle&tab=streak` |
 
-- 이미 있던 구독은 `notice`만 받는다(예전과 같다). 새 구독은 `notice`와 `match`를 받는다. 나머지는 더보기에서 켠다.
+- 이미 있던 구독은 `notice`만 받는다(예전과 같다). 새 구독은 `notice`, `match`, `reply`를 받는다. 나머지는 더보기에서 켠다.
 - `경기 결과 등록`은 대회 결과의 기록 반영(`events.record_applied_at`)으로 읽었다. 경기 하나하나의 승자는 모두에게 보내기에 너무 잦다.
-- 게시판은 글쓴이를 알 길이 없어(비밀번호뿐, 계정 없음) "내 글에 댓글"은 만들지 않았다. 글을 쓴 기기에 그 글을 묶는 표를 더하면 된다.
+- 게시판의 "내 글의 댓글"은 계정으로 쓴 글과 댓글만이다(2026-11-18, `docs/superpowers/specs/2026-11-18-board-account-replies-design.md`). 비밀번호로 쓴 것은 누가 썼는지 몰라 알리지 않는다.
 
 ## 계정 잇기
 
@@ -33,6 +34,7 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 공식 배틀 방 생성 ─▶ 트리거 push_match_waiting ─▶ push_outbox ◀─────────────────────┤
   └ battle 함수가 바로 notify-announcement { } 를 부른다                              │
 도전 연승 +1 ─▶ 트리거 push_tower_passed, push_tower_record ─▶ push_outbox           │
+게시판 댓글 ─▶ 트리거 push_community_reply(커밋 때) ─▶ push_outbox                     │
 15분마다 push-sweep.yml ─▶ notify-announcement { sweep } ─▶ push_take(true) ─────────┘
                                          (대회 일정, 오늘의 탑을 줄에 넣고, 게시판을 센다)
 push_take 가 줄을 한 번만 꺼내 준다 ─▶ VAPID로 각 기기에 보낸다 ─▶ 404, 410 구독은 지운다
@@ -57,6 +59,7 @@ push_take 가 줄을 한 번만 꺼내 준다 ─▶ VAPID로 각 기기에 보�
 1. Supabase SQL 편집기에서 `docs/db/push_kinds.sql`을 한 번 실행한다(여러 번 실행해도 된다). 실행 뒤 읽기로 확인:
    `select kinds, count(*) from public.push_subscriptions group by 1;` 가 모두 `{notice}`이고, `select proname from pg_proc where proname like 'push_%';`에
    `push_settings, push_take, push_queue_notice, push_match_waiting, push_tower_passed, push_closes_at`이 있다.
+   게시판의 계정 쓰기와 답의 알림은 그다음 `docs/db/community_accounts.sql`(역시 여러 번 실행해도 된다).
 2. 함수 둘을 배포한다.
    - `npx supabase functions deploy notify-announcement --use-api --no-verify-jwt --project-ref rqffrogcverfjqzjasax`
      (`--no-verify-jwt`가 새로 필요하다. `VAPID_KEYS` 비밀값은 그대로 둔다.)

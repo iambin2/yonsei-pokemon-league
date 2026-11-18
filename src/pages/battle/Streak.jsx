@@ -17,7 +17,7 @@ import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
 import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, readBattleRow, readSeat, readStreakDraft, streakNextGame, viewBattle, warmBattle } from "../../services/battleService.js";
-import { VISITOR_EVENT, myPlayerLink, pickStreakDraft, readDailyBoard, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun, visitorSignedIn } from "../../services/visitorAuth.js";
+import { pickStreakDraft, readDailyBoard, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
 import { nameOf } from "./Stage.jsx";
 import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
@@ -26,6 +26,7 @@ import { josa, toID } from "../../services/battleLog.js";
 import { drawTower, standTower, towerBreak, towerDive, towerDrop, towerShow } from "./tower.js";
 import { MonCard } from "./Sets.jsx";
 import { centreInk } from "../../components/common/inkCentre.js";
+import { useAccount } from "../../components/common/useMe.js";
 
 // the board's months are the run's months in KST, as the database counts them: "2026-11-01"
 const monthOf = back => {
@@ -300,16 +301,7 @@ function useWarm(on) {
 }
 
 // this visitor's account, kept current as they sign in and out: undefined while read, null signed out, else { requested_name, status }
-export function useAccount() {
-  const [account, setAccount] = useState(undefined);
-  useEffect(() => {
-    const read = () => (visitorSignedIn() ? myPlayerLink().then(a => setAccount(a || { status: "none" }), () => setAccount(null)) : setAccount(null));
-    read();
-    window.addEventListener(VISITOR_EVENT, read);
-    return () => window.removeEventListener(VISITOR_EVENT, read);
-  }, []);
-  return account;
-}
+export { useAccount };
 
 /* this device's run, read again from its game: playing (a game on), resting (the game ended and the run goes on: won, or lost with a
    lamp left; the next game not yet opened), or none (null). A game that ended while its player was away (the clock) has told its
