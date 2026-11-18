@@ -10,6 +10,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
+import Modal from "../../components/common/Modal.jsx";
 import Seg from "../../components/common/Seg.jsx";
 import { Chips, Counter, Dock, Podium, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
@@ -298,16 +299,17 @@ export const floorCall = (dark, scope, wins, leaveNow = async () => {}, again = 
   return { shown: Promise.all([dark, shown]).catch(() => {}), leave: towerDive };
 };
 
-/* the run lit: its streak at 84 (this device's run while it goes on, else the month's best of the account; dark when there is none).
-   No line explains the rule; the tower beside it shows it */
-function RunBoard({ run, best, approved, leader = null, month = "", daily = false }) {
-  // with no run of its own, the month's first place stands lit instead of dark cells that read as 88 (2026-11-09)
-  const lead = !run && !approved && leader;
-  const value = run ? run.wins : approved && best != null ? best : lead ? leader.wins : null;
-  const label = run ? gameWords(run.wins) : approved ? (daily ? "오늘 내 기록" : "이번 달 내 최고 기록") : lead ? `${daily ? "오늘" : month} 1위 ${leader.trainer_name}` : daily ? "오늘의 탑" : "도전의 탑";
+/* the run lit: its streak at 84 (this device's run while it goes on, else the account's best of the month or the day). No line
+   explains the rule; the tower beside it shows it. With nothing of one's own it is not drawn (2026-11-18, the owner: "의미 없이
+   낭비되는 공간을 최소화"): the month's first place stood here and was read twice, here and on the podium under it, and before that a
+   dark cell stood for a number never played */
+function RunBoard({ run, best, approved, daily = false }) {
+  const value = run ? run.wins : approved && best ? best : null;
+  if (value == null) return null;
+  const label = run ? gameWords(run.wins) : daily ? "오늘 내 기록" : "이번 달 내 최고 기록";
   return <div className="pn streak-hero">
     <span className="t12 dim streak-named"><span className="streak-hero-label">{run && <i className="lamp sig" aria-hidden="true" />}{label}</span>{run && <RunLamps lives={run.lives} />}</span>
-    <span className="streak-hero-board"><Seg value={value == null ? "" : String(value)} h={84} cells={value == null ? 1 : 2} label={value == null ? "" : `${value}연승`} /><span className="t20">연승</span></span>
+    <span className="streak-hero-board"><Seg value={String(value)} h={84} cells={2} label={`${value}연승`} /><span className="t20">연승</span></span>
   </div>;
 }
 
@@ -329,6 +331,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const [back, setBack] = useState(0);
   const [board, setBoard] = useState(undefined);
   const [busy, setBusy] = useState(false);
+  const [gate, setGate] = useState(false);
   const [error, setError] = useState("");
   // a refusal after the court went dark stands it up again, lit
   const [round, setRound] = useState(0);
@@ -415,8 +418,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const practice = onPractice && <Button onClick={onPractice}>컴퓨터와 연습</Button>;
   const left = drafting ? drafting.length - picks.filter(Boolean).length : 0;
   const keys = account === undefined || (approved && !synced) ?<Button variant="main" loading>도전 시작</Button>
-    : account === null ? <><Button variant="main" onClick={() => signInWithGoogle("", window.location.href.split("#")[0])}><GoogleMark />구글 로그인</Button>{practice}</>
-    : !approved ? <><Button variant="main" disabled={account.status === "pending"} onClick={() => go?.("records", { tab: "trainer", me: "1" })}>{account.status === "pending" ? "이름 확인 중" : "트레이너 이름 정하기"}</Button>{practice}</>
+    : !approved ? <><Button variant="main" onClick={() => setGate(true)}>{daily ? "오늘의 탑 시작" : "도전 시작"}</Button>{practice}</>
     : drafting ? <Button variant="main" icon={left ? "check" : undefined} disabled={left > 0} onClick={depart} loading={busy}>{left ? `${left}마리 더 고르기` : "출발"}</Button>
     : run ? <><Button variant="main" onClick={resume} loading={busy}>이어서 하기</Button>{!daily && <Button onClick={start} disabled={busy}>새로 도전</Button>}</>
     : doneToday ? <Button variant="main" disabled>오늘 도전 완료</Button>
@@ -424,7 +426,16 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   /* what the key cannot say by itself: why it waits. Signed out it says nothing: the key is 구글 로그인 and the month's board beside it
      shows the names it keeps (2026-11-10, the user: no sentence where the form already says it). Only a name waiting on the operators
      needs the sentence, as a grey line in the dock over the key that waits, never as a slab */
-  const note = account && !approved && account.status === "pending" ? "운영진이 트레이너 이름을 확인하면 도전할 수 있습니다." : "";
+  /* the key is always the challenge (2026-11-18): what the account still needs is asked once it is pressed, in a sheet: the Google
+     sign-in, the trainer's name, or the name the operators are still checking */
+  const gateSheet = gate && <Modal title={account === null ? "구글 로그인" : account?.status === "pending" ? "이름 확인 중" : "트레이너 이름 정하기"}
+    hint={account?.status === "pending" ? "운영진이 트레이너 이름을 확인하면 도전할 수 있습니다." : undefined} onClose={() => setGate(false)}>
+    <div className="modal-actions">
+      {account === null ? <Button variant="main" onClick={() => signInWithGoogle("", window.location.href.split("#")[0])}><GoogleMark />구글 로그인</Button>
+        : account?.status === "pending" ? <Button variant="main" onClick={() => setGate(false)}>닫기</Button>
+        : <Button variant="main" onClick={() => go?.("records", { tab: "trainer", me: "1" })}>트레이너 이름 정하기</Button>}
+    </div>
+  </Modal>;
   // the board as the home's and the records' ranking reads it; a live run opens its game to watch
   const placed = rows?.map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live, open: r.live && r.battle_id ? () => onOpen(r.battle_id) : null }));
   // the other climbers on the tower: this board's names but one's own (one's own run is the path)
@@ -433,27 +444,27 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
       {tabs}
+      {gateSheet}
       <div className="bt-lobby">
         <div className="bt-lobby-main">
           <div className="streak-scene">
             {drafting && !entering
               ? <DraftBoard res={res} draft={drafting} picks={picks} onPick={(i, sp) => setPicks(p => { const n = [...p]; n[i] = n[i] === sp ? undefined : sp; return n; })} />
               : <TowerHall key={`${kind}${round}`} wins={wins} live={Boolean(run?.playing)} climbers={climbers} />}
-            {!(drafting && !entering) && <div className="streak-mode"><Chips value={kind} onChange={setKind} label="도전 종류" options={[["month", "이번 달"], ["day", "오늘의 탑"]]} /></div>}
           </div>
           {run && !run.playing && run.doors && <DoorPick res={res} doors={run.doors} value={door} onChange={setDoor} />}
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>
-            {note && <p className="t12 dim bt-gate-line">{note}</p>}
             <div className="bt-end-keys">{keys}</div>
           </Dock>
         </div>
         <div className="bt-lobby-set streak-side">
-          {/* the side opens as 배틀 열기's does, with a label over its first panel, so the two tabs' arenas start on one line
-              (2026-11-09, the user: "연승도전과 배틀열기의 위 여백이 다른데") */}
-          <section className="q" aria-labelledby="streak-run-label">
-            <span className="q-label t12 dim" id="streak-run-label">{daily ? "오늘의 탑" : "내 도전"}</span>
-            <RunBoard run={run} best={rows ? mine?.wins ?? 0 : null} approved={approved} leader={!back ? rows?.[0] : null} month={month.label} daily={daily} />
-          </section>
+          {/* the two kinds of run head the side, on the scene's top line, so the scene starts where 배틀 열기's court does (2026-11-09,
+              the user: "연승도전과 배틀열기의 위 여백이 다른데"). On the tower's night they read as a web page's toggle laid over the
+              scene, and a line of their own under the tabs left a row of nothing beside them (2026-11-18) */}
+          <div className="streak-run">
+            {!(drafting && !entering) && <Chips value={kind} onChange={setKind} label="도전 종류" options={[["month", "이번 달"], ["day", "오늘의 탑"]]} />}
+            <RunBoard run={run} best={rows ? mine?.wins ?? 0 : null} approved={approved} daily={daily} />
+          </div>
           <section aria-labelledby="streak-board">
             {daily ? <SectionHead id="streak-board" title="오늘 순위" />
               : <SectionHead id="streak-board" title={`${month.label} 순위`} link={`${other.label} 보기`} onLink={() => setBack(b => (b ? 0 : 1))} />}

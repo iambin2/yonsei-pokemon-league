@@ -246,8 +246,6 @@
 .bt-end-keys { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--seam); }
 /* on a phone the tower's own strip gives its width to the name: 랜덤 파티 says nothing the six ? beside it do not */
 @media (max-width: 859px) { .bt-who-note.idle { display: none; } }
-/* why the dock's key waits, said on the dock's own ground over the key */
-.bt-gate-line { margin: 0 0 var(--s2); }
 .bt-end-keys > :only-child { grid-column: 1 / -1; }
 .bt-end-keys.wait { visibility: hidden; }
 .bt-end-keys > .btn--second { padding-inline: var(--s5); }

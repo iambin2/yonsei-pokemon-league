@@ -12,6 +12,9 @@ export const PITCH = 0.86;             // a floor's height (one turn of the terr
 export const RW = 1;                   // the wall's radius
 export const RR = 1.36;                // the terrace's outer edge
 export const GY = -0.38;               // the ground
+/* the road's lamps at .55 of their first height, two thirds of a door (2026-11-18, the owner's draft B: they stood taller than the doors
+   and gave the tower no size) */
+export const LAMP = 0.55;
 export const YC = 4.75;                // the sea of cloud, between the fifth floor and the sixth
 export const ND = 120;                 // doors a tower can hold (uDoor): twenty-four floors
 const RAD = Math.PI / 180, SEG = 72;
@@ -46,7 +49,9 @@ export function viewOf(kind, s, m, top) {
   const T = (s + .5) * SEG * RAD, y = (s + .5) / 5 * PITCH, half = m.W / m.H / 2;
   if (kind === "whole") { const h = top * PITCH + 2.3; return { phi: T - 1.5, dist: h * 2.05, camY: h * .5 + 2.5, tgtY: h * .5 - .35, focal: 1.75, shift: 0 }; }
   if (kind === "door") return { phi: T, dist: 1.02, camY: y + .2, tgtY: y + .2, focal: 2, shift: 0 };
-  if (kind === "hall") return { phi: T - .34, dist: 7.6 * Math.max(1, .62 / half), camY: y + 1.15, tgtY: y + .35, focal: 2, shift: half > .7 ? -.16 : -.08 };
+  /* the tab looks up the road from the foot of the run's door (2026-11-18, the owner's draft C, "올려다보는 구도가 너무 좋은데"): the door
+     low in the picture, the floors to climb going up over it into the night */
+  if (kind === "hall") return { phi: T - .3, dist: 6.2 * Math.max(1, .62 / half), camY: y + .1, tgtY: y + 2.1, focal: 1.25, shift: half > .7 ? -.18 : -.08 };
   return { phi: T - .22, dist: 5.4 * Math.max(1, .62 / half), camY: y + .8, tgtY: y + .25, focal: 2, shift: 0 };
 }
 export const mixView = (a, b, e) => Object.fromEntries(Object.keys(a).map(k => [k, a[k] + (b[k] - a[k]) * e]));
@@ -300,11 +305,12 @@ function* placeMesh(M, pal) {
   const stone = { lit: pal.stone, shade: mix(pal.stone, pal.wallShade, 0.55) }, deep = { lit: mix(pal.stone, pal.wallShade, 0.4), shade: pal.wallShade };
   sweep(M, [[3.06, GY], [3.06, -.22], [2.94, -.22], [2.94, GY]], 12, 348, 4, () => stone);
   for (const [t, sg] of [[12, -1], [348, 1]]) M.quad([P(2.94, t, GY), P(3.06, t, GY), P(3.06, t, -.22), P(2.94, t, -.22)], [tangent(t).map(v => v * sg)], [deep]);
+  const LS = LAMP, ly = y => GY + (y - GY) * LS;
   for (const sx of [-.66, .66]) for (let j = 0; j < 3; j++) {
     const z = 2.9 + 1.4 * j, at = (a, r, y) => [sx + r * Math.sin(a * RAD), y, z + r * Math.cos(a * RAD)];
     for (let a = 0; a < 360; a += 60) {
-      M.quad([at(a, .02, GY), at(a + 60, .02, GY), at(a + 60, .02, .09), at(a, .02, .09)], [radial(a), radial(a + 60), radial(a + 60), radial(a)], [deep]);
-      for (const sg of [-1, 1]) M.tri([at(a, .04, .13), at(a + 60, .04, .13), [sx, .13 + sg * .05, z]], [UP], { lit: pal.warm, shade: pal.warm, kind: 3 });
+      M.quad([at(a, .02 * LS, GY), at(a + 60, .02 * LS, GY), at(a + 60, .02 * LS, ly(.09)), at(a, .02 * LS, ly(.09))], [radial(a), radial(a + 60), radial(a + 60), radial(a)], [deep]);
+      for (const sg of [-1, 1]) M.tri([at(a, .04 * LS, ly(.13)), at(a + 60, .04 * LS, ly(.13)), [sx, ly(.13) + sg * .05 * LS, z]], [UP], { lit: pal.warm, shade: pal.warm, kind: 3 });
     }
   }
   /* the wood: conifers in three tiers, by the same fixed draw each time, none on the road. It begins beyond where the camera goes
@@ -507,7 +513,7 @@ void main() {
   open *= mix(1., smoothstep(5., 13., length(vW.xz - uEye.xz)), level);
   float a = max(smoothstep(.33, .6, nz), smoothstep(12., 40., tc)) * open * .92;
   bool above = uEye.y > vW.y;
-  vec3 c = mix(uCloudLo, uCloudHi, smoothstep(.35, .8, nz) * (above ? 1. : .35));
+  vec3 c = mix(uCloudLo, uCloudHi, smoothstep(.35, .8, nz) * (above ? 1. : .7));
   if (above) c += uMoonC * pow(max(0., dot(normalize(vW.xz - uEye.xz), normalize(uMoonD.xz))), 70.) * .2 * smoothstep(0., .5, nz);
   c = mix(c, uFog, 1. - exp(-max(0., tc - 14.) * .012));
   o = vec4(mix(c, uMistC, uMist) * a, a);

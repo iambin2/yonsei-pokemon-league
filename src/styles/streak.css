@@ -1,8 +1,12 @@
 /* ---------- 연승 도전 (src/pages/battle/Streak.jsx, docs/BATTLE_STREAK.md 8장, DESIGN.md "Layout and pages" 연승 도전) ----------
    The tab stands on the lobby's own parts (the arena, the dock, sections, the podium, rows); only these are its own. */
 
-/* the side: two sections, 52 apart as a form's sections are */
+/* the side: the kind of run with the run's panel under it, then the board, 52 apart as a form's sections are; the side's top meets the
+   scene's (2026-11-18: no label over it, so nothing stands beside the scene's top but the choice) */
 .streak-side { display: grid; align-content: start; gap: var(--s13); }
+.streak-run { display: grid; gap: var(--s3); }
+/* with no run of one's own the choice alone heads the board it chooses, at a section head's distance */
+.streak-run:not(:has(.streak-hero)) + section { margin-top: calc(var(--s5) - var(--s13)); }
 
 /* the run lit: its label, the streak at 84 with 연승 on its baseline, and the rule as its grey line */
 .streak-hero { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); padding: var(--pad); text-align: left; }
@@ -10,11 +14,6 @@
 .streak-hero-board { display: flex; align-items: flex-end; gap: var(--s2); }
 .streak-hero-board > .t20 { line-height: 1; }
 
-
-/* on a wide screen the tower's top edge meets the run's panel, not the section's title over it, as the lobby's meets its first choice */
-@media (min-width: 860px) {
-  .bt-lobby:has(> .streak-side) > .bt-lobby-main { padding-top: calc(var(--l12) + var(--s2)); }
-}
 
 /* ---------- the dark the camera walked into (tower.js; DESIGN.md "Battle", 도전의 탑, The tower) ----------
    Going into a game the camera walks in through the amber door, and the room's dark becomes the stage's own ground. That ground
@@ -42,6 +41,5 @@
 .streak-track-bar.mini > i { height: var(--s1); }
 
 /* ---------- 2026-11-11 (docs/BATTLE_STREAK.md 13장): the scene's kinds, the opening draft, the doors to the next game ---------- */
-/* the tower and the draft share the scene's place; the two kinds of run stand as chips on the scene's night at its top left */
+/* the tower and the draft share the scene's place; the two kinds of run stand as a line of chips under the tabs */
 .streak-scene { position: relative; }
-.streak-mode { position: absolute; top: var(--s3); left: var(--s3); z-index: var(--z-raised); }

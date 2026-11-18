@@ -16,7 +16,7 @@
    tower alone in an empty night, "가상의 요소처럼 느껴져서 몰입이 깨져") */
 import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, reduced } from "../../components/common/motion.js";
 import { sfx } from "./sfx.js";
-import { ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
+import { GY, LAMP, ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
 
 // the model's context and programs, and the tower's mesh in the theme's tones (a piece at a time), made in idle moments after the
 // battle page loads this module, so the tab's tower comes in without waiting for them
@@ -95,7 +95,7 @@ function lampsOf(tw) {
     glows.push([...p, .5, ...pal.warm.map(x => x * .34 * dim)]);
   }
   if (tw.s < 16) for (const sx of [-.66, .66]) for (let j = 0; j < 3; j++) {
-    const p = [sx, .13, 2.9 + 1.4 * j];
+    const p = [sx, GY + .51 * LAMP, 2.9 + 1.4 * j];
     lights.push([...p, 1.5, ...pal.warm, pal.light ? .2 : .42]);
     glows.push([...p, .45, ...pal.warm.map(x => x * .3 * dim)]);
   }
@@ -177,7 +177,9 @@ function climbersHTML(tw) {
     if (marks.length >= 4) break;
   }
   if (!marks.length) return "";
-  marks.sort((a, b) => a.y - b.y);
+  /* the column reads top down as the tower does, the highest climber first: seen from under the road (2026-11-18) a near door
+     projects over a higher one round the side, and the column read 10 over 12 */
+  marks.sort((a, b) => b.c.wins - a.c.wins || a.y - b.y);
   /* labels keep apart by their own height and a gap (a label is a name of 16 over a streak of 20: at 28 apart two overlapped by 8,
      2026-11-18, measured at 1440); one pushed out of the scene's foot is left out */
   let last = -Infinity;
