@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dropdown, Icon, Loader, Segmented } from "../components/index.js";
+import { Dropdown, Empty, ErrorNote, Icon, Loader, Segmented } from "../components/index.js";
 import { Cell, Chips, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
 import Seg from "../components/common/Seg.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
@@ -205,7 +205,7 @@ function DirectionResults({ title, results, detailData, emptyText, children }) {
             {results.map((result, index) => <ResultRow key={`${result.moveId}-${index}`} result={result} detailData={detailData} chosen={result === shown} onChoose={() => setChosen(result.moveId)} />)}
           </div>}
         </>
-      ) : emptyText ? <p className="t15 reg dim calc-empty">{emptyText}</p> : null}
+      ) : emptyText ? <Empty title={emptyText} /> : null}
     </div>
   );
 }
@@ -238,7 +238,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
             <small className="t12 reg dim">{SIDE_NAMES[index]}</small>
             {record && <TypeBadges types={record.types} />}
           </span>
-        </button> : <p className="pn t15 reg dim calc-side-empty">{SIDE_NAMES[index]}을 골라 주세요.</p>}
+        </button> : <Empty className="calc-side-empty" title={`${SIDE_NAMES[index]}을 골라 주세요.`} />}
         {(hasSavedTeams || pokemon) && <div className="calc-side-actions">
           {hasSavedTeams && <Button variant="link" onClick={onImport}>내 팀에서</Button>}
           {pokemon && <Button variant="link" onClick={onClear}>비우기</Button>}
@@ -272,14 +272,14 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
         </div>
 
         <div className="tb-editor-section calc-section">
-          <div className="tb-subhead"><span className="t12 dim">능력 포인트와 랭크, 글자를 누르면 0과 32</span><b className={"t12" + (total > 66 ? " over" : "")}>{total} / 66</b></div>
+          <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className={"t12" + (total > 66 ? " over" : "")}>{total} / 66</b></div>
           <div className="tb-stats">
             {STAT_KEYS.map(key => {
               const base = record?.baseStats?.[key];
               const final = engine?.rawStats?.[key];
               return (
                 <div className="calc-stat-row" key={key}>
-                  <button type="button" className="t12 tb-stat-key calc-stat-key" title={base != null ? `${STAT_LABELS[key]}, 종족값 ${base}` : STAT_LABELS[key]}
+                  <button type="button" className="t12 tb-stat-key calc-stat-key"
                     aria-label={`${STAT_LABELS[key]} 능력 포인트 ${side.sp[key] ? "0으로" : "32로"}`} onClick={() => setSp(key, side.sp[key] ? 0 : 32)}>{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</button>
                   <span className="tb-bar"><i style={{ transform: `scaleX(${side.sp[key] / 32})` }} /><input type="range" min="0" max="32" step="1" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트 슬라이더`} /></span>
                   <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트`} />
@@ -292,7 +292,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
         </div>
 
         <div className="tb-editor-section calc-section">
-          <div className="tb-subhead"><span className="t12 dim">조건, 이 포켓몬 쪽 필드에 걸린 효과</span></div>
+          <div className="tb-subhead"><span className="t12 dim">조건</span></div>
           <div className="calc-toggles">
             <Toggle on={side.crit} onChange={on => set({ crit: on })}>급소</Toggle>
             {TOGGLE_ABILITIES.has(ability) && <Toggle on={side.abilityOn} onChange={on => set({ abilityOn: on })}>{abilityName(ability)} 발동</Toggle>}
@@ -367,17 +367,19 @@ function DamageView({ sides, setSide, swapSides, field, setField, records, pokem
 
       <section className="calc-sec" aria-labelledby="calc-field-h"><SectionHead id="calc-field-h" title="배틀 조건" /><FieldCard field={field} onChange={setField} /></section>
 
-      <SectionHead id="calc-sides-h" title="세부 설정" />
-      <div className="calc-side-switch">
-        <Segmented value={String(editing)} onChange={value => setEditing(Number(value))} ariaLabel="편집할 포켓몬" options={[["0", SIDE_NAMES[0]], ["1", SIDE_NAMES[1]]]} />
-      </div>
-      <div className="calc-sides" data-editing={editing}>
-        {[0, 1].map(index => (
-          <SideCard key={index} index={index} side={sides[index]} record={records[index]} pokemon={pokemons[index]} detailData={detailData} legalItems={legalItems} display={display}
-            onChange={next => setSide(index, next)} onPickPokemon={() => openPokemonPicker(index)} onImport={() => openImport(index)} hasSavedTeams={hasSavedTeams}
-            onClear={() => clearSide(index)} />
-        ))}
-      </div>
+      <section className="calc-sec" aria-labelledby="calc-sides-h">
+        <SectionHead id="calc-sides-h" title="세부 설정" />
+        <div className="calc-side-switch">
+          <Segmented value={String(editing)} onChange={value => setEditing(Number(value))} ariaLabel="편집할 포켓몬" options={[["0", SIDE_NAMES[0]], ["1", SIDE_NAMES[1]]]} />
+        </div>
+        <div className="calc-sides" data-editing={editing}>
+          {[0, 1].map(index => (
+            <SideCard key={index} index={index} side={sides[index]} record={records[index]} pokemon={pokemons[index]} detailData={detailData} legalItems={legalItems} display={display}
+              onChange={next => setSide(index, next)} onPickPokemon={() => openPokemonPicker(index)} onImport={() => openImport(index)} hasSavedTeams={hasSavedTeams}
+              onClear={() => clearSide(index)} />
+          ))}
+        </div>
+      </section>
     </>
   );
 }
@@ -458,7 +460,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
             </React.Fragment>
           ))}
           {meIndex === -1 && !q && meRow}
-          {!shown.length && <li className="t15 reg dim calc-empty">검색 결과가 없습니다.</li>}
+          {!shown.length && <li><Empty title="검색 결과가 없습니다." /></li>}
         </ol>
       </div>
     </>
@@ -484,10 +486,9 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
 
   if (!pokemon || !record) {
     return (
-      <div className="tb-panel calc-dex-empty">
-        <strong>도감에서 볼 포켓몬을 골라 주세요.</strong>
+      <Empty className="calc-dex-empty" title="도감에서 볼 포켓몬을 골라 주세요.">
         <Button type="button" variant="main" onClick={openPicker}>포켓몬 선택</Button>
-      </div>
+      </Empty>
     );
   }
   const weight = weightOf(record);
@@ -512,14 +513,14 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
 
       <div className="calc-dex-grid">
         <div className="calc-dex-block">
-          <div className="tb-subhead"><span className="t12 dim">종족값, 오른쪽은 레벨 50 실수치 범위</span><b className="t12">{total}</b></div>
+          <div className="tb-subhead"><span className="t12 dim">종족값</span><b className="t12">{total}</b></div>
           <div className="calc-base">
             {STAT_KEYS.map(key => {
               const base = record.baseStats?.[key] ?? 0;
               const [low, high] = statRange(base, key);
               return (
                 <div className="calc-base-row" key={key}>
-                  <span className="t12 tb-stat-key" title={STAT_LABELS[key]}>{STAT_LETTERS[key]}</span>
+                  <span className="t12 tb-stat-key"><span aria-hidden="true">{STAT_LETTERS[key]}</span><span className="sr-only">{STAT_LABELS[key]}</span></span>
                   <span className="tb-bar"><i style={{ transform: `scaleX(${Math.min(1, base / 200)})` }} /></span>
                   <b className="t12">{base}</b>
                   <span className="t12 reg dim">{low} ~ {high}</span>
@@ -530,7 +531,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
         </div>
 
         <div className="calc-dex-block">
-          <div className="tb-subhead"><span className="t12 dim">방어 상성, 특성은 반영하지 않은 타입 상성</span></div>
+          <div className="tb-subhead"><span className="t12 dim">방어 상성</span></div>
           <div className="stack calc-matchups">
             {MULTIPLIER_LABELS.filter(([key]) => chart[key]?.length).map(([key, label], index) => (
               <div className={"calc-matchup " + (index === 0 && Number(key) > 1 ? "inv" : "pn")} key={key}>
@@ -543,7 +544,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
       </div>
 
       <div className="calc-dex-block">
-        <div className="tb-subhead"><span className="t12 dim">배우는 기술, 포켓몬 챔피언스 기준</span><b className="t12">{moves.length} / {learnset.length}</b></div>
+        <div className="tb-subhead"><span className="t12 dim">배우는 기술</span><b className="t12">{moves.length} / {learnset.length}</b></div>
         <div className="calc-move-tools">
           <div className="tb-search-row">
             <span className="search-input-icon" aria-hidden="true"><Icon n="search" size={20} /></span>
@@ -682,11 +683,7 @@ export default function CalculatorPage() {
       </div>
 
       {detailStatus === "error" ? (
-        <div className="tb-panel calc-dex-empty">
-          <strong>포켓몬 데이터를 불러오지 못했습니다.</strong>
-          <span>연결 상태를 확인한 뒤 다시 시도해 주세요.</span>
-          <Button type="button" variant="main" onClick={() => { setDetailStatus("loading"); setAttempt(n => n + 1); }}>다시 시도</Button>
-        </div>
+        <ErrorNote onRetry={() => { setDetailStatus("loading"); setAttempt(n => n + 1); }}>포켓몬 데이터를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.</ErrorNote>
       ) : loading ? <Loader /> : (
         <div className="calc-swap swap" key={tab}>
           {tab === "damage" && <DamageView sides={sides} setSide={setSide} swapSides={swapSides} field={field} setField={setField} records={records} pokemons={pokemons} engines={engines}

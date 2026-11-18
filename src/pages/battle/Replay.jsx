@@ -3,6 +3,8 @@ import { Row, SectionHead, Status } from "../../components/common/Board.jsx";
 import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import Empty from "../../components/common/Empty.jsx";
+import ErrorNote from "../../components/common/ErrorNote.jsx";
+import Loader from "../../components/common/Loader.jsx";
 import Pager from "../../components/common/Pager.jsx";
 import { battleHref, endedByLine, isDoubles, readSeat } from "../../services/battleService.js";
 import { battleHistoryIds, forgetBattles, listBattlesById } from "../../services/battleWatch.js";
@@ -117,12 +119,15 @@ export function BattleLists({ onOpen, onCleared }) {
   const [mine, setMine] = useState(null);
   const [account, setAccount] = useState(false);
   const [page, setPage] = useState(1);
+  // a failed read of this device's battles stands as the error with 다시 불러오기 (false), never as an empty list
+  const [asked, setAsked] = useState(0);
   useEffect(() => {
     let on = true;
-    Promise.all([listBattlesById(battleHistoryIds()).catch(() => []), readMyBattles().catch(() => null)])
-      .then(([device, account]) => { if (!on) return; setAccount(Boolean(account)); setMine(account ? mergeBattles(device, account) : device); });
+    setMine(null);
+    Promise.all([listBattlesById(battleHistoryIds()).catch(() => false), readMyBattles().catch(() => null)])
+      .then(([device, account]) => { if (!on) return; setAccount(Boolean(account)); setMine(device === false ? false : account ? mergeBattles(device, account) : device); });
     return () => { on = false; };
-  }, []);
+  }, [asked]);
   /* 기록 삭제 picks before it deletes (2026-11-06): the link turns the rows into checks (a 20 square leading each), 취소 leaves. Only
      a battle that is over can be picked: one still waiting or being played keeps its seat, so it stands muted without a check. Under
      the list 전체 선택 and the delete key join on the seam at 1 to 1.618, and the delete asks once. */
@@ -132,7 +137,8 @@ export function BattleLists({ onOpen, onCleared }) {
   // deletable: a battle over that this device alone keeps (the account's stay with the account)
   const here = new Set(battleHistoryIds());
   const mayForget = b => !open(b) && here.has(b.id) && !b.my_side;
-  if (!mine) return null;
+  if (mine === null) return <Loader />;
+  if (mine === false) return <ErrorNote action="다시 불러오기" onRetry={() => setAsked(n => n + 1)}>배틀 기록을 불러오지 못했습니다.</ErrorNote>;
   if (!mine.length) return <Empty title={account ? "아직 한 배틀이 없습니다." : "이 기기에서 한 배틀이 없습니다."} />;
   const done = mine.filter(mayForget);
   const pages = Math.ceil(mine.length / PAGE), cur = Math.min(page, pages);
@@ -158,8 +164,8 @@ export function BattleLists({ onOpen, onCleared }) {
           {shown.map(b => {
             const can = mayForget(b), on = picked.has(b.id);
             return <Row key={b.id} className={"bt-pickrow" + (can ? "" : " off")} title={`${b.p1_name} 대 ${b.p2_name || "상대 대기"}`}
-              line={can || !open(b) ? [kindLine(b), endedByLine(b)].filter(Boolean).join(", ") : "진행 중이거나 대기 중인 배틀은 남습니다"}
-              lead={<span className={"box" + (on ? " on" : "")} aria-hidden="true">{on && <Icon n="check" size={16} />}</span>}
+              line={[kindLine(b), endedByLine(b)].filter(Boolean).join(", ")}
+              lead={can ? <span className={"box" + (on ? " on" : "")} aria-hidden="true">{on && <Icon n="check" size={16} />}</span> : <span className="box box--none" aria-hidden="true" />}
               value={result(b)} onClick={can ? () => toggle(b.id) : undefined}
               label={can ? `${b.p1_name} 대 ${b.p2_name || "상대 대기"}, ${on ? "선택됨" : "선택 안 됨"}` : undefined} />;
           })}

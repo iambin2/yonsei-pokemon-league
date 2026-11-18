@@ -35,11 +35,12 @@ export function forgetBattles(ids) {
   } catch { /* 지우지 못하면 목록이 그대로 남는다 */ }
 }
 
-// those battles' public rows, newest first; a battle cancelled before it started is simply gone
+// those battles' public rows, newest first; a battle cancelled before it started is simply gone; a failed read throws
 export async function listBattlesById(ids) {
   if (!supa || !ids.length) return [];
   const { data, error } = await supa.from("battles").select(COLUMNS).in("id", ids).order("updated_at", { ascending: false });
-  return error ? [] : data || [];
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 /* 중계: every battle being played now with its public log, so each is drawn as its two strips; one nobody has moved in half an
    hour is left out as abandoned. ponytail: the whole public log per
@@ -53,7 +54,8 @@ export async function listLiveBoards() {
   /* a battle whose clock ran out a minute ago and that nobody ended has been left by its players: it can no longer move, so it is not
      shown as being played (2026-11-09: a run's game left by its player stood on 중계 for half an hour) */
   const gone = Date.now() - 60_000;
-  return error ? [] : (data || []).filter(r => !r.deadline_at || Date.parse(r.deadline_at) > gone);
+  if (error) throw new Error(error.message);
+  return (data || []).filter(r => !r.deadline_at || Date.parse(r.deadline_at) > gone);
 }
 
 // the deadline of the decision a battle waits on is read with its row (battleService.js readBattleRow)

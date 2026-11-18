@@ -65,7 +65,10 @@
 
 /* ---------- the editor: name, the spec cells, the points as bars, the moves as cells ---------- */
 .tb-editor { display: grid; gap: var(--s3); min-width: 0; }
-.tb-editor-empty { display: grid; gap: var(--s1); padding: var(--s5) var(--pad); }
+/* nothing chosen: the editor's one panel (the site's empty form, .ypl-empty) takes the column down to the list's last line, so the two
+   columns end on one line (Composing a screen 26) */
+.tb-main-column { align-self: stretch; }
+.tb-editor:has(> .tb-editor-empty) { flex: 1; }
 .tb-editor-head { display: grid; gap: var(--s1); }
 .tb-editor-head h2 { margin: 0; }
 .tb-editor-head .tb-types { margin-top: var(--s1); }

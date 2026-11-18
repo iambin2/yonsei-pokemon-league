@@ -79,19 +79,22 @@ function drawCard(ctx, c, x, y, row, sprite) {
     cy += 26;
   }
 
-  // 능력치: 종족값, 능력 포인트 막대, 최종 능력치
+  // 능력치: the page's sheet, no header row of column names (DESIGN.md "Composing a screen" 25): the points' label and total over the
+  // table, then each row its name, 종족값 and the base, the points on their bar, the stat itself
   cy += 14;
-  ctx.fillStyle = c.fg3; ctx.font = `400 13px ${FONT}`;
-  ctx.fillText("능력", ix, cy); ctx.fillText("종족값", ix + 64, cy);
-  ctx.fillText(`능력 포인트 ${row.spTotal} / 66`, ix + 132, cy);
-  ctx.textAlign = "right"; ctx.fillText("최종", ix + iw, cy); ctx.textAlign = "left";
+  ctx.fillStyle = c.fg3; ctx.font = `400 13px ${FONT}`; ctx.fillText("능력 포인트", ix, cy);
+  ctx.textAlign = "right"; ctx.fillStyle = c.fg; ctx.font = `700 13px ${FONT}`; ctx.fillText(`${row.spTotal} / 66`, ix + iw, cy); ctx.textAlign = "left";
   cy += 10;
-  const barX = ix + 132, barW = iw - 132 - 92;
+  const barX = ix + 148, barW = iw - 148 - 92;
   for (const stat of row.stats) {
     cy += 26;
     ctx.fillStyle = c.fg; ctx.font = `700 16px ${FONT}`;
     ctx.fillText(stat.label + (stat.mark === "+" ? " ↑" : stat.mark === "-" ? " ↓" : ""), ix, cy);
-    ctx.fillStyle = c.fg2; ctx.font = `400 16px ${FONT}`; ctx.fillText(stat.base ?? "", ix + 64, cy);
+    if (stat.base != null) {
+      ctx.fillStyle = c.fg3; ctx.font = `400 13px ${FONT}`; ctx.fillText("종족값", ix + 64, cy);
+      const lw = ctx.measureText("종족값 ").width;
+      ctx.fillStyle = c.fg2; ctx.font = `400 16px ${FONT}`; ctx.fillText(String(stat.base), ix + 64 + lw, cy);
+    }
     roundRect(ctx, barX, cy - 9, barW, 6, 0); ctx.fillStyle = c.bar; ctx.fill();
     if (stat.sp) { roundRect(ctx, barX, cy - 9, Math.max(6, barW * stat.sp / 32), 6, 0); ctx.fillStyle = c.barOn; ctx.fill(); }
     ctx.fillStyle = stat.sp ? c.fg : c.fg3; ctx.font = `${stat.sp ? 700 : 400} 13px ${FONT}`; ctx.fillText(String(stat.sp), barX + barW + 12, cy);

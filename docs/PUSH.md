@@ -15,7 +15,7 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 | `board` | 게시판 새 글 | 켠 모두 | 지난 게시판 알림 뒤에 공개 글(자유, 샘플, 파티. 비밀글, 댓글, 사설 대진표 제외)이 올라왔을 때 | 글이 하나면 그 글, 여럿이면 `?view=board` |
 | `tower` | 도전의 탑 순위 | 앞질린 계정 | 이번 달 도전(오늘의 탑 제외)이 한 판 이겨, 같은 연승에 먼저 닿아 위에 있던 계정을 넘었을 때(2연승부터) | `?view=battle&tab=streak` |
 | `record` | 도전의 탑 신기록 | 켠 모두 | 이번 달 도전 하나가 다른 모든 도전의 최고 연승을 넘어선 판(이번 달 1위가 되는 순간, 2연승부터). 1위가 계속 이겨 기록을 늘리는 판은 알리지 않는다 | `?view=battle&tab=streak` |
-| `daily` | 오늘의 탑 | 켠 모두 | 하루 한 번, 아침 첫 정리 | `?view=battle&tab=streak` |
+| `daily` | 오늘의 탑 (2026-11-19 내림, `docs/db/drop_daily_tower.sql`) | 없음 | 화면에서 켤 수 없고, 쌓인 줄은 받을 기기가 없다 | |
 
 - 이미 있던 구독은 `notice`만 받는다(예전과 같다). 새 구독은 `notice`, `match`, `reply`를 받는다. 나머지는 더보기에서 켠다.
 - `경기 결과 등록`은 대회 결과의 기록 반영(`events.record_applied_at`)으로 읽었다. 경기 하나하나의 승자는 모두에게 보내기에 너무 잦다.

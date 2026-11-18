@@ -1,6 +1,8 @@
 import React from "react";
 import Icon from "../common/Icon.jsx";
 import { BrandMark, DISCORD_URL, Wordmark } from "./SiteHeader.jsx";
+import { follow } from "../common/Board.jsx";
+import { viewHref } from "../../services/appRouting.js";
 
 const YEAR_FOUNDED = 2023;
 
@@ -15,9 +17,9 @@ export default function SiteFooter({ onNavigate, tagline, onAdmin }) {
     <footer className="site-foot">
       <div className="site-foot-in">
         <div className="site-foot-mark">
-          <button type="button" className="brand" onClick={() => onNavigate("home")} aria-label="YPL 홈으로">
+          <a href={viewHref("home")} className="brand" onClick={follow(() => onNavigate("home"))} aria-label="YPL 홈으로">
             <BrandMark size={24} /><Wordmark />
-          </button>
+          </a>
           {tagline && <p className="site-foot-tag">{tagline}</p>}
           <span className="site-foot-links">
             {onAdmin && <button type="button" className="site-foot-login" onClick={onAdmin}>관리자 로그인</button>}
@@ -28,7 +30,7 @@ export default function SiteFooter({ onNavigate, tagline, onAdmin }) {
         <div className="site-foot-rule">
           <span className="site-foot-line">
             <span>© {span} Yonsei Pokémon League</span>
-            <button type="button" className="site-foot-admin" onClick={() => onNavigate("privacy")}>개인정보처리방침</button>
+            <a href={viewHref("privacy")} className="site-foot-admin" onClick={follow(() => onNavigate("privacy"))}>개인정보처리방침</a>
           </span>
           <span className="site-foot-fine">
             연세대학교 포켓몬스터 동아리 포켓몬 센터 연세점이 운영하는 팬 사이트로, Nintendo, Creatures, GAME FREAK, The Pokémon Company와 관계가 없습니다.

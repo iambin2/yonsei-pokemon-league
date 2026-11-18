@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Seg from "../../components/common/Seg.jsx";
 import Empty from "../../components/common/Empty.jsx";
 import Loader from "../../components/common/Loader.jsx";
+import ErrorNote from "../../components/common/ErrorNote.jsx";
 import { Chips, Counter } from "../../components/common/Board.jsx";
 import { createBattleReader } from "../../services/battleLog.js";
 import { isDoubles, runGames } from "../../services/battleService.js";
@@ -22,17 +23,19 @@ const FORMATS = [["all", "전체"], ["singles", "싱글"], ["doubles", "더블"]
 const ORDER = { official: 0, streak: 1, friendly: 2 };
 const KIND_WORD = { official: "공식 경기", streak: "도전의 탑", friendly: "친선" };
 
+// [rows, again]: rows null until the first read, false when it failed (a list once read stays through a later failed read)
 export function useLiveBoards(wanted = true) {
   const [rows, setRows] = useState(null);
+  const [asked, setAsked] = useState(0);
   useEffect(() => {
     if (!wanted) return undefined;
     let on = true;
-    const read = () => { if (document.visibilityState === "visible") listLiveBoards().then(r => on && setRows(r)); };
+    const read = () => { if (document.visibilityState === "visible") listLiveBoards().then(r => on && setRows(r), () => on && setRows(r => (Array.isArray(r) ? r : false))); };
     read();
     const t = setInterval(read, 15000);
     return () => { on = false; clearInterval(t); };
-  }, [wanted]);
-  return rows;
+  }, [wanted, asked]);
+  return [rows, () => { setRows(null); setAsked(n => n + 1); }];
 }
 
 // the two sides as the strips show them, read from the public log (no hidden set reaches it)
@@ -95,13 +98,14 @@ export function LiveCard({ res, row, label, lead = false, onOpen }) {
   </button>;
 }
 
-export function LiveHall({ res, rows, onOpen }) {
+export function LiveHall({ res, rows, onOpen, onRetry }) {
   const [kind, setKind] = useState("all");
   const [format, setFormat] = useState("all");
   const all = [...(rows || [])].sort((a, b) => (ORDER[a.kind] ?? 3) - (ORDER[b.kind] ?? 3) || Date.parse(b.updated_at) - Date.parse(a.updated_at));
   const list = all.filter(r => (kind === "all" || r.kind === kind) && (format === "all" || (format === "doubles") === isDoubles(r.format_id)));
   const count = n => (rows ? String(n) : null);
   const labels = useLabels(rows);
+  if (rows === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>중계를 불러오지 못했습니다.</ErrorNote>;
   return <>
     <div className="stack bt-hall-counts">
       <Counter label="진행 중" value={count(all.length)} cells={2} lamp={all.length > 0 ? "sig" : false} />

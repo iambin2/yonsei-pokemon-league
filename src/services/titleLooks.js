@@ -84,9 +84,3 @@ export function ownMedal(item) {
   return look.device ? { device: look.device, enamel: look.bands } : { glyphs: look.bands, enamel: look.bands };
 }
 
-/* 페이지 머리의 세 숫자: 칭호, 주인 있는 칭호, 주인 없는 칭호 (파트너는 트레이너 하나가 칭호 하나) */
-export function titleCounts(groups = []) {
-  const items = groups.flatMap(group => group?.items || []);
-  const owned = items.filter(item => (item.holders || []).length > 0).length;
-  return { total: items.length, owned, empty: items.length - owned };
-}

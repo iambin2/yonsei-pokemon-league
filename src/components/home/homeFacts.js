@@ -53,13 +53,13 @@ function currentSeason(snapshot, data, rankRows) {
   const normalized = seasons.some(s => s.source === "normalized") || (snapshot.ranking?.series || []).some(s => s.source === "normalized");
   const season = normalized ? seasons[0] : seasons[seasons.length - 1];
   if (!season?.rows?.length) return null;
-  // the podium's three and the two rows that go on from the fourth (HomePage)
+  // the line score's five (HomePage)
   return { name: season.name, rows: rankRows(season.rows).slice(0, 5).map(({ rank, name, points }) => ({ rank, name, points: points || 0 })) };
 }
 
 /* 기록 화면의 스냅숏을 같은 캐시로 읽는다. 공식 기록을 못 읽으면 기록 화면처럼 기존 기록으로 센다.
    사실 몇 개를 위해 요청 11개가 나가므로, 다시 찾은 방문자는 6시간 안의 값을 쓴다. 대회가 끝나야 바뀌는 사실이다. */
-const FACTS_KEY = "ypl-home-facts-2";
+const FACTS_KEY = "ypl-home-facts-3";
 const FACTS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const RECORDS_MAX_AGE_MS = 60 * 1000;
 
@@ -74,22 +74,15 @@ export async function loadFacts(data, admin = false) {
     const saved = seenFacts();
     if (saved) return saved;
   }
-  const [{ freshRead }, normalized, projection, analytics, { recordRoundTitle }, { rankRows }] = await Promise.all([
+  const [{ freshRead }, normalized, projection, analytics, { rankRows }] = await Promise.all([
     import("../../services/readCache.js"), import("../../services/normalizedRecordsService.js"),
-    import("../../services/normalizedRecordsProjection.js"), import("../../services/recordsAnalytics.js"), import("../../services/eventName.js"), import("../common/StandTable.jsx"),
+    import("../../services/normalizedRecordsProjection.js"), import("../../services/recordsAnalytics.js"), import("../common/StandTable.jsx"),
   ]);
   let raw = null;
   if (normalized.normalizedRecordsReadEnabled()) raw = await freshRead("records", normalized.fetchNormalizedRecordsSnapshot, admin ? 0 : RECORDS_MAX_AGE_MS).catch(() => null);
   const snapshot = raw ? projection.buildNormalizedRecordsProjection(data, raw, null) : analytics.buildRecordsSnapshot(data);
-  const archives = snapshot.archives || [], dated = archives.filter(a => /\d{4}/.test(a.date || ""));
-  const latest = archives.find(a => a.win);
-  const facts = {
-    tournaments: archives.length, trainers: (snapshot.trainers || []).length,
-    latest: latest ? { winner: latest.win, name: latest.eventName || recordRoundTitle(latest.tournamentName, latest.round) } : null,
-    first: dated[dated.length - 1]?.date || "",
-    season: currentSeason(snapshot, data, rankRows),
-    seasons: (snapshot.ranking?.seasons || data.seasons || []).length,
-  };
+  // the home reads one fact from the records: the current season's line score (the league's counts went on 2026-11-19, Made by people)
+  const facts = { season: currentSeason(snapshot, data, rankRows) };
   // 공식 기록을 읽었을 때만 기억한다. 대체 집계가 6시간 남아 있으면 안 된다.
   if (raw) {
     shownFacts = { at: Date.now(), facts };

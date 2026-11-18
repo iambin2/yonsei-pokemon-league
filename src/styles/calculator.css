@@ -6,7 +6,6 @@
    ========================================================================== */
 
 .calc-body, .calc-swap { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
-.calc-empty { font-size: var(--t15); line-height: var(--l-read); }
 
 /* ---------- toggles: 32 panels, an active one inverted ---------- */
 .calc-toggles { display: flex; flex-wrap: wrap; gap: var(--seam); }
@@ -64,11 +63,13 @@
 /* ---------- the two sides: side by side on desktop, one at a time on a phone ---------- */
 .calc-side-switch { display: none; }
 .calc-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s8); align-items: start; }
+/* both sides still empty: two panels of one kind side by side join on the seam */
+.calc-sides:not(:has(.calc-mon)) { column-gap: var(--seam); }
 .calc-side { display: grid; gap: var(--s5); min-width: 0; }
 .calc-side-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
 .calc-side-actions { flex: none; display: flex; gap: var(--s5); }
-/* no Pokémon yet: the sentence stands in its own panel, not on the open ground */
-.calc-side-empty { flex: 1; min-width: 0; margin: 0; padding: var(--s8) var(--pad); }
+/* no Pokémon yet: the sentence stands in its own panel (the site's empty form), not on the open ground */
+.calc-side-empty { flex: 1; min-width: 0; }
 .calc-mon { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s3); text-align: left; color: inherit; }
 .calc-mon img { width: var(--h-row2); height: var(--h-row2); flex: none; object-fit: contain; }
 .calc-mon-copy { min-width: 0; display: grid; gap: var(--s1); }
@@ -107,9 +108,7 @@
 .calc-tier.inv { content-visibility: visible; }
 
 /* ---------- dex: the head panel, bars, matchups ---------- */
-.calc-dex-empty { display: grid; gap: var(--s2); justify-items: start; padding: var(--s5) var(--pad); }
-.calc-dex-empty strong { font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
-.calc-dex-empty span { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }
+.calc-dex-empty { justify-items: start; }
 .calc-dex-empty .btn { margin-top: var(--s3); }
 .calc-dex-head { grid-template-columns: calc(var(--s21) + var(--s13)) minmax(0, 1fr); }
 /* a figure cell: the Pokémon on a 20 floor band, 136 tall */
@@ -165,5 +164,7 @@
   .calc-table th:nth-child(3), .calc-table td:nth-child(3) { display: none; }
 }
 
-/* the damage page reads as three parts: who faces whom, the battle's conditions, each side's settings */
-.calc-sec > .sh, .calc-swap > .sh { margin-top: var(--s5); }
+/* the damage page reads as three parts: who faces whom, the battle's conditions, each side's settings. Sections stand 52 apart
+   (the stack's 20 and 32 more), a title 12 over its stack (.sh) */
+.calc-sec > .sh { margin-top: var(--s8); }
+@media (max-width: 859px) { .calc-side-switch { margin-bottom: var(--s5); } }

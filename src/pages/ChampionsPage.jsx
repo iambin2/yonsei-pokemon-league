@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { normTeam as normalizeLegacyParty } from "../services/legacyPartyImages.js";
 import { Empty, ErrorNote, Loader } from "../components/index.js";
-import { Counter, Mon, SectionHead } from "../components/common/Board.jsx";
+import { Mon, SectionHead } from "../components/common/Board.jsx";
 import Seg from "../components/common/Seg.jsx";
 import Button from "../components/common/Button.jsx";
 import ChampionSheet from "../components/common/ChampionSheet.jsx";
@@ -73,7 +73,6 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
   // 몇 번째 우승인지: 오래된 것부터 세어 같은 이름이 다시 나오면 2번째, 3번째
   const nth = new Map(); const seen = new Map();
   champs.forEach(c => { const k = (seen.get(c.name) || 0) + 1; seen.set(c.name, k); nth.set(c, k); });
-  const most = [...seen.entries()].sort((a, b) => b[1] - a[1])[0];
   const title = c => [seasonLabel(c) + " 우승", nth.get(c) > 1 ? `${nth.get(c)}번째 우승` : ""].filter(Boolean).join(", ");
 
   const reigning = champs.length ? champs[champs.length - 1] : null;
@@ -103,12 +102,6 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
         {partyOf(reigning).map((m, i) => <span className="stand hof-crown-mon" key={i}><Mon src={m.img} /><b className="floor hof-band t15">{m.name}</b></span>)}
       </div>
     </section>}
-
-    {champs.length > 1 && <div className="stack hof-facts">
-      <Counter label="세대" value={champs.length} unit="대" />
-      <Counter label="챔피언" value={seen.size} unit="명" />
-      {most && <Counter label={most[1] > 1 ? `최다 우승, ${most[0]}` : "최다 우승"} value={most[1]} unit="회" />}
-    </div>}
 
     {admin && <div className="stack hof-actions"><Button variant="second" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button></div>}
 

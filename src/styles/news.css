@@ -11,8 +11,6 @@
 /* 고정 stands first in a notice's grey line, as on the lead panel and the notice itself: 고정, 10.28 수 */
 .nw-pin { font-weight: 600; color: var(--lit); }
 .nw-pager { margin-top: var(--s5); }
-.nw-none { display: flex; align-items: center; gap: var(--s5); margin-top: var(--s5); padding: var(--s5) var(--pad); }
-.nw-none p { margin-top: var(--s1); }
 .nw-recent { margin-top: var(--s8); }
 .nw-recent + .nw-list { margin-top: var(--s3); }
 

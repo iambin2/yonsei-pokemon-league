@@ -30,22 +30,11 @@ export function tone(els) {
 }
 /* light: a board switches on (DESIGN.md "Motion", 2026-11-03). Panels, titles and section heads come on top to bottom 38 apart, each
    rising the last 12 into its place as it lights; then the lit bars and words of the displays 62 apart; pictures last. What lies below
-   the first screen waits dark and lights the same way the first time it scrolls into view. A panel that holds a display keeps its
+   the first screen is already drawn and lit: nothing waits dark for the scroll (2026-11-18, Made by people). A panel that holds a display keeps its
    unlit bars, so only its lit bars and words come on. */
 const RISE = [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }];
-let watcher = null;
 function rise(el, delay) {
-  el.classList.remove("rv");
   el.animate(RISE, { duration: DUR.light, delay, easing: EASE_OUT, fill: "backwards" });
-}
-/* a fifth of a screen before it arrives, so a reader does not meet panels still dark; top to bottom whatever order the observer reports */
-function revealLater(els) {
-  if (typeof IntersectionObserver !== "function") return;
-  watcher ||= new IntersectionObserver(entries => {
-    entries.filter(e => e.isIntersecting).sort((p, q) => p.boundingClientRect.top - q.boundingClientRect.top)
-      .forEach((e, i) => { watcher.unobserve(e.target); rise(e.target, Math.min(i * STAGGER.row, DUR.leave)); });
-  }, { rootMargin: "0px 0px 20% 0px" });
-  els.forEach(el => { el.classList.add("rv"); watcher.observe(el); });
 }
 export function light(root, total = DUR.light) {
   if (!root || reduced() || typeof root.animate !== "function") return;
@@ -56,9 +45,9 @@ export function light(root, total = DUR.light) {
   const last = total - DUR.tone;
   /* [data-rise]: a grey line under a stack (a tie, a note) lights with the stack instead of standing lit before it.
      .btn--main: the main action is an inverted panel and comes on in its place in the order, not lit before the board.
-     .champion, .podium-col, .lead, .ho-col: panels that hold a display but rise as a whole, like a counter; a line score's column rises as
+     .champion, .lead, .ho-col: panels that hold a display but rise as a whole, like a counter; a line score's column rises as
      one, its three cells together */
-  const panels = [...root.querySelectorAll(".pn:not(:has(.seg)), .inv:not(:has(.seg)), .counter, .champion, .podium-col, .lead, .ho-col, h1, .sh, .hof-crown, .btn--main, [data-rise]")]
+  const panels = [...root.querySelectorAll(".pn:not(:has(.seg)), .inv:not(:has(.seg)), .counter, .champion, .lead, .ho-col, h1, .sh, .hof-crown, .btn--main, [data-rise]")]
     .filter(el => !el.parentElement.closest(".pn, .inv, .counter, .ho-col, .hof-crown, .sheet, .stack.chips, .chips"));
   // a counter's unit (일, 명) is a word of its display: it comes on with the lit bars, not before them
   const displays = [...root.querySelectorAll(".seg .on, :is(.pn, .inv):has(.seg) > :not(.seg, :has(.seg)), .counter-board > :not(.seg), [data-light]")];
@@ -72,7 +61,6 @@ export function light(root, total = DUR.light) {
   // a page returned to mid-scroll: what stands above the view is not seen and stays lit, so the stagger starts at the first line in view
   const above = el => box.get(el).bottom <= 0;
   panels.filter(el => seen(el) && !above(el)).forEach((el, i) => rise(el, Math.min(i * STAGGER.row, DUR.leave)));
-  revealLater(panels.filter(el => !seen(el)));
   const on = (els, start, step) => els.filter(seen).forEach((el, i) => el.animate([{ opacity: 0 }, { opacity: 1 }],
     { duration: DUR.tone, delay: Math.min(start + i * step, last), easing: EASE_OUT, fill: "backwards" }));
   on(displays, Math.min(DUR.tone, last), STAGGER.display);

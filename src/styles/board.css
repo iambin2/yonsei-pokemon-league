@@ -30,13 +30,23 @@
 .row-lamp { flex: none; display: flex; justify-content: center; align-self: stretch; align-items: center; width: var(--s8); }
 .row-lamp-word { flex: none; font-weight: 600; white-space: nowrap; }
 
-/* ---------- a ranking's top three: columns as tall as a counter and a row, the points on the columns' common baseline ---------- */
-.podium { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
-.podium-col { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1); min-width: 0; height: calc(var(--h-counter) + var(--h-row)); padding: var(--pad); text-align: left; }
-/* a live run on the 연승 도전's board: the amber lamp beside its rank, as a counter's label holds its lamp */
-.podium-rank { display: flex; align-items: center; gap: var(--s2); }
-.podium-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.podium-pts { display: flex; align-items: flex-end; gap: var(--s1); margin-top: auto; }
+/* ---------- a ranking as the line score (draft B): the sole leader an inverted row of 84, the name at 20 and the points at 32; the rest rows
+   of 52 at 20; each name over its bar on a track, the bars the points over the first's ---------- */
+.ls-row { display: grid; grid-template-columns: var(--s21) minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3); width: 100%; height: var(--h-row); padding-right: var(--pad); text-align: left; }
+.ls-first { height: var(--h-counter); }
+.ls-place { display: flex; align-items: center; gap: var(--s2); padding-left: var(--pad); color: var(--mute); white-space: nowrap; }
+.ls-first .ls-place { color: var(--ground); }
+.ls-main { display: grid; gap: var(--s1); min-width: 0; }
+.ls-main > :not(.ls-track) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-main > b { font-weight: 700; }
+.ls-live { font-weight: 600; }
+.ls-track { display: block; height: var(--s2); background: var(--panel-2); }
+.ls-track > i { display: block; height: 100%; background: var(--lit); }
+.inv .ls-track { background: var(--dim); }
+.inv .ls-track > i { background: var(--ground); }
+/* a figure and its unit join with none (Typesetting) */
+.ls-pts { display: flex; align-items: baseline; white-space: nowrap; }
+.ls-pts > b { font-weight: 700; }
 
 /* ---------- a lead panel: the date lit, the title at 20 in two lines ---------- */
 .lead { display: grid; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
@@ -44,6 +54,11 @@
 .lead-date { display: flex; align-items: flex-end; gap: var(--s1); }
 .lead-date > .seg + span { margin-right: var(--s2); }
 .lead-lamp { display: flex; align-items: center; gap: var(--s2); }
+/* a notice's lead: the lamp with 새 글, the title at 20, its date as the grey line 4 under it (Space) */
+.nt-lead { gap: var(--s1); }
+.nt-lead > .lead-lamp { margin-bottom: var(--s2); }
+.lead-title + .reg { margin-top: calc(var(--s1) - var(--s3)); }
+.nt-lead > .lead-title + .reg { margin-top: 0; }
 .lead-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 700; }
 
 /* ---------- the live strip: 44, the amber lamp and the event, 대진표 → at the right; 20 above the page's first line ---------- */
@@ -67,15 +82,20 @@
 .floor.inv { background: var(--lit); }
 .mon { position: absolute; bottom: var(--floor); aspect-ratio: 1; object-fit: contain; object-position: 50% 100%; }
 
-/* ---------- the current champion: one panel, the floor band holds 파티 보기 ---------- */
-.champion { --floor: var(--s13); display: block; width: 100%; height: 216px; text-align: left; }
-/* read like a counter: its label at the top, the fact (the name and its line) standing on the floor beside the Pokémon */
-.champion-who { position: absolute; top: var(--pad); bottom: calc(var(--floor) + var(--s1)); left: var(--pad); display: flex; flex-direction: column; align-items: flex-start; }
-.champion-who > :nth-child(2) { margin-top: auto; }
-.champion-gen + b { margin-top: var(--s2); }
+/* ---------- the current champion (draft B): the reign's half of the big screen. 현 챔피언, the generation, the name at 32 and the season
+   at the left, the Pokémon standing at the right, the six as one row of six cells across the panel, → 파티 보기 at its foot ---------- */
+.champion { display: flex; flex-direction: column; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
+.champion-head { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: calc(var(--s21) * 2); }
+.champion-who { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.champion-gen { margin-top: var(--s3); }
+.champion-who > b { max-width: 100%; margin-top: var(--s1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .champion-who > .reg { margin-top: var(--s1); }
-.champion-more { position: absolute; left: var(--pad); bottom: 0; height: var(--floor); display: flex; align-items: center; gap: var(--s1); }
-.champion .mon { right: var(--pad); height: calc(100% - var(--floor)); }
+.champion-stand { --floor: 0; }
+.champion-stand .mon { right: 0; height: 100%; }
+.champion-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.champion-six > .stand { aspect-ratio: 1; }
+.champion-six .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s1)); margin-inline: auto; }
+.champion-more { display: flex; align-items: center; gap: var(--s1); min-height: var(--l12); font-weight: 600; }
 
 /* ---------- the main action: an inverted 52 panel, its mark (→, ✓, +) before the word, the two together in the centre ---------- */
 .btn.btn--main {
@@ -281,6 +301,8 @@
 /* ---------- the page for a missing address or a failed app: the board lights 404, then 홈으로 and two shortcuts ---------- */
 .status-label { display: flex; align-items: center; gap: var(--s2); }
 .status-board { display: flex; align-items: flex-end; height: 120px; margin-top: var(--s3); }
+/* on desktop 404 is the hero at 240, as the home's countdown (DESIGN.md "Hierarchy" tier 0): the same cells drawn twice as tall */
+@media (min-width: 860px) { .status-board { height: 240px; } .status-board > .seg { width: auto; height: 240px; } }
 /* 404 leads with its display, so its title is the display's caption: 20 on a phone, 32 on desktop, as the home's event name;
    an error page has no display and its title is the page's (32) */
 .status-title { margin-top: var(--s5); }
@@ -309,8 +331,7 @@
   .row:not(.inv):hover .row-main > b { color: var(--lit); }
 }
 /* below the first screen a panel waits dark until it scrolls into view (motion.js light) */
-.rv { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .rv { opacity: 1; } .mon { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .mon { transition: none; } }
 
 /* a Pokémon that just joined a team or a cell rises into it */
 .tb-mon .mon, .tb-pool-six .mon { animation: y-rise var(--move-light) backwards; }

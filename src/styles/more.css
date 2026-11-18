@@ -15,4 +15,8 @@
   /* the settings stand beside all three groups as one column: once the alert kinds are on it is taller than 기록, and as a cell of
      its row it pushed 함께하기 down by the difference */
   .more-side { grid-column: 2; grid-row: 2 / span 3; }
+  /* the two columns end on one line (Composing a screen 26): the side runs the groups' height and the operators' login stands at its
+     foot, level with 디스코드 참여 */
+  .more-side { align-self: stretch; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .more-side > .more-group:last-child { align-self: end; }
 }

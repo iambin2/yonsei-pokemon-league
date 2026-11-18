@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { championMedal, generationOfTitle, normalizeTitleLook, ownMedal, partnerMedal, regionMedal, regionOfTitle, titleCounts, titleLook, typeMedal, typeOfTitle } from "../src/services/titleLooks.js";
+import { championMedal, generationOfTitle, normalizeTitleLook, ownMedal, partnerMedal, regionMedal, regionOfTitle, titleLook, typeMedal, typeOfTitle } from "../src/services/titleLooks.js";
 
 test("a title's look keeps only what can be drawn", () => {
   assert.equal(normalizeTitleLook(null), null);
@@ -43,8 +43,4 @@ test("a title's name gives its type, region or generation", () => {
   assert.equal(generationOfTitle("초대 챔피언"), 1);
   assert.equal(generationOfTitle("6대 챔피언"), 6);
   assert.equal(generationOfTitle("챔피언"), null);
-});
-
-test("the page's three counts", () => {
-  assert.deepEqual(titleCounts([{ items: [{ holders: ["a"] }, { holders: [] }] }, { items: [{}] }]), { total: 3, owned: 1, empty: 2 });
 });

@@ -24,7 +24,6 @@
 .hof-crown-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .hof-band { display: grid; place-items: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* the hall's three facts */
-.hof-facts { margin-top: var(--seam); grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .hof-actions { margin-top: var(--s5); }
 /* the wall: a plate per past reign, newest first */
 .hof-past { margin-top: var(--s13); }
@@ -67,31 +66,49 @@
 @media (min-width: 640px) { .hof-plaques { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 860px) {
   .hof-plaques { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); padding: var(--s8) var(--pad); }
-  .hof-crown-six { align-self: center; }
-  /* read like the home's champion panel: the tag at the top, the generation, name and season standing on the floor */
-  .hof-crown-who { grid-template-rows: auto 1fr auto auto auto; align-content: stretch; }
-  .hof-crown .hof-gen { align-self: end; }
+  /* draft 3B (2026-11-19): the six stand in one row, so the crown is as tall as its words and no band without ink is left beside them */
+  .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: end; padding: var(--s8) var(--pad); }
+  .hof-crown-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .hof-crown-mon { aspect-ratio: auto; height: calc(var(--s21) * 2); }
   .hof-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .hof-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 @media (min-width: 640px) and (max-width: 859px) { .hof-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* ---------- about ---------- */
-.ab-lede { margin-top: var(--s3); color: var(--dim); }
-/* the league in numbers: the first event across the width, 대회 and 트레이너 under it; the month stands 8 from 년 */
-.ab-nums { margin-top: var(--s5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ab-nums > :first-child { grid-column: 1 / -1; }
-.ab-nums + .ab-lede { margin-top: var(--s5); }
-.ab-month { margin-left: var(--s1); }
-@media (min-width: 860px) { .ab-nums { grid-template-columns: repeat(3, minmax(0, 1fr)); } .ab-nums > :first-child { grid-column: auto; } }
+/* ---------- about (draft 1C, 2026-11-19) ---------- */
+/* the big screen: the league's name and facts with ↗ 디스코드 참여 in the 709, the next two steps as doors in the 439 */
+.ab-screen { margin-top: var(--s5); }
+.ab-lead { display: grid; gap: var(--s3); align-content: start; padding: var(--pad); }
+.ab-name { margin-top: calc(var(--s2) * -1); font-weight: 700; }
+.ab-spec { margin: 0; }
+.ab-spec > div { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
+.ab-spec dd { margin: 0; font-weight: 700; text-align: right; }
+.ab-lead > .btn--main { margin-top: var(--s2); }
+.ab-steps { margin: 0; padding: 0; list-style: none; }
+.ab-step { display: grid; gap: var(--s1); align-content: start; padding: var(--pad); }
+.ab-n { color: var(--mute); font-weight: 700; }
+.ab-step .read, .ab-time .read, .ab-kind .read { margin: 0; color: var(--dim); }
+.ab-go { justify-self: start; display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-bottom: calc((var(--h-control) - var(--l12)) / -2); font-weight: 700; color: var(--lit); }
 .ab-sec { margin-top: var(--s13); }
-.ab-list { margin: 0; padding: 0; list-style: none; }
-.ab-step { display: flex; align-items: flex-start; padding: var(--pad) var(--pad) var(--pad) 0; }
-.ab-n { width: var(--s13); flex: none; text-align: center; }
-.ab-step-body { display: grid; gap: var(--s1); min-width: 0; }
-.ab-go { justify-self: start; display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-block: calc(var(--s3) - (var(--h-control) - var(--l12)) / 2) calc((var(--h-control) - var(--l12)) / -2); font-weight: 700; color: var(--lit); }
-.ab-time { display: grid; grid-template-columns: calc(var(--s21) + var(--s3)) minmax(0, 1fr); gap: var(--s3); padding: var(--pad); }
-.ab-panel { display: grid; gap: var(--s1); padding: var(--pad); }
-.ab-panel .read { margin-top: var(--s1); color: var(--dim); }
-.ab-note { margin-bottom: var(--s3); }
+/* the season's flow: one inverted strip, each step a part of it, an arrow before every step but the first */
+.ab-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.ab-flow > li { display: flex; align-items: center; justify-content: center; gap: var(--s2); height: var(--h-row); font-weight: 700; white-space: nowrap; }
+.ab-flow > li + li::before { content: "→"; font-weight: 400; }
+.ab-flow > li:nth-child(3)::before { content: none; }
+/* the history: four stops, the current one inverted */
+.ab-times { margin: 0; padding: 0; list-style: none; }
+.ab-time { display: grid; gap: var(--s1); align-content: start; padding: var(--pad); }
+.ab-when { white-space: nowrap; font-weight: 700; }
+.ab-time.inv .read { color: var(--ground); }
+/* a competition or a league: its name and its tag on one line, the reading under it */
+.ab-kind { display: grid; gap: var(--s1); padding: var(--pad); }
+.ab-kind-head { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.ab-tag { --type: var(--mute); }
+.ab-tag.lit { --type: var(--lit); }
+@media (min-width: 860px) {
+  .ab-screen { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); }
+  .ab-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ab-flow > li:nth-child(3)::before { content: "→"; }
+  .ab-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ab-two { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); }
+}

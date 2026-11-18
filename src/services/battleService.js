@@ -201,8 +201,10 @@ export async function listOpenRooms() {
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data, error } = await supa.from("battles").select("id, regulation, format_id, p1_name, room, created_at")
     .eq("status", "waiting").in("room", ["open", "code"]).gte("created_at", since).order("created_at", { ascending: false }).limit(200);
-  if (error && unreadable(error)) roomsSupported = false;
-  return error ? [] : data || [];
+  // a database without the rooms' columns has no rooms; any other failed read throws, so the list says it failed rather than empty
+  if (error && unreadable(error)) { roomsSupported = false; return []; }
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 // 바뀌었는지만 묻는 가벼운 읽기(응답 약 12바이트). 화면은 이 값이 오를 때만 전체를 다시 읽는다.
 // ponytail: 묻는 방식이다. 동시에 보는 사람이 많아지면 Supabase Realtime으로 바꾼다.

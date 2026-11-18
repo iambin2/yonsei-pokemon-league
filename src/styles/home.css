@@ -1,113 +1,79 @@
 /* =============================================================================
-   YPL Scoreboard: home (HomePage.jsx).
-   Phone rhythm under the bar: 32, label 16, 12, display 120, 20, title 56, 20, action 52, 52, champion 216, seam, counters 84;
-   then sections 52 apart. Desktop: 709 and 439 in 1200 with 52 between; both columns share their heading line and their last line.
+   YPL Scoreboard: home (HomePage.jsx), the stadium board (DESIGN.md "Layout and pages", draft B).
+   The big screen: the next event and the reigning champion as one device joined by the seam; under it
+   the line score and the notices; then the wall of past champions. Phone: one column, sections 52 apart. Desktop: 709 and 439 in
+   1200; the screen's champion half and the notices stand on one line, and both columns end on one line.
    ========================================================================== */
 
+/* ---------- the next event's half ---------- */
+.ho-next { display: flex; flex-direction: column; min-width: 0; padding: var(--pad); }
 .ho-label { display: flex; justify-content: space-between; align-items: center; gap: var(--s5); }
 .ho-lamp { display: flex; align-items: center; gap: var(--s2); }
-.ho-board { display: flex; align-items: flex-end; gap: var(--s3); height: 120px; margin-top: var(--s3); }
+/* the event's name at 32 with its kind dim under it, 4 apart (Space) */
+.ho-name { display: grid; gap: var(--s1); margin-top: var(--s3); }
+.ho-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.ho-display { display: grid; gap: var(--s5); margin-top: var(--s5); }
+.ho-board { display: flex; align-items: flex-end; gap: var(--s3); }
 /* the unit stands on the display's baseline */
 .ho-unit { font-size: var(--t20); line-height: var(--l15); font-weight: 700; }
-/* the event's name holds two lines and ends in an ellipsis; the place stays when it is shorter, so nothing below moves */
-.ho-title {
-  min-height: calc(var(--l20) * 2); margin-top: var(--s5);
-  font-size: var(--t20); line-height: var(--l20); letter-spacing: var(--ls20);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-}
-.ho-go { margin-top: var(--s5); }
-.ho-about { display: none; }
-/* the party submission counter: 20 under the name, 20 over the main action (2026-11-03) */
+/* 일시, 신청 마감, 형식: spec rows on the next step, the key dim at the start, the fact lit at the end */
+.ho-spec { margin: 0; }
+.ho-spec-row { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
+.ho-spec-row > dt { flex: none; }
+.ho-spec-row > dd { margin: 0; min-width: 0; font-weight: 700; text-align: right; }
 .ho-due { margin-top: var(--s5); }
+.ho-due > .counter { background: var(--panel-2); }
+/* the main action stands at the half's foot */
+.ho-go { margin-top: auto; padding-top: var(--s5); }
 
 /* 내 다음 (a signed-in trainer linked to a record): three cells on the seam like the counters, 32 over the label row; a cell with
    no fact keeps its label and its place, switched off */
 .ho-me { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--s8); }
+.ho-me > .cell { background: var(--panel-2); }
 .ho-me > button.cell { text-align: left; transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .ho-me > button.cell:hover { background: var(--panel-2); } }
+@media (hover: hover) { .ho-me > button.cell:hover { background: var(--rule); } }
 /* 지난 대회 (no event ahead): the lead panel and one strip a league's winner, the place in a cell of its own (the records' placings) */
 .ho-last { margin-top: var(--s3); }
+.ho-last > .pn { background: var(--panel-2); }
 .ho-win { display: flex; align-items: stretch; min-height: var(--h-row2); }
 .ho-win-place { flex: none; display: grid; place-items: center; width: var(--s21); font-weight: 700; }
+.ho-win-place.pn2 { background: var(--rule); }
 .ho-win > .row-main { align-content: center; padding-left: var(--pad); }
 
-.ho-reign { display: grid; gap: var(--seam); margin-top: var(--s13); }
-.ho-six { display: none; }
-.ho-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-.ho-sec { margin-top: var(--s13); min-width: 0; }
-
-/* past champions as a line score: a column a generation, the number lit on the next tone, the Pokémon on its floor, the name and
-   season; five share a phone's width, more keep 64 and the run scrolls to the screen's edge */
-.ho-line { display: grid; grid-template-columns: repeat(var(--n), minmax(64px, 1fr)); gap: var(--seam); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
-.ho-line::-webkit-scrollbar { display: none; }
-.ho-col { display: grid; grid-template-rows: var(--h-row) calc(var(--h-row) + var(--s8)) var(--h-row); gap: var(--seam); min-width: 0; text-align: center; }
-.ho-col-gen { display: grid; place-items: center; }
-.ho-col-mon { --floor: var(--s1); }
-.ho-col-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s1)); margin-inline: auto; }
-.ho-col-who { display: grid; align-content: center; gap: 0; min-width: 0; padding: 0 var(--s1); }
-.ho-col-who > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ho-col-who > b { font-weight: 700; }
-@media (hover: hover) { .ho-col:hover > .pn { background: var(--panel-2); } .ho-col:hover > .pn2 { background: var(--rule); } }
-
-@media (min-width: 860px) {
-  .ho {
-    display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: stretch;
-    grid-template-areas: "next reign" "live reign" "rank news" "hall hall"; padding-top: var(--s5);
-  }
-  .ho-next { grid-area: next; }
-  .ho-reign { grid-area: reign; margin-top: 0; }
-  .ho-live { grid-area: live; }
-  .ho-rank { grid-area: rank; }
-  .ho-news { grid-area: news; }
-  .ho-hall { grid-area: hall; }
-  .ho-label { justify-content: flex-start; }
-  .ho-board { height: 240px; margin-top: var(--s5); gap: var(--s5); }
-  .ho-days { width: auto; height: 240px; }
-  /* on the day the clock is 84: the board is as tall as the clock */
-  .ho-board.today { height: auto; }
-  .ho-unit { font-size: var(--t32); line-height: 1; }
-  .ho-title br { display: none; }
-  /* the display takes the column's golden major; the event's name stands in the minor beside it, its last line on the digits' floor */
-  .ho-next { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s13); align-content: start; }
-  .ho-next > :not(.ho-board, .ho-title) { grid-column: 1 / -1; }
-  .ho-title { align-self: end; min-height: 0; margin-top: 0; font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); -webkit-line-clamp: 3; }
-  .ho-go { display: flex; align-items: center; gap: var(--s8); }
-  .ho-go .btn--main { width: 38.2%; }
-  .ho-due { width: 38.2%; }
-  .ho-about { display: inline-flex; }
-  .ho-reign .champion { --floor: var(--h-row2); height: calc(216px + var(--s13)); }
-  /* the two columns end on one line in every state: whichever is shorter lets its last panel take the rest. The champion panel
-     grows when the hero is taller (a deadline counter); the main action stands on the column's floor when the hero is shorter (event
-     day). Under them, the podium's columns or the lead notice grow, so the ranking and the notices end together. */
-  /* with no live match the live row would take the champion's extra height instead of the hero, so it leaves the grid */
-  .ho:not(:has(> .ho-live)) { grid-template-areas: "next reign" "rank news" "hall hall"; }
-  .ho-reign { display: flex; flex-direction: column; }
-  .ho-reign .champion { flex: 1 0 auto; }
-  /* the panel may grow (event day, a deadline counter); the champion keeps its size on its floor and never grows over 6대 and the
-     name (2026-11-10: on event day at 1440 the picture stood 452 in a 439 panel) */
-  .ho-reign .champion .mon { max-height: calc(216px + var(--s13) - var(--floor)); }
-  .ho-next { grid-template-rows: auto auto auto 1fr; }
-  .ho-next > .ho-due { grid-row: 3; }
-  .ho-next > .ho-go { grid-row: 4; align-self: end; padding-top: var(--s8); }
-  /* 내 다음 takes the first row, so the deadline and the action step down one */
-  .ho-next:has(> .ho-me) { grid-template-rows: auto auto auto auto 1fr; }
-  .ho-next:has(> .ho-me) > .ho-due { grid-row: 4; }
-  .ho-next:has(> .ho-me) > .ho-go { grid-row: 5; }
-  .ho-rank, .ho-news { display: flex; flex-direction: column; }
-  .ho-rank > .podium { flex: 1 0 auto; }
-  .ho-rank .podium-col { height: auto; min-height: calc(var(--h-counter) + var(--h-row)); }
-  .ho-news > .stack { flex: 1 0 auto; display: flex; flex-direction: column; }
-  .ho-news .lead { flex: 1 0 auto; align-content: start; }
-  .ho-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .ho-six > .pn { height: var(--h-row2); }
-  /* the six keep 8 of air over their heads, as the line score's pictures do, instead of touching the cell's top */
-  .ho-six .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
-  .ho-news .row-lamp { width: var(--s13); }
-  /* the line score shares the full 1200: the Pokémon cell grows to a counter's height */
-  .ho-col { grid-template-rows: var(--h-row) calc(var(--h-counter) + var(--s13)) var(--h-row); }
-}
-
-/* 지금 경기 (event day): a head, the two players as rows of 52, the round's progress */
+/* 지금 경기 (event day): under the main action, a head, the two players as rows of 52, the round's progress */
+.ho-live { margin-top: var(--s5); }
 .ho-live-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); margin: 0; }
 .ho-live-row { display: flex; align-items: center; min-height: var(--h-row); padding: 0 var(--pad); margin: 0; font-weight: 700; }
+@media (hover: hover) { .ho-live :is(button.pn2, button > .pn2):hover, .ho-live > button:hover > .pn2 { background: var(--rule); } }
+
+/* ---------- the sections ---------- */
+.ho-sec { margin-top: var(--s13); min-width: 0; }
+
+/* ---------- the wall: past champions side by side on one floor, a column each, the generation at 20, the name, the season ---------- */
+.ho-line { grid-template-columns: repeat(var(--n), minmax(var(--h-row2), 1fr)); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.ho-line::-webkit-scrollbar { display: none; }
+.ho-col { --floor: var(--s21); display: block; height: calc(var(--s21) * 2); min-width: 0; text-align: left; }
+.ho-col-who { display: grid; align-content: center; padding: 0 var(--s1); }
+.ho-col-who > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ho-col-who > b { font-weight: 700; }
+.ho-col .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
+
+@media (min-width: 860px) {
+  /* 709 and 439 with 52 between; the big screen spans both and gives its champion half the 439's width, so the champion and the
+     notices stand on one line (Composing a screen 9) */
+  .ho { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: stretch; padding-top: var(--s5); }
+  .ho > :is(.ho-screen, .ho-hall, .error-note) { grid-column: 1 / -1; }
+  .ho-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); align-items: stretch; }
+  /* the countdown at 120 with the spec rows beside it, the rows' foot on the digits' floor */
+  .ho-display { grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: var(--s8); }
+  .ho-col { height: calc(var(--s21) * 3); }
+  .ho-col-who { padding: 0 var(--pad); }
+  /* the two columns end on one line: the ranking and the notices stretch their last panels */
+  .ho-rank, .ho-news { display: flex; flex-direction: column; }
+  .ho-news > .stack { flex: 1 0 auto; display: flex; flex-direction: column; }
+  /* what is left is shared by every notice, so no panel keeps a band without ink (Composing a screen 26) */
+  .ho-news > .stack > * { flex: 1 0 auto; }
+  .ho-news .row { height: auto; min-height: var(--h-row2); }
+  .ho-news .nt-lead { align-content: center; }
+  .ho-news .row-lamp { width: var(--s13); }
+}

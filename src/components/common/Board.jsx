@@ -60,14 +60,15 @@ export function SectionHead({ id, title, link, onLink }) {
 }
 
 /* A counter: a 84 panel, its label 12 on top, a 40 display under it. value null is the board switched off.
-   lamp lights the label's lamp ("sig" for amber), after is the unit in type on the display's baseline (일, / 32). */
+   lamp lights the label's lamp ("sig" for amber); the unit stands in type on the display's baseline (Seven-segment displays: its unit is
+   type), and after replaces it where the words differ (/ 32). */
 export function Counter({ label, value, unit = "", cells = 2, onClick, lamp, after, h = 40 }) {
   const { as: Box, props } = door(onClick);
   const lit = value != null;
   return (
     <Box className="pn counter" {...props} aria-label={lit ? `${label} ${value}${unit}` : label}>
       <span className="t12 dim counter-label">{lamp && <i className={"lamp" + (lamp === "sig" ? " sig" : "")} aria-hidden="true" />}{label}</span>
-      <span className="counter-board"><Seg value={lit ? value : ""} h={h} cells={cells} label={lit ? `${value}${unit}` : ""} />{after}</span>
+      <span className="counter-board"><Seg value={lit ? value : ""} h={h} cells={cells} label={lit ? `${value}${unit}` : ""} />{after ?? (unit && <span className="t15">{unit}</span>)}</span>
     </Box>
   );
 }
@@ -85,39 +86,6 @@ export function Row({ lead, title, line, value, lamp, sig = false, onClick, href
       {typeof lamp === "string" && <span className="row-lamp-word t12">{lamp}</span>}
       {lamp != null && <span className="row-lamp">{lamp && <i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />}</span>}
     </Box>
-  );
-}
-
-/* The top three of a ranking (DESIGN.md "Home, phone"): three columns like the counters, the rank, the name and the points lit
-   in segments with 점. A tie reads as equal columns, each rank named 공동; a sole leader's column inverts. Points past 999 stay in
-   type, since four cells do not fit a third of a phone. rows are ranked ({ rank, name, points, live }); onName opens the trainer.
-   unit is what the points count (연승 on the 연승 도전's board); live lights the amber lamp with 도전 중 beside the rank.
-   rows null is the board switched off: three dark columns at their size while the ranking is read. */
-export function Podium({ rows, onName, unit = "점" }) {
-  if (!rows) return (
-    <div className="stack podium" style={{ "--n": 3 }} aria-hidden="true">
-      {[0, 1, 2].map(i => <div key={i} className="pn podium-col"><span className="podium-pts"><Seg value="" h={40} cells={2} label="" /></span></div>)}
-    </div>
-  );
-  const top = rows.slice(0, 3);
-  const solo = rows.filter(r => r.rank === 1).length === 1;
-  const shared = rank => rows.filter(r => r.rank === rank).length > 1;
-  return (
-    <div className="stack podium" style={{ "--n": top.length }}>
-      {top.map((r, i) => {
-        const pts = r.points || 0;
-        const rank = `${shared(r.rank) ? "공동 " : ""}${r.rank}위`;
-        // r.open: a column of its own door (a live run opens its game to watch)
-        const { as: Box, props } = door(r.open || (onName ? e => onName(r.name, e.currentTarget) : null));
-        return <Box key={`${r.name}#${i}`} className={(solo && i === 0 ? "inv" : "pn") + " podium-col"} {...props} aria-label={`${rank} ${r.name}, ${pts}${unit}${r.live ? ", 도전 중" : ""}`}>
-          <span className="t12 dim podium-rank">{r.live && <i className="lamp sig" aria-hidden="true" />}{rank}{r.live && " 도전 중"}</span>
-          <b className="t15 podium-name">{r.name}</b>
-          <span className="podium-pts">{pts < 1000
-            ? <Seg value={String(pts)} h={40} cells={Math.max(2, String(pts).length)} label={`${pts}${unit}`} />
-            : <b className="num t20">{koNumber(pts)}</b>}<span className="t12 dim">{unit}</span></span>
-        </Box>;
-      })}
-    </div>
   );
 }
 
@@ -159,25 +127,28 @@ export function Mon({ src, className = "", ...rest }) {
   return <img className={"mon" + (className ? " " + className : "")} src={src} alt="" decoding="async" {...rest} ref={stand} onLoad={e => loaded(e.currentTarget)} />;
 }
 
-/* The current champion: one panel, the name, generation and season top left, 파티 보기 in the floor band, the Pokémon on the floor
-   at the right. champion null is the panel switched off. */
+/* The current champion, the big screen's second half (DESIGN.md "Layout and pages", draft B): one panel, 현 챔피언, the generation lit at
+   40 with 대, the name at 32, the season dim, the champion's Pokémon standing at the right, then the six as one row of six cells across the
+   panel, then → 파티 보기. champion null is the panel switched off at its size (the six as dark cells). */
 export function ChampionPanel({ champion, onClick }) {
+  const six = champion ? champion.party : Array(6).fill(null);
   return (
-    <button type="button" className="pn stand champion" onClick={champion ? onClick : undefined}
+    <button type="button" className="pn champion" onClick={champion ? onClick : undefined}
       aria-label={champion ? `현 챔피언 ${champion.name}, ${champion.label}, ${champion.line}, 파티 보기` : "현 챔피언"}>
-      <i className="floor" aria-hidden="true" />
-      {champion && <>
-        {/* read like a counter: 현 챔피언 on top, and on the floor the generation lit as the line score lights it, the name, the season */}
+      <span className="champion-head">
         <span className="champion-who">
           <span className="t12 dim">현 챔피언</span>
-          {champion.generation > 0 && <span className="counter-board champion-gen"><Seg value={String(champion.generation)} h={40} cells={champion.generation >= 10 ? 2 : 1} label={champion.label} /><span className="t15">대</span></span>}
-          <b className="t20">{champion.name}</b>
-          <span className="t12 dim reg">{champion.generation > 0 ? champion.line : `${champion.label}, ${champion.line}`}</span>
+          {champion?.generation > 0 && <span className="counter-board champion-gen"><Seg value={String(champion.generation)} h={40} cells={champion.generation >= 10 ? 2 : 1} label={champion.label} /><span className="t15">대</span></span>}
+          {champion && <b className="t32">{champion.name}</b>}
+          {champion && <span className="t12 dim reg">{champion.generation > 0 ? champion.line : `${champion.label}, ${champion.line}`}</span>}
         </span>
-        <span className="champion-more t12"><Icon n="arrow" size={16} />파티 보기</span>
         {/* the first screen's largest picture: asked for before the rest */}
-        <Mon src={champion.party[0]?.img} fetchpriority="high" />
-      </>}
+        <span className="stand champion-stand"><i className="floor" aria-hidden="true" />{champion && <Mon src={champion.party[0]?.img} fetchpriority="high" />}</span>
+      </span>
+      {six.length > 0 && <span className="stack champion-six" aria-hidden="true">
+        {six.map((m, i) => <span className="pn2 stand" key={i}><i className="floor" aria-hidden="true" />{m && <Mon src={m.img} />}</span>)}
+      </span>}
+      <span className="champion-more t12">{champion && <><Icon n="arrow" size={16} />파티 보기</>}</span>
     </button>
   );
 }

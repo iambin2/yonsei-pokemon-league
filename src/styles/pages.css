@@ -36,8 +36,8 @@
 .pr-flabel { flex: none; min-width: 84px; font-size: var(--t12); color: var(--mute); }
 .pr-vtext { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 .pr-foot { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); font-size: var(--t12); color: var(--mute); }
-.pr-refresh { width: 44px; height: 44px; display: grid; place-items: center; color: var(--dim); transition: scale var(--move-press), transform var(--move-tone), color var(--move-tone); }
-@media (hover: hover) { .pr-refresh:hover { color: var(--lit); transform: rotate(90deg); }
+.pr-refresh { width: 44px; height: 44px; display: grid; place-items: center; color: var(--dim); transition: scale var(--move-press), color var(--move-tone); }
+@media (hover: hover) { .pr-refresh:hover { color: var(--lit); }
 }
 .pr-empty { padding: var(--s5) 0; font-size: var(--t15); color: var(--dim); }
 .pr-wrap.compact { margin: 0 0 var(--s5); }
@@ -58,7 +58,6 @@
 .fr-actions { display: flex; align-items: center; gap: var(--s2); }
 .fr-del { width: var(--h-control); height: var(--h-control); display: grid; place-items: center; color: var(--dim); transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) { .fr-del:hover { color: var(--lit); } }
-.fr-empty { padding: var(--s5) 0; }
 .sc-sprites { display: flex; gap: var(--s1); min-width: 0; }
 .sc-sprites img { width: 44px; height: 44px; flex: none; object-fit: contain; }
 .sc-sprites.big { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--s2); }
@@ -85,13 +84,14 @@
 .sc-facts dt { font-size: var(--t12); color: var(--dim); }
 .sc-facts dd { margin: 0; font-size: var(--t15); font-weight: 600; }
 .sc-facts dd small { margin-left: var(--s2); font-size: var(--t12); font-weight: 400; color: var(--mute); }
-.sc-stats { display: flex; flex-direction: column; padding: var(--s1) var(--s3); background: var(--panel-2); }
-.sc-stat { display: grid; grid-template-columns: 52px 44px minmax(0, 1fr) 44px; align-items: center; gap: var(--s2); min-height: 32px; font-size: var(--t15); }
+/* the points' label over the table, 8 above it as a label over its field; the rows share one grid so their columns line up */
+.sc-stat-block { display: grid; gap: var(--s2); }
+.sc-stats { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-auto-rows: minmax(32px, auto); align-items: center; column-gap: var(--s2); padding: var(--s1) var(--s3); background: var(--panel-2); font-size: var(--t15); }
+.sc-stat { display: contents; }
 .sc-stat b { font-weight: 600; white-space: nowrap; }
-.sc-stat > span.tnum { color: var(--dim); }
+.sc-base { white-space: nowrap; color: var(--dim); }
+.sc-base small { font-size: var(--t12); }
 .sc-stat strong { font-weight: 700; text-align: right; }
-.sc-stat-h { min-height: 32px; font-size: var(--t12); color: var(--mute); }
-.sc-stat-h > span:last-child { text-align: right; }
 .sc-sp { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 .sc-sp i { position: relative; flex: 1; height: 4px; background: var(--panel-2); overflow: hidden; }
 .sc-sp i::before { content: ""; position: absolute; inset: 0; background: var(--lit); transform-origin: left; transform: scaleX(var(--sp)); }
@@ -116,3 +116,25 @@
 .sc-choose-mon img { width: 52px; height: 52px; object-fit: contain; }
 .sc-choose-mon span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-choose-mon.on { background: var(--lit); color: var(--ground); }
+
+/* an empty search, one form everywhere (DESIGN.md "Errors and empty"): a dark 0 display and two sentences in the empty panel,
+   the display standing beside them; dark is the cells unlit, as a total leaves its unused cells */
+.ypl-empty.search-none { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s5); align-items: center; margin-top: var(--s5); }
+.search-none > :is(b, p) { grid-column: 2; }
+.search-none > .seg { grid-column: 1; grid-row: 1 / span 2; }
+.search-none > .seg .on { opacity: var(--off); }
+
+/* ---------- privacy (PrivacyPage.jsx) ---------- */
+/* reading stands in the 709 as a notice's does, never across the 1200 (DESIGN.md "Typesetting", Measure); the 439 beside it holds the
+   articles, held in view (draft 2A, 2026-11-19). On a phone the articles come after the reading */
+.pv-toc { margin-top: var(--s13); }
+.pv-toc-list { margin: 0; padding: 0; list-style: none; }
+.pv-toc-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: var(--h-control); padding: 0 var(--pad); text-align: left; }
+.pv-toc-row > .num { flex: none; width: var(--s13); white-space: nowrap; }
+.pv-toc-row > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.pv .nw-body h3 { scroll-margin-top: calc(var(--nav-height) + var(--s5)); }
+@media (min-width: 860px) {
+  .pv { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: start; }
+  .pv > :not(.pv-toc) { grid-column: 1; }
+  .pv-toc { grid-column: 2; grid-row: 1 / span 3; position: sticky; top: calc(var(--nav-height) + var(--s8)); margin-top: 0; }
+}

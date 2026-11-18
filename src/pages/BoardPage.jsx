@@ -74,9 +74,9 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
         <Field label="닉네임" error={tried&&!nick.trim()&&"닉네임을 입력해 주세요."}><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20}/></Field>
         <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
       </div>}
-      <Field label="제목" error={tried&&!title.trim()&&"제목을 입력해 주세요."}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="제목을 입력해 주세요." maxLength={60}/></Field>
-      <Field label="내용"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} placeholder="자유롭게 작성해 주세요."/></Field>
-      <div className="field"><label htmlFor="bd-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-link" value={link} onChange={e=>setLink(e.target.value)} placeholder="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요." aria-label="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요."/>
+      <Field label="제목" error={tried&&!title.trim()&&"제목을 입력해 주세요."}><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={60}/></Field>
+      <Field label="내용"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6}/></Field>
+      <div className="field"><label htmlFor="bd-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-link" value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/>
         {link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={link}/></div>}
       </div>
       <label className="bk-check"><input type="checkbox" checked={secret} onChange={e=>setSecret(e.target.checked)}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>
@@ -143,7 +143,7 @@ function EditSheet({ heading, initial, onClose, onSave }){
     <div className="swap" key="edit">
       {has("title")&&<Field label="제목" error={tried&&noTitle&&"제목을 입력해 주세요."}><input value={v.title} onChange={set("title")} maxLength={60}/></Field>}
       {has("body")&&<Field label="내용" error={tried&&noBody&&"내용이나 링크를 입력해 주세요."}><textarea value={v.body} onChange={set("body")} rows={has("title")?6:3}/></Field>}
-      {has("link")&&<div className="field"><label htmlFor="bd-edit-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-edit-link" value={v.link} onChange={set("link")} placeholder="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요." aria-label="이미지 주소 또는 유튜브 링크를 붙여넣어 주세요."/>
+      {has("link")&&<div className="field"><label htmlFor="bd-edit-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-edit-link" value={v.link} onChange={set("link")} placeholder="https://"/>
         {v.link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={v.link}/></div>}</div>}
       {has("secret")&&<label className="bk-check"><input type="checkbox" checked={v.secret} onChange={set("secret")}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>}
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={busy} onClick={submit} loading={busy}>저장</Button></div>
@@ -152,7 +152,7 @@ function EditSheet({ heading, initial, onClose, onSave }){
 }
 const Edited=({ at })=>at?<span>, 수정됨</span>:null;
 
-function CommentForm({ onSubmit, label="댓글" }){
+function CommentForm({ onSubmit, label="댓글", second=false }){
   const [nick,setNick]=useState(savedNick); const [body,setBody]=useState(""); const [pin,setPin]=useState(""); const [link,setLink]=useState("");
   // what is missing is said under its own row, both at once, never by a dialog (DESIGN.md "Sheets, dialogs, toasts")
   const [tried,setTried]=useState(false);
@@ -171,7 +171,7 @@ function CommentForm({ onSubmit, label="댓글" }){
     {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
     <div className="bd-cform-row">
       <label className="cell bd-cform-body"><span className="cell-label">{label}</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
-      <Button variant="main" icon="check" size="sm" onClick={submit}>등록</Button>
+      <Button variant={second?"second":"main"} icon="check" size="sm" onClick={submit}>등록</Button>
     </div>
     {tried&&noBody&&<FormError id="bd-cform-body-error">{label}이나 링크를 입력해 주세요.</FormError>}
     <label className="cell bd-cform-link"><span className="cell-label">이미지 또는 유튜브 링크 (선택)</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/></label>
@@ -179,7 +179,8 @@ function CommentForm({ onSubmit, label="댓글" }){
 }
 
 /* 댓글과 답글. 답글은 한 단계만: 답글에 단 답글도 같은 원댓글 아래에 선다. */
-function Comments({ comments=[], onAdd, onEdit, onDel }){
+/* second: the screen already has its main action (a sample or party post's 팀 빌더에서 열기), so 등록 stands as a second action */
+function Comments({ comments=[], onAdd, onEdit, onDel, second=false }){
   const [replying,setReplying]=useState(null);
   const one=(c,root)=>(<div className={"pn bd-cmt"+(c.id===root?"":" reply")} key={c.id}>
     <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/>
@@ -191,9 +192,9 @@ function Comments({ comments=[], onAdd, onEdit, onDel }){
     {threadComments(comments).map(c=>(<React.Fragment key={c.id}>
       {one(c,c.id)}
       {c.replies.map(r=>one(r,c.id))}
-      {replying===c.id&&<div className="bd-reply-form"><CommentForm label="답글" onSubmit={r=>{ setReplying(null); onAdd({...r,replyTo:c.id}); }}/></div>}
+      {replying===c.id&&<div className="bd-reply-form"><CommentForm label="답글" second={second} onSubmit={r=>{ setReplying(null); onAdd({...r,replyTo:c.id}); }}/></div>}
     </React.Fragment>))}
-    <CommentForm onSubmit={onAdd}/>
+    <CommentForm second={second} onSubmit={onAdd}/>
   </>);
 }
 
@@ -378,7 +379,7 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
         <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
       </div>}
       <Field label="제목"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={autoTitle} maxLength={60}/></Field>
-      <Field label="소개"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} placeholder={kind==="sample"?"채용 이유, 노리는 상대, 운용법을 적어 주세요.":"컨셉, 선출 방법, 주의할 상대를 적어 주세요."}/></Field>
+      <Field label="소개"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} /></Field>
       {failed&&<FormError>{failed}</FormError>}
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={busy||!display} onClick={submit} loading={busy}>올리기</Button></div>
     </div>
@@ -460,7 +461,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         </section>
         <section className="bd-cmts" aria-labelledby={"bd-cmts-"+p.id}>
           <SectionHead id={"bd-cmts-"+p.id} title={cc>0?`댓글 ${cc}`:"댓글"}/>
-          <Comments comments={p.comments} onAdd={c=>addComment(p,c)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>
+          <Comments second comments={p.comments} onAdd={c=>addComment(p,c)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>
         </section>
       </article>
       {editing&&<EditSheet {...editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}
@@ -476,12 +477,13 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
       {list.length===0&&(kw
         ? <Empty title="검색 결과가 없습니다." desc={`‘${kw}’에 맞는 ${FORMAT_LABEL[format]} ${label} 글을 찾지 못했습니다.`}/>
         : <Empty title={`아직 ${FORMAT_LABEL[format]} ${label} 글이 없습니다.`}/>)}
-      {shown.map(post=>{ const cc=(post.comments||[]).length;
-        const by=[post.nick,kind==="party"?REGULATIONS[post.team?.regulationId]?.shortName:post.names?.[0],cc>0&&`댓글 ${cc}`].filter(Boolean).join(", ");
+      {shown.map(post=>{ const cc=(post.comments||[]).length; const d=dotDay(post.createdAt);
+        const by=[post.nick,kind==="party"?REGULATIONS[post.team?.regulationId]?.shortName:post.names?.[0]].filter(Boolean).join(", ");
         // 기록의 파티 줄과 같은 꼴: 제목과 회색 줄, 그리고 그림(파티는 여섯, 샘플은 한 마리를 앞에)
-        return <button type="button" className={"pn bd-post"+(kind==="sample"?" one":"")} key={post.id} onClick={()=>openPost(post.id)} aria-label={`${post.title}, ${by}`}>
-          <span className="bd-post-top"><b className="t15" data-vt={"s-"+post.id}>{post.title}</b><span className="t12 dim">{by}</span></span>
+        return <button type="button" className={"pn bd-post"+(kind==="sample"?" one":"")} key={post.id} onClick={()=>openPost(post.id)} aria-label={[post.title,by,d&&`${d.day} ${d.weekday}`,cc>0&&`댓글 ${cc}`].filter(Boolean).join(", ")}>
+          <span className="bd-post-top"><b className="t15" data-vt={"s-"+post.id}>{post.title}</b><span className="t12 dim">{by}{d&&<span className="bd-day"><span className="num">{d.day}</span> {d.weekday}</span>}</span></span>
           <span className="bd-minis" aria-hidden="true">{(post.team?.members||[]).map((m,i)=><span className="stand bd-mini" key={i}><i className="floor"/><Mon src={spriteUrl(m.pokemonName)}/></span>)}</span>
+          {cc>0&&<span className="bd-post-cc"><span className="t12 dim">댓글 {cc}</span></span>}
         </button>; })}
     </div>}
     <div className="bd-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>

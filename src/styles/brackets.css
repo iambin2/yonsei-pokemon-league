@@ -8,7 +8,7 @@
 .bk-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .bk-tabs { margin-top: var(--s8); }
 .bk-list, .bk-new { margin-top: var(--s5); }
-.bk-search, .bk-rows { margin-top: var(--s5); }
+.bk-search, .bk-rows, .bk-private-note { margin-top: var(--s5); }
 .bk-rows .row { height: var(--h-row2); }
 
 /* an open bracket: the back link 20 under the bar, the live strip, its name at 20, a grey line */
@@ -25,20 +25,29 @@
 /* an odd one out takes the row: with five keys 수정 stood in half a row beside an empty half (2026-11-10) */
 .bk-actions > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 .bk-board { display: grid; gap: var(--s8); margin-top: var(--s8); }
-/* desktop: an open bracket's name is the page title; the whole tree comes first and its 우승 panel names the winner,
-   so the result below it keeps the places and the images and does not say 우승 a second time */
+/* the whole tree comes first and its 우승 panel names the winner at every width (a phone's swipe stops on it), so the result below
+   keeps the places and the images and does not say 우승 a second time (2026-11-19: a phone named the winner twice) */
+.bk-board > .bk-result { order: 1; }
+.bk-board:has(.bk-champ-node) .bk-winner { display: none; }
+.bk-board:has(.bk-champ-node) .bk-places { margin-top: 0; }
+/* the decided winner reads at 32: the one fact the whole tree leads to (DESIGN.md "Hierarchy", the named exception) */
+.bk-champ-node b { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
+/* the 우승 panel is a trophy's panel, 180, taller than a match, centred on the final */
+.bk-champ-pos { translate: 0 calc((var(--mb) - var(--s21) * 2 - var(--s3)) / 2); }
+.bk-champ-col .bk-champ-node { height: calc(var(--s21) * 2 + var(--s3)); align-items: center; justify-content: center; text-align: center; }
+/* draft 5B (2026-11-19): on a phone the decided winner is the first thing under the bracket's head, at 32 (Composing a screen 4), and
+   the tree's own 우승 column goes, so the winner is named once; the places and the images still follow the tree */
+@media (max-width: 859px) {
+  .bk-board > .bk-result { display: contents; }
+  .bk-board > .bk-result > * { order: 1; }
+  .bk-board:has(.bk-champ-node) .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }
+  .bk-winner > h2 { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
+  .bk-board:has(.bk-result) .bk-champ-col { display: none; }
+}
 @media (min-width: 860px) {
-  .bk-board > .bk-result { order: 1; }
-  .bk-board:has(.bk-champ-node) .bk-winner { display: none; }
-  .bk-board:has(.bk-champ-node) .bk-places { margin-top: 0; }
-  /* the decided winner reads at the page title's size: the one fact the whole tree leads to */
-  .bk-champ-node b { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
   .bk-tools { display: grid; grid-auto-flow: column; flex: none; }
   .bk-tools .btn { height: var(--h-control); padding: 0 var(--s5); }
   .bk-cb-actions > .bk-img { display: none; }
-  /* the 우승 panel is a trophy's panel, taller than a match, centred on the final */
-  .bk-champ-pos { translate: 0 calc((var(--mb) - var(--s21) * 2 - var(--s3)) / 2); }
-  .bk-champ-col .bk-champ-node { height: calc(var(--s21) * 2 + var(--s3)); align-items: center; justify-content: center; text-align: center; }
 }
 
 /* the decided result: 우승 inverted, the places as spec rows, the images */
@@ -133,7 +142,7 @@
 
 /* the champion: an inverted panel the size of a match box */
 .bk-champ-node { height: var(--mb); display: flex; flex-direction: column; justify-content: center; gap: var(--s1); padding: 0 var(--s3); }
-.bk-champ-node b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.bk-champ-node b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .bk-champ-node.wait { color: var(--mute); }
 
 /* double elimination: the losers' rounds as columns under the tree */

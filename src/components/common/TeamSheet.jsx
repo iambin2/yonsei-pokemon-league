@@ -51,14 +51,18 @@ export default function TeamSheet({ sheet, idPrefix = "" }) {
           <div><dt>도구</dt><dd>{row.item || "없음"}</dd></div>
           <div><dt>성격</dt><dd>{row.nature}<small>{row.natureEffect}</small></dd></div>
         </dl>
+        {/* no header row of column names (Composing a screen 25): the points' label and total stand over the table as the builder's do,
+            and each row says its figures: the stat's name, its base with its word, the points on their bar, the stat itself */}
+        <div className="sc-stat-block">
+        <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className="t12">{row.spTotal} / 66</b></div>
         <div className="sc-stats" role="table" aria-label={`${row.name} 능력치`}>
-          <div className="sc-stat sc-stat-h" role="row"><span role="columnheader">능력</span><span role="columnheader">종족값</span><span role="columnheader">능력 포인트 {row.spTotal} / 66</span><span role="columnheader">실수치</span></div>
           {row.stats.map(st => (<div className="sc-stat" role="row" key={st.key}>
             <b role="cell">{st.label}{st.mark === "+" ? " ↑" : st.mark === "-" ? " ↓" : ""}</b>
-            <span role="cell" className="tnum">{st.base ?? ""}</span>
+            <span role="cell" className="sc-base">{st.base != null && <><small>종족값</small> <span className="tnum">{st.base}</span></>}</span>
             <span role="cell" className="sc-sp"><i style={{ "--sp": st.sp / 32 }} /><em className={"tnum" + (st.sp ? " on" : "")}>{st.sp}</em></span>
             <strong role="cell" className="tnum">{st.final}</strong>
           </div>))}
+        </div>
         </div>
         <ul className="sc-moves">{Array.from({ length: 4 }, (_, k) => {
           const mv = row.moves[k];

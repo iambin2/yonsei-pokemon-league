@@ -17,7 +17,6 @@ export const PUSH_KINDS = [
   { kind: "reply", label: "내 글의 댓글", personal: true },
   { kind: "tower", label: "도전의 탑 순위", personal: true },
   { kind: "record", label: "도전의 탑 신기록" },
-  { kind: "daily", label: "오늘의 탑" },
 ];
 
 // one kind switched: the list the server keeps, in this order

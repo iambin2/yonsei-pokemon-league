@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Dropdown, Empty, ErrorNote, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
 import { Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
-import { loadChampions, seenChampions } from "../components/home/homeFacts.js";
 import TeamSheet, { rosterSheet, useTeamDisplay } from "../components/common/TeamSheet.jsx";
 import { buildRecordsSnapshot, displayRecordMeta, displayTeamName } from "../services/recordsAnalytics.js";
 import { formatDate } from "../services/dateFormat.js";
@@ -226,9 +225,6 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
   // the tab names the trainer or the Pokémon open (a trainer's key may be an id: its name is read from the record)
   useItemTitle(sheet ? profileOf(snapshot, sheet.key)?.name : pokemonName);
 
-  // 판의 세 숫자: 트레이너, 대회, 챔피언. 챔피언은 홈과 같은 명예의 전당 읽기를 쓴다.
-  const [champions, setChampions] = useState(seenChampions);
-  useEffect(() => { let live = true; loadChampions(data, admin).then((rows) => { if (live) setChampions(rows); }).catch(() => {}); return () => { live = false; }; }, [data]);
   const dated = (snapshot.archives || []).map((a) => String(a.date || "").match(/\d+/g)).filter((n) => n?.length >= 2).sort((a, b) => (a[0] + a[1].padStart(2, "0")).localeCompare(b[0] + b[1].padStart(2, "0")));
   const since = dated[0] ? `${dated[0][0]}년 ${+dated[0][1]}월부터` : "";
 
@@ -236,11 +232,6 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
   return (
     <section className="rc">
       <header className="rc-head"><h1 className="t32">기록</h1>{since && <span className="t12 dim">{since}</span>}</header>
-      <div className="stack rc-counts">
-        <Counter label="대회" value={normalizedRead.loading ? null : (snapshot.archives || []).length} unit="회" cells={(snapshot.archives || []).length >= 100 ? 3 : 2} />
-        <Counter label="트레이너" value={normalizedRead.loading ? null : snapshot.trainers.length} unit="명" cells={snapshot.trainers.length >= 100 ? 3 : 2} />
-        <Counter label="역대 챔피언" value={champions ? champions.length : null} unit="대" />
-      </div>
       {normalizedRead.error && (
         <ErrorNote onRetry={() => setReloadKey((value) => value + 1)}>공식 기록을 읽지 못해 아래에는 기존 기록만 표시됩니다. 다시 시도해 주세요.</ErrorNote>
       )}
@@ -304,6 +295,19 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   if (!snapshot.trainers.length && !finding) return <Empty title="트레이너 기록이 없습니다." />;
   const rows = all || query.trim() ? visible : visible.slice(0, LIST_SHOWN);
   const exact = snapshot.trainers.some((t) => t.name === query.trim());
+  // the first three stand as larger panels over the rest (Composing a screen 25); a search shows every match as a row
+  const tops = query.trim() ? [] : rows.slice(0, 3);
+  const rest = rows.slice(tops.length);
+  const tagsOf = (trainer) => {
+    // 리그는 이름 뒤 타입과 같은 태그로: 마스터는 사각이 켜지고, 루키는 꺼진다 (trainerLeague, 트레이너 시트의 머리와 같은 기준)
+    const master = trainerLeague(profileOf(snapshot, trainer.key || trainer.name)) === "master";
+    // 로그인한 트레이너의 자기 줄: 리그 태그 뒤에 같은 태그로 나 (DESIGN.md "Colour and light")
+    const mine = Boolean(me && (trainer.playerId ? trainer.playerId === me.playerId : trainer.name === me.name));
+    return { master, league: master ? "마스터" : "루키", mine };
+  };
+  const tags = ({ master, league, mine }) => <><span className={"tb-type rc-league" + (master ? " master" : "")}>{league}</span>{mine && <span className="tb-type rc-league master rc-me">나</span>}</>;
+  const say = (trainer, t, place) => `${place}위 ${trainer.name}${t.mine ? ", 나" : ""}, ${t.league}, 우승 ${trainer.wins}, 준우승 ${trainer.runnerUps}, 4강 ${trainer.top4}`;
+  const open = (trainer) => (e) => onOpen(trainer.key || trainer.name, e.currentTarget.querySelector(".rc-name"));
 
   return (
     <div className="rc-list">
@@ -311,25 +315,34 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
       <ListSearch q={query} setQ={setQuery} placeholder={finding ? "내 트레이너 이름" : "트레이너 검색"} count={visible.length} />
       {finding && <FindMe query={query} exact={exact} onOpen={onOpen} part="name" />}
       {visible.length ? (<>
-        {/* 성적 이름은 머리줄에 한 번만. 성적은 같은 폭의 세 칸에 세워 위아래 사람끼리 바로 비교된다. 첫 줄, 기록의 주인은 반전된다. */}
-        <div className="rc-th t12 mute" aria-hidden="true"><span>#</span><span>트레이너</span><span>우승</span><span>준우승</span><span>4강</span></div>
-        <div className="stack rc-table">
-          {rows.map((trainer, i) => {
-            // 리그는 이름 뒤 타입과 같은 태그로: 마스터는 사각이 켜지고, 루키는 꺼진다 (trainerLeague, 트레이너 시트의 머리와 같은 기준)
-            const master = trainerLeague(profileOf(snapshot, trainer.key || trainer.name)) === "master";
-            const league = master ? "마스터" : "루키";
-            // 로그인한 트레이너의 자기 줄: 리그 태그 뒤에 같은 태그로 나 (DESIGN.md "Colour and light")
-            const mine = Boolean(me && (trainer.playerId ? trainer.playerId === me.playerId : trainer.name === me.name));
-            return (
-              <Row key={trainer.key || trainer.name} className={"rc-tr" + (i === 0 && !query.trim() ? " inv" : "")}
-                lead={<span className="num t12">{snapshot.trainers.indexOf(trainer) + 1}</span>}
-                title={<>{trainer.name}<span className={"tb-type rc-league" + (master ? " master" : "")}>{league}</span>{mine && <span className="tb-type rc-league master rc-me">나</span>}</>}
-                value={<span className="rc-three">{[trainer.wins, trainer.runnerUps, trainer.top4].map((v, k) => <span key={k} className={"num" + (v ? "" : " mute")}>{v}</span>)}</span>}
-                onClick={(e) => onOpen(trainer.key || trainer.name, e.currentTarget.querySelector(".row-main b"))}
-                label={`${trainer.name}${mine ? ", 나" : ""}, ${league}, 우승 ${trainer.wins} 준우승 ${trainer.runnerUps} 4강 ${trainer.top4}`} />
-            );
+        {tops.length > 0 && <div className="stack rc-tops">
+          {tops.map((trainer, i) => {
+            const t = tagsOf(trainer), place = snapshot.trainers.indexOf(trainer) + 1;
+            return <button type="button" key={trainer.key || trainer.name} className={(i === 0 ? "inv" : "pn") + " rc-top"} onClick={open(trainer)} aria-label={say(trainer, t, place)}>
+              <span className="rc-top-head"><b className="t32 rc-name">{trainer.name}</b><span className="num t20 rc-top-place">{place}</span></span>
+              <span className="rc-top-tags">{tags(t)}</span>
+              <span className="stack rc-top-three">{[["우승", trainer.wins], ["준우승", trainer.runnerUps], ["4강", trainer.top4]].map(([k, v]) =>
+                <span key={k} className="rc-top-cell"><span className="t12 dim">{k}</span><b className="num t20">{v}</b></span>)}</span>
+            </button>;
           })}
-        </div>
+        </div>}
+        {rest.length > 0 && <>
+          {/* one legend for the whole list: a lit square a win, a dim one a second place, an unlit one a top four (Composing a screen 25) */}
+          <p className="rc-legend t12 dim" aria-hidden="true"><span><i className="rc-mark win" />우승</span><span><i className="rc-mark ru" />준우승</span><span><i className="rc-mark sf" />4강</span></p>
+          <div className="stack rc-table">
+            {rest.map((trainer) => {
+              const t = tagsOf(trainer), place = snapshot.trainers.indexOf(trainer) + 1;
+              return <button type="button" key={trainer.key || trainer.name} className="pn rc-tr" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
+                <span className="num t15 rc-tr-place">{place}</span>
+                <span className="rc-tr-main">
+                  <b className="t15 rc-name">{trainer.name}{tags(t)}</b>
+                  <span className="rc-marks" aria-hidden="true">{[["win", trainer.wins], ["ru", trainer.runnerUps], ["sf", trainer.top4]].flatMap(([k, n]) => Array.from({ length: n }, (_, j) => <i key={k + j} className={"rc-mark " + k} />))}</span>
+                </span>
+                <span className="rc-tr-words t12 dim" aria-hidden="true">우승 <b className="num">{trainer.wins}</b>, 준우승 <b className="num">{trainer.runnerUps}</b>, 4강 <b className="num">{trainer.top4}</b></span>
+              </button>;
+            })}
+          </div>
+        </>}
       </>) : finding ? null : <Empty title="검색 결과가 없습니다." />}
       {!all && !query.trim() && visible.length > LIST_SHOWN && (
         <div className="rc-more"><Button variant="second" onClick={() => setAll(true)}>{visible.length}명 전체 보기</Button></div>

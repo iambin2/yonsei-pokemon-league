@@ -220,7 +220,7 @@ function PartyPick({ teams, teamId, setTeamId, res, onDone }) {
     </Question>}
     <Question id="bt-party" label={regs.length > 1 ? `${REGULATIONS[reg] || reg} 파티` : "파티"} group>
       <OptionRows name="battle-random" value={team?.random ? "random" : ""} onChange={() => pick(RANDOM + reg)}
-        options={[{ value: "random", title: "무작위 여섯 마리", line: "배틀이 열리면 정해집니다." }]} />
+        options={[{ value: "random", title: "무작위 여섯 마리" }]} />
     </Question>
     <div className="q"><span className="q-label t12 dim">저장한 팀</span>{saved.length ? <TeamRows teams={saved} value={teamId} onChange={pick} res={res} /> : <NoTeams />}</div>
   </div>;
@@ -470,17 +470,18 @@ function CpuReplay({ id, res, say, go, onLeave, start }) {
 /* ---------- rooms: open and code rooms stand as one list, newest first. An open room is joined at once; a code room's join screen
    asks for its four digits (2026-11-07, the user: no separate code field, a code room asks when it is pressed) ---------- */
 /* the rooms waiting for someone, read again every 15 seconds while the page is in view (a room fills or opens while it stands);
-   null until the first read */
+   null until the first read, false when it failed (a list once read stays through a later failed read); again reads it afresh */
 function useRooms() {
   const [rooms, setRooms] = useState(null);
+  const [asked, setAsked] = useState(0);
   useEffect(() => {
     let on = true;
-    const load = () => listOpenRooms().then(list => on && setRooms(list));
+    const load = () => listOpenRooms().then(list => on && setRooms(list), () => on && setRooms(r => (Array.isArray(r) ? r : false)));
     load();
     const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, 15000);
     return () => { on = false; clearInterval(t); };
-  }, []);
-  return rooms;
+  }, [asked]);
+  return [rooms, () => { setRooms(null); setAsked(n => n + 1); }];
 }
 
 /* 방 목록 (DESIGN.md "Battle", The rooms, 2026-11-07): every room waiting for someone, on a page of its own beside 배틀 열기, built
@@ -493,7 +494,7 @@ const HALL_RULES = [[ALL, "전체"], ...Object.entries(REGULATIONS)];
 const HALL_FORMATS = [[ALL, "전체"], ["singles", "싱글"], ["doubles", "더블"]];
 const HALL_KINDS = [[ALL, "전체"], ["open", "공개"], ["code", "비밀"]];
 const ago = (at, now) => { const m = Math.floor((now - Date.parse(at || "")) / 60000); return !(m >= 1) ? "방금" : `${m}분 전`; };
-function RoomHall({ rooms, onOpen, onMake }) {
+function RoomHall({ rooms, onOpen, onMake, onRetry }) {
   const [q, setQ] = useState("");
   const [rule, setRule] = useState(ALL);
   const [format, setFormat] = useState(ALL);
@@ -511,6 +512,7 @@ function RoomHall({ rooms, onOpen, onMake }) {
   const pick = set => v => { set(v); setPage(1); };
   const count = n => (rooms ? String(n) : null);
   const filtered = word || rule !== ALL || format !== ALL || kind !== ALL;
+  if (rooms === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>방 목록을 불러오지 못했습니다.</ErrorNote>;
   return <>
     <div className="stack bt-hall-counts">
       <Counter label="기다리는 방" value={count(all.length)} cells={3} lamp={all.length > 0} />
@@ -551,8 +553,8 @@ function BattleOpen({ res, onOpen, go, preset }) {
      first load, swapped to it in one frame) */
   useLayoutEffect(() => { leftBehind(); light(document.getElementById("ypl-main"), DUR.leave); }, []);
   const [tab, setTab] = useState(() => { const asked = new URLSearchParams(window.location.search).get("tab"); return BATTLE_TABS.includes(asked) ? asked : "open"; });
-  const rooms = useRooms();
-  const live = useLiveBoards();
+  const [rooms, rereadRooms] = useRooms();
+  const [live, rereadLive] = useLiveBoards();
   // 방 만들기 on the list opens the lobby with 방 만들기 chosen as the opponent
   const [firstFoe, setFirstFoe] = useState("cpu");
   const changeTab = t => {
@@ -562,11 +564,11 @@ function BattleOpen({ res, onOpen, go, preset }) {
     window.history.replaceState(window.history.state, "", url);
   };
   const tabs = <div className="bt-tabs"><TabsLine value={tab} onChange={changeTab} label="배틀 화면" options={[["open", "배틀 열기"], ["streak", "도전의 탑"], ["rooms", rooms?.length ? `방 목록 ${rooms.length}` : "방 목록"], ["live", live?.length ? `중계 ${live.length}` : "중계"], ["mine", "기록"]]} /></div>;
-  if (tab === "live") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<LiveHall res={res} rows={live} onOpen={onOpen} /></div>;
+  if (tab === "live") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<LiveHall res={res} rows={live} onOpen={onOpen} onRetry={rereadLive} /></div>;
   if (tab === "mine") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<BattleLists onOpen={onOpen} /></div>;
   if (tab === "streak") return <StreakOpen res={res} onOpen={onOpen} go={go} tabs={tabs} enter={enterBattle} goingIn={goingIn} standUp={standUp} leaveNow={leaveNow} onPractice={() => { setFirstFoe("cpu"); changeTab("open"); }} />;
   return tab === "rooms"
-    ? <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<RoomHall rooms={rooms} onOpen={onOpen} onMake={() => { setFirstFoe("room"); changeTab("open"); }} /></div>
+    ? <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<RoomHall rooms={rooms} onOpen={onOpen} onMake={() => { setFirstFoe("room"); changeTab("open"); }} onRetry={rereadRooms} /></div>
     : <BattleSetup res={res} onOpen={onOpen} preset={preset} tabs={tabs} firstFoe={firstFoe} />;
 }
 function BattleSetup({ res, onOpen, preset, tabs, firstFoe }) {
@@ -1198,7 +1200,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   }, [keysOn]);
   const turnTo = side => { setPov(side); setEpoch(e => e + 1); };
   // 중계: the other battles being played (read while this one is watched), and what each is, this one's head included
-  const liveRows = useLiveBoards(watching && Boolean(onOpen));
+  const [liveRows] = useLiveBoards(watching && Boolean(onOpen));
   const others = (liveRows || []).filter(r => r.id !== row.id)
     .sort((a, b) => (b.event_id && b.event_id === row.event_id) - (a.event_id && a.event_id === row.event_id)).slice(0, 3);
   const labels = useLabels(useMemo(() => [row, ...others], [row.id, others.map(r => r.id).join()]));
@@ -1546,7 +1548,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     (leave || onLeave)?.();
   };
   const head = <div className="bt-head">
-    {(leave || onLeave) && <button type="button" className="pn bt-head-key" onClick={goBack} aria-label="나가기" title="나가기"><Icon n="back" size={24} /></button>}
+    {(leave || onLeave) && <button type="button" className="pn bt-head-key" onClick={goBack} aria-label="나가기"><Icon n="back" size={24} /></button>}
     <div className="pn bt-head-main">
       {/* what this match is (an official one's event and round, a run's game) and, while it is played, how many are watching; while the
           other side chooses, the busy cell and whose choice is awaited, so a player always knows whether they are the one waited for */}
@@ -2002,7 +2004,7 @@ function Choices({ request, locked = false, fresh = false, ghost = null, doubles
      over the moves (2026-11-10, the user: "기술과 상태 표시줄 사이의 의미 없는 큰 공백") */
   const undoOff = !picks.length || frozen;
   const undoKey = slots.length > 1 && <button key="undo" type="button" className={"bt-mega bt-undo" + (undoOff ? " is-off" : "")} aria-disabled={undoOff || undefined}
-      onClick={() => { if (!undoOff) reset(); }} aria-label="처음부터 다시 고르기" title={narrow ? undefined : "처음부터 다시 고르기"}>
+      onClick={() => { if (!undoOff) reset(); }} aria-label="처음부터 다시 고르기">
       <Icon n="refresh" size={20} />
     </button>;
   const extras = (...keys) => keys.filter(Boolean);

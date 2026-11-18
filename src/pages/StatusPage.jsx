@@ -22,7 +22,7 @@ export default function StatusPage({ title, desc, onRetry }) {
       <main className="page status-page">
         {onRetry
           ? <p className="status-label t12"><Bang />오류</p>
-          : <><p className="status-label t12 dim"><i className="lamp" aria-hidden="true" />찾는 페이지</p><div className="status-board"><Seg value="404" h={120} cells={3} label="404" /></div></>}
+          : <><p className="status-label t12 dim">찾는 페이지</p><div className="status-board"><Seg value="404" h={120} cells={3} label="404" /></div></>}
         <h1 className={(onRetry ? "t32" : "t20") + " status-title"}>{title}</h1>
         {desc && <p className="read dim status-desc">{desc}</p>}
         <div className="status-go">

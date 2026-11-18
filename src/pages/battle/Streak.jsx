@@ -11,8 +11,9 @@ import { createPortal, flushSync } from "react-dom";
 import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import Modal from "../../components/common/Modal.jsx";
+import ErrorNote from "../../components/common/ErrorNote.jsx";
 import Seg from "../../components/common/Seg.jsx";
-import { Chips, Counter, Dock, Podium, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
+import { Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
@@ -357,10 +358,9 @@ function RunBoard({ run, best, approved, daily = false }) {
 
 export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, leaveNow = async () => {}, onPractice = null }) {
   const account = useAccount();
-  /* the two kinds of run (2026-11-11, 13장): the month's, ranked by the month, and 오늘의 탑, once a day, the same tower for everyone
-     that day, ranked by the day. One of each may go on at once */
-  const [kind, setKind] = useState("month");
-  const daily = kind === "day";
+  /* one kind of run, the month's, ranked by the month: 오늘의 탑 was taken off on 2026-11-19 (the owner: "오늘의 탑도 그냥 없애줘. 도전의 탑
+     이번 달로만 남기자"). The battle function still knows a daily run, so a device in the middle of one finishes it on the play screen */
+  const daily = false;
   /* seen: this device's run and draft read again, when another tab of it changes them (a draft picked in one tab left the others
      showing it, and their 출발 was refused) or when the battle function says the draft is gone */
   const [seen, setSeen] = useState(0);
@@ -372,6 +372,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const [entering, setEntering] = useState(false);
   const [back, setBack] = useState(0);
   const [board, setBoard] = useState(undefined);
+  // 다시 불러오기 under a board that failed to read asks for it again
+  const [boardAsked, setBoardAsked] = useState(0);
   const [busy, setBusy] = useState(false);
   const [gate, setGate] = useState(false);
   const [error, setError] = useState("");
@@ -395,7 +397,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     setBoard(undefined);
     (daily ? readDailyBoard() : readStreakBoard(back ? month.key : undefined)).then(rows => on && setBoard(rows), () => on && setBoard(false));
     return () => { on = false; };
-  }, [back, daily, account?.status]);
+  }, [back, daily, account?.status, boardAsked]);
   const approved = account?.status === "approved";
   useWarm(approved);
   // the run as the server holds it, so a run started or picked elsewhere is shown here (and 새로 도전 asks before ending it)
@@ -460,11 +462,11 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const practice = onPractice && <Button onClick={onPractice}>컴퓨터와 연습</Button>;
   const left = drafting ? drafting.length - picks.filter(Boolean).length : 0;
   const keys = account === undefined || (approved && !synced) ?<Button variant="main" loading>도전 시작</Button>
-    : !approved ? <><Button variant="main" onClick={() => setGate(true)}>{daily ? "오늘의 탑 시작" : "도전 시작"}</Button>{practice}</>
+    : !approved ? <><Button variant="main" onClick={() => setGate(true)}>도전 시작</Button>{practice}</>
     : drafting ? <Button variant="main" icon={left ? "check" : undefined} disabled={left > 0} onClick={depart} loading={busy}>{left ? `${left}마리 더 고르기` : "출발"}</Button>
     : run ? <><Button variant="main" onClick={resume} loading={busy}>이어서 하기</Button>{!daily && <Button onClick={start} disabled={busy}>새로 도전</Button>}</>
     : doneToday ? <Button variant="main" disabled>오늘 도전 완료</Button>
-    : <Button variant="main" onClick={start} loading={busy}>{daily ? "오늘의 탑 시작" : "도전 시작"}</Button>;
+    : <Button variant="main" onClick={start} loading={busy}>도전 시작</Button>;
   /* what the key cannot say by itself: why it waits. Signed out it says nothing: the key is 구글 로그인 and the month's board beside it
      shows the names it keeps (2026-11-10, the user: no sentence where the form already says it). Only a name waiting on the operators
      needs the sentence, as a grey line in the dock over the key that waits, never as a slab */
@@ -500,20 +502,17 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           </Dock>
         </div>
         <div className="bt-lobby-set streak-side">
-          {/* the two kinds of run head the side, on the scene's top line, so the scene starts where 배틀 열기's court does (2026-11-09,
-              the user: "연승도전과 배틀열기의 위 여백이 다른데"). On the tower's night they read as a web page's toggle laid over the
-              scene, and a line of their own under the tabs left a row of nothing beside them (2026-11-18) */}
+          {/* the run's board heads the side, on the scene's top line, so the scene starts where 배틀 열기's court does (2026-11-09,
+              the user: "연승도전과 배틀열기의 위 여백이 다른데") */}
           <div className="streak-run">
-            {!(drafting && !entering) && <Chips value={kind} onChange={setKind} label="도전 종류" options={[["month", "이번 달"], ["day", "오늘의 탑"]]} />}
             <RunBoard run={run} best={rows ? mine?.wins ?? 0 : null} approved={approved} daily={daily} />
           </div>
           <section aria-labelledby="streak-board">
-            {daily ? <SectionHead id="streak-board" title="오늘 순위" />
-              : <SectionHead id="streak-board" title={`${month.label} 순위`} link={`${other.label} 보기`} onLink={() => setBack(b => (b ? 0 : 1))} />}
-            {board === undefined ? <Podium rows={null} />
-              : !rows ? <Row title="순위를 불러오지 못했습니다." line="잠시 뒤 다시 시도해 주세요." />
+            <SectionHead id="streak-board" title={`${month.label} 순위`} link={`${other.label} 보기`} onLink={() => setBack(b => (b ? 0 : 1))} />
+            {board === undefined ? <StandTable rows={null} />
+              : !rows ? <ErrorNote action="다시 불러오기" onRetry={() => setBoardAsked(n => n + 1)}>순위를 불러오지 못했습니다.</ErrorNote>
               : !rows.length ? <Row title="아직 기록이 없습니다." />
-              : <StandTable rows={placed} placed open unit="연승" head="연승" />}
+              : <StandTable rows={placed} placed open unit="연승" />}
           </section>
         </div>
       </div>
@@ -722,7 +721,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     </div>
     {board?.length > 0 && <section className="streak-break-board" aria-labelledby="streak-end-board">
       <SectionHead id="streak-end-board" title={`${monthOf(0).label} 순위`} />
-      <StandTable rows={board.slice(0, 3).map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live }))} placed unit="연승" head="연승" />
+      <StandTable rows={board.slice(0, 3).map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live }))} placed unit="연승" />
     </section>}
   </section>;
   // the key goes from beat to beat, and from the next door into the game (2026-11-18)

@@ -5,7 +5,7 @@ import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
 /* 개인정보처리방침 (?view=privacy). 구글 로그인의 동의 화면이 이 주소를 가리킨다(docs/db/player_accounts.sql).
    공지 본문과 같은 모양: 제목, 시행일 한 줄, 조문. 처리하는 항목이 바뀌면 이 글과 시행일을 함께 고친다. */
 const EFFECTIVE = "2026년 11월 6일";
-const TEXT = `포켓몬 센터 연세점(이하 "운영진")은 YPL(Yonsei Pokémon League) 사이트 league.pokeyonsei.com(이하 "사이트")을 운영하면서 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 원활하게 처리하기 위하여 다음과 같이 개인정보처리방침을 수립하여 공개합니다.
+const TEXT = `포켓몬 센터 연세점(이하 “운영진”)은 YPL(Yonsei Pokémon League) 사이트 league.pokeyonsei.com(이하 “사이트”)을 운영하면서 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 원활하게 처리하기 위하여 다음과 같이 개인정보처리방침을 수립하여 공개합니다.
 
 # 제1조(개인정보의 처리 목적)
 운영진은 다음의 목적을 위하여 개인정보를 처리하며, 목적이 변경되는 경우에는 사전에 사이트 공지로 알립니다.
@@ -55,12 +55,25 @@ const TEXT = `포켓몬 센터 연세점(이하 "운영진")은 YPL(Yonsei Poké
 # 제11조(개인정보처리방침의 변경)
 이 개인정보처리방침은 ${EFFECTIVE}부터 적용됩니다. 내용이 변경되는 경우 시행 전에 사이트 공지로 알립니다.`;
 
+/* the articles' names, read from the text itself, for the 439 (draft 2A, 2026-11-19): a press goes to that article */
+const ARTICLES = [...TEXT.matchAll(/^# 제(\d+)조\((.+?)\)/gm)].map(m => ({ n: m[1], name: m[2] }));
+
 export default function PrivacyPage() {
+  const body = React.useRef(null);
+  const goTo = i => body.current?.querySelectorAll("h3")[i]?.scrollIntoView({ block: "start" });
   return (
-    <section className="nw">
+    <section className="nw pv">
       <h1 className="t32">개인정보처리방침</h1>
       <p className="t12 dim reg nw-req">시행일 {EFFECTIVE}</p>
-      <div className="nw-body"><Prose text={TEXT} /></div>
+      <div className="nw-body" ref={body}><Prose text={TEXT} /></div>
+      {/* the 439 holds the articles, held in view as the reading scrolls (Typesetting: a page of reading keeps it in the 709) */}
+      <nav className="pv-toc" aria-labelledby="pv-toc-h">
+        <div className="sh"><h2 className="t20" id="pv-toc-h">조문</h2></div>
+        <ol className="stack pv-toc-list">
+          {ARTICLES.map((a, i) => <li key={a.n}><button type="button" className="pn pv-toc-row" onClick={() => goTo(i)}>
+            <span className="num t12 dim">제{a.n}조</span><b className="t15">{a.name}</b></button></li>)}
+        </ol>
+      </nav>
     </section>
   );
 }

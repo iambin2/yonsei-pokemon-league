@@ -62,8 +62,9 @@ function AccountButton({ onNavigate }) {
   }, []);
   if (!accountsEnabled()) return null;
   const named = signed && link && link.status !== "rejected" ? link.requested_name : "";
-  const open = () => onNavigate("records", { tab: "trainer", me: "1", ...(named && link.player_id ? { trainer: named } : {}) });
-  return <button type="button" className="acct" onClick={open} aria-label={named ? `${named}, 내 기록` : "내 기록 찾기, 구글 계정으로 연결"}><GoogleMark /><span className="acct-name">{named || "내 기록"}</span></button>;
+  // a door with an address is a link to it (DESIGN.md "Panels" 3)
+  const to = { tab: "trainer", me: "1", ...(named && link.player_id ? { trainer: named } : {}) };
+  return <a href={viewHref("records", to)} className="acct" onClick={follow(() => onNavigate("records", to))} aria-label={named ? `${named}, 내 기록` : "내 기록 찾기, 구글 계정으로 연결"}><GoogleMark /><span className="acct-name">{named || "내 기록"}</span></a>;
 }
 
 /* 바는 바탕 톤에 아래 머리카락 선 하나, 움직이지 않는다. 폰은 Wing Y와 워드마크, 오른쪽 끝에 테마 버튼.
@@ -89,9 +90,9 @@ export default function SiteHeader({ view, onNavigate, dark, onToggleTheme, more
       <AccountButton onNavigate={onNavigate} />
       {/* the lamp's fixture: its housing is dark until something is live; on event day it lights with its word and opens the bracket */}
       {live
-        ? <button type="button" className="onair t12" onClick={() => onNavigate("bracket")} aria-label={`${live.name} 진행 중, 대진표 보기`}><i className="lamp sig" aria-hidden="true" />진행 중</button>
+        ? <a href={viewHref("bracket")} className="onair t12" onClick={follow(() => onNavigate("bracket"))} aria-label={`${live.name} 진행 중, 대진표 보기`}><i className="lamp sig" aria-hidden="true" />진행 중</a>
         : <i className="lamp unlit onair-off" aria-hidden="true" />}
-      <button type="button" className="iconbtn theme-btn" onClick={onToggleTheme} aria-label={themeLabel} title={themeLabel}>
+      <button type="button" className="iconbtn theme-btn" onClick={onToggleTheme} aria-label={themeLabel}>
         <Icon key={dark ? "sun" : "moon"} n={dark ? "sun" : "moon"} size={24} />
       </button>
     </header>

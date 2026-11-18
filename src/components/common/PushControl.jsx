@@ -54,7 +54,7 @@ function usePush(title) {
   const sheet = ask && <Modal title={title} onClose={() => setAsk(false)}>
     <div className="push-ask">
       {say && <p className="pn2 push-note t12 reg dim" role={mode === "install" ? undefined : "alert"}><Icon n="info" size={20} /><span>{say}</span></p>}
-      {mode === "ready" && !blocked && <Button variant="main" icon="bell" disabled={busy} onClick={flip}>알림 받기</Button>}
+      {mode === "ready" && !blocked && <Button variant="main" icon="check" disabled={busy} onClick={flip}>알림 받기</Button>}
       <Button variant="link" className="push-later" onClick={() => setAsk(false)}>나중에</Button>
     </div>
   </Modal>;
@@ -64,7 +64,7 @@ function usePush(title) {
 export function PushLink() {
   const { mode, on, busy, press, sheet } = usePush("새 공지를 알림으로 받습니다.");
   if (mode === "none") return null;
-  return <><button type="button" className="push-link t12" disabled={busy} onClick={press}><Icon n="bell" size={16} />{on ? "알림 끄기" : "알림 받기"}</button>{sheet}</>;
+  return <><button type="button" className="push-link t12" disabled={busy} onClick={press}>{on ? "알림 끄기" : "알림 받기"}</button>{sheet}</>;
 }
 
 /* a switch row: 52 by 32, off a muted square in panel-2, on inverted with the square at the right */

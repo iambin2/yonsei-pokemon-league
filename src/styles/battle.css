@@ -22,9 +22,16 @@
   .bt-lobby-main > :is(.bt-after, .bt-cancel) { order: 2; }
 }
 @media (min-width: 860px) {
-  .bt-lobby { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); align-items: start; justify-content: space-between; }
+  .bt-lobby { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); justify-content: space-between; }
   /* 배틀 열기 too is the court and, beside it, what the sheets hold laid open (2026-11-19, the owner's draft A) */
   .bt-lobby-main { gap: var(--s3); }
+  /* the two columns end on one line (2026-11-19: 55 apart on 배틀 열기, 7 on 도전의 탑): each is a column as tall as the row, the
+     shorter one's scene takes what is left and its main action stands on the column's floor. The court stands taller and is drawn
+     to its box (gl.js measures it), never stretched */
+  .bt-lobby-main, .bt-lobby-set { display: flex; flex-direction: column; }
+  .bt-lobby-main > .dock { margin-top: auto; }
+  .bt-lobby-main > .bt-lobby-arena { flex: 1 0 auto; grid-template-rows: auto minmax(0, 1fr) auto; }
+  .bt-lobby-arena > .bs-stage { align-self: stretch; width: 100%; }
 }
 /* the battle page's tabs: 배틀 열기, 연승 도전, 방 목록 and 중계, under the title */
 .bt-tabs { margin-top: calc(var(--s8) - var(--s5)); }
@@ -304,8 +311,9 @@
    stands muted with no check; 전체 선택 and the delete key join on the seam, 1 to 1.618 */
 .bt-pickrow .row-lead { display: flex; padding: 0 var(--s3) 0 var(--pad); }
 .bt-pickrow .box:not(.on) { background: var(--rule); }
+/* a row that cannot be chosen keeps the check's place empty, so every title in the list hangs from one start edge (Composing a screen 9) */
+.bt-pickrow .box.box--none { background: none; }
 .bt-pickrow.off { cursor: default; color: var(--mute); }
-.bt-pickrow.off .box { visibility: hidden; }
 .bt-pickkeys { display: flex; gap: var(--seam); }
 .bt-pickkeys > .btn { flex: 1 1 0; }
 .bt-pickkeys > .btn:last-child { flex-grow: 1.618; }

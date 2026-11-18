@@ -241,7 +241,7 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {list.length===0?(kw
       ? <>
-        <div className="pn nw-none"><Seg value={0} h={40} cells={2} label="0건"/><div><b className="t15">맞는 공지가 없습니다.</b></div></div>
+        <Empty className="search-none" title="맞는 공지가 없습니다." desc={`‘${q.trim()}’에 맞는 공지를 찾지 못했습니다.`}><Seg value={0} h={40} cells={2} label="0건"/></Empty>
         {all.length>0&&<><p className="t12 dim nw-recent">최근 공지</p><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></>}
       </>
       : <Empty title="등록된 공지가 없습니다."/>)
@@ -281,7 +281,7 @@ function PublicResponses({ ann, compact, onRefresh, updatedAt, responsesOverride
             </div>))}
           </div>}
       <div className="pr-foot">
-        {onRefresh&&<button className="pr-refresh" onClick={e=>{e.stopPropagation();onRefresh();}} aria-label="공개 응답 새로고침" title="새로고침"><Icon n="refresh" size={16}/></button>}
+        {onRefresh&&<button className="pr-refresh" onClick={e=>{e.stopPropagation();onRefresh();}} aria-label="공개 응답 새로고침"><Icon n="refresh" size={16}/></button>}
         {updatedAt&&<span>마지막 확인 {updatedAt}</span>}
       </div>
     </div>}
@@ -421,10 +421,10 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
     children:<section className="nw-form-sec" aria-labelledby="ff-who-h">
       <SectionHead id="ff-who-h" title="본인 확인"/>
       <Question id="ff-name" label="참가자 이름" required error={errors.name}>
-        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} aria-describedby={errors.name?"ff-name-error":undefined} type="text" value={registrationName} onChange={e=>{setRegistrationName(e.target.value);setErrors(x=>({...x,name:""}));}} placeholder="신청할 때 쓴 이름을 입력해 주세요." autoComplete="name"/>
+        <input id="ff-name" className="in" aria-required="true" aria-invalid={errors.name?true:undefined} aria-describedby={errors.name?"ff-name-error":undefined} type="text" value={registrationName} onChange={e=>{setRegistrationName(e.target.value);setErrors(x=>({...x,name:""}));}} placeholder="예: 지나가던트레이너" autoComplete="name"/>
       </Question>
       <Question id="ff-pin" label="제출 비밀번호" required error={errors.pin}>
-        <input id="ff-pin" className="in" aria-required="true" aria-invalid={errors.pin?true:undefined} aria-describedby={errors.pin?"ff-pin-error":undefined} type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4));setErrors(x=>({...x,pin:""}));}} placeholder="숫자 4자리"/>
+        <input id="ff-pin" className="in" aria-required="true" aria-invalid={errors.pin?true:undefined} aria-describedby={errors.pin?"ff-pin-error":undefined} type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4));setErrors(x=>({...x,pin:""}));}} placeholder="예: 1234"/>
         <p className="t12 dim reg">아직 정하지 않았다면 지금 입력한 숫자 4자리가 제출 비밀번호가 됩니다.</p>
       </Question>
     </section>,
@@ -478,7 +478,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
     </section>}
     {(fields.length>0||!form.eventId)&&<section className="nw-form-sec" aria-labelledby="ff-ans-h">
       <SectionHead id="ff-ans-h" title="신청 내용"/>
-      {fields.length===0&&<p className="t15 reg dim">등록된 질문이 없습니다.</p>}
+      {fields.length===0&&<Empty title="등록된 질문이 없습니다."/>}
       {fields.map((f,i)=>{ const label=f.label||`질문 ${i+1}`, id=`ff-${f.id}`, error=errors[f.id];
         const text={id,className:"in","aria-required":f.required||undefined,"aria-invalid":error?true:undefined,"aria-describedby":error?`${id}-error`:undefined,value:ans[f.id]||"",onChange:e=>set(f.id,e.target.value)};
         return (<Question key={f.id} id={id} label={label} required={f.required} error={error} group={f.type==="single"||f.type==="multi"}>
@@ -533,7 +533,7 @@ function FormResponsesModal({ ann, onClose, onDeleteResp, responsesOverride, onR
       <button type="button" className="pn fr-csv" onClick={csv}><Icon n="download" size={16}/>CSV</button>
     </div>}
     {resp.length>0&&subs&&<div className="fr-chips"><Chips value={filter} onChange={setFilter} label="제출 여부" options={[["all",`전체 ${resp.length}`],["sent",`파티 제출 ${sentCount}`],["unsent",`미제출 ${resp.length-sentCount}`]]}/></div>}
-    {resp.length===0?<p className="t15 reg dim fr-empty">아직 접수된 신청이 없습니다.</p>:
+    {resp.length===0?<Empty title="아직 접수된 신청이 없습니다."/>:
       <div className="stack fr-rows">{shown.map(r=>(<div className="pn fr-row" key={r.id}>
         <span className="t12 dim fr-no num">{resp.indexOf(r)+1}</span>
         <div className="fr-main">
@@ -543,9 +543,9 @@ function FormResponsesModal({ ann, onClose, onDeleteResp, responsesOverride, onR
         <div className="fr-actions">
           {subs&&(sent(r)?<span className="t12 fr-sent"><i className="lamp" aria-hidden="true"/>제출</span>:<span className="t12 dim">미제출</span>)}
           {/* the PIN is set by a first party submission or a first 신청 수정, so any row may hold one */}{onResetPin&&<Button variant="link" onClick={()=>onResetPin(r)}>비밀번호 초기화</Button>}
-          {onDeleteResp&&<button type="button" className="fr-del" onClick={async()=>{if(await siteConfirm({title:"응답 삭제",body:"이 응답을 삭제할까요? 삭제한 응답은 되돌릴 수 없습니다.",confirmLabel:"삭제",danger:true}))onDeleteResp(r.id);}} aria-label="삭제" title="삭제"><Icon n="trash" size={16}/></button>}
+          {onDeleteResp&&<button type="button" className="fr-del" onClick={async()=>{if(await siteConfirm({title:"응답 삭제",body:"이 응답을 삭제할까요? 삭제한 응답은 되돌릴 수 없습니다.",confirmLabel:"삭제",danger:true}))onDeleteResp(r.id);}} aria-label="삭제"><Icon n="trash" size={16}/></button>}
         </div>
       </div>))}
-      {!shown.length&&<p className="t15 reg dim fr-empty">{q.trim()?"이 이름의 신청이 없습니다.":"해당하는 신청이 없습니다."}</p>}</div>}
+      {!shown.length&&<Empty title={q.trim()?"이 이름의 신청이 없습니다.":"해당하는 신청이 없습니다."}/>}</div>}
   </Modal>);
 }

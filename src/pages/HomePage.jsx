@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChampionPanel, Counter, Lead, Mon, Podium, SectionHead } from "../components/common/Board.jsx";
+import { ChampionPanel, Counter, Lead, Mon, SectionHead } from "../components/common/Board.jsx";
 import { useMe } from "../components/common/useMe.js";
 import { loadMyNext } from "../services/myNext.js";
 import { lastEventResult } from "../services/lastEvent.js";
@@ -11,13 +11,15 @@ import { DUR, light } from "../components/common/motion.js";
 import Seg from "../components/common/Seg.jsx";
 import StandTable from "../components/common/StandTable.jsx";
 import { loadChampions, loadFacts, seenChampions, seenFacts } from "../components/home/homeFacts.js";
-import { dotDate } from "../services/dateFormat.js";
+import { dotDate, formatDate } from "../services/dateFormat.js";
 import { getEvent, getLeagueIntakeEvents, listNormalizedBracketRuntimes } from "../services/normalizedCompetitionService.js";
 import { freshRead } from "../services/readCache.js";
 import { liveMatches } from "../services/recordsAnalytics.js";
 import { listEventBattles } from "../services/battleService.js";
 import { submissionDue } from "../services/submissionDue.js";
 import { applicationsOpen } from "../services/announcementTimes.js";
+
+const BATTLE = { singles: "싱글 배틀", doubles: "더블 배틀" };
 import { readBracketSchedule, roundKeyOf, tableWord } from "../services/bracketSchedule.js";
 
 const DAY_MS = 86400000;
@@ -127,7 +129,11 @@ export default function HomePage({ data, go, admin }) {
     if (!upcoming) return null;
     const { a, draft, raw, time, dday } = upcoming;
     const date = dotDate(raw);
-    return { today: dday === 0, dday, name: draft.name || a.title, date: date && { ...date, clock: time || date.clock }, eventId: a.form?.eventId || null, noticeId: a.id,
+    const at = time && !/\d{1,2}:\d{2}/.test(String(raw)) ? `${String(raw).slice(0, 10)}T${time}` : raw;
+    // the facts that belong to the countdown stand beside it (Composing a screen 26): 일시, 신청 마감, 형식
+    const spec = [["일시", formatDate(at, { time: true })], ...(a.form?.closesAt ? [["신청 마감", `${formatDate(a.form.closesAt, { time: true })}까지`]] : []),
+      ...(BATTLE[draft.battleFormat] ? [["형식", BATTLE[draft.battleFormat]]] : [])];
+    return { today: dday === 0, dday, name: draft.name || a.title, kind: draft.isTeamEvent ? "팀전" : "개인전", spec, date: date && { ...date, clock: time || date.clock }, eventId: a.form?.eventId || null, noticeId: a.id,
       // 파티 제출은 대회 시작까지다: 그 전날까지는 남은 날이 위의 카운트다운과 같아서, 그날 시작 전에만 남은 시간을 센다
       open: dday > 0 && applicationsOpen(a.form), due: dday === 0 ? submissionDue(draft) : null };
   }, [data.announcements]);
@@ -191,11 +197,12 @@ export default function HomePage({ data, go, admin }) {
   const primary = !now ? (last ? ["대진표 보기", "bracket", { eventId: last.eventId }] : ["공지 보기", "news"]) : now.today ? ["대진표 보기", "bracket"] : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
   const notices = useMemo(() => [...data.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.date < b.date ? 1 : -1)).slice(0, 3), [data.announcements]);
   const reigning = (facts || waited) ? champions?.[0] || null : null;
-  const readingReign = !reigning && (!champions || (champions.length > 0 && !(facts || waited)));
   const season = facts?.season;
 
   return (<div className="ho" ref={root}>
-    <section className="ho-next" aria-labelledby={now ? "ho-title" : undefined}>
+    {/* the big screen (draft B): the next event and the reigning champion as one device, joined by the seam */}
+    <div className="stack ho-screen">
+    <section className="pn ho-next" aria-labelledby={now ? "ho-title" : undefined}>
       {now && me && <div className="stack ho-me" data-light>
         <MyCell label="신청" value={mine?.applied == null ? null : mine.applied ? "신청함" : "미신청"} onClick={() => go("news", { notice: now.noticeId })} />
         <MyCell label="파티 제출" value={mine?.submitted == null ? null : mine.submitted ? "제출함" : "미제출"} onClick={() => go("builder", { eventId: mine.builderEventId })} />
@@ -221,61 +228,48 @@ export default function HomePage({ data, go, admin }) {
             : <span className="ho-lamp dim"><i className={"lamp" + (now ? "" : " unlit")} aria-hidden="true" />{now ? "다음 대회까지" : "다음 대회"}</span>}
         {now?.date && <span className="dim"><Day d={now.date} /></span>}
       </p>
-      <div className={"ho-board" + (now?.today ? " today" : "")}>
-        {now?.today
-          ? <><Seg value={now.date?.clock || "  :  "} h={84} cells={4} label={now.date?.clock ? `${now.date.clock} 시작` : "시작 시각 미정"} /><span className="ho-unit">시작</span></>
-          : <><Seg value={now ? String(now.dday).padStart(2, "0") : ""} h={120} cells={now?.dday >= 100 ? 3 : 2} label={now ? `${now.dday}일 남음` : "다음 대회 없음"} className="ho-days" /><span className={"ho-unit" + (now ? "" : " dim")} data-light>일</span></>}
+      {now && <div className="ho-name"><h1 className="t32 ho-title" id="ho-title">{now.name}</h1><span className="t12 dim reg">{now.kind}</span></div>}
+      <div className="ho-display">
+        <div className={"ho-board" + (now?.today ? " today" : "")}>
+          {now?.today
+            ? <><Seg value={now.date?.clock || "  :  "} h={84} cells={4} label={now.date?.clock ? `${now.date.clock} 시작` : "시작 시각 미정"} /><span className="ho-unit">시작</span></>
+            : <><Seg value={now ? String(now.dday).padStart(2, "0") : ""} h={120} cells={now?.dday >= 100 ? 3 : 2} label={now ? `${now.dday}일 남음` : "다음 대회 없음"} className="ho-days" /><span className={"ho-unit" + (now ? "" : " dim")} data-light>일</span></>}
+        </div>
+        {now?.spec.length > 0 && <dl className="stack ho-spec">
+          {now.spec.map(([k, v]) => <div className="pn2 ho-spec-row" key={k}><dt className="t12 dim">{k}</dt><dd className="t15">{v}</dd></div>)}
+        </dl>}
       </div>
       </>}
-      {/* the board says it alone: the countdown under its label; an event's name stays for screen readers (2026-11-06), no event has no title (2026-11-08) */}
-      {now && <h1 className="ho-title sr-only" id="ho-title">{now.name}</h1>}
       {now?.due && <div className="stack ho-due">
         <Counter label={now.due.unit === "시간" ? "파티 제출 마감까지" : "파티 제출까지"} lamp={now.due.unit === "시간" ? "sig" : true} value={String(now.due.value).padStart(2, "0")} cells={now.due.value >= 100 ? 3 : 2} unit={now.due.unit}
           after={<span className="t15">{now.due.unit}</span>} onClick={() => go("news", { notice: now.noticeId })} />
       </div>}
       <div className="ho-go">
         <Button variant="main" onClick={() => go(primary[1], primary[2])}>{primary[0]}</Button>
-        <Button variant="link" size="lg" className="ho-about" data-light onClick={() => go("about")}>리그 소개</Button>
       </div>
-    </section>
-
-    {live?.live.length > 0 && <section className="ho-sec ho-live" aria-labelledby="ho-live">
-      <SectionHead id="ho-live" title="지금 경기" link="대진표 전체" onLink={() => go("bracket", { eventId: live.eventId })} />
-      <div className="stack">
+      {live?.live.length > 0 && <div className="stack ho-live" role="group" aria-label="지금 경기">
         {/* the match is a door to its own bracket, as every panel that names a place is */}
         <button type="button" className="stack" onClick={() => go("bracket", { eventId: live.eventId, m: live.live[0].id })} aria-label={`${live.live[0].stage}${liveWhere ? `, ${liveWhere}` : ""}, ${live.live[0].a} 대 ${live.live[0].b}, 진행 중, 경기 보기`}>
-          <span className="pn ho-live-head t12"><span className="dim">{[live.live[0].stage, liveWhere].filter(Boolean).join(", ")}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></span>
-          <span className="pn ho-live-row t15">{live.live[0].a}</span>
-          <span className="pn ho-live-row t15">{live.live[0].b}</span>
+          <span className="pn2 ho-live-head t12"><span className="dim">{[live.live[0].stage, liveWhere].filter(Boolean).join(", ")}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></span>
+          <span className="pn2 ho-live-row t15">{live.live[0].a}</span>
+          <span className="pn2 ho-live-row t15">{live.live[0].b}</span>
         </button>
-        <p className="pn ho-live-head t12"><span className="dim">{live.stage} 진행</span><span>{live.done} / {live.total} 종료</span></p>
+        <p className="pn2 ho-live-head t12"><span className="dim">{live.stage} 진행</span><span>{live.done} / {live.total} 종료</span></p>
         {/* every match of the day being played as a site battle, one strip each, opening it to watch */}
-        {liveBattles.map(b => <button key={b.id} type="button" className="pn ho-live-head t12" onClick={() => go("battle", { battle: b.id })}>
+        {liveBattles.map(b => <button key={b.id} type="button" className="pn2 ho-live-head t12" onClick={() => go("battle", { battle: b.id })}>
           <span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />{`${b.p1_name} 대 ${b.p2_name} 배틀 진행 중`}</span><span>관전</span>
         </button>)}
-      </div>
-    </section>}
-
-    <div className="ho-reign">
-      <ChampionPanel champion={reigning} onClick={() => setPop(reigning)} />
-      {/* the six stand switched off at their size while the reign is read, so the column does not grow when they light */}
-      {(reigning?.party.length > 0 || readingReign) && <div className="stack ho-six" role="img" aria-label={reigning ? reigning.party.map(m => m.name).filter(Boolean).join(", ") : "현 챔피언의 파티"}>
-        {(reigning ? reigning.party : Array(6).fill(null)).map((m, i) => <span className="pn stand" key={i}><i className="floor" aria-hidden="true" />{m && <Mon src={m.img} />}</span>)}
       </div>}
-      <div className="stack ho-counts">
-        <Counter label="대회" value={facts?.tournaments ?? null} unit="회" onClick={() => go("records", { tab: "tour" })} />
-        <Counter label="트레이너" value={facts?.trainers ?? null} unit="명" onClick={() => go("records", { tab: "trainer" })} />
-        <Counter label="역대 시즌" value={facts?.seasons ?? null} unit="개" onClick={() => go("records", { tab: "rank" })} />
-      </div>
-      {factsFailed && <ErrorNote action="다시 불러오기" onRetry={() => { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
+    </section>
+    <ChampionPanel champion={reigning} onClick={() => setPop(reigning)} />
     </div>
+
+    {factsFailed && <ErrorNote action="다시 불러오기" onRetry={() => { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
 
     {/* while the ranking is read its place stands switched off, so the notices under it do not move when it lights */}
     {(season || !facts) && <section className="ho-sec ho-rank" aria-labelledby="ho-rank">
-      <SectionHead id="ho-rank" title={season ? `${season.name} 순위` : " "} link={season && "전체 보기"} onLink={() => go("records", { tab: "rank" })} />
-      {season
-        ? <StandTable rows={season.rows} shown={2} onName={name => go("records", { trainer: name })} />
-        : <Podium rows={null} />}
+      <SectionHead id="ho-rank" title={season ? `${season.name} 순위` : " "} link={season && "전체 보기"} onLink={() => go("records", { tab: "rank" })} />
+      <StandTable rows={season ? season.rows : null} shown={5} onName={name => go("records", { trainer: name })} />
     </section>}
 
     {notices.length > 0 && <section className="ho-sec ho-news" aria-labelledby="ho-news">
@@ -287,13 +281,13 @@ export default function HomePage({ data, go, admin }) {
       </div>
     </section>}
 
+    {/* the wall: the past champions standing side by side on one floor, the generation at 20 in type */}
     {champions?.length > 1 && <section className="ho-sec ho-hall" aria-labelledby="ho-hall">
       <SectionHead id="ho-hall" title="역대 챔피언" link="명예의 전당" onLink={() => go("champions")} />
-      <div className="ho-line" style={{ "--n": champions.length - 1 }}>
-        {champions.slice(1).map(c => <button type="button" className="ho-col" key={c.key} onClick={() => setPop(c)} aria-label={`${c.label} 챔피언 ${c.name}, ${c.line}`}>
-          <span className="pn2 ho-col-gen" aria-hidden="true">{c.generation > 0 ? <Seg value={String(c.generation)} h={32} cells={1} label="" /> : <span className="t12">{c.label}</span>}</span>
-          <span className="pn stand ho-col-mon"><i className="floor" aria-hidden="true" /><Mon src={c.party[0]?.img} loading="lazy" /></span>
-          <span className="pn ho-col-who"><b className="t12">{c.name}</b><span className="t12 dim reg">{c.line.replace(/ 우승$/, "")}</span></span>
+      <div className="stack ho-line" style={{ "--n": champions.length - 1 }}>
+        {champions.slice(1).map(c => <button type="button" className="pn stand ho-col" key={c.key} onClick={() => setPop(c)} aria-label={`${c.label} 챔피언 ${c.name}, ${c.line}`}>
+          <span className="floor ho-col-who"><b className="t20">{c.generation > 0 ? `${c.generation}대` : c.label}</b><b className="t15">{c.name}</b><span className="t12 dim reg">{c.line.replace(/ 우승$/, "")}</span></span>
+          <Mon src={c.party[0]?.img} loading="lazy" />
         </button>)}
       </div>
     </section>}

@@ -26,12 +26,15 @@ test("nothing shows without Supabase", () => {
 test("one kind switches alone, and the list keeps only known kinds", () => {
   assert.deepEqual(toggleKind(["notice", "match"], "board"), ["notice", "match", "board"]);
   assert.deepEqual(toggleKind(["notice", "match"], "notice"), ["match"]);
-  assert.deepEqual(toggleKind(["notice", "old"], "daily"), ["notice", "daily"]);
+  assert.deepEqual(toggleKind(["notice", "old"], "record"), ["notice", "record"]);
+  // 오늘의 탑 went on 2026-11-19: a device that still holds it drops it with its next switch
+  assert.deepEqual(toggleKind(["notice", "daily"], "board"), ["notice", "board"]);
 });
 
-// the screen's kinds are the database's (docs/db/push_kinds.sql), so a switch never saves a kind the check refuses
+// the screen's kinds are the database's (docs/db/push_kinds.sql), so a switch never saves a kind the check refuses; the database still
+// knows daily, 오늘의 탑, taken off the screen on 2026-11-19 (docs/db/drop_daily_tower.sql)
 test("the switches and the database name the same kinds", () => {
   const sql = readFileSync(new URL("../docs/db/push_kinds.sql", import.meta.url), "utf8");
   const allowed = sql.match(/push_subscriptions_kinds\s+check \(kinds <@ array\[([^\]]+)\]/)[1].match(/'(\w+)'/g).map(k => k.slice(1, -1));
-  assert.deepEqual(PUSH_KINDS.map(k => k.kind).sort(), allowed.sort());
+  assert.deepEqual(PUSH_KINDS.map(k => k.kind).sort(), allowed.filter(k => k !== "daily").sort());
 });

@@ -1,10 +1,21 @@
 /* ---------- 연승 도전 (src/pages/battle/Streak.jsx, docs/BATTLE_STREAK.md 8장, DESIGN.md "Layout and pages" 연승 도전) ----------
-   The tab stands on the lobby's own parts (the arena, the dock, sections, the podium, rows); only these are its own. */
+   The tab stands on the lobby's own parts (the arena, the dock, sections, the line score, rows); only these are its own. */
 
 /* the side: the kind of run with the run's panel under it, then the board, 52 apart as a form's sections are; the side's top meets the
    scene's (2026-11-18: no label over it, so nothing stands beside the scene's top but the choice) */
 .streak-side { display: grid; align-content: start; gap: var(--s13); }
 .streak-run { display: grid; gap: var(--s3); }
+/* on a desktop the side ends on the scene's line (battle.css .bt-lobby): when the side is the shorter, the board's rows share what is
+   left; the tower, when it is the shorter, stands taller and is drawn again to its box */
+@media (min-width: 860px) {
+  .streak-side { display: flex; flex-direction: column; }
+  .streak-side > section:last-child { flex: 1 0 auto; display: flex; flex-direction: column; }
+  .streak-side > section:last-child > .line-score { flex: 1 0 auto; display: flex; flex-direction: column; }
+  .streak-side .line-score > .ls-row { flex: 1 0 var(--h-row); height: auto; }
+  .streak-side .line-score > .ls-first { flex-basis: var(--h-counter); }
+  .bt-lobby-main > .streak-scene { flex: 1 0 auto; display: flex; flex-direction: column; }
+  .streak-scene > .tw-hall { flex: 1 0 auto; max-height: none; }
+}
 /* with no run of one's own the choice alone heads the board it chooses, at a section head's distance */
 .streak-run:not(:has(.streak-hero)) + section { margin-top: calc(var(--s5) - var(--s13)); }
 

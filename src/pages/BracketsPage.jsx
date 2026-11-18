@@ -1188,14 +1188,15 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   const stripOf=m=>{ const label=schedule?.tables?.get(m.id)||""; return <div className={"mb-strip t12"+(label?"":" wait")}>{label?tableWord(label):"테이블 미정"}</div>; };
   /* the lines: one drawing over the whole tree, measured from the boxes as they stand (offsets, so a lighting rise never bends them).
      Out of each box a road to the middle of its pair and on into the next box; a decided road is a 2px lit line drawn over the rest,
-     so it runs unbroken from the winner's box to the next. */
+     so it runs unbroken from the winner's box to the next. A double's winners' rounds are drawn the same; its 우승 stands with the
+     losers' rounds, outside this tree, so no road runs to it. */
   const treeRef=useRef(null);
   const [wires,setWires]=useState(null);
   const won=m=>{ const w=ev.win[m.id]; return Boolean(w)&&w!==BYE; };
   const winKey=g.rounds.map(r=>r.map(m=>ev.win[m.id]||"").join(",")).join("|")+(finalRes?.champ||"");
   useLayoutEffect(()=>{
     const tree=treeRef.current;
-    if(!tree||g.kind==="double") return undefined;
+    if(!tree) return undefined;
     const at=el=>{ let x=0,y=0; for(let n=el;n&&n!==tree;n=n.offsetParent){ x+=n.offsetLeft; y+=n.offsetTop; } return { x, y, w:el.offsetWidth, h:el.offsetHeight }; };
     const draw=()=>{
       const box=(ri,j)=>{ const el=tree.querySelector(`[data-r="${ri}"][data-j="${j}"] > .mb`); return el?at(el):null; };
@@ -1209,7 +1210,8 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
         if(xm!=null) (roads.every(Boolean)?lit:dim).push(`M${xm} ${ty}H${t.x}`);
       });
       const fin=box(g.rounds.length-1,0), champ=tree.querySelector(".bk-champ-col .bk-champ-node");
-      if(fin&&champ){ const c=at(champ); (finalRes?.champ?lit:dim).push(`M${fin.x+fin.w} ${fin.y+fin.h/2}H${c.x}`); }
+      // a phone with the result shown first hides the 우승 column (brackets.css, draft 5B): no leg runs to a column that is not drawn
+      if(fin&&champ&&champ.offsetParent){ const c=at(champ); (finalRes?.champ?lit:dim).push(`M${fin.x+fin.w} ${fin.y+fin.h/2}H${c.x}`); }
       setWires({ w:tree.scrollWidth, h:tree.scrollHeight, dim:dim.join(""), lit:lit.join("") });
     };
     draw();
@@ -1242,7 +1244,7 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
       <div className="bk-col-body" style={{height:totalH}}>
         <div className="bk-mpos bk-champ-pos" style={{top:(centers[g.rounds.length-1][0]-BK_MATCH_H/2)+"px"}}>
           {finalRes?.champ
-            ? <div className="bk-champ-node inv"><span className="t12">우승</span><b className="t15">{nameOf(finalRes.champ)}</b></div>
+            ? <div className="bk-champ-node inv"><b className="t15">{nameOf(finalRes.champ)}</b></div>
             : <div className="pn bk-champ-node wait"><span className="t12">결승이 끝나면 켜집니다.</span></div>}
         </div>
       </div>
@@ -1256,7 +1258,7 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
     {!qualifier&&g.reset&&g.gf.winner==="b"&&<div className="bk-col"><div className="bk-col-h gf">리셋 결승</div>{strip?<div className="stack">{stripOf(g.reset)}{card(g.reset)}</div>:card(g.reset)}</div>}
     {!qualifier&&finalRes&&finalRes.champ&&<div className="bk-col bk-champ-col">
       <div className="bk-col-h gf">우승</div>
-      <div className="bk-champ-node inv"><span className="t12">우승</span><b className="t15">{nameOf(finalRes.champ)}</b></div>
+      <div className="bk-champ-node inv"><b className="t15">{nameOf(finalRes.champ)}</b></div>
     </div>}
   </div></div>}
   </div>);
@@ -1300,7 +1302,7 @@ function SubmissionStatusPanel({ model, busy, error, expanded, onToggle, onRefre
             <span className={"bk-submission-chevron"+(expanded?" open":"")} aria-hidden="true"><Icon n="chev" size={16}/></span>
           </span>
         </button>
-        <button type="button" className="bk-submission-refresh" onClick={onRefresh} disabled={busy} aria-label="파티 제출 현황 새로고침" title="새로고침">
+        <button type="button" className="bk-submission-refresh" onClick={onRefresh} disabled={busy} aria-label="파티 제출 현황 새로고침">
           <Icon n="refresh" size={16}/>
         </button>
       </div>
@@ -2426,12 +2428,14 @@ function PrivateBrackets({ admin, flash, tabs }){
   return (<section className="bk">
     <header className="bk-head"><h1 className="t32">대진표</h1></header>
     {tabs}
+    {/* 사설 explains in one panel that it never reaches the records (DESIGN.md "Brackets") */}
+    <Row className="bk-private-note" title="사설 대진표는 리그 기록에 남지 않습니다."/>
     {/* the search with its main action at the row's right end, as the board's 글쓰기 stands (DESIGN.md "Controls": beside a search it
         keeps its own width): alone over the search it was a white bar across the whole 1200 (2026-11-10) */}
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="대진표, 개설자, 참가자 검색" count={shown.length}/><Button variant="main" icon="plus" onClick={()=>setCreating(true)}>새 사설 대진표</Button></div>
     {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
     {!list?(!loadError&&<Loader/>):shown.length===0
-      ? (kw?<Empty className="swap" title="검색 결과가 없습니다."/>
+      ? (kw?<Empty className="search-none swap" title="맞는 대진표가 없습니다." desc={`‘${q.trim()}’에 맞는 대진표를 찾지 못했습니다.`}><Seg value={0} h={40} cells={2} label="0건"/></Empty>
            :<Empty className="swap" title="아직 사설 대진표가 없습니다."/>)
       : <div className="stack bk-rows" ref={listArrived}>{shown.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0&&!kw} vt={"pb-"+b.id} live={pbStatus(b)==="진행 중"}
           line={`${b.host?`${b.host} 개설, `:""}${b.participants.length}명, ${pbFormat(b)}${pbChamp(b)?`, 우승 ${pbChamp(b)}`:""}`} onOpen={()=>openBracket(b)} href={viewHref("bracket",{tab:"private",pb:b.id})}/>)}</div>}

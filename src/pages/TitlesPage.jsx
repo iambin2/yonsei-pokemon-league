@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Counter, Row, TabsLine } from "../components/common/Board.jsx";
+import { Row, TabsLine } from "../components/common/Board.jsx";
 import Empty from "../components/common/Empty.jsx";
 import Button from "../components/common/Button.jsx";
 import Modal from "../components/common/Modal.jsx";
 import { Medal, MedalBoard, usePartnerMedal } from "../components/TitleFaces.jsx";
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
-import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, regionMedal, regionOfTitle, titleCounts, typeMedal, typeOfTitle } from "../services/titleLooks.js";
+import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, regionMedal, regionOfTitle, typeMedal, typeOfTitle } from "../services/titleLooks.js";
 import { useItemTitle } from "../components/layout/title.js";
 
 /* ============================== TITLES ==============================
@@ -84,7 +84,6 @@ export default function TitlesPage({ data, admin, setModal, go }) {
   const close = () => { setSheet(null); setParams({ title: null }); };
   const partnerMedalOf = usePartnerMedal();
   const g = groups.find(x => x.key === openKey) || groups[0];
-  const counts = titleCounts(groups);
   const items = g ? (g.items || []) : [];
   const medals = g ? groupMedals(g, items, (item, partner) => () => open(item, partner), data.champions, partnerMedalOf) : [];
   // 관리자 모드에서는 칭호가 편집기의 문이고, 그 밖에서는 칭호 시트의 문이다
@@ -108,11 +107,7 @@ export default function TitlesPage({ data, admin, setModal, go }) {
 
   return (<section className="tt">
     <header className="tt-head"><h1 className="t32">칭호</h1></header>
-    <div className="stack tl-counts">
-      <Counter label="칭호" value={counts.total} unit="개" />
-      <Counter label="주인 있는 칭호" value={counts.owned} unit="개" />
-      <Counter label="주인 없는 칭호" value={counts.empty} unit="개" />
-    </div>
+    {/* no line of counts: the board itself shows which medals are struck and which wait (2026-11-19, Made by people) */}
     {groups.length > 1 && <div className="tt-tabs"><TabsLine value={g?.key} onChange={choose} label="칭호 분류" options={groups.map(x => [x.key, x.name])} /></div>}
 
     {g && <div className="swap" key={g.key}>

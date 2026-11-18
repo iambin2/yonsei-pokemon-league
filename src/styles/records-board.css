@@ -23,39 +23,52 @@
 .rc-admin { margin-bottom: var(--s5); }
 .rc-note { margin-top: var(--s8); }
 
-/* the trainers' table: # 40, the name, three figures of 52; the head strip is 32 */
-.rc-th { display: grid; grid-template-columns: 40px minmax(0, 1fr) 52px 52px 52px; align-items: center; height: var(--h-strip); margin-top: var(--s3); padding-right: var(--pad); }
-.rc-th > span:first-child { padding-left: var(--pad); }
-.rc-th > span:nth-child(n + 3), .rc-three > span { text-align: right; }
-.rc-tr.row { height: var(--h-control); }
-.rc-tr.row.inv { height: var(--h-row); }
-.rc-tr .row-lead { width: 40px; padding-left: var(--pad); }
-.rc-tr .row-lead > span { color: var(--mute); }
-.rc-tr.inv .row-lead > span { color: var(--ground); }
+/* the trainers (draft B): the first three as panels in a row, 1.618, 1, 1 on desktop and stacked on a phone, the first inverted; each
+   the name at 32 and the place, and 우승, 준우승, 4강 as three cells. Then every other trainer as a 52 row: the place muted, the name and
+   its tags, the record as 8 squares under one legend, and on desktop the same figures in words at the row's end. No header row. */
+.rc-tops { margin-top: var(--s5); }
+.rc-top { display: grid; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
+.rc-top-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); min-width: 0; }
+.rc-top-head > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.rc-top-place { flex: none; font-weight: 700; }
+.rc-top-tags { display: flex; margin-top: calc(var(--s2) * -1); }
+.rc-top-tags > .rc-league:first-child { margin-left: 0; }
+.rc-top-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rc-top-cell { display: grid; gap: var(--s1); padding: var(--s2) var(--s3); background: var(--panel-2); }
+.rc-top-cell > b { font-weight: 700; }
+/* on the inverted panel the cells take its lit tone, so no island of the old tone stays inside it (Composing a screen 13) */
+.inv .rc-top-cell { background: transparent; padding-left: 0; }
+.inv .rc-league { --tag-bg: var(--ground); }
+.rc-legend { display: flex; gap: var(--s3); margin: var(--s5) 0 var(--s3); }
+.rc-legend > span { display: inline-flex; align-items: center; gap: var(--s1); }
+.rc-mark { display: inline-block; width: var(--s2); height: var(--s2); background: var(--rule); }
+.rc-mark.win { background: var(--lit); }
+.rc-mark.ru { background: var(--dim); }
+.rc-tr { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; width: 100%; height: var(--h-row); padding-right: var(--pad); text-align: left; }
+.rc-tr-place { padding-left: var(--pad); color: var(--mute); }
+.rc-tr-main { display: grid; gap: var(--s1); min-width: 0; }
+.rc-tr-main > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.rc-marks { display: flex; flex-wrap: wrap; gap: var(--seam); height: var(--s2); overflow: hidden; }
+.rc-tr-words { display: none; white-space: nowrap; }
+.rc-tr-words > b { color: var(--lit); font-weight: 700; }
+@media (min-width: 860px) {
+  .rc-tops { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .rc-tr { grid-template-columns: var(--s13) minmax(0, 1fr) auto; }
+  .rc-tr-main { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--s8); }
+  .rc-tr-words { display: block; }
+}
 /* the league after the name is the type's tag (team-builder.css .tb-type): 마스터 with its square lit, 루키 with it muted */
 .rc-league { margin-left: var(--s2); vertical-align: middle; }
 .rc-league.master { --type: var(--lit); }
 .rc-league:not(.master) { color: var(--dim); }
 /* 나 after the league: the same tag, its square lit; tags keep the seam between each other (.tb-types) */
 .rc-league + .rc-me { margin-left: var(--seam); }
-/* on a phone the two tags pass the name's column into the 우승 column's empty left, whose figures stand at its right end */
-.rc-tr .row-main > b:has(.rc-me) { overflow: visible; text-overflow: clip; }
-.rc-tr.inv .rc-league { --tag-bg: var(--ground); }
-@media (hover: hover) { .rc-tr:not(.inv):hover .rc-league { --tag-bg: var(--ground); } }
-.rc-three { display: grid; grid-template-columns: repeat(3, 52px); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
-.rc-tr.inv .rc-three { font-size: var(--t20); line-height: var(--l20); }
+@media (hover: hover) { .rc-tr:hover .rc-league { --tag-bg: var(--ground); } }
 
 /* the ranking: one season choice, a head strip, rows of 52 (64 with the record line) */
 .rc-season { display: grid; gap: var(--s3); }
 .rc-season .dd-btn { height: var(--h-row); padding: 0 var(--pad); background: var(--panel); box-shadow: none; font-weight: 600; }
 .rc-admin-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.rank-th { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) auto; align-items: center; height: var(--h-strip); margin-top: var(--s5); padding-right: var(--pad); }
-.rank-th > span:first-child { text-align: center; }
-.rank-rows .row-lead { width: var(--s13); text-align: center; }
-.rank-rows.tie .row-lead { width: var(--s21); }
-.rank-th.tie { grid-template-columns: var(--s21) minmax(0, 1fr) auto; }
-.rank-rows .row-value { display: flex; align-items: baseline; gap: var(--s1); }
-.rank-rows .row--2 { height: var(--h-row2); }
 .rank-tie { margin-top: var(--s2); }
 .rank-more { margin-top: var(--s5); }
 
@@ -66,8 +79,8 @@
 .rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); padding: var(--s8) 0 var(--s3); }
 .rc-chapter:first-child { padding-top: 0; }
 .rc-chapter-n { display: flex; align-items: flex-end; gap: var(--s1); }
-/* the ranking's podium stands 20 under the season choice */
-.rc-rank > .podium:first-child, .rc-rank > .rc-admin + .podium { margin-top: var(--s5); }
+/* the ranking's line score stands 20 under the season choice */
+.rc-rank > .line-score:first-child, .rc-rank > .rc-admin + .line-score { margin-top: var(--s5); }
 .round2 { display: grid; padding: var(--pad); }
 .r2-main { min-width: 0; }
 .r2-head { display: grid; gap: var(--s1); margin-bottom: var(--s3); }
@@ -126,9 +139,6 @@
 .rc-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .rc-lead-note { margin-top: var(--s5); }
 @media (min-width: 860px) {
-  /* the # column holds two figures at 15 beside the desktop's 20 padding */
-  .rc-th { grid-template-columns: 52px minmax(0, 1fr) 52px 52px 52px; }
-  .rc-tr .row-lead { width: 52px; }
   .rc-mons, .rc-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 

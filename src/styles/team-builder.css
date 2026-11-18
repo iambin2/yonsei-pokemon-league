@@ -50,8 +50,6 @@
 .tb-panel-head h2 { font-size: var(--t20); font-weight: 700; line-height: var(--l20); letter-spacing: var(--ls20); }
 @media (min-width: 1100px) { .tb-panel-head h2 { font-size: var(--t20); letter-spacing: var(--ls20); }
 }
-.tb-pool-count { font-size: var(--t20); letter-spacing: var(--ls20); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.tb-pool-count small { margin-left: var(--s1); font-size: var(--t12); font-weight: 600; color: var(--mute); }
 
 .tb-pool-panel {
   position: sticky; top: calc(var(--nav-height) + var(--s5));
@@ -166,6 +164,8 @@
   .tb-page[data-step="team"] [data-tb-step]:not([data-tb-step="team"]) { display: none; }
   /* the step tab above already names the panel: one fact once */
   :is(.tb-pool-panel .tb-panel-head, .tb-team-head) h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* with its title read by the tab, the pool's head holds nothing visible: the search stands the six's 20 under them, not twice that */
+  .tb-pool-panel .tb-panel-head + .tb-search-row { margin-top: 0; }
   .tb-page[data-step="team"] .tb-layout { order: 1; }
   .tb-page[data-step="team"] .tb-validation-wrap { order: 2; }
   /* 타입 상성 stands under the team and its editor, as on a desktop (DESIGN.md "Team builder": six slots always on top, 타입 상성 under
@@ -191,6 +191,9 @@
 /* ---------- Showdown-style search: suggestions, condition chips, sort ---------- */
 /* panel head to content is space-4 like the team panel; controls inside the group keep space-3 like the editor grid */
 .tb-pool-panel .tb-search-row { margin-top: var(--s5); }
+/* the search's count stands at the field's end, before its clear key (the board's search says it the same way, N건) */
+.tb-search-count { position: absolute; right: var(--h-control); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none; }
+.tb-search-row:has(.tb-search-count) input { padding-right: calc(var(--h-control) + var(--s13)); }
 .tb-suggest { max-height: min(calc(var(--s21) * 4 + var(--s5)), 61.8vh); }
 .tb-suggest-head { padding: var(--s2) var(--s3) var(--s1); font-size: var(--t12); font-weight: 600; color: var(--mute); }
 .tb-suggest .dd-opt { justify-content: flex-start; }

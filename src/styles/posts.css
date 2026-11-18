@@ -13,18 +13,23 @@
 
 /* a party or a sample in the list: the records' party row. The title and its grey line, then the pictures; on desktop the six stand
    at the right in 64 cells; a sample's one picture leads its row */
-.bd-post { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s2); width: 100%; padding: var(--s3) var(--pad); text-align: left; }
-.bd-post-top { display: grid; gap: var(--s1); min-width: 0; }
+/* the comment count is the row's value at its right end, as on 자유 (Row); the date ends the grey line on all three tabs */
+.bd-post { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); row-gap: var(--s2); width: 100%; padding: var(--s3) var(--pad); text-align: left; }
+.bd-post-top { grid-column: 1; grid-row: 1; display: grid; gap: var(--s1); min-width: 0; }
 .bd-post-top > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bd-minis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
+.bd-post-cc { grid-column: -2; grid-row: 1; align-self: center; white-space: nowrap; }
+.bd-minis { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
 .bd-mini { height: var(--h-row); }
 .bd-mini .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
-.bd-post.one { grid-template-columns: var(--h-row2) minmax(0, 1fr); align-items: center; gap: var(--s3); padding-left: var(--s3); }
+.bd-post.one { grid-template-columns: var(--h-row2) minmax(0, 1fr) auto; align-items: center; padding-left: var(--s3); }
+.bd-post.one .bd-post-top { grid-column: 2; }
 .bd-post.one .bd-minis { grid-row: 1; grid-column: 1; grid-template-columns: minmax(0, 1fr); }
 .bd-post.one .bd-mini { height: var(--h-row2); }
 @media (min-width: 860px) {
-  .bd-post:not(.one) { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s5); padding-block: var(--s2); }
-  .bd-post:not(.one) .bd-minis { grid-template-columns: repeat(6, var(--h-row2)); }
+  .bd-post:not(.one) { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--s5); padding-block: var(--s2); }
+  /* the six keep the row's end, so they stand on one line down the list; the count stands just before them */
+  .bd-post:not(.one) .bd-post-cc { grid-column: 2; }
+  .bd-post:not(.one) .bd-minis { grid-column: 3; grid-row: 1; grid-template-columns: repeat(6, var(--h-row2)); }
   .bd-post:not(.one) .bd-mini { height: var(--h-row2); }
 }
 
@@ -62,7 +67,9 @@
   .bd-art.one > .sc-post-sheet { grid-area: sheet; position: sticky; top: calc(var(--nav-height) + var(--s5)); }
   .bd-art.one > .bd-bar { grid-area: bar; }
   .bd-art.one > .bd-body { grid-area: body; }
-  .bd-art.one > .bd-cmts { grid-area: cmts; }
+  /* the two columns end on one line (Composing a screen 26): when the case is the longer, the comments stand at the foot of the
+     right column, level with the case's last line; when the comments are the longer, the case stays in view beside them */
+  .bd-art.one > .bd-cmts { grid-area: cmts; align-self: end; }
   .bd-art.one .sc-sheet:not(.multi) { max-width: none; }
 }
 
@@ -87,8 +94,8 @@
 .bd-cform .cell:has(input:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .bd-cform-pin { flex: 0 0 calc(var(--s21) + var(--s13)); }
 /* 등록 stands the full height of the comment's cell beside it (board.css fixes a small main key at the control's height, which left
-   a gap under it in this row) */
-.bd-cform .btn.btn--main.btn--sm { flex: none; width: auto; height: auto; align-self: stretch; }
+   a gap under it in this row); on a sample or party post it is a second action, the post's main action being 팀 빌더에서 열기 */
+.bd-cform .btn.btn--sm { flex: none; width: auto; height: auto; align-self: stretch; }
 
 /* a picture or a video a post links */
 .bd-yt { position: relative; aspect-ratio: 16 / 9; margin-top: var(--s5); overflow: hidden; background: #000; }

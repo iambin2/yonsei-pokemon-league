@@ -1,6 +1,6 @@
 import React, { memo, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Dropdown, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
+import { Dropdown, Empty, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
 import { Bang, Cell, Choice, Dock, Mon, OptionRows, Steps, TabsLine, TypeGrid } from "../components/common/Board.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { saveTeamSheetImage } from "../components/teamSheetImage.js";
@@ -192,8 +192,7 @@ function TeamSlot({ index, member, active, displayName, itemLabel, onSelect, onR
        The × is the slot's sibling, not its child: a button never holds another button */
     <div className="tb-mon-cell">
     <button type="button" className={"stand tb-mon" + (active ? " inv active" : " pn") + (unresolved ? " unresolved" : "")} onClick={onSelect} aria-pressed={active}
-      aria-label={`${displayName}, ${itemLabel || "도구 없음"}, 기술 ${moveCount}/4${unresolved ? ", 현재 규칙에서 확인할 수 없는 포켓몬" : ""}`}
-      title={unresolved ? "현재 규칙에서 확인할 수 없는 포켓몬" : `${displayName}, ${itemLabel || "도구 없음"}, 기술 ${moveCount}/4`}>
+      aria-label={`${displayName}, ${itemLabel || "도구 없음"}, 기술 ${moveCount}/4${unresolved ? ", 현재 규칙에서 확인할 수 없는 포켓몬" : ""}`}>
       <i className="floor" aria-hidden="true" />
       <Mon src={spriteUrl(member.pokemon.name)} />
     </button>
@@ -236,7 +235,7 @@ const TypeMatchups = memo(function TypeMatchups({ team, detailData, displayPokem
           {rows.map(row => (
             <tr key={row.type.id}>
               <th scope="row"><span className={`tb-type type-${row.type.id}`}>{row.type.korean}</span></th>
-              {cells(row).map(([m, label], index) => <td key={team[index].uid} className={m >= 4 ? "x4" : m != null && m < 1 ? "lo" : undefined} aria-label={label ? `${names[index]} ${label}` : undefined} title={label || undefined}>{multiplierMark(m)}</td>)}
+              {cells(row).map(([m, label], index) => <td key={team[index].uid} className={m >= 4 ? "x4" : m != null && m < 1 ? "lo" : undefined} aria-label={label ? `${names[index]} ${label}` : undefined}>{multiplierMark(m)}</td>)}
               {totals.map(([label, count, lit]) => <td key={label} className={"tb-mx-total" + (!count(row) ? " off" : lit(row) ? "" : " lo")}>{count(row)}</td>)}
             </tr>
           ))}
@@ -1449,7 +1448,6 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
           <p className="t12 dim">{cupRule.name}의 타입{eventId ? " (대회 기준)" : ""}</p>
           <TypeGrid label="지정 타입" value={assignedTypeId} onChange={switchCupRuleType} types={TYPE_OPTIONS} disabled={Boolean(eventId)} />
         </div>}
-        <p className="t12 reg dim">{regulation.description}</p>
       </div>
 
       <div className="tb-validation-wrap" data-tb-step="team">
@@ -1493,7 +1491,6 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
           </div>
           <div className="tb-panel-head">
             <div><h2 className="t20">포켓몬 선택</h2></div>
-            <strong className="tb-pool-count">{cupRule.kind === "monotype" && selectedType ? `${selectedType.korean} ` : ""}{eligiblePool.length}<small> / {selectablePokemonPool.length}</small></strong>
           </div>
           {(detailStatus!=="ready"||localizationStatus!=="ready")&&<div className="tb-data-line">{detailStatus==="error"?<Bang/>:<i className={"lamp"+(detailStatus==="ready"?"":" unlit")} aria-hidden="true"/>}{[detailStatus!=="ready"&&dataStatusText,localizationStatus!=="ready"&&localizationText].filter(Boolean).join(", ")}</div>}
           <div className="tb-search-row">
@@ -1514,6 +1511,8 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
               aria-autocomplete="list"
               autoComplete="off"
             />
+            {/* the search's count, as every search says it (ListSearch); the whole pool's count is the 전체 cell's */}
+            {(query || searchChips.length > 0) && <span className="t12 dim tb-search-count">{filteredPool.length}건</span>}
             {(query || searchChips.length > 0) && <button className="tb-clear" onClick={() => { setQuery(""); setSearchChips([]); }} aria-label="검색 조건 모두 지우기"><Icon n="x" size={16} /></button>}
             {showSuggestions && (
               <div className="dd-menu plate tb-suggest" id="tb-search-suggest" role="listbox" aria-label="검색 조건 후보">
@@ -1540,7 +1539,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
             </div>
           )}
           {/* the types as a board of cells. One type at a time; it is the search's own type condition, so the search chips show it too */}
-          <TypeGrid label="타입으로 거르기" value={searchChips.find(chip => chip.kind === "type")?.id || ""} types={TYPE_OPTIONS} all="전체"
+          <TypeGrid label="타입으로 거르기" value={searchChips.find(chip => chip.kind === "type")?.id || ""} types={TYPE_OPTIONS} all={`전체 ${eligiblePool.length}`}
             onChange={id => setSearchChips(current => [...current.filter(chip => chip.kind !== "type"), ...(id ? [{ kind: "type", id, label: TYPE_OPTIONS.find(type => type.id === id)?.korean || id }] : [])])} />
           <div className="tb-sort-row">
             <Dropdown className="tb-dd" value={sortId} onChange={setSortId} ariaLabel="정렬 기준" options={BUILDER_SORTS.map(sort => ({ value: sort.id, label: sort.label }))} />
@@ -1586,7 +1585,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
 
           <div className="tb-editor">
             {!selectedMember ? (
-              <div className="pn tb-editor-empty"><strong className="t15">세팅할 포켓몬을 선택해 주세요.</strong></div>
+              <Empty className="tb-editor-empty" title="세팅할 포켓몬을 선택해 주세요." />
             ) : (
               <>
                 <div className="tb-editor-head">
@@ -1604,7 +1603,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                   </Cell>
                   <Cell label="도구">
                     {selectedRequiredItem ? (
-                      <div className="tb-locked-item" role="textbox" aria-readonly="true" aria-label="메가폼 전용 도구, 자동 지정, 변경 불가" title="선택한 메가폼에 필요한 도구로 자동 지정되며 변경할 수 없습니다.">
+                      <div className="tb-locked-item" role="textbox" aria-readonly="true" aria-label="메가폼 전용 도구, 자동 지정, 변경 불가">
                         <span>{itemDisplay(detailData, selectedRequiredItem)}</span><Icon n="lock" size={16} />
                       </div>
                     ) : (
@@ -1630,7 +1629,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                       const final = calculatedStat(base, point, key, nature);
                       return (
                         <div className="tb-stat-row" key={key}>
-                          <span className="t12 tb-stat-key" title={base != null ? `${STAT_LABELS[key]}, 종족값 ${base}` : STAT_LABELS[key]}><span aria-hidden="true">{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span><span className="sr-only">{STAT_LABELS[key]}{base != null ? `, 종족값 ${base}` : ""}{nature.plus === key ? ", 성격 보정 상승" : nature.minus === key ? ", 성격 보정 하락" : ""}</span></span>
+                          <span className="t12 tb-stat-key"><span aria-hidden="true">{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span><span className="sr-only">{STAT_LABELS[key]}{base != null ? `, 종족값 ${base}` : ""}{nature.plus === key ? ", 성격 보정 상승" : nature.minus === key ? ", 성격 보정 하락" : ""}</span></span>
                           <span className="tb-bar"><i style={{ transform: `scaleX(${point / 32})` }} /><input type="range" min="0" max="32" step="1" value={point} aria-label={`${STAT_LABELS[key]} 포인트`} onChange={event => updateStat(selectedMember, key, event.target.value)} /></span>
                           <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={point} onChange={event => updateStat(selectedMember, key, event.target.value)} aria-label={`${STAT_LABELS[key]} 포인트 숫자`} />
                           <span className="t12 reg dim tb-final-stat">최종 <b>{final}</b></span>
@@ -1641,7 +1640,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                 </div>
 
                 <div className="tb-editor-section">
-                  <div className="tb-subhead"><span className="t12 dim">기술, 배우는 기술 중 넷</span><b className="t12">{selectedMember.moves.filter(Boolean).length} / 4</b></div>
+                  <div className="tb-subhead"><span className="t12 dim">기술</span><b className="t12">{selectedMember.moves.filter(Boolean).length} / 4</b></div>
                   <div className="cells">
                     <Cell label="타입">
                       <Dropdown className="tb-dd" value={moveTypeFilter} onChange={setMoveTypeFilter} ariaLabel="기술 타입 필터" disabled={!detailData}
