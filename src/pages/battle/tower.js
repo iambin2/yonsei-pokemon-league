@@ -16,7 +16,7 @@
    tower alone in an empty night, "가상의 요소처럼 느껴져서 몰입이 깨져") */
 import { DUR, EASE_IN, EASE_OUT, INOUT, STAGGER, reduced } from "../../components/common/motion.js";
 import { sfx } from "./sfx.js";
-import { GY, LAMP, ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
+import { GY, LAMP, ND, PITCH, RR, RW, buildModel, cameraOf, doorPoint, mixView, modelBuilt, paletteOf, prebuildModel, render, topOf, viewOf, warmTower } from "./towerGL.js";
 
 // the model's context and programs, and the tower's mesh in the theme's tones (a piece at a time), made in idle moments after the
 // battle page loads this module, so the tab's tower comes in without waiting for them
@@ -108,7 +108,12 @@ function paint(el) {
   const tw = el.tower, canvas = el.querySelector("canvas.tw-body");
   if (!tw || !canvas) return;
   const top = topOf(tw.st.floor);
-  if (tw.model?.top !== top) tw.model = buildModel(top, tw.pal);
+  /* a mesh not made yet is made in pieces (prebuildModel) and the scene is painted once it is there; the scenes wait for it
+     (meshReady) before they move */
+  if (tw.model?.top !== top) {
+    if (!modelBuilt(top, tw.pal)) { tw.waiting ||= prebuildModel(top, tw.pal).then(() => { tw.waiting = null; if (el.tower === tw) { paint(el); mark(el, false); } }); return; }
+    tw.model = buildModel(top, tw.pal);
+  }
   let v = tw.cam || viewOf(tw.kind, tw.s, tw.m, top);
   // a hand on the tab's tower turns the camera round it and lifts or lowers it (look)
   if (tw.look) v = { ...v, phi: v.phi + tw.look.dphi, camY: v.camY + tw.look.dy, tgtY: v.tgtY + tw.look.dy };
@@ -336,6 +341,7 @@ if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") 
 async function entrance(el) {
   const tw = el.tower;
   if (!tw || reduced()) return;
+  if (tw.waiting) { await tw.waiting; if (el.tower !== tw) return; }
   const top = topOf(tw.st.floor), a = viewOf("whole", tw.s, tw.m, top), b = viewOf("hall", tw.s, tw.m, top), target = tw.doors.slice(), k = doorOf(tw.st);
   marksOf(el).forEach(x => { x.style.opacity = "0"; });
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.light);
@@ -351,9 +357,12 @@ async function entrance(el) {
   if (el.tower === tw) mark(el);
 }
 /* 1. between games: the tower comes up over the stage as the camera settles before the door, drawing in from a little round the tower */
-function arrive(el) {
+async function arrive(el) {
+  if (el.tower?.waiting) await el.tower.waiting;
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.leave);
-  const tw = el.tower, b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
+  const tw = el.tower;
+  if (!tw) return;
+  const b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
   return animate(el, ARRIVE, e => { tw.cam = e >= 1 ? null : mixView(a, b, e); }, out3);
 }
 /* 2. a game won: its lamp goes out where it stands (the amber room cools to the warm of a game won), the camera walks the terrace

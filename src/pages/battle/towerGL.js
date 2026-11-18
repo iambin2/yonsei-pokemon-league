@@ -350,14 +350,22 @@ export function buildModel(top, pal) {
 }
 /* the same mesh made a piece at a time, before any tower is asked for: made at once it is one long task (a
    tenth of a second, half a second on a slow phone), in pieces none is longer than a frame or two */
-export async function prebuildModel(top, pal) {
+/* one build of a mesh at a time: a tower asked for while its mesh is still being made in pieces waits for that build instead of
+   making it again at once (2026-11-18: the tab opened first made it whole inside its first frame, 467 ms at a phone's speed) */
+const building = new Map();
+export function prebuildModel(top, pal) {
   const key = keyOf(top, pal);
-  if (built.has(key)) return;
-  const M = mesh();
-  // a turn of the event loop between pieces lets a tap or a frame in (waiting for an idle moment each time took ten seconds in all)
-  for (const _ of pieces(M, top, pal)) await new Promise(r => setTimeout(r));
-  if (!built.has(key)) keep(key, top, M);
+  if (built.has(key)) return Promise.resolve();
+  if (!building.has(key)) building.set(key, (async () => {
+    const M = mesh();
+    // a turn of the event loop between pieces lets a tap or a frame in (waiting for an idle moment each time took ten seconds in all)
+    for (const _ of pieces(M, top, pal)) await new Promise(r => setTimeout(r));
+    if (!built.has(key)) keep(key, top, M);
+    building.delete(key);
+  })());
+  return building.get(key);
 }
+export const modelBuilt = (top, pal) => built.has(keyOf(top, pal));
 
 /* ---------- the shaders ---------- */
 const NOISE = `
