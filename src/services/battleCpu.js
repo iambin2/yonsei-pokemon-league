@@ -94,9 +94,10 @@ function pickWeighted(list, random) {
   let roll = random() * list.reduce((sum, x) => sum + x.weight, 0);
   return list.find(x => (roll -= x.weight) < 0) || list[list.length - 1];
 }
-/* what one of their Pokémon may carry: its sample sets, and each attacking set with a Choice item or an Assault Vest it does not list,
+/* what one of their Pokémon may carry: its sample sets, and each attacking set with a Choice item it does not list (포켓몬 챔피언스 has no
+   Assault Vest: until 2026-11-18 it was guessed too, an item no party there can hold),
    at a hundredth of its weight (players bring a Scarf the ladder's top sets lack). What the battle shows narrows these (infer below). */
-const VARIANTS = [["choicescarf", "any"], ["choiceband", "Physical"], ["choicespecs", "Special"], ["assaultvest", "any"]];
+const VARIANTS = [["choicescarf", "any"], ["choiceband", "Physical"], ["choicespecs", "Special"]];
 function hypothesesOf(dex, sets) {
   const out = [...sets];
   for (const set of sets) {

@@ -14,7 +14,7 @@ const dex = Dex.mod("champions", champions);
 const TYPES = dex.types.names();
 
 /* ---------- the tower's sets, as the draft and the foes take them (14.4) ---------- */
-export const LOCKS = /^(Choice (Band|Specs|Scarf)|Assault Vest)$/;
+export const LOCKS = /^Choice (Band|Specs|Scarf)$/;
 export const statusMove = set => set.moves.some(m => Dex.moves.get(m).category === "Status");
 // the whole random pool under a ban (15장: the foes' material), and the ladder's species in it (14장: the draft's)
 export const wholePool = (ban = STREAK_BAN) => fairPool(STREAK_FORMAT_ID, ban);
@@ -24,7 +24,7 @@ export function towerPool(ban = STREAK_BAN) {
   return pools.get(ban);
 }
 /* a sample set of the species that holds the item: one that carries it, by weight, or else one that can (never a Mega set for an item
-   that is not its stone, never a status move under a Choice item or an Assault Vest). No item: a set that is not a Mega's. null when
+   that is not its stone, never a status move under a Choice item). No item: a set that is not a Mega's. null when
    none can */
 export function setFor(entry, item, random) {
   const carry = item ? entry.sets.filter(set => set.items.includes(item)) : [];

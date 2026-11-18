@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Teams } from "@pkmn/sim";
 import { learn, MIN_PLAYERS, MIN_SEEN, RATE } from "../scripts/learn-cpu-sets.mjs";
-import { curateKind, MAJOR_RANK } from "../scripts/curate-sets.mjs";
+import { ADDED, curateKind, MAJOR_RANK } from "../scripts/curate-sets.mjs";
 
 const SETS = JSON.parse(readFileSync(new URL("../src/data/random-sets.json", import.meta.url), "utf8"));
 const FORMAT = "gen9championsbssregmc";
@@ -77,7 +77,8 @@ test("the sample sets are whole builds with one item, and curating them again ch
     const entries = SETS["m-c"][kind];
     assert.ok(entries.every(e => e.sets.every(s => s.items.length === 1)), `${kind}: one item a set`);
     const rank = [...entries].sort((a, b) => b.usage - a.usage).map(e => e.species);
-    for (const e of entries) if (rank.indexOf(e.species) >= MAJOR_RANK && new Set(e.sets.filter(s => s.mega).map(s => s.items[0])).size < 2) assert.equal(e.sets.length, 1, e.species);
-    assert.deepEqual(curateKind(entries), entries);
+    // a minor species keeps one set, besides the builds the owner added for it (ADDED)
+    for (const e of entries) if (rank.indexOf(e.species) >= MAJOR_RANK && new Set(e.sets.filter(s => s.mega).map(s => s.items[0])).size < 2) assert.equal(e.sets.length, 1 + (ADDED[kind]?.[e.species]?.length || 0), e.species);
+    assert.deepEqual(curateKind(entries, kind), entries);
   }
 });

@@ -11,9 +11,10 @@ const sets = JSON.parse(readFileSync(new URL("../src/data/random-sets.json", imp
 const detail = JSON.parse(readFileSync(new URL("../src/data/champions-data.json", import.meta.url), "utf8"));
 const id = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 const NO_STATUS = new Set(["choicescarf", "choiceband", "choicespecs", "assaultvest"]);
-const CHOICE_OK = new Set(["trick", "switcheroo", "healingwish", "memento"]);
+// Transform: a Scarf Ditto copies the foe and keeps the Scarf's speed (the games' standard set, 2026-11-18)
+const CHOICE_OK = new Set(["trick", "switcheroo", "healingwish", "memento", "transform"]);
 
-test("no set carries a status move under a Choice item or an Assault Vest, first item or back-up", () => {
+test("no set carries a status move under a Choice item (포켓몬 챔피언스 has no Assault Vest), first item or back-up", () => {
   const bad = [];
   for (const reg of ["m-c", "m-b"]) for (const format of ["singles", "doubles"]) for (const entry of sets[reg][format]) for (const set of entry.sets) {
     for (const item of set.items) {
