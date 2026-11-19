@@ -55,3 +55,33 @@
 /* ---------- 2026-11-11 (docs/BATTLE_STREAK.md 13장): the scene's kinds, the opening draft, the doors to the next game ---------- */
 /* the tower and the draft share the scene's place; the two kinds of run stand as a line of chips under the tabs */
 .streak-scene { position: relative; }
+
+/* ---------- 등반전 (Cups.jsx; docs/BATTLE_STREAK.md 18장, DESIGN.md 도전의 탑, 등반전) ----------
+   One cup is the lobby's two columns: its name and its ranking in the 709, and in the 439 the time left and the players as counters
+   on the seam, its facts as spec rows under them. The back link heads it as on every inner page. */
+.cup-page { display: grid; gap: var(--s5); }
+.cup-head { display: grid; gap: var(--s1); }
+.cup-counters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); }
+.cup-counters > :nth-child(3) { grid-column: 1 / -1; }
+.cup-top { align-items: end; }
+@media (min-width: 860px) {
+  /* the code's four cells take the golden share; the time and the players hold two each */
+  .cup-counters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.618fr); }
+  .cup-counters:not(:has(> :nth-child(3))) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cup-counters > :nth-child(3) { grid-column: auto; }
+}
+/* the tab's list stands under the tower's key, a section's distance down; on a desktop its rows take what is left of the column, so
+   the two columns end on one line as the month's board does beside it */
+.streak-cups { display: grid; align-content: start; }
+/* on a phone it stands right under the tower, before the run and the month: a meet comes to it first */
+@media (max-width: 859px) { .streak-cups { margin-block: calc(var(--s13) - var(--s5)); } }
+@media (min-width: 860px) {
+  .bt-lobby-main:has(> .streak-cups) > .dock { margin-top: 0; }
+  .bt-lobby-main > .streak-cups { margin-top: calc(var(--s13) - var(--s3)); flex: 1 0 auto; display: flex; flex-direction: column; }
+  .streak-cups > .stack { flex: 1 0 auto; display: flex; flex-direction: column; }
+  .streak-cups > .stack > .row { flex: 1 0 auto; }
+}
+.cup-side { gap: var(--s5); }
+@media (min-width: 860px) {
+  .cup-side { position: sticky; top: calc(var(--nav-height) + var(--s8)); align-self: start; }
+}

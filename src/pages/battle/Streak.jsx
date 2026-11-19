@@ -28,6 +28,7 @@ import { drawTower, standTower, towerBreak, towerDive, towerDrop, towerShow } fr
 import { MonCard } from "./Sets.jsx";
 import { centreInk } from "../../components/common/inkCentre.js";
 import { useAccount } from "../../components/common/useMe.js";
+import { CupBoard, CupList, CupMake, askedCup, showCupInAddress, useCups } from "./Cups.jsx";
 
 // the board's months are the run's months in KST, as the database counts them: "2026-11-01"
 const monthOf = back => {
@@ -384,6 +385,10 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const [error, setError] = useState("");
   // a refusal after the court went dark stands it up again, lit
   const [round, setRound] = useState(0);
+  const [cup, setCup] = useState(askedCup);
+  const [making, setMaking] = useState(false);
+  const [cupsAsked, setCupsAsked] = useState(0);
+  const cups = useCups(`${cupsAsked}|${account?.status}`);
   const month = monthOf(back), other = monthOf(back ? 0 : 1);
   useEffect(() => { setDraft(readStreakDraft(daily)); setPicks([]); setDoor(0); setError(""); }, [daily]);
   useEffect(() => {
@@ -490,6 +495,17 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   // the other climbers on the tower, all of them, counted by floor there: this board's but one's own (one's own run is the path)
   const climbers = !back && rows ? rows.filter(r => !r.mine).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
   const ready = run !== undefined && board !== undefined && account !== undefined && (!approved || synced);
+  /* 등반전 (Cups.jsx): one opened stands as its own screen in the tab, kept in the address (&cup=) so its link and its alert open it */
+  const openCup = id => { showCupInAddress(id); setCup(id); };
+  if (cup) return (
+    <div className="bt-page">
+      <h1 className="t32">배틀</h1>
+      {tabs}
+      {gateSheet}
+      <CupBoard id={cup} approved={approved} onGate={() => setGate(true)} onOpen={onOpen} onBack={() => { openCup(null); setCupsAsked(n => n + 1); }}
+        onClimb={() => { openCup(null); }} />
+    </div>
+  );
   return (
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
@@ -506,6 +522,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>
             <div className="bt-end-keys">{keys}</div>
           </Dock>
+          {/* 등반전 under the tower's key: the side holds the run and the month (2026-11-19: beside them the side outgrew the tower) */}
+          <CupList cups={cups} onCup={openCup} onMake={() => (approved ? setMaking(true) : setGate(true))} onRetry={() => setCupsAsked(n => n + 1)} />
         </div>
         <div className="bt-lobby-set streak-side">
           {/* the run's board heads the side, on the scene's top line, so the scene starts where 배틀 열기's court does (2026-11-09,
@@ -513,6 +531,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           <div className="streak-run">
             <RunBoard run={run} best={rows ? mine?.wins ?? 0 : null} approved={approved} daily={daily} />
           </div>
+          {making && <CupMake onClose={() => setMaking(false)} onMade={id => { setMaking(false); openCup(id); }} />}
           <section aria-labelledby="streak-board">
             <SectionHead id="streak-board" title={`${month.label} 순위`} link={`${other.label} 보기`} onLink={() => setBack(b => (b ? 0 : 1))} />
             {board === undefined ? <StandTable rows={null} />

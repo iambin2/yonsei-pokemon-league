@@ -154,6 +154,19 @@ export async function readDailyBoard() {
     throw error;
   }
 }
+/* 등반전 (docs/db/tower_cups.sql, BATTLE_STREAK.md 18장): a board with a window of time and its own players, counting their ordinary
+   runs. Read as the account when signed in (its own cups and its row are marked); before the SQL has run every read is null and the
+   screen leaves 등반전 out. */
+const standAside = error => { if (error.status === 404 || error.code === "PGRST202") return null; throw error; };
+const signedInNow = async () => visitorSignedIn() && Boolean(await token());
+export const readTowerCups = async () => rest("rpc/tower_cups", { method: "POST", body: {}, auth: await signedInNow() }).catch(standAside);
+// { cup: { id, title, host_name, starts_at, ends_at, room, run_limit, players, joined, hosting, code }, rows: [...] }, or null (none such)
+export const readTowerCup = async id => rest("rpc/tower_cup_board", { method: "POST", body: { p_id: id }, auth: await signedInNow() }).catch(standAside);
+export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
+  rest("rpc/tower_cup_create", { method: "POST", body: { p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
+export const joinTowerCup = (id, code = null) => rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
+export const closeTowerCup = id => rest("rpc/tower_cup_close", { method: "POST", body: { p_id: id } });
+
 /* a month's board (streak_board): read as the account when signed in, so the viewer's own row is marked. month: "2026-11-01", or
    none for this month. Before docs/db/streak_runs.sql has run there is no such function, and the feature stands aside (null). */
 export async function readStreakBoard(month) {
