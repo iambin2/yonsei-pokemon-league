@@ -2,6 +2,7 @@ import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Seg from "./common/Seg.jsx";
 import { medalDrawn, medalUrl } from "./titleMedal.js";
 import { loadRecordsPokemonDirectory } from "../services/recordsPokemon.js";
+import { spriteUrl } from "../services/teamBuilderCore.js";
 import { REGIONS, TITLE_TYPES, championMedal, ownMedal, partnerMedal, regionMedal, regionOfTitle, typeMedal, typeOfTitle } from "../services/titleLooks.js";
 
 /* ============================== 칭호의 메달 (DESIGN.md "Titles and hall of fame") ==============================
@@ -17,7 +18,7 @@ const groundNow = () => typeof document === "undefined" ? "" : document.document
 const onGround = fn => { const o = new MutationObserver(fn); o.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); return () => o.disconnect(); };
 const useGround = () => useSyncExternalStore(onGround, groundNow, () => "");
 
-/* a partner's medal takes its Pokémon's first type and its national number: read from the records' Pokémon directory, once */
+/* a partner's medal takes its Pokémon's first type and its picture (the silhouette on it): read from the records' Pokémon directory, once */
 let partnerFacts = null;
 export function usePartnerMedal() {
   const [map, setMap] = useState(partnerFacts);
@@ -32,13 +33,11 @@ export function usePartnerMedal() {
     }, () => { if (on) setMap(new Map()); });
     return () => { on = false; };
   }, []);
-  return map ? name => { const record = map.get(name); return partnerMedal(record?.type || "normal", record?.dexNumber); } : null;
+  return map ? name => { const record = map.get(name); return partnerMedal(record?.type || "normal", record?.canonicalName ? spriteUrl(record.canonicalName) : ""); } : null;
 }
 
 /* one medal: nothing until it is drawn, then it is there (a medal switches on, it does not arrive) */
-export function Medal({ spec: face, off = false, big = false }) {
-  /* a sheet's face is drawn large, and only there does the band carry the league's name */
-  const spec = face && big ? { ...face, big: true } : face;
+export function Medal({ spec, off = false }) {
   const ground = useGround(), key = JSON.stringify(spec) + off + ground;
   const [drawn, setDrawn] = useState(() => (spec ? { key, src: medalDrawn(spec, off) } : { key, src: "" }));
   useEffect(() => {

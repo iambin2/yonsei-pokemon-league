@@ -60,7 +60,7 @@ function TitleSheet({ group, item, spec, partner, go, onClose }) {
   const title = partner ? `파트너 ${partner.pokemon}` : item.name;
   const record = name => go ? () => { onClose(); go("records", { trainer: name }); } : undefined;
   return <Modal title={title} hint={partner ? group.desc : item.desc || group.desc} className="tl-sheet" onClose={onClose}>
-    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} big /></div>}
+    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} /></div>}
     <section className="tl-sheet-sec">
       {/* the sheet's title is its h3, so the section under it is an h4 in the section head's own form */}
       <div className="sh"><h4 className="t20">{partner ? `트레이너 ${holders.length}명` : `주인 ${holders.length}명`}</h4></div>

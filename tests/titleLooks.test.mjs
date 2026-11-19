@@ -22,11 +22,9 @@ test("every title becomes a medal of its own kind", () => {
   assert.deepEqual(typeMedal("fire"), { glyphs: ["fire"], enamel: ["fire"] });
   assert.deepEqual(regionMedal("성도"), { scene: "성도", enamel: ["flying"] });
   assert.deepEqual(partnerMedal("fire"), { device: "paw", enamel: ["fire"] });
-  assert.equal(partnerMedal("water", 184).foot, "webbed", "a partner's footprint follows its kind");
-  assert.equal(partnerMedal("flying", 398).foot, "bird");
   assert.deepEqual(partnerMedal(undefined).enamel, ["normal"]);
-  assert.deepEqual(partnerMedal("normal", 428), { device: "paw", enamel: ["normal"], n: 428 }, "a partner carries its Pokémon's number");
-  assert.notDeepEqual(partnerMedal("normal", 428), partnerMedal("normal", 242), "two partners of one type are told apart");
+  assert.deepEqual(partnerMedal("normal", "/sprites/pokemon/lopunny.webp"), { partner: "/sprites/pokemon/lopunny.webp", enamel: ["normal"] }, "a partner carries its Pokémon's picture");
+  assert.notDeepEqual(partnerMedal("normal", "/sprites/pokemon/lopunny.webp"), partnerMedal("normal", "/sprites/pokemon/blissey.webp"), "two partners of one type are told apart");
   assert.deepEqual(ownMedal({ name: "RED" }), { device: "n151", enamel: ["fire"] });
   assert.deepEqual(ownMedal({ name: "몽키매직" }), { device: "monkey", enamel: ["grass", "fire", "water"] });
   assert.deepEqual(ownMedal({ name: "전화기" }), { device: "engineering", enamel: ["electric", "poison", "steel"] },

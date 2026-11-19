@@ -1,9 +1,9 @@
 import { TYPE_OPTIONS } from "../data/teamBuilderCupRules.js";
 
 /* ============================== 칭호의 메달 (DESIGN.md "Titles and hall of fame") ==============================
-   모든 칭호는 메달이다. 메달 가운데의 에나멜은 칭호의 색(타입 1~3개), 그 위에 솟은 장식(device)은 사이트가 직접 그린 문양이다.
-   타입 엑스퍼트는 그 타입의 문양, 지방 엘리트는 그 지방의 풍경, 파트너는 발자국과 도감 번호, 챔피언은 금메달과 왕관과 로마 숫자,
-   그 밖의 칭호는 운영자가 고른 색과 장식(없으면 색의 타입 문양). 포켓몬 그림은 메달에 서지 않는다(운영진이 정한 예외: 메가 문양, 몽키매직의 야나프, 바오프, 앗차프).
+   모든 칭호는 메달이다. 메달 가운데의 언덕은 칭호의 색(타입 1~3개), 그 위에 솟은 장식(device)은 흰 덩어리다.
+   타입 엑스퍼트는 게임의 그 타입 문양, 지방 엘리트는 그 지방의 풍경, 파트너는 그 포켓몬의 실루엣, 챔피언은 금 테와 왕관과 로마 숫자,
+   그 밖의 칭호는 운영자가 고른 색과 장식(없으면 색의 타입 문양). 몽키매직은 야나프, 바오프, 앗차프의 실루엣, 메가 문양은 받은 그림의 제 색 그대로.
    문장은 칭호 항목의 look 에 산다 { bands: [타입 id], device: 장식 id, mark: "mega" }. 여기서는 표현만 정하고 기록은 건드리지 않는다. */
 
 export const TITLE_TYPES = TYPE_OPTIONS.map(({ id, korean }) => ({ id, korean }));
@@ -20,13 +20,13 @@ export const TITLE_MARKS = ["mega"];
 /* 운영자가 고를 수 있는 장식 (그린 것만). 없으면 색의 타입 문양이 선다. */
 export const TITLE_DEVICES = [
   ["hangul", "한글 책"], ["nova", "새 별"], ["rookie", "별똥별"], ["n151", "151"], ["torch", "횃불"], ["sprout", "새싹"],
-  ["bus", "운전대"], ["indigo", "쪽잎과 물방울"], ["paw", "발자국"], ["engineering", "칩과 플라스크와 톱니"], ["monkey", "세 원숭이"],
+  ["bus", "운전대"], ["indigo", "불을 이은 새싹"], ["paw", "발자국"], ["engineering", "칩과 플라스크와 톱니"], ["monkey", "세 원숭이"],
 ];
 const DEVICE_IDS = new Set(TITLE_DEVICES.map(([id]) => id));
 
 /* 운영자가 문장을 고르기 전의 기본 문장. 뜻은 운영진에게 들은 대로(2026-11-12, 11-13):
    끝말잇기는 한글날의 대회, 몽키매직은 세 원숭이(풀, 불꽃, 물), 전화기는 전자공학, 화학공학, 기계공학의 준말(전화를 거는 기계가 아니다)로 그 세 모노타입 팀,
-   초신성은 뉴비 대회의 우승(슈퍼루키와 같은 뜻), RED 는 1세대 151마리만 쓴 대회, 스승과 제자는 팀전 멘토와 멘티. */
+   초신성은 뉴비 대회의 우승(슈퍼루키와 같은 뜻), RED 는 1세대 151마리만 쓴 대회, 스승과 제자는 팀전 멘토와 멘티, 청출어람은 팀전 멘토로 전승 우승(스승의 횃불을 이어받아 더 크게 태우는 새싹, 스승보다 나아간 제자). */
 const PRESETS = {
   끝말잇기: { bands: ["psychic"], device: "hangul" },
   몽키매직: { bands: ["grass", "fire", "water"], device: "monkey" },
@@ -36,7 +36,7 @@ const PRESETS = {
   RED: { bands: ["fire"], device: "n151" },
   슈퍼루키: { bands: ["ice"], device: "rookie" },
   버스드라이버: { bands: ["steel"], device: "bus" },
-  청출어람: { bands: ["dragon", "water"], device: "indigo" },
+  청출어람: { bands: ["water"], device: "indigo" },
   스승: { bands: ["fighting"], device: "torch" },
   제자: { bands: ["grass"], device: "sprout" },
 };
@@ -69,12 +69,11 @@ export function generationOfTitle(name) {
 /* ---------- 메달 한 개의 설계도 (titleMedal.js 가 그린다). 색은 타입 id 로만 적고, 실제 색은 그릴 때 토큰에서 읽는다. ---------- */
 export const typeMedal = id => ({ glyphs: [id], enamel: [id] });
 export const regionMedal = region => ({ scene: region, enamel: [REGIONS.find(([r]) => r === region)?.[1] || "normal"] });
-/* 파트너는 그 종류의 발자국(비행은 새의 발, 물은 물갈퀴, 그 밖은 발바닥) 아래 그 포켓몬의 전국도감 번호를 새겨,
-   같은 타입의 두 파트너도 메달이 겹치지 않는다 */
-const FOOT = { flying: "bird", water: "webbed" };
-export const partnerMedal = (type, number) => {
+/* 파트너는 제 타입의 언덕 위에 그 포켓몬의 실루엣(picture: 그 그림의 주소)이 서, 같은 타입의 두 파트너도 메달이 겹치지 않는다.
+   그림을 모르면 발자국 */
+export const partnerMedal = (type, picture) => {
   const t = TYPE_IDS.has(type) ? type : "normal";
-  return { device: "paw", enamel: [t], ...(FOOT[t] ? { foot: FOOT[t] } : {}), ...(number > 0 ? { n: number } : {}) };
+  return picture ? { partner: picture, enamel: [t] } : { device: "paw", enamel: [t] };
 };
 /* 챔피언은 시즌과 상관없이 모두 왕관 아래 그 대의 로마 숫자 */
 export const championMedal = generation => ({ champ: { gen: generation }, tier: "gold" });
