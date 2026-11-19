@@ -76,8 +76,8 @@ const mixc = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
 /* the other climbers, by the door they stand before, in sight of a state's door, nearest first: [{ k, n, cs }]. A door holds one lantern
    however many stand there, brighter the more they are, so a crowd at one streak reads as one light, never a heap of names (2026-11-19,
    the user: "이용자가 엄청나게 늘어나고 비슷한 점수대에 사람이 몰리면 엄청나게 보기 어려워질 것 같아") */
-function othersOf(st) {
-  const at = doorOf(st), by = new Map();
+function othersOf(st, at = doorOf(st)) {
+  const by = new Map();
   for (const c of st.climbers || []) {
     const k = Math.min(ND - 1, c.wins);
     if (Math.abs(k - at) >= 14) continue;
@@ -88,6 +88,8 @@ function othersOf(st) {
 }
 // a lantern's light by how many stand at it: one .6, rising to 1 at eight and more
 const crowd = n => Math.min(1, .6 + .4 * Math.log2(n) / 3);
+// the door the camera looks at: the run's, or as far up or down the tower as a hand has lifted the camera
+const lookDoor = tw => Math.round(tw.s + (tw.look?.dy || 0) / PITCH * 5);
 /* the lamps: the lit rooms near the door stood before, the road's six while the camera is low enough to see them, and the other
    climbers' lanterns on the parapet where each stands. On the stone: [x, y, z, reach, r, g, b, strength]; in the air: [x, y, z,
    size, r, g, b] */
@@ -103,7 +105,7 @@ function lampsOf(tw) {
     glows.push([...p, .9 + .5 * on, ...(raw < 0 ? pal.amber : col).map(x => x * amount * (.12 + .3 * on) * dim)]);
   }
   // the stone holds sixteen lights in all, so only the nearest lanterns light it; every lantern in sight glows in the air
-  for (const o of othersOf(tw.st)) {
+  for (const o of othersOf(tw.st, lookDoor(tw))) {
     const p = doorPoint(o.k, RR - .03, .14), a = crowd(o.n);
     if (lights.length < 10) lights.push([...p, .34, ...pal.warm, a]);
     glows.push([...p, .42 + .16 * a, ...pal.warm.map(x => x * .34 * a / .6 * dim)]);
@@ -185,17 +187,22 @@ function tweenTo(el, st, dur = DUR.tone) {
 function climbersHTML(tw) {
   const { m, st, view } = tw;
   if (!view) return "";
-  // a floor's count is everyone on it; its line starts at its lantern nearest the run's door (othersOf: nearest first)
-  const floors = new Map();
-  for (const g of othersOf(st)) { const f = Math.floor(g.k / 5) + 1; if (!floors.has(f)) floors.set(f, { k: g.k, n: 0, live: false, f }); }
+  /* a floor's count is everyone on it, every floor of the tower that is in sight, so a hand lifting the camera up or down the tower
+     reads each floor it passes (2026-11-19, the user: "위 아래로 움직이면서 몇층에 몇명이 있는지 확인할 수 있게"); its line starts at
+     its lantern that faces the camera most */
+  const floors = new Map(), top = topOf(st.floor), face = k => Math.cos((k + .5) * 72 * Math.PI / 180 - view.phi);
   for (const c of st.climbers || []) {
-    const x = floors.get(Math.floor(Math.min(ND - 1, c.wins) / 5) + 1);
-    if (x) { x.n++; x.live ||= Boolean(c.live); }
+    const k = Math.min(ND - 1, c.wins), f = Math.floor(k / 5) + 1;
+    if (f > top) continue;
+    if (!floors.has(f)) floors.set(f, { k, n: 0, live: false, f });
+    const x = floors.get(f);
+    x.n++; x.live ||= Boolean(c.live);
+    if (face(k) > face(x.k)) x.k = k;
   }
   const items = [...floors.values()].map(x => ({ k: x.k, top: `${x.f}층`, num: x.n, unit: "명", live: x.live }));
   if (!items.length) return "";
   // the column stands clear of the tower's right edge at the door's height
-  const edge = view.project([RR * Math.sin(view.phi + 1.45), (tw.s + .5) / 5 * PITCH, RR * Math.cos(view.phi + 1.45)])[0];
+  const edge = view.project([RR * Math.sin(view.phi + 1.45), (lookDoor(tw) + .5) / 5 * PITCH, RR * Math.cos(view.phi + 1.45)])[0];
   const col = Math.min(m.W - (m.phone ? 104 : 150), edge + (m.phone ? 24 : 56)), marks = [];
   for (const it of items.sort((a, b) => b.k - a.k)) {
     const k = it.k, th = (k + .5) * 72 * Math.PI / 180, y0 = (k + .5) / 5 * PITCH + .1;
@@ -229,7 +236,8 @@ function mark(el, show = true) {
 }
 /* the tab's tower answers a hand: held and dragged, the camera goes round the tower with it and, under a mouse, up and down it (a
    finger's way up and down is the page's scroll); let go, it comes back to the door the run stands before, where it belongs. The
-   marks stand aside while it is away. Nothing is held while a move plays.
+   floors' marks go with the camera, each floor in sight laid where it now stands (2026-11-19: they stood aside while it was away, and
+   moving the tower showed nothing). Nothing is held while a move plays.
    2026-11-18 (the user: "도전의 탑 3D 모델의 터치 상호작용이 부자연스러워"): a touch is taken only once it has moved 6 px and more across
    than up or down, so a tap or a scroll no longer hides the marks for a moment; the tower turns under the finger one to one (its face
    moves as far as the finger, by the tower's radius on the screen); let go, it glides on with the hand's speed and slows as a heavy
@@ -252,6 +260,7 @@ function hand(el) {
     const top = topOf(tw.st.floor), base = viewOf(tw.kind, tw.s, tw.m, top).camY;
     tw.look = { dphi, dy: Math.min(top * PITCH + 1.6 - base, Math.max(.9 - base, dy)) };
     paint(el);
+    mark(el, false);
   };
   // after a release: glide on at v (radians a millisecond), rest, then turn home; each frame checks the scene is still this one
   const glide = (tw, v) => {
@@ -267,9 +276,10 @@ function hand(el) {
       else {
         home ??= { t0: now, from: { ...tw.look } };
         const e = out3(Math.min(1, (now - home.t0) / HOME));
-        if (e >= 1) { tw.look = null; paint(el); raf = 0; mark(el); return; }
+        if (e >= 1) { tw.look = null; paint(el); raf = 0; mark(el, false); return; }
         tw.look = { dphi: home.from.dphi * (1 - e), dy: home.from.dy * (1 - e) };
         paint(el);
+        mark(el, false);
       }
       raf = requestAnimationFrame(frame);
     };
@@ -293,8 +303,6 @@ function hand(el) {
       Object.assign(g, { on: true, x: e.clientX, y: e.clientY, r: radius(tw) });
       el.setPointerCapture?.(e.pointerId);
       el.classList.add("held");
-      // (their coming in still holds their opacity, so they are hidden outright)
-      marksOf(el).forEach(x => { x.style.visibility = "hidden"; });
     }
     g.trail.push([e.timeStamp, e.clientX]);
     while (g.trail.length > 2 && e.timeStamp - g.trail[0][0] > 80) g.trail.shift();
