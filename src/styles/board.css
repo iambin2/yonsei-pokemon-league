@@ -40,14 +40,9 @@
 .ls-place { display: flex; align-items: center; gap: var(--s2); padding-left: var(--pad); color: var(--dim); white-space: nowrap; }
 .ls-first .ls-place { color: var(--ground); }
 .ls-main { display: grid; gap: var(--s1); min-width: 0; }
-.ls-main > :not(.ls-track) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ls-main > :not(.bar) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ls-main > b { font-weight: 700; }
 .ls-live { font-weight: 600; }
-/* the bar is a line, the seam's 2, and dim: the name and the points are what is lit */
-.ls-track { display: block; height: var(--seam); background: var(--panel-2); }
-.ls-track > i { display: block; height: 100%; background: var(--dim); }
-.inv .ls-track { background: var(--dim); }
-.inv .ls-track > i { background: var(--ground); }
 /* a figure and its unit join with none (Typesetting) */
 .ls-pts { display: flex; align-items: baseline; justify-content: flex-end; white-space: nowrap; }
 .ls-pts > b { font-weight: 700; }
@@ -344,3 +339,21 @@
 /* a Pokémon that just joined a team or a cell rises into it */
 .tb-mon .mon, .tb-pool-six .mon { animation: y-rise var(--move-light) backwards; }
 @media (prefers-reduced-motion: reduce) { .tb-mon .mon, .tb-pool-six .mon, .theme-fade .theme-btn .ic { animation: none; } }
+
+/* ---------- a bar on its track (Bar in Board.jsx), the one bar of the site, in two weights: a line of 2, the seam's, filled dim, for a share
+   read beside its figure (rankings, base stats, points, records); 8, filled lit, for what a finger takes (a slider) or a gauge (the
+   calculator's HP). Its height is rounded to whole device pixels (--dpx, one device pixel, set in main.jsx), so every row draws it equally
+   thick at any display scale. The track is the next step up (--panel-2, --rule on a sheet); on an inverted row the track is dim and the
+   bar the ground. ---------- */
+.bar { position: relative; display: block; min-width: 0; }
+.bar > svg { display: block; width: 100%; height: var(--seam); height: round(var(--seam), var(--dpx, 1px)); overflow: visible; }
+.bar.thick > svg { height: var(--s2); height: round(var(--s2), var(--dpx, 1px)); }
+.bar rect { fill: var(--panel-2); }
+.sheet .bar rect:first-child { fill: var(--rule); }
+.bar .on { fill: var(--dim); }
+.bar.thick .on { fill: var(--lit); }
+.bar .under { fill: var(--dim); }
+.inv .bar rect:first-child { fill: var(--dim); }
+.inv .bar .on { fill: var(--ground); }
+.bar > input[type="range"] { position: absolute; left: 0; right: 0; top: 50%; width: 100%; height: var(--h-strip); margin: 0; translate: 0 -50%; opacity: 0; cursor: pointer; }
+.bar:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: var(--s1); }

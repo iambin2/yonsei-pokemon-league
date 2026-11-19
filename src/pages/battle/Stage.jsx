@@ -14,7 +14,7 @@ import { HIDDEN_VOLATILES, STAT, STATUS, currentTypes, effLabel, effectType, eff
 // the words and the matchups live in battleWords.js (plain JS, so the battle tests read them as the screen does)
 export { STATUS, effLabel, effectWord, effectiveness };
 import Seg from "../../components/common/Seg.jsx";
-import { Mon } from "../../components/common/Board.jsx";
+import { Bar, Mon } from "../../components/common/Board.jsx";
 import Icon from "../../components/common/Icon.jsx";
 
 /* 배틀 무대 (DESIGN.md "Battle", The stage). 경기장 위에 두 편이 마주 서고, 각 포켓몬 머리 위에 쇼다운처럼 상태 막대가 뜬다.
@@ -872,7 +872,7 @@ function MonInfo({ res, mon, own, onClose }) {
           <div className="pn bt-info-stats">
             {STAT_KEYS.map(k => <span key={k} className="bt-info-stat">
               <small>{STAT_SHORT[k]}</small>
-              <span className="tb-bar"><i style={{ transform: `scaleX(${Math.min(1, dex.baseStats[k] / 200)})` }} /></span>
+              <Bar value={dex.baseStats[k] / 200} />
               <b>{dex.baseStats[k]}</b>
               <span className="bt-info-stat-side">{k === "spe" ? <>{mark(k)}<span className="t12 dim">{`${lo}~${hi}`}</span></> : mark(k)}</span>
             </span>)}

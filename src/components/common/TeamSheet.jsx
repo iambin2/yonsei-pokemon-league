@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { championsData } from "../../services/index.js";
 import { buildTeamSheet, fromTeamSnapshotV1, localizedPokemonName, onSpriteError, savedTeamSheet } from "../../services/teamBuilderCore.js";
 import { REGULATIONS } from "../../data/index.js";
+import { Bar } from "./Board.jsx";
 
 let teamDisplay = null;
 function loadTeamDisplay() {
@@ -59,7 +60,7 @@ export default function TeamSheet({ sheet, idPrefix = "" }) {
           {row.stats.map(st => (<div className="sc-stat" role="row" key={st.key}>
             <b role="cell">{st.label}{st.mark === "+" ? " ↑" : st.mark === "-" ? " ↓" : ""}</b>
             <span role="cell" className="sc-base">{st.base != null && <><small>종족값</small> <span className="tnum">{st.base}</span></>}</span>
-            <span role="cell" className="sc-sp"><i style={{ "--sp": st.sp / 32 }} /><em className={"tnum" + (st.sp ? " on" : "")}>{st.sp}</em></span>
+            <span role="cell" className="sc-sp"><Bar value={st.sp / 32} /><em className={"tnum" + (st.sp ? " on" : "")}>{st.sp}</em></span>
             <strong role="cell" className="tnum">{st.final}</strong>
           </div>))}
         </div>

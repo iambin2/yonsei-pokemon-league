@@ -51,10 +51,8 @@
 .calc-result.inv .row-value, .calc-result.inv .dim { color: var(--ground); }
 
 /* the bar: lit is what the lowest roll takes, dim is the roll window, the track is the HP that stays */
-.calc-hpbar { position: relative; height: var(--s2); margin-top: var(--s2); background: var(--panel-2); overflow: hidden; }
-.calc-hpbar span { position: absolute; inset: 0; transform-origin: left center; transition: transform var(--move-tone); }
-.calc-hp-range { background: var(--dim); }
-.calc-hp-left { background: var(--lit); }
+.calc-hpbar { margin-top: var(--s2); }
+.calc-hpbar rect { transition: transform var(--move-tone); }
 
 /* ---------- field: the format, weather and terrain as cells, the flags ---------- */
 .calc-field { display: grid; gap: var(--seam); }

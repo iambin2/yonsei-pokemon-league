@@ -42,6 +42,17 @@ const bootDark = bootTheme();
 document.documentElement.dataset.theme = bootDark ? "dark" : "light";
 document.documentElement.style.colorScheme = bootDark ? "dark" : "light";
 
+/* 막대(Bar)의 굵기를 기기 화소에 맞추는 단위: 한 기기 화소의 CSS 길이. 125%, 150% 배율에서 2px는 반 화소에 걸려 행마다 2와 3으로 달리
+   그려졌다(2026-11-19). 배율이나 브라우저 확대가 바뀌면 다시 잰다. 질의는 변수에 붙잡아 둔다: 참조가 없으면 브라우저가 버려 리스너가 사라진다. */
+let pixelQuery = null;
+function setDevicePixel() {
+  const ratio = window.devicePixelRatio || 1;
+  document.documentElement.style.setProperty("--dpx", `${1 / ratio}px`);
+  pixelQuery = matchMedia(`(resolution: ${ratio}dppx)`);
+  pixelQuery.addEventListener("change", setDevicePixel, { once: true });
+}
+setDevicePixel();
+
 /* 아이폰과 아이패드의 사파리는 글자가 16px보다 작은 입력 칸에 초점이 가면 화면을 확대하고 되돌리지 않는다(이 사이트의 칸은 15).
    maximum-scale=1을 주면 그 자동 확대만 없어지고 두 손가락 확대는 그대로 된다. 안드로이드에서는 두 손가락 확대까지 막히므로
    iOS에만 건다. (2026-11-10, 코드로 찾은 것이라 실제 아이폰에서 확인이 필요하다.) */

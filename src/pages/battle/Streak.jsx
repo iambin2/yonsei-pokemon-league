@@ -13,7 +13,7 @@ import Icon from "../../components/common/Icon.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
 import Seg from "../../components/common/Seg.jsx";
-import { Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
+import { Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
@@ -128,7 +128,7 @@ function StatBars({ stats, other = null }) {
       const n = stats[k], o = other?.[k];
       return <span key={k} className={"streak-stat" + (o == null || o === n ? "" : n > o ? " up" : " down")}>
         <small>{STAT_WORD[k]}</small>
-        <span className="tb-bar"><i style={{ transform: `scaleX(${Math.min(1, n / BAR_TOP)})` }} /></span>
+        <Bar value={n / BAR_TOP} />
         <b>{n}</b>
       </span>;
     })}

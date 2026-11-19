@@ -93,8 +93,7 @@
 .sc-base small { font-size: var(--t12); }
 .sc-stat strong { font-weight: 700; text-align: right; }
 .sc-sp { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
-.sc-sp i { position: relative; flex: 1; height: var(--seam); background: var(--rule); overflow: hidden; }
-.sc-sp i::before { content: ""; position: absolute; inset: 0; background: var(--dim); transform-origin: left; transform: scaleX(var(--sp)); }
+.sc-sp > .bar { flex: 1; }
 .sc-sp em { width: 20px; font-style: normal; font-size: var(--t12); color: var(--mute); text-align: right; }
 .sc-sp em.on { font-weight: 600; color: var(--lit); }
 .sc-moves { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin: 0; padding: 0; }

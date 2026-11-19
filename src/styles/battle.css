@@ -693,7 +693,7 @@ button.bt-card:active:not(:disabled):not(.on) { background: var(--panel-2); }
 /* how strong it is: a bar per stat on the calculator's track, the stage's change and the speed range at the right */
 .bt-info-stats { display: grid; gap: var(--s2); padding: var(--s3); }
 .bt-info-stat { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) var(--s8) var(--s21); column-gap: var(--s3); align-items: center; }
-.bt-info-stat > .tb-bar { background: var(--rule); }
+.bt-info-stat > .bar rect:first-child { fill: var(--rule); }
 .bt-info-stat > b { text-align: right; font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; }
 .bt-info-stat-side { display: flex; align-items: center; gap: var(--s2); white-space: nowrap; }
 .bt-info-tags { display: flex; flex-wrap: wrap; gap: var(--seam); }

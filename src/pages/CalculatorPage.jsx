@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown, Empty, ErrorNote, Icon, Loader, Segmented } from "../components/index.js";
-import { Cell, Chips, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
+import { Bar, Cell, Chips, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
 import Seg from "../components/common/Seg.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { DEFAULT_REGULATION_ID, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
@@ -120,10 +120,7 @@ function Stepper({ value, min, max, onChange, label }) {
 function HpBar({ result }) {
   const part = (damage) => Math.min(1, damage / result.curHP);
   return (
-    <div className="calc-hpbar" aria-hidden="true">
-      <span className="calc-hp-range" style={{ transform: `scaleX(${part(result.max)})` }} />
-      <span className="calc-hp-left" style={{ transform: `scaleX(${part(result.min)})` }} />
-    </div>
+    <Bar thick className="calc-hpbar" value={part(result.min)} under={part(result.max)} />
   );
 }
 
@@ -267,7 +264,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
 
         <div className="calc-hp">
           <span className="t12 dim">남은 HP</span>
-          <span className="tb-bar"><i style={{ transform: `scaleX(${side.hp / 100})` }} /><input type="range" min="1" max="100" value={side.hp} onChange={event => set({ hp: Number(event.target.value) })} aria-label="남은 HP 퍼센트" /></span>
+          <Bar thick value={side.hp / 100}><input type="range" min="1" max="100" value={side.hp} onChange={event => set({ hp: Number(event.target.value) })} aria-label="남은 HP 퍼센트" /></Bar>
           <b className="t15">{side.hp}%{engine ? <span className="t12 reg dim"> {Math.max(1, Math.floor(engine.maxHP() * side.hp / 100))} / {engine.maxHP()}</span> : null}</b>
         </div>
 
@@ -281,7 +278,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
                 <div className="calc-stat-row" key={key}>
                   <button type="button" className="t12 tb-stat-key calc-stat-key"
                     aria-label={`${STAT_LABELS[key]} 능력 포인트 ${side.sp[key] ? "0으로" : "32로"}`} onClick={() => setSp(key, side.sp[key] ? 0 : 32)}>{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</button>
-                  <span className="tb-bar"><i style={{ transform: `scaleX(${side.sp[key] / 32})` }} /><input type="range" min="0" max="32" step="1" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트 슬라이더`} /></span>
+                  <Bar thick value={side.sp[key] / 32}><input type="range" min="0" max="32" step="1" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트 슬라이더`} /></Bar>
                   <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={side.sp[key]} onChange={event => setSp(key, event.target.value)} aria-label={`${STAT_LABELS[key]} 능력 포인트`} />
                   {BOOST_KEYS.includes(key) ? <Stepper value={side.boosts[key]} min={-6} max={6} label={`${STAT_LABELS[key]} 랭크`} onChange={value => setBoost(key, value)} /> : <span />}
                   <b className="t15 calc-final">{final ?? ""}</b>
@@ -521,7 +518,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
               return (
                 <div className="calc-base-row" key={key}>
                   <span className="t12 tb-stat-key"><span aria-hidden="true">{STAT_LETTERS[key]}</span><span className="sr-only">{STAT_LABELS[key]}</span></span>
-                  <span className="tb-bar"><i style={{ transform: `scaleX(${Math.min(1, base / 200)})` }} /></span>
+                  <Bar value={base / 200} />
                   <b className="t12">{base}</b>
                   <span className="t12 reg dim">{low} ~ {high}</span>
                 </div>

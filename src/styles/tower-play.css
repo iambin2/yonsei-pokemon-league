@@ -149,17 +149,16 @@
 .streak-stats { display: grid; gap: var(--seam); }
 .streak-stat { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--s8); align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
 .streak-stat > small { font-size: inherit; white-space: nowrap; }
-.streak-stat > .tb-bar { background: var(--rule); }
 .streak-stat > b { text-align: right; color: var(--lit); font-weight: 700; }
 /* held against another set: the higher of a pair lit, the lower its number dim and its bar muted */
 .streak-stat.down > b { color: var(--dim); }
-.streak-stat.down > .tb-bar > i { background: var(--mute); }
+.streak-stat.down > .bar .on { fill: var(--mute); }
 /* a draft card's six stand under its moves on the card's own panel, inverted with it once chosen, dim with it when it stands off */
 .streak-pick-stats { padding: 0 var(--s3) var(--s3); background: var(--panel); transition: background-color var(--move-tone); }
 .streak-pick-stats.on { background: var(--lit); }
 .streak-pick-stats.on :is(.streak-stat, .streak-stat > b) { color: var(--ground); }
-.streak-pick-stats.on .tb-bar { background: var(--dim); }
-.streak-pick-stats.on .tb-bar > i { background: var(--ground); }
+.streak-pick-stats.on .bar rect:first-child { fill: var(--dim); }
+.streak-pick-stats.on .bar .on { fill: var(--ground); }
 .streak-pick > .streak-pick-stats { cursor: pointer; }
 /* a card's plain back while it turns over (Streak.jsx turnOver), the two not chosen gone off, the chosen picture on its way up */
 .streak-back { position: absolute; inset: 0; z-index: var(--z-raised); background: var(--panel-2); box-shadow: inset 0 0 0 var(--line) var(--rule); pointer-events: none; }

@@ -50,6 +50,21 @@ const door = (onClick, href) => href && onClick ? { as: "a", props: { href, onCl
   : onClick ? { as: "button", props: { type: "button", onClick } } : { as: "div", props: {} };
 
 /* A section is a title (20) and its link (a 12px underlined word on the right), 12 above its stack. */
+/* a bar on its track, the one bar of the site (DESIGN.md "Show it"). It is drawn as an SVG with crisp edges and a height rounded to whole
+   device pixels (--dpx, set in main.jsx): at 125% or 150% a 2px box falls on half a pixel, so one ranking row drew its line 2 thick and
+   the next 3 (2026-11-19, measured on the owner's screen). value and under are 0 to 1; under is a second, dim reach beneath it (the
+   calculator's roll). thick is the 8 of a thing a finger takes (a slider, its range input the child) or a gauge; otherwise the line of 2. */
+const reach = v => Math.min(1, Math.max(0, Number(v) || 0));
+export function Bar({ value, under, thick = false, className = "", children }) {
+  return <span className={"bar" + (thick ? " thick" : "") + (className ? " " + className : "")} aria-hidden={children ? undefined : "true"}>
+    <svg viewBox="0 0 1 1" preserveAspectRatio="none" shapeRendering="crispEdges" aria-hidden="true" focusable="false">
+      <rect width="1" height="1" />
+      {under != null && <rect className="under" width="1" height="1" style={{ transform: `scaleX(${reach(under)})` }} />}
+      <rect className="on" width="1" height="1" style={{ transform: `scaleX(${reach(value)})` }} />
+    </svg>{children}
+  </span>;
+}
+
 export function SectionHead({ id, title, link, onLink }) {
   return (
     <div className="sh">

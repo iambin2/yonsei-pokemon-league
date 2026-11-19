@@ -176,9 +176,6 @@
 .rc-bar-name > .tb-type { flex: none; }
 .rc-bar-fig { text-align: right; }
 /* the track steps down to the ground as a tag does on a panel; the sole leader's row inverts, its bar ground on a dim track */
-.rc-bar .tb-bar { background: var(--ground); }
-.rc-bar.inv .tb-bar { background: var(--dim); }
-.rc-bar.inv .tb-bar > i { background: var(--ground); }
 @media (min-width: 860px) {
   .rc-pk-top { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); align-items: stretch; }
   .rc-pk-stage { --floor: var(--h-row2); height: auto; }

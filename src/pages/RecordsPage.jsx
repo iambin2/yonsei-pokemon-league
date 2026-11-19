@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Dropdown, Empty, ErrorNote, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
-import { Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
+import { Bar, Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
 import TeamSheet, { rosterSheet, useTeamDisplay } from "../components/common/TeamSheet.jsx";
 import { buildRecordsSnapshot, displayRecordMeta, displayTeamName } from "../services/recordsAnalytics.js";
 import { formatDate } from "../services/dateFormat.js";
@@ -860,7 +860,7 @@ function BarRow({ name, tag, note, share, value, top = false, keyed = false, onC
   return (
     <Box {...(onClick ? { type: "button", onClick } : {})} className={(top ? "inv" : "pn") + " rc-bar" + (keyed ? " keyed" : "")}>
       <span className="rc-bar-name">{tag}<b className="t15">{name}</b>{note && <span className="t12 dim reg">{note}</span>}</span>
-      <span className="tb-bar" aria-hidden="true"><i style={{ transform: `scaleX(${Math.min(1, Math.max(0, share))})` }} /></span>
+      <Bar value={share} />
       <b className="t15 num rc-bar-fig">{value}</b>
     </Box>
   );

@@ -1,7 +1,7 @@
 import React, { memo, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { Dropdown, Empty, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
-import { Bang, Cell, Choice, Dock, Mon, OptionRows, Steps, TabsLine, TypeGrid } from "../components/common/Board.jsx";
+import { Bang, Bar, Cell, Choice, Dock, Mon, OptionRows, Steps, TabsLine, TypeGrid } from "../components/common/Board.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { saveTeamSheetImage } from "../components/teamSheetImage.js";
 import { ShowcaseCompose } from "./BoardPage.jsx";
@@ -1630,7 +1630,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                       return (
                         <div className="tb-stat-row" key={key}>
                           <span className="t12 tb-stat-key"><span aria-hidden="true">{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span><span className="sr-only">{STAT_LABELS[key]}{base != null ? `, 종족값 ${base}` : ""}{nature.plus === key ? ", 성격 보정 상승" : nature.minus === key ? ", 성격 보정 하락" : ""}</span></span>
-                          <span className="tb-bar"><i style={{ transform: `scaleX(${point / 32})` }} /><input type="range" min="0" max="32" step="1" value={point} aria-label={`${STAT_LABELS[key]} 포인트`} onChange={event => updateStat(selectedMember, key, event.target.value)} /></span>
+                          <Bar thick value={point / 32}><input type="range" min="0" max="32" step="1" value={point} aria-label={`${STAT_LABELS[key]} 포인트`} onChange={event => updateStat(selectedMember, key, event.target.value)} /></Bar>
                           <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={point} onChange={event => updateStat(selectedMember, key, event.target.value)} aria-label={`${STAT_LABELS[key]} 포인트 숫자`} />
                           <span className="t12 reg dim tb-final-stat">최종 <b>{final}</b></span>
                         </div>

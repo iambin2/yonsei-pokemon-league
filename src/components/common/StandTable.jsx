@@ -1,5 +1,5 @@
 import React from "react";
-import { koNumber } from "./Board.jsx";
+import { Bar, koNumber } from "./Board.jsx";
 import Button from "./Button.jsx";
 
 /* 점수 순으로 정렬하고 같은 점수는 같은 순위, 다음 순위는 건너뛴다(6, 6, 8). */
@@ -50,7 +50,7 @@ export default function StandTable({ rows, total, onName, open = false, onMore, 
           <span className="ls-main">
             <b className={first ? "t20" : "t15"}>{r.name}{r.live && <span className="t12 ls-live"> 도전 중</span>}</b>
             {line && <span className="t12 dim reg ls-line">{line}</span>}
-            <span className="ls-track" aria-hidden="true"><i style={{ width: `${(pts / best) * 100}%` }} /></span>
+            <Bar value={pts / best} />
           </span>
           <span className="ls-pts"><b className={"num " + (first ? "t32" : "t20")}>{koNumber(pts)}</b><span className="t12 dim">{unit}</span></span>
         </Box>;
