@@ -76,12 +76,15 @@ function FloorTrack({ wins, lost = false, playing = false }) {
 /* the tower on the tab (tower.js): the stage's place holds the run's own scene, the tower in its place at night, the camera before
    the door of the game the run will go to, the doors won lit down the road behind it and the month's other climbers marked where
    they stand. Pressing the key plays the going in on this very picture. climbers: { name, wins, live } */
-function TowerHall({ wins, live, climbers = null }) {
+/* ready: the run, the board and the account are read. The tower comes in once, on where the run truly stands: drawn before, it came in
+   on an empty run and played again as the run and the board arrived (2026-11-19, the user: "탑 등장 애니메이션 ... 그 이후에 또 다시
+   애니메이션이 반복되고 ... 하나로 통일해줘"). Once standing, what changes after is the scene's own move (standTower) */
+function TowerHall({ wins, live, climbers = null, ready = true }) {
   const ref = useRef(null);
   const floor = streakFloor(wins), at = floorGame(wins);
-  const key = `${floor}|${at}|${live}|${JSON.stringify(climbers || [])}`;
+  const key = `${floor}|${at}|${live}|${JSON.stringify(climbers || [])}|${ready}`;
   useLayoutEffect(() => {
-    const el = ref.current, draw = () => standTower(el, { floor, at, live, climbers });
+    const el = ref.current, draw = () => { if (ready || el.tower) standTower(el, { floor, at, live, climbers }); };
     draw();
     const seen = new ResizeObserver(draw);
     seen.observe(el);
@@ -305,26 +308,28 @@ export { useAccount };
 /* this device's run, read again from its game: playing (a game on), resting (the game ended and the run goes on: won, or lost with a
    lamp left; the next game not yet opened), or none (null). A game that ended while its player was away (the clock) has told its
    seat nothing, so the seat asks once (viewBattle keeps the run's answer) */
+/* undefined while it is read (for the seen it was asked for, so a read again is never answered by the last one), null for none */
 function useRun(daily = false, seen = 0) {
-  const [run, setRun] = useState(null);
+  const ask = `${daily}|${seen}`;
+  const [got, setGot] = useState(null);
   useEffect(() => {
-    setRun(null);
     let on = true;
+    const put = run => { if (on) setGot({ ask, run }); };
     const id = currentStreakGame(daily);
     const seat = id && readSeat(id);
     // a 오늘의 탑 run of an earlier day is over for the tab (2026-11-13): it stood in the way of today's, with no key to leave it
-    if (!seat || (daily && seat.daily && String(seat.daily) < kstToday())) return undefined;
+    if (!seat || (daily && seat.daily && String(seat.daily) < kstToday())) { put(null); return undefined; }
     const of = (s, playing) => ({ id, wins: s.wins ?? 0, lives: s.lives, game: s.game ?? (s.wins ?? 0) + 1, playing, party: s.party || null, doors: playing ? null : s.doors || null });
     readBattleRow(id).then(async row => {
-      if (row?.status === "active") { if (on) setRun(of(seat, true)); return; }
-      if (row?.status !== "ended") return;
+      if (row?.status === "active") { put(of(seat, true)); return; }
+      if (row?.status !== "ended") { put(null); return; }
       if (typeof seat.won !== "boolean") await viewBattle(id).catch(() => {});
       const told = readSeat(id);
-      if (on && typeof told?.won === "boolean" && !told.ended) setRun({ ...of(told, false), again: !told.won });
-    }, () => {});
+      put(typeof told?.won === "boolean" && !told.ended ? { ...of(told, false), again: !told.won } : null);
+    }, () => put(null));
     return () => { on = false; };
   }, [daily, seen]);
-  return run;
+  return got?.ask === ask ? got.run : undefined;
 }
 
 /* going into a game of a run is a scene on the tower (tower.js): it switches on over the stage the key was pressed under (on the tab
@@ -411,7 +416,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const rows = Array.isArray(board) ? board : null;
   const mine = back ? null : rows?.find(r => r.mine);
   // the draft waits only while no run of its kind is on (a run started on another device leaves this one's stale)
-  const drafting = approved && !run && draft?.draft?.length ? draft.draft : null;
+  const drafting = approved && run === null && draft?.draft?.length ? draft.draft : null;
   const doneToday = daily && !run && !drafting && Boolean(mine);
   // going in, as the lobby does: the court goes dark while the game is made and read, then its screen lights
   const goInto = async (make, next, again = false) => {
@@ -482,8 +487,9 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   </Modal>;
   // the board as the home's and the records' ranking reads it; a live run opens its game to watch
   const placed = rows?.map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live, open: r.live && r.battle_id ? () => onOpen(r.battle_id) : null }));
-  // the other climbers on the tower: this board's names but one's own (one's own run is the path)
-  const climbers = !back && rows ? rows.filter(r => !r.mine).slice(0, 12).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
+  // the other climbers on the tower, all of them, counted by floor there: this board's but one's own (one's own run is the path)
+  const climbers = !back && rows ? rows.filter(r => !r.mine).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
+  const ready = run !== undefined && board !== undefined && account !== undefined && (!approved || synced);
   return (
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
@@ -494,7 +500,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           <div className="streak-scene">
             {drafting && !entering
               ? <DraftBoard res={res} draft={drafting} picks={picks} onPick={(i, sp) => setPicks(p => { const n = [...p]; n[i] = n[i] === sp ? undefined : sp; return n; })} />
-              : <TowerHall key={round} wins={wins} live={Boolean(run?.playing)} climbers={climbers} />}
+              : <TowerHall key={round} wins={wins} live={Boolean(run?.playing)} climbers={climbers} ready={ready} />}
           </div>
           {run && !run.playing && run.doors && <DoorPick res={res} doors={run.doors} value={door} onChange={setDoor} />}
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>

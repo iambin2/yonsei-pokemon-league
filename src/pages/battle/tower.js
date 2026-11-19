@@ -73,8 +73,21 @@ function doorsOf(st) {
   return v;
 }
 const mixc = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
-// the climbers in sight of a state's door, each at the door they stand before: [{ c, k }]
-const othersOf = st => (st.climbers || []).map(c => ({ c, k: Math.min(ND - 1, c.wins) })).filter(o => Math.abs(o.k - doorOf(st)) < 14).slice(0, 3);
+/* the other climbers, by the door they stand before, in sight of a state's door, nearest first: [{ k, n, cs }]. A door holds one lantern
+   however many stand there, brighter the more they are, so a crowd at one streak reads as one light, never a heap of names (2026-11-19,
+   the user: "이용자가 엄청나게 늘어나고 비슷한 점수대에 사람이 몰리면 엄청나게 보기 어려워질 것 같아") */
+function othersOf(st) {
+  const at = doorOf(st), by = new Map();
+  for (const c of st.climbers || []) {
+    const k = Math.min(ND - 1, c.wins);
+    if (Math.abs(k - at) >= 14) continue;
+    if (!by.has(k)) by.set(k, { k, n: 0, cs: [] });
+    const d = by.get(k); d.n++; d.cs.push(c);
+  }
+  return [...by.values()].sort((a, b) => Math.abs(a.k - at) - Math.abs(b.k - at) || b.k - a.k);
+}
+// a lantern's light by how many stand at it: one .6, rising to 1 at eight and more
+const crowd = n => Math.min(1, .6 + .4 * Math.log2(n) / 3);
 /* the lamps: the lit rooms near the door stood before, the road's six while the camera is low enough to see them, and the other
    climbers' lanterns on the parapet where each stands. On the stone: [x, y, z, reach, r, g, b, strength]; in the air: [x, y, z,
    size, r, g, b] */
@@ -89,10 +102,11 @@ function lampsOf(tw) {
     lights.push([...p, gate ? .62 : .46, ...(raw < 0 ? pal.amber : col), amount * (.5 + .35 * on)]);
     glows.push([...p, .9 + .5 * on, ...(raw < 0 ? pal.amber : col).map(x => x * amount * (.12 + .3 * on) * dim)]);
   }
+  // the stone holds sixteen lights in all, so only the nearest lanterns light it; every lantern in sight glows in the air
   for (const o of othersOf(tw.st)) {
-    const p = doorPoint(o.k, RR - .03, .14);
-    lights.push([...p, .34, ...pal.warm, .6]);
-    glows.push([...p, .5, ...pal.warm.map(x => x * .34 * dim)]);
+    const p = doorPoint(o.k, RR - .03, .14), a = crowd(o.n);
+    if (lights.length < 10) lights.push([...p, .34, ...pal.warm, a]);
+    glows.push([...p, .42 + .16 * a, ...pal.warm.map(x => x * .34 * a / .6 * dim)]);
   }
   if (tw.s < 16) for (const sx of [-.66, .66]) for (let j = 0; j < 3; j++) {
     const p = [sx, GY + .51 * LAMP, 2.9 + 1.4 * j];
@@ -111,7 +125,7 @@ function paint(el, draw = true) {
   /* a mesh not made yet is made in pieces (prebuildModel) and the scene is painted once it is there; the scenes wait for it
      (meshReady) before they move */
   if (tw.model?.top !== top) {
-    if (!modelBuilt(top, tw.pal)) { tw.waiting ||= prebuildModel(top, tw.pal).then(() => { tw.waiting = null; if (el.tower === tw) { paint(el); mark(el, false); } }); return; }
+    if (!modelBuilt(top, tw.pal)) { tw.waiting ||= prebuildModel(top, tw.pal).then(() => { tw.waiting = null; if (el.tower === tw) { paint(el, !tw.coming); if (!tw.coming) mark(el, false); } }); return; }
     tw.model = buildModel(top, tw.pal);
   }
   if (!draw) return;
@@ -163,40 +177,43 @@ function tweenTo(el, st, dur = DUR.tone) {
   return animate(el, dur, e => { for (let i = 0; i < to.length; i++) tw.doors[i] = from[i] + (to[i] - from[i]) * e; }, out3);
 }
 
-/* the other climbers of the month, marked where they stand: a hairline from each one's lantern on the terrace (from the tower's
-   edge when they stand round its far side) out into the night to the right, and there in one column their name and streak, as a
-   drawing is labelled, a run being played with the amber lamp by its name (2026-11-11, the user: the plaques that hung there had
-   "미감이 없어"; then of a square where the line met the wall, "네모점은 없애자. 그냥 선으로만 하는 게 깔끔할 것 같아"). Only those in
-   sight; labels keep apart in the column, their lines bending to them. Their floor's own are lit, the others dim */
+/* the other climbers of the month, counted by floor: a hairline from the floor's lantern nearest the run's door (from the tower's edge
+   when it stands round the far side) out into the night to the right, and there in one column the floor and how many stand on it, a
+   floor with a run being played marked with the amber lamp. One label a floor in sight, never one a climber: names belong to the board
+   beside the scene, and a crowd at one streak stays one line (2026-11-19, the owner's draft B; before, up to four names, chosen by
+   chance once many stood alike). The run's own floor is lit, the others dim */
 function climbersHTML(tw) {
   const { m, st, view } = tw;
   if (!view) return "";
+  // a floor's count is everyone on it; its line starts at its lantern nearest the run's door (othersOf: nearest first)
+  const floors = new Map();
+  for (const g of othersOf(st)) { const f = Math.floor(g.k / 5) + 1; if (!floors.has(f)) floors.set(f, { k: g.k, n: 0, live: false, f }); }
+  for (const c of st.climbers || []) {
+    const x = floors.get(Math.floor(Math.min(ND - 1, c.wins) / 5) + 1);
+    if (x) { x.n++; x.live ||= Boolean(c.live); }
+  }
+  const items = [...floors.values()].map(x => ({ k: x.k, top: `${x.f}층`, num: x.n, unit: "명", live: x.live }));
+  if (!items.length) return "";
   // the column stands clear of the tower's right edge at the door's height
   const edge = view.project([RR * Math.sin(view.phi + 1.45), (tw.s + .5) / 5 * PITCH, RR * Math.cos(view.phi + 1.45)])[0];
   const col = Math.min(m.W - (m.phone ? 104 : 150), edge + (m.phone ? 24 : 56)), marks = [];
-  for (const c of (st.climbers || []).slice().sort((a, b) => b.wins - a.wins)) {
-    const k = Math.min(ND - 1, c.wins), th = (k + .5) * 72 * Math.PI / 180, y0 = (k + .5) / 5 * PITCH + .1;
+  for (const it of items.sort((a, b) => b.k - a.k)) {
+    const k = it.k, th = (k + .5) * 72 * Math.PI / 180, y0 = (k + .5) / 5 * PITCH + .1;
     // round the far side the mark starts at the tower's right edge, at their height
     const a = Math.cos(th - view.phi) > .25 && Math.sin(th - view.phi) > -.5 ? th : view.phi + 1.35;
     const [x, y] = view.project([RR * Math.sin(a), y0, RR * Math.cos(a)]);
     if (y < m.H * .12 || y > m.H - 16 || x > col - 16) continue;
-    marks.push({ c, on: Math.floor(k / 5) + 1 === st.floor, x, y });
-    if (marks.length >= 4) break;
+    marks.push({ it, on: Math.floor(k / 5) + 1 === st.floor, x, y });
   }
   if (!marks.length) return "";
-  /* the column reads top down as the tower does, the highest climber first: seen from under the road (2026-11-18) a near door
-     projects over a higher one round the side, and the column read 10 over 12 */
-  marks.sort((a, b) => b.c.wins - a.c.wins || a.y - b.y);
-  /* labels keep apart by their own height and a gap (a label is a name of 16 over a streak of 20: at 28 apart two overlapped by 8,
-     2026-11-18, measured at 1440); one pushed out of the scene's foot is left out */
+  marks.sort((a, b) => b.it.k - a.it.k || a.y - b.y);
   let last = -Infinity;
   for (const k of marks) { k.ly = Math.max(k.y, last + 40); last = k.ly; }
   const kept = marks.filter(k => k.ly < m.H - 24);
-  marks.length = 0; marks.push(...kept);
-  if (!marks.length) return "";
-  const lines = marks.map(k => `<path class="${k.on ? "on" : ""}" d="M${f1(k.x)} ${f1(k.y)}H${f1(k.x + 14)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 4)}"/>`).join("");
-  const labels = marks.map(k => `<span class="tw-tag${k.on ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
-    + `<b>${k.c.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(k.c.name)}</b><span>${k.c.wins}<small>연승</small></span></span>`).join("");
+  if (!kept.length) return "";
+  const lines = kept.map(k => `<path class="${k.on ? "on" : ""}" d="M${f1(k.x)} ${f1(k.y)}H${f1(k.x + 14)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 4)}"/>`).join("");
+  const labels = kept.map(k => `<span class="tw-tag${k.on ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
+    + `<b>${k.it.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(k.it.top)}</b><span>${k.it.num}<small>${k.it.unit}</small></span></span>`).join("");
   return `<svg class="tw-leads" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${lines}</svg>${labels}`;
 }
 const escapeHTML = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
@@ -320,7 +337,9 @@ export function drawTower(el, st, coming = false) {
   seen?.observe(el);
   if (hall) hand(el);
   paint(el, !coming);
-  mark(el, false);
+  /* coming, the marks are laid by the entrance at its end, once: laid here, or when the mesh was made, they stood over the empty
+     night while the mesh was made and came again after the entrance (2026-11-19, the user: "애니메이션 반복 현상을 또 반복하지 말고") */
+  if (!coming) mark(el, false);
   run(el);
   return true;
 }
@@ -363,9 +382,10 @@ async function moveTo(el, st) {
   await Promise.all([tweenTo(el, st, DUR.light), walks ? animate(el, WALK, e => { tw.s = from + (to - from) * e; }) : null]);
   if (el.tower === tw) mark(el);
 }
-// the theme turned: every tower standing is painted again in the other one's tones
+// the theme turned: every tower standing is painted again in the other one's tones (only when it did turn: a write of the same
+// theme redrew it and cut its entrance short)
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
-  new MutationObserver(() => document.querySelectorAll(".tw").forEach(el => el.tower && drawTower(el, el.tower.st)))
+  new MutationObserver(() => document.querySelectorAll(".tw").forEach(el => el.tower && el.tower.theme !== themeOf() && drawTower(el, el.tower.st)))
     .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 }
 
