@@ -286,6 +286,11 @@
 .sw.on i { background: var(--ground); }
 /* a switch that cannot be pressed keeps its track and steps its square down one tone */
 :disabled .sw i { background: var(--rule); }
+/* the kinds board on the alerts page: two columns of 64 cells, an alert kind's name over its group, the kinds this device takes inverted */
+.push-group { margin-top: var(--s8); }
+.push-label { margin-bottom: var(--s3); }
+.push-board { grid-template-columns: 1fr 1fr; }
+.push-cell { display: grid; align-content: center; gap: var(--s1); height: var(--h-row2); padding: 0 var(--pad); text-align: left; }
 
 /* ---------- errors and empty (DESIGN.md "Errors and empty"): the ! square and a sentence, then one way out ---------- */
 .error-note { display: grid; gap: var(--s3); padding: var(--pad); }

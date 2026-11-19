@@ -82,6 +82,9 @@ await pg.exec(`
 const accounts = readFileSync("docs/db/community_accounts.sql", "utf8");
 await pg.exec(accounts);
 await pg.exec(accounts);
+const inboxSql = readFileSync("docs/db/push_inbox.sql", "utf8");
+await pg.exec(inboxSql);
+await pg.exec(inboxSql);
 
 const users = {};
 for (const key of ["a", "b", "c", "d"]) { users[key] = randomUUID(); await q("insert into auth.users values ($1)", [users[key]]); }
@@ -393,6 +396,30 @@ try {
     await pg.exec("reset role");
     await q("insert into public.push_outbox (dedup, kind, title, body, url, created_at) values ('notice:late', 'notice', 'YPL 공지', '늦은 공지', '?view=news', now() - interval '2 days')");
     assert.equal((await take()).length, 0);
+  });
+
+  await check("the inbox reads this week's alerts of the asked kinds: everyone's, the reader's own, and the board's open posts", async () => {
+    await pg.exec("reset role");
+    await q("delete from public.push_outbox"); await q("delete from public.community_items");
+    await q(`insert into public.push_outbox (dedup, kind, auth_user_id, title, body, url, created_at) values
+      ('i1', 'record', null, '도전의 탑 신기록', '모두의 신기록', '?view=battle&tab=streak', now() - interval '1 hour'),
+      ('i2', 'tower', $1, '도전의 탑', 'a의 순위', '?view=battle&tab=streak', now() - interval '2 hours'),
+      ('i3', 'tower', $2, '도전의 탑', 'b의 순위', '?view=battle&tab=streak', now() - interval '3 hours'),
+      ('i4', 'record', null, '도전의 탑 신기록', '지난주 신기록', '?view=battle&tab=streak', now() - interval '8 days'),
+      ('i5', 'daily', null, '오늘의 탑', '오늘의 탑이 열렸습니다.', '?view=battle&tab=streak', now() - interval '1 hour')`, [users.a, users.b]);
+    await q(`insert into public.community_items (id, board, parent_id, payload, secret, created_at) values
+      ('ib1', 'showcase', null, '{"title":"샘플 글","kind":"sample"}', false, now() - interval '30 minutes'),
+      ('ib2', 'free', null, '{"title":"비밀 글"}', true, now() - interval '30 minutes'),
+      ('ib3', 'free', 'ib1', '{"body":"댓글"}', false, now() - interval '30 minutes'),
+      ('ib4', 'free', null, '{"title":"옛 글"}', false, now() - interval '8 days')`);
+    const inbox = async (kinds, role = "anon", user = null) => { await as(role, user); return q("select kind, body, url from public.push_inbox($1)", [kinds]); };
+    assert.deepEqual(await inbox(["record", "tower", "daily"]), [{ kind: "record", body: "모두의 신기록", url: "?view=battle&tab=streak" }]);
+    assert.deepEqual((await inbox(["record", "tower"], "authenticated", users.a)).map(r => r.body), ["모두의 신기록", "a의 순위"]);
+    assert.deepEqual(await inbox(["tower"], "authenticated", users.c), []);
+    assert.deepEqual(await inbox(["board"]), [{ kind: "board", body: "샘플 글", url: "?view=board&tab=sample&post=ib1" }]);
+    assert.deepEqual((await inbox(["board", "record"])).map(r => r.kind), ["board", "record"]);
+    assert.deepEqual(await inbox([]), []);
+    assert.deepEqual(await inbox(null), []);
   });
 
   console.log(`\n${checks} checks passed`);

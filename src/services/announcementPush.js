@@ -36,7 +36,7 @@ async function saveSubscription(subscription) {
 
 const browserSubscription = async () => (await navigator.serviceWorker.getRegistration(SCOPE))?.pushManager.getSubscription() ?? null;
 
-// 브라우저가 구독 주소를 바꿨어도, 로그인이 바뀌었어도 서버가 따라오도록, 켜 둔 사람이 공지나 더보기에 오면 다시 저장한다.
+// 브라우저가 구독 주소를 바꿨어도, 로그인이 바뀌었어도 서버가 따라오도록, 켜 둔 사람이 공지나 알림 화면에 오면 다시 저장한다.
 export async function isPushOn() {
   const subscription = await browserSubscription();
   if (subscription) await saveSubscription(subscription).catch(console.error);
@@ -81,4 +81,15 @@ export async function savePushKinds(kinds) {
   catch { throw new Error("잠시 뒤 다시 시도해 주세요."); }
 }
 
-export const notifyAnnouncement = id => invokeFunction("notify-announcement", { id });
+/* 받은 알림: 지난 7일, 이 종류들의 알림(docs/db/push_inbox.sql). 개인 알림은 구글 로그인 세션으로만 온다.
+   null: push_inbox.sql 이 아직 실행되지 않았다. 그때 알림 화면은 받은 알림을 감추고 설정만 보인다. */
+export async function readInbox(kinds) {
+  try { return await rpc("push_inbox", { p_kinds: kinds }); }
+  catch (error) { if (error.status === 404 || error.code === "PGRST202") return null; throw error; }
+}
+/* 마지막으로 본 때는 이 기기에만 둔다(DESIGN.md: 보는 사람의 편의). 읽지 못하면 모두 새 알림이다. */
+const SEEN = "ypl-alerts-seen";
+export const alertsSeenAt = () => { try { return localStorage.getItem(SEEN); } catch { return null; } };
+export const markAlertsSeen = () => { try { localStorage.setItem(SEEN, new Date().toISOString()); } catch {} };
+
+export const notifyAnnouncement =id => invokeFunction("notify-announcement", { id });

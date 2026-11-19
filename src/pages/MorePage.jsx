@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Choice, Row } from "../components/common/Board.jsx";
 import Icon from "../components/common/Icon.jsx";
-import { PushSwitch } from "../components/common/PushControl.jsx";
 import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
+import { alertsSeenAt, readInbox, readPushKinds } from "../services/announcementPush.js";
+import { PUSH_KINDS, unreadCount } from "../services/announcementPushPolicy.js";
 import { viewHref } from "../services/appRouting.js";
 
 /* 더보기 (DESIGN.md "Bars and navigation"): 탭 바에 없는 화면을 묶음 제목 아래 같은 줄로 두고,
-   그 아래에 설정(테마, 알림과 그 종류)과 관리자 로그인을 둔다. 줄은 52, 오른쪽 끝에 → 또는 바깥으로 나가는 표시. */
+   그 아래에 설정(테마, 알림 화면으로 가는 줄)과 관리자 로그인을 둔다. 줄은 52, 오른쪽 끝에 → 또는 바깥으로 나가는 표시. */
 const GROUPS = [
   ["기록", [["titles", "칭호"], ["champions", "명예의 전당"]]],
   ["함께하기", [["board", "게시판"], ["builder", "팀 빌더"], ["battle", "배틀"], ["calc", "계산기"]]],
@@ -14,7 +15,20 @@ const GROUPS = [
 ];
 
 const THEMES = [["dark", "어둡게"], ["light", "밝게"], ["system", "기기 설정"]];
+/* 알림 줄의 새 알림: 이 기기가 받는 종류(꺼진 기기는 모든 종류)에서 지난번 알림 화면을 본 뒤에 온 것이 있는가. 읽지 못하면 램프는 꺼진 채다. */
+function useNewAlerts() {
+  const [fresh, setFresh] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    readPushKinds().catch(() => null)
+      .then(k => readInbox(k?.kinds ?? PUSH_KINDS.map(x => x.kind)))
+      .then(rows => { if (!cancelled && rows) setFresh(unreadCount(rows, alertsSeenAt()) > 0); }, () => {});
+    return () => { cancelled = true; };
+  }, []);
+  return fresh;
+}
 export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
+  const fresh = useNewAlerts();
   return (
     <section className="more">
       <h1 className="t32">더보기</h1>
@@ -36,7 +50,7 @@ export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
           <div role="group" aria-label="테마">
             <Choice name="theme" options={THEMES.map(([, label]) => label)} value={THEMES.find(([key]) => key === themePref)?.[1]} onChange={v => { const key = THEMES.find(([, label]) => label === v)?.[0]; if (key && key !== themePref) onTheme(key); }} />
           </div>
-          <div className="stack more-switch"><PushSwitch /></div>
+          <div className="stack more-switch"><Row title="알림" value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go("alerts")} href={viewHref("alerts")} /></div>
         </div>
         <div className="more-group">
           <div className="stack"><Row title={admin ? "관리자 로그아웃" : "관리자 로그인"} value={<Icon n={admin ? "logout" : "login"} size={20} />} onClick={onAdmin} /></div>

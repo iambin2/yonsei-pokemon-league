@@ -46,6 +46,7 @@ function lazyPage(load) {
 
 const AboutPage = lazyPage(() => import("./pages/AboutPage.jsx"));
 const PrivacyPage = lazyPage(() => import("./pages/PrivacyPage.jsx"));
+const AlertsPage = lazyPage(() => import("./pages/AlertsPage.jsx"));
 const BoardPage = lazyPage(() => import("./pages/BoardPage.jsx"));
 const BracketsPage = lazyPage(() => import("./pages/BracketsPage.jsx"));
 const ChampionsPage = lazyPage(() => import("./pages/ChampionsPage.jsx"));
@@ -59,7 +60,7 @@ const AdminPage = lazyPage(() => import("./admin/AdminPage.jsx"));
 // dev only: the production build leaves the lab and the engine it loads out
 const BattleLabPage = import.meta.env.DEV ? lazyPage(() => import("./pages/BattleLabPage.jsx")) : null;
 const AdminModalHost = lazy(() => import("./admin/AdminModalHost.jsx"));
-const PAGES = { about: AboutPage, privacy: PrivacyPage, board: BoardPage, bracket: BracketsPage, champions: ChampionsPage, news: NewsPage, records: RecordsPage, builder: TeamBuilderPage, calc: CalculatorPage, titles: TitlesPage, battle: BattlePage };
+const PAGES = { about: AboutPage, privacy: PrivacyPage, alerts: AlertsPage, board: BoardPage, bracket: BracketsPage, champions: ChampionsPage, news: NewsPage, records: RecordsPage, builder: TeamBuilderPage, calc: CalculatorPage, titles: TitlesPage, battle: BattlePage };
 const ready = v => !PAGES[v] || PAGES[v].ready();
 /* 다음 프레임이 화면에 나간 뒤에 실행한다(rAF 다음의 작업): 그 프레임에 이미 시작한 반응(누름, 알약)이 먼저 보인다. */
 const afterPaint = run => requestAnimationFrame(() => setTimeout(run, 0));
@@ -124,7 +125,7 @@ export default function App() {
   },[dark]);
   /* 탭 제목 — 뒤로 가기 목록과 브라우저 탭에서 어디에 있었는지 구분되게 화면 이름을 붙인다. */
   useEffect(()=>{
-    const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
+    const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="alerts"?"알림":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
     setPageTitle(label);
     // 검색 엔진에 화면 주소만 알린다. eventId와 배포 갱신용 __ypl_v 같은 덧붙은 값은 뺀다.
     document.querySelector('link[rel="canonical"]')?.setAttribute("href",`https://league.pokeyonsei.com/${view==="home"?"":`?view=${view}`}`);
@@ -287,6 +288,7 @@ export default function App() {
         {view==="home"&&<HomePage data={data} go={go} admin={admin}/>}
         {view==="about"&&<AboutPage go={go} data={data} admin={admin}/>}
         {view==="privacy"&&<PrivacyPage/>}
+        {view==="alerts"&&<AlertsPage go={go}/>}
         {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
         {view==="news"&&<NewsPage data={data} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go}/>}
         {view==="board"&&<BoardPage data={data} admin={admin} save={save} flash={flash} go={go}/>}

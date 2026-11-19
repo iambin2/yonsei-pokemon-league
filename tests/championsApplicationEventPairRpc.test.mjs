@@ -90,7 +90,8 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
     if (statement.startsWith("grant select ")) continue;
     // A visitor's own notice alert and survey answer: the rows stay closed to anon (docs/db/announcement_push.sql, backend_hardening.sql).
     // The alert's kinds are read and set for the one subscription whose endpoint the caller holds, as its delete is (push_kinds.sql).
-    if (/^grant execute on function public\.((save|delete)_push_subscription|push_settings|set_push_kinds|submit_announcement_response|community_write)\(/.test(statement)) continue;
+    // The inbox reads this week's alerts: everyone's, and an account's own only for its auth.uid() (push_inbox.sql).
+    if (/^grant execute on function public\.((save|delete)_push_subscription|push_settings|set_push_kinds|push_inbox|submit_announcement_response|community_write)\(/.test(statement)) continue;
     // A battle's replay log: a read that hides an official battle's parties until the event reveals them (battle_integration.sql).
     if (/^grant execute on function public\.battle_full_log\(/.test(statement)) continue;
     // The board's read policy asks whether a post is the caller's own (community_accounts.sql): a yes or no for auth.uid() only,

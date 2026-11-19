@@ -235,7 +235,7 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
       <h1 className="t32">공지</h1>
       <span className="nw-tools">
         {admin&&<Button variant="link" onClick={()=>setModal({type:"ann"})}>공지 작성</Button>}
-        <PushLink/>
+        <PushLink go={go}/>
       </span>
     </header>
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>

@@ -1,27 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { currentPushMode, disablePush, enablePush, isPushOn, readPushKinds, savePushKinds } from "../../services/announcementPush.js";
 import { PUSH_KINDS, toggleKind } from "../../services/announcementPushPolicy.js";
+import { viewHref } from "../../services/appRouting.js";
+import { follow } from "./Board.jsx";
 import Button from "./Button.jsx";
 import Icon from "./Icon.jsx";
 import Modal from "./Modal.jsx";
 import { siteAlert } from "./SiteDialog.jsx";
 
 /* 알림: 켜기 전에 이유를 먼저 말하는 시트를 띄우고, 끄기는 바로 한다.
-   공지 화면은 12px 단어(PushLink)로, 더보기는 스위치 줄(PushSwitch)로 같은 상태를 쓴다.
-   켜져 있고 docs/db/push_kinds.sql 이 실행된 뒤면 더보기는 종류마다 스위치 줄을 더 세운다(docs/PUSH.md). 그 전에는 공지 알림 하나다. */
-function usePush(title) {
+   공지 화면은 12px 단어(PushLink)로, 알림 화면은 스위치 줄과 종류 판(PushBoard)으로 같은 상태를 쓴다.
+   docs/db/push_kinds.sql 이 실행된 뒤면 판이 종류마다 칸을 세운다(docs/PUSH.md). 그 전에는 이 기기의 스위치 하나다. */
+export function usePush(title) {
   const [mode] = useState(currentPushMode);
   const [on, setOn] = useState(false); const [busy, setBusy] = useState(mode === "ready"); const [ask, setAsk] = useState(false);
   const [fail, setFail] = useState("");
   // { kinds, linked } once the device is on and the server knows kinds; null otherwise
   const [kinds, setKinds] = useState(null);
+  // checked: the device's state is known (the page reads its inbox by it once, not twice)
+  const [checked, setChecked] = useState(mode !== "ready");
   const loadKinds = () => readPushKinds().then(setKinds, error => { console.error(error); setKinds(null); });
   useEffect(() => {
     if (mode !== "ready") return undefined;
     let cancelled = false;
     isPushOn()
       .then(value => { if (cancelled) return; setOn(value); if (value) return readPushKinds().then(k => { if (!cancelled) setKinds(k); }); })
-      .catch(console.error).finally(() => { if (!cancelled) setBusy(false); });
+      .catch(console.error).finally(() => { if (!cancelled) { setBusy(false); setChecked(true); } });
     return () => { cancelled = true; };
   }, [mode]);
   /* a failure while the sheet stands is said in the sheet, in the key's place: a sheet never opens a dialog over itself
@@ -58,13 +62,15 @@ function usePush(title) {
       <Button variant="link" className="push-later" onClick={() => setAsk(false)}>나중에</Button>
     </div>
   </Modal>;
-  return { mode, on, busy, press, sheet, kinds, pressKind };
+  return { mode, on, busy, checked, press, sheet, kinds, pressKind };
 }
 
-export function PushLink() {
+/* 공지 화면의 단어: 꺼져 있으면 알림 받기(켜는 시트), 켜져 있으면 알림 화면으로 간다(넓은 데스크톱에는 더보기가 없어 이 단어가 길이다) */
+export function PushLink({ go }) {
   const { mode, on, busy, press, sheet } = usePush("새 공지를 알림으로 받습니다.");
   if (mode === "none") return null;
-  return <><button type="button" className="push-link t12" disabled={busy} onClick={press}>{on ? "알림 끄기" : "알림 받기"}</button>{sheet}</>;
+  if (on) return <a className="push-link t12" href={viewHref("alerts")} onClick={follow(() => go("alerts"))}>알림</a>;
+  return <><button type="button" className="push-link t12" disabled={busy} onClick={press}>알림 받기</button>{sheet}</>;
 }
 
 /* a switch row: 52 by 32, off a muted square in panel-2, on inverted with the square at the right */
@@ -75,15 +81,26 @@ const SwitchRow = ({ label, on, disabled, onClick }) => (
   </button>
 );
 
-// 더보기: the device's switch, then one switch for each kind while it is on (a personal kind stands off on a device with no account)
-export function PushSwitch() {
-  const { mode, on, busy, press, sheet, kinds, pressKind } = usePush("새 소식을 알림으로 받습니다.");
+/* 알림 화면의 설정(draft B, 2026-11-19): 이 기기의 스위치, 그 아래 받을 알림의 판. 켜진 종류는 반전된 칸이고, 묶음 이름이 칸의 회색 줄이다.
+   꺼진 기기의 칸은 모두 꺼져 서 있고 누르면 켜는 시트가 뜬다. 계정이 없는 기기의 개인 알림도 꺼져 서 있고 누르면 이유를 말한다. */
+export function PushBoard({ push }) {
+  const { mode, on, busy, press, sheet, kinds, pressKind } = push;
   if (mode === "none") return null;
+  const board = !on || kinds;
   return <>
-    <SwitchRow label={kinds ? "알림" : "공지 알림"} on={on} disabled={busy} onClick={press} />
-    {on && kinds && PUSH_KINDS.map(k => (
-      <SwitchRow key={k.kind} label={k.label} on={kinds.kinds.includes(k.kind) && (!k.personal || kinds.linked)} disabled={busy} onClick={() => pressKind(k)} />
-    ))}
+    <div className="stack"><SwitchRow label="이 기기 알림" on={on} disabled={busy} onClick={press} /></div>
+    {board && <div className="push-group">
+      <p className="t12 dim push-label">받을 알림</p>
+      <div className="stack push-board">
+        {PUSH_KINDS.map(k => {
+          const lit = on && kinds.kinds.includes(k.kind) && (!k.personal || kinds.linked);
+          return <button type="button" key={k.kind} role="switch" aria-checked={lit} disabled={busy} className={(lit ? "inv" : "pn") + " push-cell"}
+            onClick={on ? () => pressKind(k) : press}>
+            <b className="t15">{k.label}</b><span className={"t12 reg" + (lit ? "" : " dim")}>{k.group}</span>
+          </button>;
+        })}
+      </div>
+    </div>}
     {sheet}
   </>;
 }
