@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { currentPushMode, disablePush, enablePush, isPushOn, readPushKinds, savePushKinds } from "../../services/announcementPush.js";
 import { PUSH_KINDS, toggleKind } from "../../services/announcementPushPolicy.js";
-import { viewHref } from "../../services/appRouting.js";
-import { follow } from "./Board.jsx";
 import Button from "./Button.jsx";
 import Icon from "./Icon.jsx";
 import Modal from "./Modal.jsx";
 import { siteAlert } from "./SiteDialog.jsx";
 
 /* 알림: 켜기 전에 이유를 먼저 말하는 시트를 띄우고, 끄기는 바로 한다.
-   공지 화면은 12px 단어(PushLink)로, 알림 화면은 스위치 줄과 종류 판(PushBoard)으로 같은 상태를 쓴다.
+   알림 화면이 스위치 줄과 종류 판(PushBoard)으로 쓴다.
    docs/db/push_kinds.sql 이 실행된 뒤면 판이 종류마다 칸을 세운다(docs/PUSH.md). 그 전에는 이 기기의 스위치 하나다. */
 export function usePush(title) {
   const [mode] = useState(currentPushMode);
@@ -63,14 +61,6 @@ export function usePush(title) {
     </div>
   </Modal>;
   return { mode, on, busy, checked, press, sheet, kinds, pressKind };
-}
-
-/* 공지 화면의 단어: 꺼져 있으면 알림 받기(켜는 시트), 켜져 있으면 알림 화면으로 간다(넓은 데스크톱에는 더보기가 없어 이 단어가 길이다) */
-export function PushLink({ go }) {
-  const { mode, on, busy, press, sheet } = usePush("새 공지를 알림으로 받습니다.");
-  if (mode === "none") return null;
-  if (on) return <a className="push-link t12" href={viewHref("alerts")} onClick={follow(() => go("alerts"))}>알림</a>;
-  return <><button type="button" className="push-link t12" disabled={busy} onClick={press}>알림 받기</button>{sheet}</>;
 }
 
 /* a switch row: 52 by 32, off a muted square in panel-2, on inverted with the square at the right */

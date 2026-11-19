@@ -7,10 +7,10 @@ import { PUSH_KINDS, unreadCount } from "../services/announcementPushPolicy.js";
 import { viewHref } from "../services/appRouting.js";
 
 /* 더보기 (DESIGN.md "Bars and navigation"): 탭 바에 없는 화면을 묶음 제목 아래 같은 줄로 두고,
-   그 아래에 설정(테마, 알림 화면으로 가는 줄)과 관리자 로그인을 둔다. 줄은 52, 오른쪽 끝에 → 또는 바깥으로 나가는 표시. */
+   그 아래에 설정(테마)과 관리자 로그인을 둔다. 알림 화면은 함께하기의 첫 줄이고, 새 알림이 있으면 램프가 켜진다. 줄은 52, 오른쪽 끝에 → 또는 바깥으로 나가는 표시. */
 const GROUPS = [
   ["기록", [["titles", "칭호"], ["champions", "명예의 전당"]]],
-  ["함께하기", [["board", "게시판"], ["builder", "팀 빌더"], ["battle", "배틀"], ["calc", "계산기"]]],
+  ["함께하기", [["alerts", "알림"], ["board", "게시판"], ["builder", "팀 빌더"], ["battle", "배틀"], ["calc", "계산기"]]],
   ["리그", [["about", "소개"], ["privacy", "개인정보처리방침"]]],
 ];
 
@@ -36,7 +36,7 @@ export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
         <div className="more-group" key={label}>
           <p className="t12 dim more-label">{label}</p>
           <div className="stack">
-            {items.map(([key, text]) => <Row key={key} title={text} value={<Icon n="chevr" size={20} />} onClick={() => go(key)} href={viewHref(key)} />)}
+            {items.map(([key, text]) => <Row key={key} title={text} value={<>{key === "alerts" && fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go(key)} href={viewHref(key)} />)}
             {label === "리그" && <a className="pn row" href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
               <span className="row-main"><b className="t15">디스코드 참여</b></span><span className="row-value"><Icon n="ext" size={20} /></span>
             </a>}
@@ -50,7 +50,6 @@ export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
           <div role="group" aria-label="테마">
             <Choice name="theme" options={THEMES.map(([, label]) => label)} value={THEMES.find(([key]) => key === themePref)?.[1]} onChange={v => { const key = THEMES.find(([, label]) => label === v)?.[0]; if (key && key !== themePref) onTheme(key); }} />
           </div>
-          <div className="stack more-switch"><Row title="알림" value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go("alerts")} href={viewHref("alerts")} /></div>
         </div>
         <div className="more-group">
           <div className="stack"><Row title={admin ? "관리자 로그아웃" : "관리자 로그인"} value={<Icon n={admin ? "logout" : "login"} size={20} />} onClick={onAdmin} /></div>

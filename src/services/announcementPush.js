@@ -36,7 +36,7 @@ async function saveSubscription(subscription) {
 
 const browserSubscription = async () => (await navigator.serviceWorker.getRegistration(SCOPE))?.pushManager.getSubscription() ?? null;
 
-// 브라우저가 구독 주소를 바꿨어도, 로그인이 바뀌었어도 서버가 따라오도록, 켜 둔 사람이 공지나 알림 화면에 오면 다시 저장한다.
+// 브라우저가 구독 주소를 바꿨어도, 로그인이 바뀌었어도 서버가 따라오도록, 켜 둔 사람이 알림 화면에 오면 다시 저장한다.
 export async function isPushOn() {
   const subscription = await browserSubscription();
   if (subscription) await saveSubscription(subscription).catch(console.error);

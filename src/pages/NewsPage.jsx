@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 import { BackLink, Chips, Choice, Counter, Dock, OptionRows, Question, Row, SectionHead, Toast } from "../components/common/Board.jsx";
 import { DUR, light } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
-import { PushLink } from "../components/common/PushControl.jsx";
 import Seg from "../components/common/Seg.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
@@ -235,7 +234,6 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
       <h1 className="t32">공지</h1>
       <span className="nw-tools">
         {admin&&<Button variant="link" onClick={()=>setModal({type:"ann"})}>공지 작성</Button>}
-        <PushLink go={go}/>
       </span>
     </header>
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>

@@ -1,7 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChampionPanel, Counter, Lead, Mon, SectionHead } from "../components/common/Board.jsx";
-import { useMe } from "../components/common/useMe.js";
-import { loadMyNext } from "../services/myNext.js";
 import { lastEventResult } from "../services/lastEvent.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
 import Button from "../components/common/Button.jsx";
@@ -64,11 +62,6 @@ const opening = () => firstOpen;
 
 /* 좁은 줄의 날짜: 11.07, 그 옆에 흐린 요일 */
 const Day = ({ d }) => d && <span className="num">{d.day}<span className="dim wd">{d.weekday}</span></span>;
-
-/* 내 다음의 한 칸: 사실이 있으면 그곳으로 가는 문, 없으면 이름만 남은 꺼진 칸(값의 자리는 비워 두어 켜질 때 움직이지 않는다) */
-const MyCell = ({ label, value, onClick, say }) => value == null
-  ? <div className="cell"><span className="cell-label">{label}</span><b aria-hidden="true">{" "}</b></div>
-  : <button type="button" className="cell" onClick={onClick} aria-label={say || `${label} ${value}`}><span className="cell-label">{label}</span><b>{value}</b></button>;
 
 /* 지난 대회: 다음 대회가 없는 날의 첫 자리. 기록 화면과 같은 정규 기록 읽기(캐시 "records")에서 찾고, 지난 방문의 답을 첫 그림부터 쓴다. */
 const LAST_KEY = "ypl-home-last";
@@ -176,16 +169,6 @@ export default function HomePage({ data, go, admin }) {
     const timer = setInterval(read, 15_000);
     return () => { on = false; clearInterval(timer); };
   }, [now?.today, now?.eventId]);
-  /* 내 다음 (2026-11-16): 기록에 연결된 계정의 다음 대회 신청, 파티 제출, 다음 경기. 계정이 없으면 이 블록은 없다 */
-  const me = useMe();
-  const [mine, setMine] = useState(null);
-  useEffect(() => {
-    setMine(null);
-    if (!me || !now?.eventId) return undefined;
-    let on = true;
-    loadMyNext(now.eventId, me).then(next => { if (on) setMine(next); }, error => console.warn("home my next read failed", error));
-    return () => { on = false; };
-  }, [me?.playerId, now?.eventId]);
   /* 다음 대회가 없는 날의 첫 자리는 지난 대회의 결과다 (2026-11-16): 꺼진 88 대신 날짜, 이름, 리그마다의 우승, 대진표 보기 */
   const [last, setLast] = useState(() => (now ? null : seenLast()));
   useEffect(() => {
@@ -203,12 +186,6 @@ export default function HomePage({ data, go, admin }) {
     {/* the big screen (draft B): the next event and the reigning champion as one device, joined by the seam */}
     <div className="stack ho-screen">
     <section className="pn ho-next" aria-labelledby={now ? "ho-title" : undefined}>
-      {now && me && <div className="stack ho-me" data-light>
-        <MyCell label="신청" value={mine?.applied == null ? null : mine.applied ? "신청함" : "미신청"} onClick={() => go("news", { notice: now.noticeId })} />
-        <MyCell label="파티 제출" value={mine?.submitted == null ? null : mine.submitted ? "제출함" : "미제출"} onClick={() => go("builder", { eventId: mine.builderEventId })} />
-        <MyCell label="다음 경기" value={mine?.match ? `${mine.match.stage} ${mine.match.opponent}` : null} say={mine?.match && `다음 경기 ${mine.match.stage}, 상대 ${mine.match.opponent}, 대진표 보기`}
-          onClick={() => go("bracket", { eventId: mine.match.eventId, m: mine.match.id })} />
-      </div>}
       {!now && last ? <>
         <p className="ho-label t12" data-light><span className="ho-lamp dim"><i className="lamp unlit" aria-hidden="true" />지난 대회</span></p>
         <div className="stack ho-last" data-light>

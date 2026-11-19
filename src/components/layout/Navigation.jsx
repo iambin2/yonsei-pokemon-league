@@ -5,10 +5,10 @@ import { viewHref } from "../../services/appRouting.js";
 
 /* 폰은 화면 아래 탭 바 다섯 칸, 데스크톱은 상단 바에 같은 다섯. 더보기에는 나머지 화면. */
 export const TABS = [["home","홈","home"],["news","공지","news"],["bracket","대진표","bracket"],["records","기록","records"],["more","더보기","more"]];
-export const MORE_ITEMS = [["titles","칭호"],["champions","명예의 전당"],["board","게시판"],["builder","팀 빌더"],["battle","배틀"],["calc","계산기"],["about","소개"]];
+export const MORE_ITEMS = [["titles","칭호"],["champions","명예의 전당"],["alerts","알림"],["board","게시판"],["builder","팀 빌더"],["battle","배틀"],["calc","계산기"],["about","소개"]];
 /* 탭 제목에 쓰는 화면 이름. 홈은 빠져서 기본 제목을 쓴다. */
 export const NAV_ITEMS = [...TABS, ...MORE_ITEMS].filter(([k]) => k !== "home" && k !== "more");
-export const tabOf = (view, wide = false) => TABS.some(([k]) => k === view) || (wide && MORE_ITEMS.some(([k]) => k === view)) ? view : MORE_ITEMS.some(([k]) => k === view) || view === "alerts" ? "more" : null;
+export const tabOf = (view, wide = false) => TABS.some(([k]) => k === view) || (wide && MORE_ITEMS.some(([k]) => k === view)) ? view : MORE_ITEMS.some(([k]) => k === view) ? "more" : null;
 
 /* 넓은 데스크톱(1100px 이상)은 더보기 없이 모든 화면을 상단 바에 바로 놓는다. 관리자 로그인은 바닥글의 첫 줄(모든 폭)과 더보기에 선다. */
 const WIDE = "(min-width: 1100px)";

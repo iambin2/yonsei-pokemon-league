@@ -270,8 +270,7 @@
   .page :is(.tabsline, .chips:not(.sheet .chips)) { margin-right: calc(var(--gutter) * -1); padding-right: var(--gutter); }
 }
 
-/* ---------- notice alerts (PushControl.jsx): a 12px word with the bell, a switch row, and the sheet that says why first ---------- */
-.push-link { display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); color: var(--lit); }
+/* ---------- alerts (PushControl.jsx): a switch row, the kinds board, and the sheet that says why first ---------- */
 .push-ask { display: grid; gap: var(--s5); }
 .push-note { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--pad); }
 .push-later { justify-self: center; }

@@ -34,7 +34,7 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 ## 계정 잇기
 
 `save_push_subscription`이 저장할 때의 `auth.uid()`를 구독에 적는다. 화면은 구글 로그인 세션(`visitorAuth.js`)으로 부르고, 없으면 익명으로 부른다.
-로그인을 바꾼 기기는 공지나 알림 화면에 올 때 다시 저장되며 따라간다(로그아웃한 기기는 풀린다). 계정의 트레이너는 `player_accounts`의
+로그인을 바꾼 기기는 알림 화면에 올 때 다시 저장되며 따라간다(로그아웃한 기기는 풀린다). 계정의 트레이너는 `player_accounts`의
 승인된 연결이다: 선수(`player_id`)가 같거나, 아직 선수가 없는 새 트레이너면 신청 이름이 계정의 이름과 같은 사람이다.
 
 ## 보내는 길

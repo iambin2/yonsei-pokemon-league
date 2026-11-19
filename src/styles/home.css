@@ -26,12 +26,6 @@
 /* the main action stands at the half's foot */
 .ho-go { margin-top: auto; padding-top: var(--s5); }
 
-/* 내 다음 (a signed-in trainer linked to a record): three cells on the seam like the counters, 32 over the label row; a cell with
-   no fact keeps its label and its place, switched off */
-.ho-me { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--s8); }
-.ho-me > .cell { background: var(--panel-2); }
-.ho-me > button.cell { text-align: left; transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .ho-me > button.cell:hover { background: var(--rule); } }
 /* 지난 대회 (no event ahead): the lead panel and one strip a league's winner, the place in a cell of its own (the records' placings) */
 .ho-last { margin-top: var(--s3); }
 .ho-last > .pn { background: var(--panel-2); }

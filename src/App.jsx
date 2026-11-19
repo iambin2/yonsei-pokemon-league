@@ -125,7 +125,7 @@ export default function App() {
   },[dark]);
   /* 탭 제목 — 뒤로 가기 목록과 브라우저 탭에서 어디에 있었는지 구분되게 화면 이름을 붙인다. */
   useEffect(()=>{
-    const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="alerts"?"알림":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
+    const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
     setPageTitle(label);
     // 검색 엔진에 화면 주소만 알린다. eventId와 배포 갱신용 __ypl_v 같은 덧붙은 값은 뺀다.
     document.querySelector('link[rel="canonical"]')?.setAttribute("href",`https://league.pokeyonsei.com/${view==="home"?"":`?view=${view}`}`);
