@@ -207,7 +207,6 @@ export async function listOpenRooms() {
   return data || [];
 }
 // 바뀌었는지만 묻는 가벼운 읽기(응답 약 12바이트). 화면은 이 값이 오를 때만 전체를 다시 읽는다.
-// ponytail: 묻는 방식이다. 동시에 보는 사람이 많아지면 Supabase Realtime으로 바꾼다.
 export async function readBattleVersion(id) {
   if (!supa) return null;
   const { data, error } = await supa.from("battles").select("version").eq("id", id).maybeSingle();
@@ -218,14 +217,18 @@ export async function readBattleVersion(id) {
 /* 배틀 화면이 몇 ms 뒤에 다시 물을지. null이면 그만 묻는다.
    진행 중에는 1.5초, 1분 동안 아무것도 바뀌지 않으면 3초, 5분이면 6초. 끝난 배틀은 다시 바뀌지 않는다.
    다만 공식 경기는 끝난 뒤 서버가 대진표에 넣으며 applied_at(또는 apply_error)만 쓰고 version은 올리지 않으므로, 그 값이 올 때까지 행을 읽는다.
-   row === null은 없는 배틀(대기 취소)이다. */
-export function battlePollDelay(row, idleMs, seated = false) {
+   row === null은 없는 배틀(대기 취소)이다.
+   live: 서버의 신호(battleSignal.js)가 지금 들린다. 배틀 함수는 저장할 때마다 신호를 보내므로 그동안 묻기는 신호를 잃었을 때의
+   대비일 뿐이라 6초마다로 늦춘다(2026-11-19, 백엔드 최적화 3단계: 하루 REST 요청의 절반이 이 묻기였다). 신호 없이 version이 오르는
+   드문 길(버려진 탑 판을 새 도전이 닫을 때, 운영진의 무효 처리)만 그만큼 늦게 보인다. */
+export function battlePollDelay(row, idleMs, seated = false, live = false) {
   if (row === null) return null;
   if (row?.status === "ended") {
     if (row.kind === "official") return !row.applied_at && !row.apply_error ? 4500 : null;
     // a seat in an ended friendly battle keeps reading it a while, so the other player's 다시하기 reaches it
     return seated && rematchSupported && !row.rematch_id && idleMs < 600_000 ? 3000 : null;
   }
+  if (live && row) return 6000;
   return idleMs < 60_000 ? 1500 : idleMs < 300_000 ? 3000 : 6000;
 }
 // 선수의 화면은 엔진이 움직였을 때만 바뀐다. 엔진이 한 걸음 가면 쇼다운은 반드시 관전 로그에 줄을 더한다(덧붙이기만 한다).

@@ -725,7 +725,8 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
   useEffect(() => {
     let stopped = false, busy = false, timer = null, queued = null;
     /* hint: a signal from the server (battleSignal.js) that the battle moved. It reads at once what a poll would read once it
-       noticed; a signal that comes while a read is on its way is kept and read right after it. The polls stay as they were. */
+       noticed; a signal that comes while a read is on its way is kept and read right after it. While the signal is heard the polls slow to 6 s
+       (battlePollDelay live); when it is not, they run as before. */
     const tick = async (hint = null) => {
       if (busy) { if (hint) queued = { version: null, moved: Boolean(queued?.moved || hint.moved) }; return; }
       busy = true;
@@ -744,18 +745,18 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
       if (stopped) return;
       if (queued) { const again = queued; queued = null; void tick(again); return; }
       if (rowRef.current?.status === "waiting") void takeNewBuild();
-      const delay = battlePollDelay(rowRef.current, Date.now() - movedAt.current, Boolean(readSeat(id)));
+      const delay = battlePollDelay(rowRef.current, Date.now() - movedAt.current, Boolean(readSeat(id)), signal.live());
       if (delay != null) timer = setTimeout(tick, delay);
-      else unwatch(); // the battle will not change again: nothing more to hear
+      else signal.stop(); // the battle will not change again: nothing more to hear
     };
-    const unwatch = watchBattleSignal(id, hint => { if (!stopped) void tick(hint); }, { watcher: !readSeat(id), onWatchers: n => { if (!stopped) setWatchers(n); } });
+    const signal = watchBattleSignal(id, hint => { if (!stopped) void tick(hint); }, { watcher: !readSeat(id), onWatchers: n => { if (!stopped) setWatchers(n); } });
     /* a battle page can stay open for an hour: when a newer build is out it takes it, at a moment that loses nothing (the tab coming
        back into view, or while it only waits for an opponent); the room is read again from the server, as any reload does */
     const takeNewBuild = force => checkBuild(force).then(newer => { if (newer && !stopped) window.location.reload(); });
     const onVisible = () => { if (document.visibilityState === "visible") { void takeNewBuild(true); void tick(); } };
     document.addEventListener("visibilitychange", onVisible);
     void tick();
-    return () => { stopped = true; clearTimeout(timer); unwatch(); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { stopped = true; clearTimeout(timer); signal.stop(); document.removeEventListener("visibilitychange", onVisible); };
   }, [id, refresh]);
   /* while this seat owes a choice and its player thinks, the battle function is kept warm (warmBattle), so the choice lands on a
      worker that is already up. Every 10 seconds from each new request, only while the page is in view. */

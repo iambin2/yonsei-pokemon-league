@@ -24,6 +24,16 @@ test("an open battle is asked often, an idle one less, a finished one not at all
   assert.equal(battlePollDelay({ status: "ended", kind: "official", apply_error: "무승부" }, 0), null);
 });
 
+test("while the server's signal is heard the poll is only a fallback, and an ended battle is read as before", () => {
+  const active = { status: "active", kind: "streak" };
+  assert.equal(battlePollDelay(active, 0, true, true), 6000);
+  assert.equal(battlePollDelay({ status: "waiting" }, 0, true, true), 6000);
+  assert.equal(battlePollDelay(active, 0, true, false), 1500, "no signal: as before");
+  assert.equal(battlePollDelay(undefined, 0, false, true), 1500, "still loading");
+  assert.equal(battlePollDelay({ status: "ended", kind: "official", applied_at: null, apply_error: null }, 0, false, true), 4500);
+  assert.equal(battlePollDelay({ status: "ended", kind: "friendly" }, 0, true, true), 3000);
+});
+
 test("a player's view is fetched again only when the engine moved", () => {
   const row = (version, log, status = "active") => ({ version, status, spectator_log: log });
   assert.equal(playerViewIsCurrent(null, null, row(1, "a")), false, "no view yet");

@@ -57,8 +57,8 @@ const later = (work: Promise<unknown>) => {
 
 /* A battle moved: every screen on it (both seats and the watchers, src/services/battleSignal.js) is told at once through a Realtime
    broadcast on battle:<id>, instead of finding out on its next poll (1.5 s apart, 0.75 s late on average). The signal carries no
-   secret and decides nothing: a screen that hears it reads the public row as it would on a poll, and the polls go on as before, so a
-   lost signal costs only the time it would have saved. moved: the engine ran (the spectator log grew), so a seat needs its own view. */
+   secret and decides nothing: a screen that hears it reads the public row as it would on a poll. While a screen hears the channel its
+   polls slow to 6 s (src/services/battleService.js battlePollDelay), so a signal lost then costs at most that wait. moved: the engine ran (the spectator log grew), so a seat needs its own view. */
 function signal(id: string, version: number | null, moved = false) {
   later(fetch(`${URL_BASE}/realtime/v1/api/broadcast`, {
     method: "POST",
