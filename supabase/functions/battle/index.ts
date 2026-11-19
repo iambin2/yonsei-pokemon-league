@@ -342,12 +342,19 @@ async function streakSeen(battle: Record<string, any>, secret: Record<string, an
 }
 // a draft as the screen shows it: each candidate's whole set, without the back-up items the party is settled with (draftParty)
 const shownDraft = (draft: Record<string, any>[][]) => draft.map(row => row.map(({ items, ...c }) => c));
-// the user a Google sign-in makes this request for (the site sends the session's token, storage.js invokeFunction)
+/* the user a Google sign-in makes this request for (the site sends the session's token, storage.js invokeFunction). The token is
+   checked here against Auth's published signing keys (ES256, fetched once a worker and kept), not by asking Auth for the user:
+   that round trip was 156 ms on average (2026-11-19). A token signed out of stays good until it expires, within the hour. */
+async function userIdOf(jwt: string) {
+  if (!jwt) return null;
+  const { data, error } = await db.auth.getClaims(jwt);
+  const claims = data?.claims;
+  return !error && claims?.role === "authenticated" && claims.sub ? String(claims.sub) : null;
+}
 async function userOf(req: Request) {
-  const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const { data, error } = jwt ? await db.auth.getUser(jwt) : { data: null, error: true };
-  if (error || !data?.user) refuse(401, "Google 계정으로 로그인해 주세요.");
-  return data!.user.id as string;
+  const user = await userIdOf((req.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
+  if (!user) refuse(401, "Google 계정으로 로그인해 주세요.");
+  return user!;
 }
 /* 계정에 배틀 기록 (docs/db/account_teams.sql, 2026-11-16): a seat taken by a request signed in with Google (the site sends the
    session's token when it has one, storage.js callFunction) is written on the battle as that account's, so 기록 lists it on any
@@ -362,8 +369,7 @@ function seatAccount(req: Request | undefined, id: string, side: string, user: s
     if (!uid && req) {
       const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
       if (jwtRole(jwt) !== "authenticated") return;
-      const { data } = await db.auth.getUser(jwt);
-      uid = data?.user?.id ?? null;
+      uid = await userIdOf(jwt);
     }
     if (!uid) return;
     const { error } = await db.rpc("battle_set_account", { p_id: id, p_side: side, p_user: uid });
