@@ -29,7 +29,7 @@ test("the foes are many and alike in strength: 4000 parties, a thousand of each 
     if (seen.has(key)) twice++;
     seen.add(key);
     for (const m of team) times.set(m.species, (times.get(m.species) || 0) + 1);
-    (shares[builder] ||= []).push(team.reduce((s, m) => s + ratingOf(STREAK_FORMAT_ID, m.species), 0));
+    (shares[builder] ||= []).push(team.reduce((s, m) => s + ratingOf(STREAK_FORMAT_ID, m.species, m), 0));
   }
   const mean = (N * 6) / pool, most = Math.max(...times.values());
   assert.ok(times.size >= 250, `${times.size} of ${pool} species came`);

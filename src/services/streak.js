@@ -3,7 +3,7 @@
    바꾸는지만 있다. wins는 언제나 "이 판 전에 이긴 판 수"다. */
 import { LEVELS } from "./cpuLevels.js";
 import TOWER_TIERS from "../data/tower-tiers.json" with { type: "json" };
-import { ratingOf } from "./partyBalance.js";
+import { keyRating, ratingOf, setKey } from "./partyBalance.js";
 
 // 싱글 랜덤 배틀 하나(4장의 측정이 모두 싱글). 규정이 바뀌면 여기만 바꾼다
 export const STREAK_REGULATION = "m-c";
@@ -122,16 +122,22 @@ const named = (species, shown) => id(species) === id(shown) || (String(shown).en
    기술과 맞지 않는 세트가 되었다. 메가스톤은 여럿이어도 된다(같은 날, 엔진이 한 판에 한 번만 진화시킨다). 화면은 이긴 판 뒤
    상대 여섯의 세트를 받으므로(배틀 함수 beaten) 같은 함수로 누르기 전에 된다, 안 된다를 그린다. 서버는 그 뒤 검증기로 한 번 더 본다 */
 /* 2026-11-11 (14장): 급은 탑의 풀(랭커 구축에 나온 종) 안에서 나눈 것이다(src/data/tower-tiers.json). 풀 밖의 종(15장부터 상대가
-   데려오는 종, 예전 도전의 파티)은 잰 몫(partyBalance.js ratingOf)으로 그 급의 경계(급마다 가장 낮은 몫)에 끼워 넣는다(사용자가 고름) */
-const TOWER_BY_ID = new Map(Object.entries(TOWER_TIERS).map(([k, v]) => [id(k), v]));
+   데려오는 종, 예전 도전의 파티)은 잰 몫(partyBalance.js ratingOf)으로 그 급의 경계(급마다 가장 낮은 몫)에 끼워 넣는다(사용자가 고름).
+   2026-11-19 (19장, 사용자: "포켓몬 단위로 구분하지 말고, 샘플 단위로 티어를 측정"): 급은 샘플 세트마다다. 표의 열쇠는 세트의 열쇠
+   (partyBalance.js setKey)이고, 같은 종의 두 세트가 다른 급에 설 수 있다. m: 파티의 한 마리({ species, item, moves }) 또는 종 이름.
+   종 이름뿐이면(세트를 보내지 않는 예전 함수) 그 종 세트들의 평균 몫으로 읽는다 */
 let floors = null;
-function tierByShare(species) {
-  floors ||= Array.from({ length: 6 }, (_, t) => Math.min(...Object.keys(TOWER_TIERS).filter(s => TOWER_TIERS[s] === t).map(s => ratingOf(STREAK_FORMAT_ID, s))));
-  const share = ratingOf(STREAK_FORMAT_ID, species);
+function tierByShare(species, set) {
+  floors ||= Array.from({ length: 6 }, (_, t) => Math.min(...Object.keys(TOWER_TIERS).filter(k => TOWER_TIERS[k] === t).map(k => keyRating(STREAK_FORMAT_ID, k))));
+  const share = ratingOf(STREAK_FORMAT_ID, species, set);
   const t = share === null ? -1 : floors.findIndex(f => share >= f);
   return t < 0 ? floors.length - 1 : t;
 }
-export const swapTier = species => TOWER_BY_ID.get(id(species)) ?? [...TOWER_BY_ID].find(([k]) => String(species).endsWith("-*") && k.startsWith(id(String(species).slice(0, -2))))?.[1] ?? tierByShare(species);
+export function swapTier(m) {
+  const set = m && typeof m === "object" && m.moves?.length ? m : null;
+  const species = typeof m === "string" ? m : m?.species;
+  return (set && TOWER_TIERS[setKey(species, set)]) ?? tierByShare(species, set);
+}
 export const MEGA_STONE = /^(?!Eviolite$).+ite( [XYZ])?$/;
 /* reach (2026-11-11, 13장 승급): 수문장이나 강한 상대를 이긴 판의 교환은 한 급 위까지 닿는다(1). 그 밖에는 같은 급끼리(0). 아래로
    내려가는 교환은 받지 않는다 */
@@ -139,7 +145,7 @@ export function swapParty(party, foes, give, take, reach = 0) {
   const out = party.findIndex(m => named(m.species, give));
   const coming = foes.find(m => named(m.species, take));
   if (out < 0 || !coming) return "missing";
-  const up = swapTier(party[out].species) - swapTier(coming.species);
+  const up = swapTier(party[out]) - swapTier(coming);
   if (!(up >= 0 && up <= reach)) return "tier";
   const rest = party.filter((_, i) => i !== out);
   if (rest.some(m => id(base(m.species)) === id(base(coming.species)))) return "clash";

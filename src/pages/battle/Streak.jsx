@@ -669,9 +669,11 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     if (el && resting && won) climb(el.querySelector(`[data-step="${floorGame(wins) - 1}"]`), el.querySelector(`[data-step="${floorGame(wins)}"]`));
     return () => clearTimeout(timer);
   }, [wins, resting, stage]);
-  // ours in tier order, strongest first, each its row; theirs in tier order within a row (SwapTable)
-  const byTier = list => [...list].sort((a, b) => (swapTier(a.species) ?? 9) - (swapTier(b.species) ?? 9));
-  const ours = byTier(ourSix), theirs = byTier(theirSix);
+  /* ours in tier order, strongest first, each its row; theirs in tier order within a row (SwapTable). A tier is a sample set's (19장),
+     read off the whole sets the function sends (seat.own, seat.beaten) where it sends them, else off the species */
+  const setOf = (list, m) => list?.find(s => s.species === m.species) || m;
+  const byTier = (list, sets) => [...list].sort((a, b) => (swapTier(setOf(sets, a)) ?? 9) - (swapTier(setOf(sets, b)) ?? 9));
+  const ours = byTier(ourSix, seat?.own), theirs = byTier(theirSix, seat?.beaten);
   // every won game offers its trade, a gatekeeper's too: the party a run started with goes all the way up (2026-11-10)
   const swapping = resting && won && ours.length === 6 && theirs.length === 6;
   // after a gatekeeper or a strong door the trade reaches a tier up: theirs one tier stronger for ours (13장)

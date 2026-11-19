@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { STREAK_BAN, STREAK_DRAFT, STREAK_LIVES, STREAK_START_LIVES, doorsOf, runTrack, seeded, streakReach, streakRelights, STREAK_BATTLE_FORMAT, STREAK_STEPS, STREAK_FORMAT_ID, STREAK_REGULATION, floorGame, streakCpuOptions, streakFloor, streakFresh, streakStep, streakMaster, swapParty, swapTier, gameWords } from "../src/services/streak.js";
 import { LEVELS } from "../src/services/cpuLevels.js";
 import TOWER_TIERS from "../src/data/tower-tiers.json" with { type: "json" };
-import { ratingOf } from "../src/services/partyBalance.js";
+import { keyRating, ratingOf, setKey } from "../src/services/partyBalance.js";
+import { towerPool } from "../supabase/functions/battle/towerBuild.mjs";
+/* the tiers hold sample sets since 19장 (tower-tiers.json is keyed by setKey). The swap rules below are checked on species alone, as a
+   function from before then sends them: a member with no moves trades in the tier of its species' mean share */
+const POOL = [...towerPool(STREAK_BAN).keys()];
 
 test("a floor is five games, the fifth its master, and a new floor brings a new party", () => {
   assert.deepEqual([0, 4, 5, 9, 10].map(streakFloor), [1, 1, 2, 2, 3]);
@@ -32,7 +36,7 @@ test("the doors: two before an even game, the gatekeeper's alone before its game
 });
 
 test("a trade reaches a tier up only when it may, and never down", () => {
-  const rated = Object.keys(TOWER_TIERS).filter(s => !s.includes("-"));
+  const rated = POOL.filter(s => !s.includes("-"));
   const of = t => rated.find(s => swapTier(s) === t);
   const party = [{ species: of(3), item: "Leftovers" }];
   assert.equal(swapParty(party, [{ species: of(2), item: "Life Orb" }], of(3), of(2)), "tier", "one up needs the reach");
@@ -58,8 +62,8 @@ test("the draft: three of each tier, all species and all items apart, so any pic
     assert.ok(offer.every(row => row.length === STREAK_DRAFT));
     const all = offer.flat().map(c => c.species);
     assert.equal(new Set(all).size, all.length);
-    assert.ok(offer.every((row, t) => row.every(c => swapTier(c.species) === t)), "each row is its tier");
-    assert.ok(offer.flat().every(c => c.species in TOWER_TIERS), "only species the ladder's top teams bring");
+    assert.ok(offer.every((row, t) => row.every(c => swapTier(c) === t)), "each row is its tier, the tier of the set shown");
+    assert.ok(offer.flat().every(c => setKey(c.species, c) in TOWER_TIERS), "only sets of the species the ladder's top teams bring");
     const items = offer.flat().map(c => c.item);
     assert.equal(new Set(items).size, items.length, "no two candidates hold one item");
     assert.ok(offer.flat().every(c => !("items" in c)), "no back-up items");
@@ -97,14 +101,14 @@ test("a foe is built for its game: legal, free of the ban, and the second door d
 });
 
 test("a species outside the ladder's pool trades in the tier its measured share reaches, and a second Mega Stone may come", () => {
-  const outside = ["Arbok", "Houndstone", "Empoleon"].filter(s => !(s in TOWER_TIERS));
+  const outside = ["Arbok", "Houndstone", "Empoleon"].filter(s => !POOL.includes(s));
   assert.ok(outside.length);
   for (const s of outside) {
     const t = swapTier(s);
-    const inTier = Object.keys(TOWER_TIERS).filter(x => TOWER_TIERS[x] === t).map(x => ratingOf(STREAK_FORMAT_ID, x));
+    const inTier = Object.keys(TOWER_TIERS).filter(k => TOWER_TIERS[k] === t).map(k => keyRating(STREAK_FORMAT_ID, k));
     assert.ok(ratingOf(STREAK_FORMAT_ID, s) >= Math.min(...inTier) || t === 5, `${s} in tier ${t}`);
   }
-  const rated = Object.keys(TOWER_TIERS).filter(s => !s.includes("-"));
+  const rated = POOL.filter(s => !s.includes("-"));
   const a = rated[0], b = rated.find(s => s !== a && swapTier(s) === swapTier(a)), other = rated.find(s => swapTier(s) !== swapTier(a));
   assert.deepEqual(swapParty([{ species: a, item: "Leftovers" }, { species: other, item: "Gengarite" }], [{ species: b, item: "Garchompite" }], a, b).map(m => m.item), ["Garchompite", "Gengarite"]);
 });
@@ -119,7 +123,7 @@ test("the server's computer keeps its 난이도's play and thinks within the tim
 
 test("a swap is tier for tier, never brings two of a species, and the one coming keeps its own set: an item twice is refused", () => {
   // species from the measured table: two of one tier and one of another (partyBalance.js)
-  const rated = Object.keys(TOWER_TIERS).filter(s => !s.includes("-"));
+  const rated = POOL.filter(s => !s.includes("-"));
   const a = rated[0], same = rated.filter(s => s !== a && swapTier(s) === swapTier(a)), other = rated.find(s => swapTier(s) !== swapTier(a));
   const [b, c] = same;
   const party = [{ species: a, item: "Focus Sash" }, { species: other, item: "Leftovers" }];
@@ -175,4 +179,39 @@ test("the tower's random parties (a screen from before the draft) hold none of t
   }
   // an unbanned draw is untouched by the banned pool (the tiers are kept for each pool)
   assert.equal(randomTeam(STREAK_FORMAT_ID, random).length, 6);
+});
+
+test("a tier is a sample set's: each set of the tower's pool stands where tower-tiers.json puts it, and the six tiers are alike in size (19장)", () => {
+  const sets = [...towerPool(STREAK_BAN).values()].flatMap(e => e.sets.map(set => ({ species: e.species, item: set.items[0], moves: [...set.moves] })));
+  assert.equal(sets.length, Object.keys(TOWER_TIERS).length, "every set of the pool is in the table, and nothing else");
+  for (const m of sets) assert.equal(swapTier(m), TOWER_TIERS[setKey(m.species, m)]);
+  const size = [0, 1, 2, 3, 4, 5].map(t => sets.filter(m => swapTier(m) === t).length);
+  assert.ok(Math.max(...size) - Math.min(...size) <= 1, `tier sizes ${size}`);
+  // the stronger tier holds the stronger sets: every set's share is at least every share of the tier below
+  for (let t = 0; t < 5; t++) {
+    const low = Math.min(...sets.filter(m => swapTier(m) === t).map(m => ratingOf(STREAK_FORMAT_ID, m.species, m)));
+    const high = Math.max(...sets.filter(m => swapTier(m) === t + 1).map(m => ratingOf(STREAK_FORMAT_ID, m.species, m)));
+    assert.ok(low >= high, `tier ${t} reaches down to ${low}, tier ${t + 1} up to ${high}`);
+  }
+});
+
+test("a gatekeeper is led by a Mega and stronger than the even foes: the leader first, the only Mega Stone, the rest from the stronger half (19장)", async () => {
+  const { foeTeam, streakDoors, withLeader } = await import("../supabase/functions/battle/streakEngine.mjs");
+  const { validateTeam } = await import("../supabase/functions/battle/engine.mjs");
+  const { MEGA_STONE } = await import("../src/services/streak.js");
+  const share = team => team.reduce((s, m) => s + ratingOf(STREAK_FORMAT_ID, m.species, m), 0);
+  let gates = 0, evens = 0;
+  for (let i = 0; i < 40; i++) {
+    const [gate] = streakDoors(4, seeded(`gate:${i}`));
+    assert.equal(gate.kind, "gate");
+    assert.equal(validateTeam(STREAK_FORMAT_ID, gate.team), null);
+    assert.match(gate.team[0].item, MEGA_STONE, "the leader holds a Mega Stone");
+    assert.ok(gate.team.slice(1).every(m => !MEGA_STONE.test(m.item)), "the leader is the only Mega");
+    gates += share(gate.team);
+    evens += share(foeTeam(seeded(`even:${i}`)).team);
+  }
+  // measured 2026-11-19: 0.75 apart, and the drafted party won 52.7% against a 1층 gatekeeper where it won 68.0% before (19장)
+  assert.ok(gates / 40 - evens / 40 >= 0.5, `a gatekeeper's six share ${(gates / 40).toFixed(2)}, an even foe's ${(evens / 40).toFixed(2)}`);
+  assert.equal(withLeader("team 3, 4, 5"), "team 3, 4, 1", "a preview without the leader brings it in the last place");
+  assert.equal(withLeader("team 2, 1, 6"), "team 2, 1, 6");
 });

@@ -6,7 +6,7 @@ import * as champions from "@pkmn/mods/champions";
 import * as championsregmb from "@pkmn/mods/championsregmb";
 import { requestKey } from "../../../src/services/battleLog.js";
 import RANDOM_SETS from "../../../src/data/random-sets.json" with { type: "json" };
-import { BAND, MASTER_PLAN, PLAN, TIERS, balanced, ratingOf, tierOf } from "../../../src/services/partyBalance.js";
+import { BAND, MASTER_PLAN, PLAN, TIERS, balanced, bySet, ratingOf, tierOf } from "../../../src/services/partyBalance.js";
 export { requestKey };
 
 // Pinned in package.json; the deployed function runs the bundle scripts/build-battle-engine.mjs makes of this file. A battle keeps the engine it was played on, so its log can be replayed on it.
@@ -152,12 +152,16 @@ function drawInto(formatid, lists, random) {
   return team;
 }
 const tierCache = new Map();
-// a pool's species by tier with each tier's mean share, kept for each pool (a format's own, or its pool under a ban), not for each format
+/* a pool by tier with each tier's mean share, kept for each pool (a format's own, or its pool under a ban), not for each format. Where
+   the sets were measured one by one (19장) a tier holds sample sets, each an entry of its one set, so a species' sets may stand in
+   different tiers; else it holds species */
 function tiersOf(formatid, all) {
   if (!tierCache.has(all)) {
     const tiers = Array.from({ length: TIERS }, () => []);
-    for (const entry of all) tiers[tierOf(formatid, entry.species)].push(entry);
-    const mean = tiers.map(list => list.reduce((s, e) => s + ratingOf(formatid, e.species), 0) / Math.max(1, list.length));
+    const units = bySet(formatid) ? all.flatMap(entry => entry.sets.map(set => ({ ...entry, sets: [set] }))) : all;
+    const share = e => ratingOf(formatid, e.species, e.sets.length === 1 ? e.sets[0] : null);
+    for (const entry of units) tiers[tierOf(formatid, entry.species, entry.sets.length === 1 ? entry.sets[0] : null)].push(entry);
+    const mean = tiers.map(list => list.reduce((s, e) => s + share(e), 0) / Math.max(1, list.length));
     tierCache.set(all, { tiers, mean });
   }
   return tierCache.get(all);
@@ -172,7 +176,7 @@ function balancedTeam(formatid, all, random, meta, plan) {
     const lists = shuffled(plan, random).map(t => (meta ? weightedOrder(tiers[t], e => (e.usage || 0) + 0.01, random) : shuffled(tiers[t], random)));
     const team = drawInto(formatid, lists, random);
     if (team.length !== 6) continue;
-    const gap = Math.abs(team.reduce((s, m) => s + ratingOf(formatid, m.species), 0) - target);
+    const gap = Math.abs(team.reduce((s, m) => s + ratingOf(formatid, m.species, m), 0) - target);
     if (gap > BAND && gap >= bestGap) continue;
     if (validateTeam(formatid, team)) continue;
     if (gap <= BAND) return team;

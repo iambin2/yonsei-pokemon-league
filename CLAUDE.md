@@ -13,7 +13,9 @@ npm run data:champions  # rebuild the committed src/data/champions-data.json fro
 STATS_CACHE=<dir> node scripts/tune-sets.mjs  # M-C sample sets: the ladder's (src/data/random-sets.ladder.json, scripts/build-random-sets.mjs)
                         # with stat points spent by targets into src/data/random-sets.json; then node scripts/curate-sets.mjs (one build, one item;
                         # most species one set) and node scripts/render-sample-sets.mjs (docs/SAMPLE_SETS.md)
-node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json and tower-tiers.json (what 도전의 탑's foe builders learn from, and its draft pool)
+node scripts/rate-species.mjs --play --draw sets --games 6000 --out g.jsonl  # measure every sample set's share of a win (docs/BATTLE_STREAK.md 19장);
+                        # then --fit g.jsonl writes src/data/species-power.json, and --tiers (its own run) src/data/tower-tiers.json, tiers by sample set
+node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json, then tower-tiers.json (what 도전의 탑's foe builders learn from, and its draft pool)
                         # from champs.pokedb.tokyo's open top-team files; rerun by hand when a season's file comes out (docs/BATTLE_STREAK.md 14장)
                         # (refresh-champions-data.yml reruns data:champions weekly and opens a PR when it changed; no workflow runs this one)
 node scripts/check-sets.mjs  # list the sample sets that make no sense (Light Clay without a screen); tests/sampleSets.test.mjs holds m-c to it

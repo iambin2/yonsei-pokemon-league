@@ -1,6 +1,6 @@
-// Builds src/data/ranker-teams.json and src/data/tower-tiers.json: the top singles teams of the ladder, which 도전의 탑's foe builders
-// learn their shapes, pairs and kinds from (docs/BATTLE_STREAK.md 15장, towerBuild.mjs), and the six strength tiers of the species they
-// bring (the draft and the swaps read them, 14장).
+// Builds src/data/ranker-teams.json: the top singles teams of the ladder, which 도전의 탑's foe builders learn their shapes, pairs and
+// kinds from (docs/BATTLE_STREAK.md 15장, towerBuild.mjs). Then scripts/rate-species.mjs --tiers writes src/data/tower-tiers.json, the
+// six strength tiers of the sample sets of the species they bring (the draft and the swaps read them, 14장; by set since 19장).
 //
 // Source: バトルデータベース チャンピオンズ (champs.pokedb.tokyo) open data, the season's top 1000 singles teams as six species and
 // their items. Its terms allow programmatic download and ask an app with many users to keep the files on its own server, never fetch
@@ -12,7 +12,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Dex } from "@pkmn/sim";
 import * as champions from "@pkmn/mods/champions";
 import { formatId, setPool } from "../supabase/functions/battle/engine.mjs";
-import { ratingOf, TIERS } from "../src/services/partyBalance.js";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 // the regulation's seasons (M-C: M-6 to M-8; M-8 ends 2026-12-02, add 8 when its file is out)
 const SEASONS = [6, 7];
@@ -111,14 +112,9 @@ for (const n of SEASONS) {
   }
 }
 
-/* the tiers the tower's own pool is split into: the species the teams bring, by their measured share (species-power.json), into six
-   of equal size. The ladder's species gather in the upper tiers of the whole pool, so the whole pool's tiers would leave the lower
-   rows of the draft short of candidates (14장) */
-const species = [...new Set(teams.flatMap(t => t.team.map(m => m.species)))].sort((a, b) => ratingOf(FORMAT, b) - ratingOf(FORMAT, a) || a.localeCompare(b));
-const tiers = Object.fromEntries(species.map((s, i) => [s, Math.floor((i * TIERS) / species.length)]));
-
 const source = "バトルデータベース チャンピオンズ (champs.pokedb.tokyo) open data, top singles teams";
 writeFileSync(new URL("../src/data/ranker-teams.json", import.meta.url), JSON.stringify({ source, built: new Date().toISOString().slice(0, 10), seasons: SEASONS.map(n => `M-${n}`), teams }) + "\n");
-writeFileSync(new URL("../src/data/tower-tiers.json", import.meta.url), JSON.stringify(tiers) + "\n");
-console.log(`${teams.length} teams, ${species.length} species, ${dropped} teams dropped`);
+console.log(`${teams.length} teams, ${new Set(teams.flatMap(t => t.team.map(m => m.species))).size} species, ${dropped} teams dropped`);
 for (const [kind, map] of Object.entries(missing)) for (const [k, v] of map) console.log(`  unknown ${kind}: ${k} (${v})`);
+// the tiers, in a process of their own so they read the numbers on disk
+execFileSync(process.execPath, [fileURLToPath(new URL("rate-species.mjs", import.meta.url)), "--tiers"], { stdio: "inherit" });

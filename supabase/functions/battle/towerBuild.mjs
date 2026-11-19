@@ -6,7 +6,7 @@ import { Dex } from "@pkmn/sim";
 import * as champions from "@pkmn/mods/champions";
 import { fairPool, itemOf, shuffled, validateTeam, weighted } from "./engine.mjs";
 import { MEGA_STONE, STREAK_BAN, STREAK_FORMAT_ID } from "../../../src/services/streak.js";
-import { BAND, PLAN, ratingOf, tierOf } from "../../../src/services/partyBalance.js";
+import { BAND, PLAN, ratingOf, setKey, tierOf } from "../../../src/services/partyBalance.js";
 import RANKER from "../../../src/data/ranker-teams.json" with { type: "json" };
 import TOWER_TIERS from "../../../src/data/tower-tiers.json" with { type: "json" };
 
@@ -16,11 +16,15 @@ const TYPES = dex.types.names();
 /* ---------- the tower's sets, as the draft and the foes take them (14.4) ---------- */
 export const LOCKS = /^Choice (Band|Specs|Scarf)$/;
 export const statusMove = set => set.moves.some(m => Dex.moves.get(m).category === "Status");
-// the whole random pool under a ban (15장: the foes' material), and the ladder's species in it (14장: the draft's)
+// the whole random pool under a ban (15장: the foes' material), and the sets of the ladder's species in it (14장: the draft's; the
+// tiers hold sets since 19장, so an entry keeps only its sets the tiers name)
 export const wholePool = (ban = STREAK_BAN) => fairPool(STREAK_FORMAT_ID, ban);
 const pools = new Map();
 export function towerPool(ban = STREAK_BAN) {
-  if (!pools.has(ban)) pools.set(ban, new Map(wholePool(ban).filter(e => e.species in TOWER_TIERS).map(e => [e.species, e])));
+  if (!pools.has(ban)) {
+    const tiered = wholePool(ban).map(e => ({ ...e, sets: e.sets.filter(set => setKey(e.species, set) in TOWER_TIERS) })).filter(e => e.sets.length);
+    pools.set(ban, new Map(tiered.map(e => [e.species, e])));
+  }
   return pools.get(ban);
 }
 /* a sample set of the species that holds the item: one that carries it, by weight, or else one that can (never a Mega set for an item
@@ -119,37 +123,61 @@ function learn() {
     hazards: hazards / Math.max(1, templates.length),
     pairs: soft(pairs).map(p => ({ ...p, sides: p.key.split("|").map(x => x.split("/")) })),
     kinds: kindList,
-    weathers: soft(weathers),
+    /* each weather the ladder plays, alike (2026-11-19, 19장): by its square root sand took half the weather teams, and the pool has
+       two sand setters and no sand user, so Tyranitar came 4.0 times the mean (15.7 holds it to 3.5) */
+    weathers: soft(weathers).map(w => ({ ...w, weight: 1 })),
   };
   return lesson;
 }
 export const towerLesson = learn;
 
 /* ---------- building (15.5, 15.6) ---------- */
+// a set's measured share (19장: each sample set its own)
+const shareOf = (species, set) => ratingOf(STREAK_FORMAT_ID, species, set);
 // the strength a foe aims at: the mean share of a party with one of each tier, as randomTeam's balanced parties aim at
 let aim = null;
 function target() {
   if (aim !== null) return aim;
   const sums = Array(6).fill(0), counts = Array(6).fill(0);
-  for (const e of wholePool()) { const t = tierOf(STREAK_FORMAT_ID, e.species); sums[t] += ratingOf(STREAK_FORMAT_ID, e.species); counts[t]++; }
+  for (const e of wholePool()) for (const set of e.sets) { const t = tierOf(STREAK_FORMAT_ID, e.species, set); sums[t] += shareOf(e.species, set); counts[t]++; }
   aim = PLAN.reduce((s, t) => s + sums[t] / Math.max(1, counts[t]), 0);
   return aim;
 }
 
-// a party being built: its members ({ species, set, item, role }), the base species and the items held
-function party(random, seen) {
-  return { random, seen, members: [], bases: new Set(), items: new Set(), hazards: random() < learn().hazards };
+/* the gatekeeper's (2026-11-19, 19장, 사용자: "수문장의 파티가 수문장답게 아주 강력한 구성으로", "리더 포켓몬이 메가진화 포켓몬으로"):
+   its leader, the first of its six and the one the team preview lights, is a Mega from the strongest sets (GATE_LEAD tiers of the
+   whole pool), and the other five come only from the stronger half (GATE_REST tiers) and hold no Mega Stone, so the leader is the
+   Mega. Of the parties its builder makes, the strongest legal one stands (no aim, no BAND). The computer brings the leader
+   (streakEngine.mjs computerTurns) */
+export const GATE_LEAD = 2, GATE_REST = 3;
+let gateSets = null;
+function gate() {
+  if (gateSets) return gateSets;
+  const lead = new Set(), rest = new Set();
+  for (const e of wholePool()) for (const set of e.sets) {
+    const t = tierOf(STREAK_FORMAT_ID, e.species, set);
+    if (set.mega && t < GATE_LEAD) lead.add(set);
+    if (!set.mega && t < GATE_REST) rest.add(set);
+  }
+  gateSets = { lead, rest };
+  return gateSets;
+}
+
+// a party being built: its members ({ species, set, item, role }), the base species and the items held. allow: the sets it may take
+function party(random, seen, allow = null) {
+  return { random, seen, allow, members: [], bases: new Set(), items: new Set(), hazards: random() < learn().hazards };
 }
 const SEEN_WEIGHT = 0.05;
 /* one more member whose set meets want(role) and holds an item the party does not (a set is whole, its own item with it, 2026-11-18;
    Mega Stones may be many): every species that has such a set weighs the same (a species seen in this run 0.05), and among its
    fitting sets by the set's own weight. false when none fits, or fewer than few species do */
 function add(p, want, few = 1) {
+  if (p.members.length >= 6) return false;
   const options = [];
   for (const entry of wholePool()) {
     const base = dex.species.get(entry.species).baseSpecies;
     if (p.bases.has(base)) continue;
-    const sets = entry.sets.filter(set => want(roleOf(entry.species, set)) && !p.items.has(itemOf(set)));
+    const sets = entry.sets.filter(set => (!p.allow || p.allow.has(set)) && want(roleOf(entry.species, set)) && !p.items.has(itemOf(set)));
     if (sets.length) options.push({ entry, base, sets, weight: p.seen.has(entry.species) ? SEEN_WEIGHT : 1 });
   }
   if (options.length < few) return false;
@@ -234,21 +262,29 @@ export const BUILDERS = {
 };
 export const BUILDER_NAMES = Object.keys(BUILDERS);
 
-const TRIES = 40;
+const TRIES = 40, GATE_TRIES = 12;
 /* a foe of 도전의 탑: a builder drawn alike from the four, then parties of it until one is legal and its six shares lie within BAND of
-   the aim (the closest legal one after TRIES). seen: species this run has been shown (none on a daily run, 15.6) */
-export function towerFoe(random = Math.random, seen = [], builder = pick(BUILDER_NAMES, random)) {
+   the aim (the closest legal one after TRIES). seen: species this run has been shown (none on a daily run, 15.6). keeper: the floor's
+   gatekeeper (19장): a Mega leader first, the rest from the stronger half, the strongest of GATE_TRIES */
+export function towerFoe(random = Math.random, seen = [], builder = pick(BUILDER_NAMES, random), keeper = false) {
   const known = new Set(seen);
   let best = null, bestGap = Infinity;
-  for (let tries = 0; tries < TRIES; tries++) {
-    const p = party(random, known);
+  for (let tries = 0; tries < (keeper ? GATE_TRIES : TRIES); tries++) {
+    let p;
+    if (keeper) {
+      const { lead, rest } = gate();
+      p = party(random, known, lead);
+      if (!add(p, any)) continue;
+      p.allow = rest;
+    } else p = party(random, known);
     if (!BUILDERS[builder](p)) continue;
-    const gap = Math.abs(p.members.reduce((s, m) => s + ratingOf(STREAK_FORMAT_ID, m.species), 0) - target());
+    const sum = p.members.reduce((s, m) => s + shareOf(m.species, m.set), 0);
+    const gap = keeper ? -sum : Math.abs(sum - target());
     if (gap >= bestGap && best) continue;
     const team = p.members.map(m => member(m.species, m.set, m.item));
     if (validateTeam(STREAK_FORMAT_ID, team)) continue;
     best = team; bestGap = gap;
-    if (gap <= BAND) break;
+    if (!keeper && gap <= BAND) break;
   }
   if (!best) throw new Error(`the ${builder} builder made no legal party`);
   return { team: best, builder };

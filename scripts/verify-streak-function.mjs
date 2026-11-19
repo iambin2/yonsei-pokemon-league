@@ -167,13 +167,13 @@ try {
     if (!swappedOnce || (gatekeeper && !keeperSwapped)) {
       const beaten = sideTeam((await pg.query("select input_log from public.battles where id = $1", [seat.id])).rows[0].input_log, "p2");
       // a gatekeeper beaten lets the trade reach a tier up (13장): a trade further than that, or down, is still refused
-      const reach = gatekeeper ? 1 : 0, gap = foe => swapTier(prev[0].species) - swapTier(foe.species);
+      const reach = gatekeeper ? 1 : 0, gap = foe => swapTier(prev[0]) - swapTier(foe);
       const other = beaten.find(foe => !(gap(foe) >= 0 && gap(foe) <= reach));
       if (other) await assert.rejects(call({ action: "streakNext", id: seat.id, token: seat.token, swap: { give: prev[0].species, take: other.species } }),
         e => e.status === 409 && /같은 급|한 급 위/.test(e.message), "a swap across tiers is refused");
       await assert.rejects(call({ action: "streakNext", id: seat.id, token: seat.token, swap: [{ give: prev[0].species, take: beaten[0].species }, { give: prev[1].species, take: beaten[1].species }] }),
         e => e.status === 409 && /한 마리/.test(e.message), "two swaps at once are refused");
-      for (const foe of beaten.filter(f => swapTier(f.species) === swapTier(prev[0].species))) {
+      for (const foe of beaten.filter(f => swapTier(f) === swapTier(prev[0]))) {
         try { next = await call({ action: "streakNext", id: seat.id, token: seat.token, swap: { give: prev[0].species, take: foe.species } }); took = foe.species; break; }
         catch (e) { assert.equal(e.status, 409, e.message); }
       }
@@ -290,7 +290,7 @@ try {
   const mine = (await pg.query("select p1_team from public.battle_secrets where battle_id = $1", [at.id])).rows[0].p1_team;
   const beaten = sideTeam((await pg.query("select input_log from public.battles where id = $1", [at.id])).rows[0].input_log, "p2");
   let up = null;
-  for (const o of mine) { const f = beaten.find(b => swapTier(b.species) === swapTier(o.species) - 1); if (f) { up = { give: o.species, take: f.species }; break; } }
+  for (const o of mine) { const f = beaten.find(b => swapTier(b) === swapTier(o) - 1); if (f) { up = { give: o.species, take: f.species }; break; } }
   if (up) {
     const next = await call({ action: "streakNext", id: at.id, token: at.token, swap: up, door: 0 }).catch(e => ({ refused: e.message }));
     if (next.refused) assert.match(next.refused, /도구|같은 포켓몬|규정/, "a one-up trade is refused only for an item or a species");

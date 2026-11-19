@@ -2,7 +2,9 @@
    올라가는 거였거든"). 포켓몬마다 파티의 승리에 보태는 몫을 컴퓨터끼리의 대전으로 재어 두고(scripts/rate-species.mjs가
    src/data/species-power.json을 쓴다), 그 값으로 종을 여섯 급으로 나눈다. 랜덤 파티는 급마다 하나씩, 여섯 몫의 합이 정해진 폭 안에
    들 때까지 뽑는다(engine.mjs randomTeam). 그래서 누가 뽑든 파티의 힘이 같고, 판을 가르는 것은 고르는 수다.
-   화면(연승 도전의 교환)과 엔진이 함께 읽으므로 몫의 표만 들인다. */
+   화면(연승 도전의 교환)과 엔진이 함께 읽으므로 몫의 표만 들인다.
+   2026-11-19 (19장, 사용자: "포켓몬 단위로 구분하지 말고, 샘플 단위로 티어를 측정"): 싱글 m-c는 샘플 세트마다 몫을 쟀다(표의 sets,
+   열쇠는 setKey). 급도 세트로 나누고, 종의 몫(rating)은 그 종 세트들의 평균이다. 더블은 아직 종마다다 */
 import POWER from "../data/species-power.json" with { type: "json" };
 
 export const TIERS = 6;
@@ -25,22 +27,28 @@ const NEAR = {
 const tables = new Map();
 function table(formatid) {
   if (tables.has(formatid)) return tables.get(formatid);
-  const id = [formatid, ...(NEAR[formatid] || [])].find(f => POWER[f]?.rating);
-  const rating = id ? POWER[id].rating : null;
+  const from = [formatid, ...(NEAR[formatid] || [])].find(f => POWER[f]?.rating);
+  const rating = from ? POWER[from].rating : null;
+  const sets = from && POWER[from].sets ? new Map(Object.entries(POWER[from].sets)) : null;
   let out = null;
   if (rating) {
-    const sorted = Object.values(rating).sort((a, b) => b - a);
-    // the lowest rating of each tier but the last: a species is in the first tier whose floor it reaches
+    // the tiers split what was measured: the sample sets where they were (19장), else the species
+    const sorted = [...(sets ? sets.values() : Object.values(rating))].sort((a, b) => b - a);
+    // the lowest rating of each tier but the last: a set (or species) is in the first tier whose floor it reaches
     const floors = Array.from({ length: TIERS - 1 }, (_, i) => sorted[Math.floor(((i + 1) * sorted.length) / TIERS) - 1]);
     const median = sorted[Math.floor(sorted.length / 2)];
-    out = { rating, floors, median };
+    out = { rating, sets, floors, median };
   }
   tables.set(formatid, out);
   return out;
 }
-// the form the team preview hides (Gourgeist-*) is found by its species, as streak.js swapParty finds it
 // names as Showdown ids, so a form spelled "Squawkabilly Blue" (an input log) and "Squawkabilly-Blue" (the sample sets) is one species
 const id = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+/* a sample set's key (2026-11-19, BATTLE_STREAK.md 19장): its species, its own item and its moves, as ids. A set is whole since
+   2026-11-18, so a party's member ({ item, moves }) and a sample set ({ items, moves }, the first item its own) read alike. No two
+   m-c sets share one */
+export const setKey = (species, set) => `${id(species)}|${id(set.item ?? set.items?.[0] ?? "")}|${(set.moves || []).map(id).sort().join(",")}`;
+// the form the team preview hides (Gourgeist-*) is found by its species, as streak.js swapParty finds it
 const ids = new WeakMap();
 const lookup = (rating, species) => {
   if (!ids.has(rating)) ids.set(rating, new Map(Object.entries(rating).map(([k, v]) => [id(k), [k, v]])));
@@ -50,19 +58,28 @@ const lookup = (rating, species) => {
   return undefined;
 };
 
-/* a species' share of a party's win, in logits (0 is the average species). A species never measured (one the weekly learning
-   brought in since) stands at the middle. null when nothing for the format is measured: then parties are drawn as before */
-export function ratingOf(formatid, species) {
+/* a share of a party's win, in logits (0 is the average). set: the sample set or the party's member; its own measured share where the
+   format's sets were measured one by one (19장), else its species' (the mean of the species' sets then, the species measured as one
+   before). One never measured (a set the weekly learning brought in since) stands at the middle. null when nothing for the format is
+   measured: then parties are drawn as before */
+export function ratingOf(formatid, species, set = null) {
   const t = table(formatid);
   if (!t) return null;
-  return lookup(t.rating, species) ?? t.median;
+  return (set && t.sets?.get(setKey(species, set))) ?? lookup(t.rating, species) ?? t.median;
 }
 // its tier, 0 the strongest to 5; null when nothing is measured
-export function tierOf(formatid, species) {
+export function tierOf(formatid, species, set = null) {
   const t = table(formatid);
   if (!t) return null;
-  const r = ratingOf(formatid, species);
+  const r = ratingOf(formatid, species, set);
   const i = t.floors.findIndex(f => r >= f);
   return i < 0 ? TIERS - 1 : i;
 }
 export const balanced = formatid => Boolean(table(formatid));
+// a measured set's share by its key (setKey), the median when it was not measured; null when nothing for the format is measured
+export function keyRating(formatid, key) {
+  const t = table(formatid);
+  return t ? (t.sets?.get(key) ?? lookup(t.rating, String(key).split("|")[0]) ?? t.median) : null;
+}
+// whether the format's sample sets were measured one by one (19장): then a tier holds sets, not species
+export const bySet = formatid => Boolean(table(formatid)?.sets);

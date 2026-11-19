@@ -2,9 +2,16 @@
 // drawn evenly from every species, each pair of parties twice with the sides swapped, and a logistic fit reads each species' share of
 // the win off the results. src/services/partyBalance.js draws parties of one strength from these numbers.
 //
-//   node scripts/rate-species.mjs --play --games 6000 [--kind singles] [--reg m-c] [--ms 100] [--draw even|balanced] [--out games.jsonl]
+//   node scripts/rate-species.mjs --play --games 6000 [--kind singles] [--reg m-c] [--ms 100] [--draw even|balanced|sets] [--out games.jsonl]
+//     --draw sets (2026-11-19, BATTLE_STREAK.md 19장): every sample set alike, each game's parties written as set keys
+//     (partyBalance.js setKey), so the fit reads each set's own share; the species' share is then the mean of its sets'
 //   node scripts/rate-species.mjs --fit games.jsonl [more.jsonl ...]      writes src/data/species-power.json (that format's part)
+//     [--lambda 2] [--prior --prior-scale 0.5]: set games are fitted with --prior --lambda 200 (19장)
 //   node scripts/rate-species.mjs --check games.jsonl                     how well the current numbers foretell those games
+//   node scripts/rate-species.mjs --tiers                                 writes src/data/tower-tiers.json from the numbers on disk
+//     (도전의 탑's draft rows and its trades, BATTLE_STREAK.md 19장): every sample set of the species the ladder's top teams bring
+//     (src/data/ranker-teams.json), under the tower's ban, by its measured share into six of equal size. Run it in a process of its own
+//     after --fit (a process keeps the numbers it read when it started); build-ranker-teams.mjs runs it
 //
 // --play appends one line a game, so a run can be stopped and continued, and runs on any number of files.
 import { fork } from "node:child_process";
@@ -19,7 +26,9 @@ const POWER_FILE = new URL("src/data/species-power.json", ROOT);
 
 if (args.worker) {
   const job = await new Promise(resolve => process.once("message", resolve));
-  const { formatId, startBattle, randomTeam } = await import(new URL("supabase/functions/battle/engine.mjs", ROOT));
+  const { formatId, startBattle, randomTeam, setPool, itemOf, shuffled, validateTeam } = await import(new URL("supabase/functions/battle/engine.mjs", ROOT));
+  const { setKey } = await import(new URL("src/services/partyBalance.js", ROOT));
+  const { Dex } = await import("@pkmn/sim");
   const { createCpu, quickChoice } = await import(new URL("src/services/battleCpu.js", ROOT));
   const formatid = formatId(job.reg, job.kind);
   for (const pair of job.pairs) {
@@ -27,7 +36,9 @@ if (args.worker) {
     const rnd = () => { n = (n * 16807) % 2147483647; return n / 2147483647; };
     const draw = job.draw === "balanced" || job.draw === "master" ? {} : { even: true };
     // master: the first party is a 연승 도전 floor's master's (a tier up), the second a balanced one, so --play reports the master's share
-    const teams = [randomTeam(formatid, rnd, job.draw === "master" ? { master: true } : draw), randomTeam(formatid, rnd, draw)];
+    const teams = job.draw === "sets" ? [setsTeam(formatid, rnd), setsTeam(formatid, rnd)]
+      : [randomTeam(formatid, rnd, job.draw === "master" ? { master: true } : draw), randomTeam(formatid, rnd, draw)];
+    const named = t => (job.draw === "sets" ? t.map(m => setKey(m.species, m)) : t.map(m => m.species));
     for (const swap of [false, true]) {
       const [t1, t2] = swap ? [teams[1], teams[0]] : teams;
       const players = { p1: createCpu(formatid, { budgetMs: job.ms }), p2: createCpu(formatid, { budgetMs: job.ms }) };
@@ -45,10 +56,25 @@ if (args.worker) {
         if (!moved) break;
       }
       const w = battle.ended ? (battle.winnerSide === "p1" ? 1 : battle.winnerSide === "p2" ? 0 : 0.5) : 0.5;
-      process.send({ f: formatid, a: t1.map(m => m.species), b: t2.map(m => m.species), w, t: battle.turn, first: swap ? 0 : 1, pair });
+      process.send({ f: formatid, a: named(t1), b: named(t2), w, t: battle.turn, first: swap ? 0 : 1, pair });
     }
   }
   process.disconnect();
+  // six sample sets drawn alike from every set of the format: one of each species, no item twice, refused parties drawn again
+  function setsTeam(formatid, rnd) {
+    const units = setPool(formatid).flatMap(e => e.sets.map(set => ({ species: e.species, set })));
+    for (;;) {
+      const team = [], bases = new Set(), items = new Set();
+      for (const { species, set } of shuffled(units, rnd)) {
+        const base = Dex.species.get(species).baseSpecies, item = itemOf(set);
+        if (bases.has(base) || items.has(item)) continue;
+        bases.add(base); items.add(item);
+        team.push({ name: "", species, ability: set.ability, item, moves: [...set.moves], nature: set.nature, evs: { ...set.evs }, ...(set.ivs ? { ivs: { ...set.ivs } } : {}), level: 50 });
+        if (team.length === 6) break;
+      }
+      if (!validateTeam(formatid, team)) return team;
+    }
+  }
 } else if (args.play) {
   const games = Number(args.games || 2000), kind = args.kind || "singles", reg = args.reg || "m-c", ms = Number(args.ms || 100);
   const out = args.out || `species-games-${reg}-${kind}.jsonl`;
@@ -76,16 +102,29 @@ if (args.worker) {
   const perPair = [...byPair.values()].map(x => x.reduce((a, b) => a + b, 0) / x.length);
   const mean = share.reduce((a, b) => a + b, 0) / share.length, sd = Math.sqrt(perPair.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, perPair.length - 1));
   console.log(`the first party scored ${(100 * mean).toFixed(1)}% ± ${(196 * sd / Math.sqrt(perPair.length)).toFixed(1)} over ${share.length} games`);
+} else if (args.tiers) {
+  const { fairPool } = await import(new URL("supabase/functions/battle/engine.mjs", ROOT));
+  const { STREAK_BAN, STREAK_FORMAT_ID } = await import(new URL("src/services/streak.js", ROOT));
+  const { ratingOf, setKey, TIERS } = await import(new URL("src/services/partyBalance.js", ROOT));
+  const ranker = JSON.parse(readFileSync(new URL("src/data/ranker-teams.json", ROOT), "utf8"));
+  const brought = new Set(ranker.teams.flatMap(t => t.team.map(m => m.species)));
+  const units = fairPool(STREAK_FORMAT_ID, STREAK_BAN).filter(e => brought.has(e.species))
+    .flatMap(e => e.sets.map(set => ({ key: setKey(e.species, set), share: ratingOf(STREAK_FORMAT_ID, e.species, set) })));
+  units.sort((a, b) => b.share - a.share || a.key.localeCompare(b.key));
+  const tiers = Object.fromEntries(units.map((u, i) => [u.key, Math.floor((i * TIERS) / units.length)]));
+  writeFileSync(new URL("src/data/tower-tiers.json", ROOT), JSON.stringify(tiers).replace(/,"/g, ',\n"') + "\n");
+  console.log(`${units.length} sets of ${brought.size} species in ${TIERS} tiers`);
 } else if (args.fit || args.check) {
-  const files = argv.filter(a => !a.startsWith("--"));
+  const files = argv.filter(a => a.endsWith(".jsonl")); // the games; the other words are flags and their values
   const games = files.flatMap(f => readFileSync(f, "utf8").split("\n").filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } })); // a line a running --play is still writing stays out
   const formats = [...new Set(games.map(g => g.f))];
   const power = existsSync(POWER_FILE) ? JSON.parse(readFileSync(POWER_FILE, "utf8")) : {};
   const sigmoid = x => 1 / (1 + Math.exp(-x));
+  const { setKey: setKeyOf } = await import(new URL("src/services/partyBalance.js", ROOT));
   for (const f of formats) {
     const set = games.filter(g => g.f === f && g.w !== 0.5);
     if (args.check) {
-      const r = power[f]?.rating || {};
+      const r = set.some(g => g.a[0]?.includes("|")) ? power[f]?.sets || {} : power[f]?.rating || {};
       const gap = g => g.a.reduce((s, x) => s + (r[x] ?? 0), 0) - g.b.reduce((s, x) => s + (r[x] ?? 0), 0);
       const loss = set.reduce((s, g) => s - Math.log(Math.max(1e-9, g.w ? sigmoid(gap(g)) : 1 - sigmoid(gap(g)))), 0) / set.length;
       const spread = Math.sqrt(set.reduce((s, g) => s + (sigmoid(gap(g)) - 0.5) ** 2, 0) / set.length);
@@ -97,7 +136,14 @@ if (args.worker) {
     const species = [...new Set(set.flatMap(g => [...g.a, ...g.b]))].sort();
     const at = Object.fromEntries(species.map((s, i) => [s, i]));
     const rows = set.map(g => ({ a: g.a.map(s => at[s]), b: g.b.map(s => at[s]), y: g.w }));
-    const w = new Float64Array(species.length), lambda = Number(args.lambda || 2);
+    /* --prior (2026-11-19, 19장): each set is pulled toward its species' share as the file has it, times --prior-scale (default 0.5),
+       instead of toward 0. Judged on half the 6018 set games held out: the plain fit was no better than a coin, the old table
+       overconfident (log loss 0.6997), the pull toward half the old species shares best (0.6795 at lambda 100 to 200 on half the games) */
+    const lambda = Number(args.lambda || 2), scale = Number(args["prior-scale"] || 0.5);
+    const owners = args.prior ? new Map((await import(new URL("supabase/functions/battle/engine.mjs", ROOT))).setPool(f).flatMap(e => e.sets.map(s => [setKeyOf(e.species, s), e.species]))) : null;
+    const before = power[f]?.rating || {};
+    const p0 = Float64Array.from(species, k => (owners ? (before[owners.get(k)] ?? 0) * scale : 0));
+    const w = Float64Array.from(p0);
     for (let iter = 0; iter < 3000; iter++) {
       const grad = new Float64Array(species.length);
       for (const r of rows) {
@@ -109,13 +155,28 @@ if (args.worker) {
         for (const i of r.b) grad[i] -= e;
       }
       let step = 0;
-      for (let i = 0; i < w.length; i++) { const g = grad[i] + lambda * w[i]; w[i] -= (0.5 / Math.sqrt(rows.length / 50)) * g / 50; step += g * g; }
+      for (let i = 0; i < w.length; i++) { const g = grad[i] + lambda * (w[i] - p0[i]); w[i] -= (0.5 / Math.sqrt(rows.length / 50)) * g / 50; step += g * g; }
       if (Math.sqrt(step) < 1e-4) break;
     }
     const count = Object.fromEntries(species.map(s => [s, 0]));
     for (const g of set) for (const s of [...g.a, ...g.b]) count[s]++;
     const rating = Object.fromEntries(species.map(s => [s, Math.round(w[at[s]] * 1000) / 1000]).sort((x, y) => y[1] - x[1]));
-    power[f] = { games: set.length, measured: new Date().toISOString().slice(0, 10), rating };
+    power[f] = { games: set.length, measured: new Date().toISOString().slice(0, 10), ...(args.prior ? { fit: { lambda, prior: scale } } : {}), rating };
+    if (species[0]?.includes("|")) {
+      // set keys: each set's share is kept, and a species' share is the mean of its sets' weighted by how often each was drawn
+      const { setPool } = await import(new URL("supabase/functions/battle/engine.mjs", ROOT));
+      const { setKey } = await import(new URL("src/services/partyBalance.js", ROOT));
+      const owner = new Map(setPool(f).flatMap(e => e.sets.map(s => [setKey(e.species, s), e.species])));
+      const sum = new Map();
+      for (const [k, r] of Object.entries(rating)) {
+        const sp = owner.get(k);
+        if (!sp) continue;
+        const [a, n] = sum.get(sp) || [0, 0];
+        sum.set(sp, [a + r * count[k], n + count[k]]);
+      }
+      power[f].sets = rating;
+      power[f].rating = Object.fromEntries([...sum].map(([sp, [a, n]]) => [sp, Math.round((a / Math.max(1, n)) * 1000) / 1000]).sort((x, y) => y[1] - x[1]));
+    }
     const top = Object.entries(rating);
     console.log(`${f}: ${set.length} games, ${species.length} species, ${Math.round(set.length * 12 / species.length)} draws each on average`);
     console.log("top", top.slice(0, 25).map(([s, r]) => `${s} ${r} (${count[s]})`).join(", "));
