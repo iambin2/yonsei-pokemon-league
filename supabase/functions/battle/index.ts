@@ -7,6 +7,7 @@
 // (엔진 패키지를 Supabase가 받아 묶게 두면 배포가 내부 오류로 실패했다. 요청은 토큰으로 확인하므로 JWT 검사가 필요 없다.
 //  연승 도전의 시작만 Google 로그인이 필요해서, 그 요청의 Authorization을 이 함수가 직접 확인한다.)
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   ENGINE, formatId, validateTeam, randomTeam, startBattle, loadBattle, choose, forfeit, readout, readCpuRecord, replay, CPU_NAME,
   planMatchWinner, planTeamSeries, projectRuntimeFacts, parseBoutKey, seriesFromBouts, teamBouts, STREAK_FORMAT, STREAK_REGULATION, computerTurns, streakGame,
@@ -27,7 +28,25 @@ const refuse = (status: number, message: string, extra = {}) => { throw new Refu
 
 const URL_BASE = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const db = createClient(URL_BASE, SERVICE_KEY);
+/* Where a request's time goes (2026-11-19, the backend plan's first step): every call this function makes to the database and to
+   Auth is timed into the request's own tally, and one line per request goes to the function's log ({"timing": action, ...}), so
+   function_logs tells the waits on the network from the engine's own work. cold: the first request on a new worker. The tally rides
+   AsyncLocalStorage because one worker serves several requests at once; work left for later() is not counted (the line is already out). */
+type Spent = { db: number; dbN: number; auth: number; authN: number };
+const spent = new AsyncLocalStorage<Spent>();
+const timedFetch: typeof fetch = async (input, init) => {
+  const tally = spent.getStore(), started = performance.now();
+  try { return await fetch(input, init); }
+  finally {
+    if (tally) {
+      const ms = performance.now() - started;
+      if (String(input instanceof Request ? input.url : input).includes("/auth/v1/")) { tally.auth += ms; tally.authN += 1; }
+      else { tally.db += ms; tally.dbN += 1; }
+    }
+  }
+};
+let served = 0;
+const db = createClient(URL_BASE, SERVICE_KEY, { global: { fetch: timedFetch } });
 
 /* Work that finishes after the answer has gone, so the player is not kept waiting on it. The runtime keeps the worker alive until it
    is done (EdgeRuntime.waitUntil); where there is no such runtime (a local run) it simply runs on. */
@@ -866,15 +885,25 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
   if (req.method !== "POST") return reply(405, { error: "POST only" });
+  const started = performance.now(), cold = served++ === 0;
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return reply(400, { error: "요청을 읽지 못했습니다." }); }
   const action = actions[String(body?.action)];
   if (!action) return reply(400, { error: "알 수 없는 요청입니다." });
-  try {
-    return reply(200, await action(body, undefined, req));
-  } catch (error) {
-    if (error instanceof Refusal) return reply(error.status, { error: error.message, ...error.extra });
-    console.error(error);
-    return reply(500, { error: "잠시 뒤 다시 시도해 주세요." });
-  }
+  const tally: Spent = { db: 0, dbN: 0, auth: 0, authN: 0 };
+  const res = await spent.run(tally, async () => {
+    try {
+      return reply(200, await action(body, undefined, req));
+    } catch (error) {
+      if (error instanceof Refusal) return reply(error.status, { error: error.message, ...error.extra });
+      console.error(error);
+      return reply(500, { error: "잠시 뒤 다시 시도해 주세요." });
+    }
+  });
+  const total = performance.now() - started;
+  console.log(JSON.stringify({
+    timing: String(body.action), status: res.status, cold, total: Math.round(total), db: Math.round(tally.db), dbN: tally.dbN,
+    auth: Math.round(tally.auth), authN: tally.authN, work: Math.round(total - tally.db - tally.auth),
+  }));
+  return res;
 });
