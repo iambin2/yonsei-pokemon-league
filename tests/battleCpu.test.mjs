@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CPU_NAME, formatId, randomTeam, readCpuRecord, readout, startBattle, choose, replay, setPool } from "../supabase/functions/battle/engine.mjs";
-import { chanceToHit, createCpu, habit, quickChoice, revealed } from "../src/services/battleCpu.js";
+import { chanceToHit, createCpu, drawChoice, habit, quickChoice, revealed } from "../src/services/battleCpu.js";
 import { LEVELS } from "../src/services/cpuLevels.js";
 
 // a seeded random, so a failure plays the same again
@@ -139,6 +139,25 @@ test("a move that may miss is weighed by its chance to hit: with a sure finish a
     assert.equal(chanceToHit(battle, "p2", req, "move 2"), null);
     assert.equal(cpu.decide(battle, "p2"), "move 2", `seed ${seed}`);
   }
+});
+
+test("a switch near the best is drawn by the equilibrium's mix, so the same turn is not always the same switch", () => {
+  const count = (valued, slack = 0.03) => {
+    const random = seeded(9), seen = {};
+    for (let i = 0; i < 400; i++) { const c = drawChoice(valued, slack, random); seen[c] = (seen[c] || 0) + 1; }
+    return seen;
+  };
+  // the best is a switch and staying is close: both are played, about as the equilibrium mixes them
+  const mixed = count([{ choice: "switch 2", value: 1, mix: 0.6 }, { choice: "move 1", value: 0.95, mix: 0.4 }, { choice: "move 2", value: 0.5, mix: 0 }]);
+  assert.ok(mixed["switch 2"] > 180 && mixed["move 1"] > 100 && !mixed["move 2"], JSON.stringify(mixed));
+  // a choice the equilibrium never plays is all but never drawn, and one too far below the best never
+  const kept = count([{ choice: "move 1", value: 1, mix: 1 }, { choice: "switch 2", value: 0.95, mix: 0 }, { choice: "switch 3", value: 0.8, mix: 0.5 }]);
+  assert.ok(kept["move 1"] > 380 && !kept["switch 3"], JSON.stringify(kept));
+  // no switch near the best: as before, only the choices within a hair
+  assert.deepEqual(count([{ choice: "move 1", value: 1, mix: 0.2 }, { choice: "move 2", value: 0.95, mix: 0.8 }]), { "move 1": 400 });
+  // a weaker level keeps its own wider hair, drawn evenly
+  const weak = count([{ choice: "move 1", value: 1, mix: 1 }, { choice: "switch 2", value: 0.8, mix: 0 }], 0.35);
+  assert.ok(weak["switch 2"] > 150, JSON.stringify(weak));
 });
 
 test("every 난이도 plays a whole battle with choices the engine takes, its mistakes included", () => {

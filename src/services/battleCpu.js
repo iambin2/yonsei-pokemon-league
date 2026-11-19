@@ -15,7 +15,8 @@ import { revives, slotPasses } from "./battleLog.js";
       다른 선택이 있는 한 후보에서 뺀다. 교체를 읽고 던지는 헛수는 두지 않는다.
    3. 행렬: 두 선택의 모든 짝을 진짜 엔진으로 한 턴 돌리고, 둘 다 가장 센 공격을 고르는 한 턴을 더 본 뒤 국면을 평가한다.
    4. 상대 모형: 행렬의 내시 균형(최선의 상대)과 사람이 고르기 쉬운 수(눈에 띄는 공격)를 반씩 섞고, 그 안의 교체 비중을 이 상대가
-      실제로 교체해 온 만큼으로 당겨, 그에 대한 기대값이 가장 큰 수를 둔다.
+      실제로 교체해 온 만큼으로 당겨, 그에 대한 기대값이 가장 큰 수를 둔다. 교체가 최선 가까이에 있는 턴은 균형 전략의
+      비율대로 뽑아, 같은 국면에서 늘 같은 교체가 나오지 않게 한다(drawChoice).
    5. 시간이 남는 동안 1에서 4를 다시 뽑아 평균한다(결정화 몬테카를로). 시간은 정해져 있어 느린 휴대폰에서는 표본이 줄 뿐이다. */
 
 /* tuned by self-play against the quick player (60 mirrored games a setting, 2026-11-06): the trade term from 0.1 to 0.7 and the
@@ -25,6 +26,15 @@ const TUNE = { race: 0.35, human: 0.5, answer: 0.3 };
 const ROLLOUT_TURNS = 1;
 // what a hard switch has to win by over staying in, in the evaluation's Pokémon (one healthy Pokémon is about 2)
 const SWITCH_COST = 0.12;
+/* what 525 recorded games against people showed (2026-11-19, docs/BATTLE_COMPUTER.md 5장):
+   - people switch half as often as the model of them expects (19% of turns in a losing matchup where it said 38%, 9% for 15%), so
+     the model's own guess counts for half before this player's habit is seen;
+   - the computer took out a Pokémon that had only just come in, 96 times straight back to the one it had withdrawn, and won 28% of
+     the games with three or more switches against 68% of those with none: leaving before having moved once costs this much more;
+   - asked twice at the same turn it made the same switch 85% of the time, so whoever had seen its three knew the switch and its
+     target. A switch, and staying where a switch is near the best, is now drawn by the equilibrium's own mix among the choices
+     within READ of the best, as a player who cannot be read mixes them. */
+const HUMAN_SWITCH = 0.5, CHAIN_COST = 0.2, READ = 0.1;
 const NOW = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 const other = side => (side === "p1" ? "p2" : "p1");
 const isDoubles = battle => battle.gameType === "doubles";
@@ -730,7 +740,7 @@ export function createCpu(formatid, { random = Math.random, budgetMs, rollout = 
   function search(battle, side, own) {
     const foe = other(side);
     const seen = habit(battle.log, foe);
-    const totals = new Float64Array(own.length), counts = new Float64Array(own.length);
+    const totals = new Float64Array(own.length), counts = new Float64Array(own.length), mix = new Float64Array(own.length);
     const start = now(), end = start + budget;
     let width = doubles ? 7 : 10;
     const rows = own.reduce((n, o) => n + (o.hits == null ? 1 : 2), 0);
@@ -759,20 +769,22 @@ export function createCpu(formatid, { random = Math.random, budgetMs, rollout = 
       const matrix = own.map(a => theirs.map(b => cell(a, b)));
       // a choice the engine refused on this copy counts as the worst of its row, so it is never preferred for it
       const clean = matrix.map(row => { const ok = row.filter(v => v != null); const floor = ok.length ? Math.min(...ok) : -100; return row.map(v => v ?? floor); });
-      const { col } = equilibrium(clean);
+      const { col, row } = equilibrium(clean);
+      row.forEach((p, i) => { mix[i] += p; });
       const human = softmax(theirs.map(b => b.score), 0.2);
       let model = col.map((p, j) => (1 - TUNE.human) * p + TUNE.human * human[j]);
       /* the switches the model expects, leaned toward how often this player has really switched (a player who stays turn after turn
          is not played around as if a switch were coming; four turns of the model's own guess weigh against what was seen) */
       const switching = theirs.map(b => /switch/.test(b.choice || ""));
       const share = model.reduce((t, p, j) => t + (switching[j] ? p : 0), 0);
-      if (seen.chances && share > 0 && share < 1) {
-        const want = (share * 4 + seen.switches) / (4 + seen.chances);
+      if (share > 0 && share < 1) {
+        const want = (HUMAN_SWITCH * share * 4 + seen.switches) / (4 + seen.chances);
         model = model.map((p, j) => p * (switching[j] ? want / share : (1 - want) / (1 - share)));
       }
       clean.forEach((row, i) => { if (matrix[i].some(v => v != null)) { totals[i] += row.reduce((sum, v, j) => sum + v * model[j], 0); counts[i]++; } });
     }
-    return own.map((o, i) => ({ ...o, value: counts[i] ? totals[i] / counts[i] : -Infinity }));
+    const mixed = mix.reduce((a, b) => a + b, 0) || 1;
+    return own.map((o, i) => ({ ...o, value: counts[i] ? totals[i] / counts[i] : -Infinity, mix: mix[i] / mixed }));
   }
 
   function decide(battle, side) {
@@ -813,16 +825,27 @@ export function createCpu(formatid, { random = Math.random, budgetMs, rollout = 
     /* a switch has to be clearly better than staying, as a ranker sees it: the search looks one turn on, so it never sees that the
        Pokémon it brings in will want out again, and two that each lose to the foe were switched back and forth, each taking the hit
        coming in (2026-11-06, Grimmsnarl and Delphox against Golisopod) */
-    const valued = search(battle, side, own).map(v => ({ ...v, value: v.value - SWITCH_COST * (v.choice.match(/switch/g) || []).length }));
+    // leaving before having moved once since coming in costs more (the first turn's lead may still leave freely)
+    const leaves = v => v.choice.split(", ").reduce((sum, part, i) => sum + (/^switch/.test(part) ? SWITCH_COST + (battle.turn > 1 && state[side].active[i]?.activeMoveActions === 0 ? CHAIN_COST : 0) : 0), 0);
+    const valued = search(battle, side, own).map(v => ({ ...v, value: v.value - leaves(v) }));
     // a weaker level sometimes plays any of its sensible choices
     if (mistake && random() < mistake) return own[Math.floor(random() * own.length)].choice;
-    const best = Math.max(...valued.map(v => v.value));
-    // choices within a hair of the best are played at random, so the computer is not read by habit (a weaker level's hair is wider)
-    const near = valued.filter(v => v.value >= best - slack);
-    return near[Math.floor(random() * near.length)].choice;
+    return drawChoice(valued, slack, random);
   }
 
   return { decide, guesses: name => hypotheses.get(name), memory: () => ({ hypotheses: [...hypotheses], before }) };
+}
+
+/* the turn's choice from its valued ones ({ choice, value, mix }, mix the equilibrium's share of it): choices within a hair of the
+   best are played at random, so the computer is not read by habit (a weaker level's hair is wider). A switch is not to be read
+   either: when one is among the choices within READ of the best, the turn is drawn from those by the equilibrium's mix (a choice
+   the equilibrium never plays is all but never drawn, so little is given up for it) */
+export function drawChoice(valued, slack, random) {
+  const best = Math.max(...valued.map(v => v.value));
+  const near = valued.filter(v => v.value >= best - slack);
+  const wide = valued.filter(v => v.value >= best - Math.max(slack, READ));
+  if (slack >= READ || !wide.some(v => /switch/.test(v.choice))) return near[Math.floor(random() * near.length)].choice;
+  return wide[pickIndex(wide.map(v => v.mix + 0.02), random)].choice;
 }
 
 /* the chance a choice's moves all land by their listed accuracy, or null when nothing in it can miss (a 70% move into a slower foe was
