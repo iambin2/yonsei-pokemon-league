@@ -88,6 +88,10 @@
 .tb-bar > i { position: absolute; inset: 0; background: var(--lit); transform-origin: left center; }
 .tb-bar > input[type="range"] { position: absolute; left: 0; right: 0; top: 50%; width: 100%; height: var(--h-strip); margin: 0; translate: 0 -50%; opacity: 0; cursor: pointer; }
 .tb-bar:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: var(--s1); }
+/* a bar that is only read (no range over it) is the line score's line: the seam's 2, dim, so the name and the figure are what is lit
+   (2026-11-19, the owner: "막대 디자인 ... 전부 이번 시안처럼 통일"); a slider keeps its 8, a thing a finger takes hold of */
+.tb-bar:not(:has(> input)) { height: var(--seam); }
+.tb-bar:not(:has(> input)) > i { background: var(--dim); }
 .tb-stat-number { min-height: var(--h-strip); padding: 0; background: none; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
 .tb-stat-number::-webkit-inner-spin-button, .tb-stat-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .tb-stat-number:focus-visible { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }

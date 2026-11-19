@@ -149,7 +149,7 @@
 .streak-stats { display: grid; gap: var(--seam); }
 .streak-stat { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--s8); align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
 .streak-stat > small { font-size: inherit; white-space: nowrap; }
-.streak-stat > .tb-bar { height: var(--s1); background: var(--rule); }
+.streak-stat > .tb-bar { background: var(--rule); }
 .streak-stat > b { text-align: right; color: var(--lit); font-weight: 700; }
 /* held against another set: the higher of a pair lit, the lower its number dim and its bar muted */
 .streak-stat.down > b { color: var(--dim); }

@@ -44,7 +44,7 @@ export default function StandTable({ rows, total, onName, open = false, onMore, 
         const line = [recordLine(r), r.note].filter(Boolean).join(", ");
         const go = r.open || (onName ? (e) => onName(r.name, e.currentTarget) : null);
         const Box = go ? "button" : "div";
-        return <Box key={`${r.name}#${n}`} {...(go ? { type: "button", onClick: go } : {})} className={(first ? "inv ls-first" : "pn") + " ls-row"}
+        return <Box key={`${r.name}#${n}`} {...(go ? { type: "button", onClick: go } : {})} className={(first ? "inv ls-first" : "pn") + " ls-row" + (line ? " two" : "")}
           aria-label={`${place} ${r.name}, ${pts}${unit}${line ? `, ${line}` : ""}${r.live ? ", 도전 중" : ""}`}>
           <span className="ls-place t15">{r.live && <i className="lamp sig" aria-hidden="true" />}{place}</span>
           <span className="ls-main">

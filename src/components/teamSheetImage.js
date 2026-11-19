@@ -8,7 +8,7 @@ const FONT = '"Albert Sans", "Freesentation", "Apple SD Gothic Neo", "Malgun Got
 /* 색은 값을 따로 들고 있지 않고 지금 테마의 토큰을 읽는다: 이미지가 사이트와 어긋날 수 없다 */
 const palette = () => {
   const css = getComputedStyle(document.documentElement), v = name => css.getPropertyValue(name).trim();
-  return { bg: v("--ground"), card: v("--panel"), well: v("--panel-2"), fg: v("--lit"), fg2: v("--dim"), fg3: v("--mute"), bar: v("--panel-2"), barOn: v("--lit"), line: v("--rule") };
+  return { bg: v("--ground"), card: v("--panel"), well: v("--panel-2"), fg: v("--lit"), fg2: v("--dim"), fg3: v("--mute"), bar: v("--rule"), barOn: v("--dim"), line: v("--rule") };
 };
 // team-builder.css 의 타입 점 색과 같은 값
 const TYPE_DOT = { normal: "#9FA19F", fire: "#E62829", water: "#2980EF", electric: "#FAC000", grass: "#3FA129", ice: "#3FD8FF", fighting: "#FF8000", poison: "#9141CB", ground: "#915121", flying: "#81B9EF", psychic: "#EF4179", bug: "#91A119", rock: "#AFA981", ghost: "#704170", dragon: "#5060E1", dark: "#624D4E", steel: "#60A1B8", fairy: "#EF70EF" };
@@ -95,8 +95,8 @@ function drawCard(ctx, c, x, y, row, sprite) {
       const lw = ctx.measureText("종족값 ").width;
       ctx.fillStyle = c.fg2; ctx.font = `400 16px ${FONT}`; ctx.fillText(String(stat.base), ix + 64 + lw, cy);
     }
-    roundRect(ctx, barX, cy - 9, barW, 6, 0); ctx.fillStyle = c.bar; ctx.fill();
-    if (stat.sp) { roundRect(ctx, barX, cy - 9, Math.max(6, barW * stat.sp / 32), 6, 0); ctx.fillStyle = c.barOn; ctx.fill(); }
+    roundRect(ctx, barX, cy - 7, barW, 2, 0); ctx.fillStyle = c.bar; ctx.fill();
+    if (stat.sp) { roundRect(ctx, barX, cy - 7, Math.max(2, barW * stat.sp / 32), 2, 0); ctx.fillStyle = c.barOn; ctx.fill(); }
     ctx.fillStyle = stat.sp ? c.fg : c.fg3; ctx.font = `${stat.sp ? 700 : 400} 13px ${FONT}`; ctx.fillText(String(stat.sp), barX + barW + 12, cy);
     ctx.textAlign = "right"; ctx.fillStyle = c.fg; ctx.font = `700 16px ${FONT}`; ctx.fillText(String(stat.final), ix + iw, cy); ctx.textAlign = "left";
   }

@@ -12,9 +12,7 @@
 @media (min-width: 860px) {
   .streak-side { display: flex; flex-direction: column; }
   .streak-side > section:last-child { flex: 1 0 auto; display: flex; flex-direction: column; }
-  .streak-side > section:last-child > .line-score { flex: 1 0 auto; display: flex; flex-direction: column; }
-  .streak-side .line-score > .ls-row { flex: 1 0 var(--h-row); height: auto; }
-  .streak-side .line-score > .ls-first { flex-basis: var(--h-counter); }
+  .streak-side > section:last-child > .line-score { flex: 1 0 auto; }
   .bt-lobby-main:has(> .streak-scene) { align-self: start; }
 }
 /* with no run of one's own the choice alone heads the board it chooses, at a section head's distance */
