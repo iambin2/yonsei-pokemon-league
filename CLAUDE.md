@@ -16,6 +16,7 @@ STATS_CACHE=<dir> node scripts/tune-sets.mjs  # M-C sample sets: the ladder's (s
 node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json and tower-tiers.json (what 도전의 탑's foe builders learn from, and its draft pool)
                         # from champs.pokedb.tokyo's open top-team files; rerun by hand when a season's file comes out (docs/BATTLE_STREAK.md 14장)
                         # (refresh-champions-data.yml reruns data:champions weekly and opens a PR when it changed; no workflow runs this one)
+node scripts/check-sets.mjs  # list the sample sets that make no sense (Light Clay without a screen); tests/sampleSets.test.mjs holds m-c to it
 npm run data:cpu-learn  # blend players' parties into src/data/random-sets.json (what learn-cpu-sets.yml runs weekly)
 npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own Korean text for each move, ability and item
 node scripts/build-sprite-ink.cjs  # rebuild src/data/sprite-ink.json, every Pokémon picture's ink read ahead (rerun after build-sprites.py)

@@ -140,6 +140,9 @@
 @media (hover: hover) { button.streak-slot:not(.now):not(:disabled):hover { background: var(--panel-2); } }
 .streak-draft-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .streak-draft-row .bt-card-hp { display: none; }
+/* a chosen card says so by its inversion, and its place is the strip's lit square: its order number stood under the Mega emblem
+   (2026-11-19, the user: "드래프트 창에서 선택했을 때 숫자와 메가 아이콘이 겹침") */
+.streak-draft-row .bt-card-order { display: none; }
 .streak-pick { position: relative; display: grid; min-width: 0; }
 .streak-pick > .streak-mega-mark { position: absolute; top: var(--s2); right: var(--s2); width: var(--s5); height: var(--s5); pointer-events: none; }
 /* a set's six as bars on their tracks (Streak.jsx StatBars, the info sheet's bar form): the word, the bar, the number, one row each */

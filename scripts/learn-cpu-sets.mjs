@@ -20,6 +20,7 @@ import { pathToFileURL } from "node:url";
 import { Teams, toID } from "@pkmn/sim";
 import { formatId, validateTeam } from "../supabase/functions/battle/engine.mjs";
 import { idleMoves } from "./setFit.mjs";
+import { faults } from "./check-sets.mjs";
 import { sameBuild } from "./curate-sets.mjs";
 
 export const RATE = 0.3, HALF = 20, MIN_SEEN = 3, MIN_PLAYERS = 30, NEW_PER_SPECIES = 2;
@@ -121,8 +122,9 @@ export function learn(sets, records, { validate = (formatid, set) => !validateTe
       entry.sets.forEach((s, i) => { s.weight = (1 - alpha) * s.baseWeight / baseTotal + alpha * share(votes[i]); });
       const joining = fresh.filter(f => f.players >= MIN_SEEN).sort((a, b) => b.votes - a.votes)
         .map(({ votes: v, set }) => ({ v, set: { name: "", species: entry.species, ability: set.ability, item: set.item, moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}), level: 50 } }))
-        // a set that plays as it should in this kind of battle (no Follow Me in singles, scripts/setFit.mjs)
-        .filter(({ set }) => validate(formatid, set) && !idleMoves({ kind, ...set }).length).slice(0, NEW_PER_SPECIES);
+        // a set that plays as it should in this kind of battle (no Follow Me in singles, scripts/setFit.mjs) and makes sense (no Light
+        // Clay without a screen, scripts/check-sets.mjs)
+        .filter(({ set }) => validate(formatid, set) && !idleMoves({ kind, ...set }).length && !faults(set.species, set, kind).length).slice(0, NEW_PER_SPECIES);
       for (const { v, set } of joining) entry.sets.push({
         weight: alpha * share(v), baseWeight: 0, ypl: true, ability: set.ability, items: [set.item],
         moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}),

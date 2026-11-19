@@ -230,7 +230,9 @@ const marksOf = el => [...el.querySelectorAll(".tw-tag, .tw-leads")];
 function mark(el, show = true) {
   const tw = el.tower;
   marksOf(el).forEach(x => x.remove());
-  if (!tw?.m.hall) return;
+  /* once a game is gone into, the hall lays no marks again until the scene is let go (towerDrop): the board's next state or a redraw
+     laid them back over the walk through the door (2026-11-19, the user: "탑 들어가는 모션에서 몇층 몇명 보임") */
+  if (!tw?.m.hall || el.twIn) return;
   el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", climbersHTML(tw));
   if (show && !reduced()) marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.light, { delay: i * STAGGER.display }));
 }
@@ -479,6 +481,8 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
   const before = hall || again ? now : climbing ? { floor: floor - 1, at: 5, live: true } : game > 1 ? { floor, at: game - 1, live: true } : now;
   if (reduced()) { drawTower(el, now); await pause(680); return; }
   if (hall) {
+    el.twIn = true;
+    for (const x of marksOf(el)) void fade(x, Number(getComputedStyle(x).opacity), 0, DUR.light, { easing: EASE_IN }).then(() => x.remove());
     // the hall already stands on the game gone into, at the run's rest (its entrance, if it still plays, taken to its end): its door
     // turns amber where it stands
     finish(el);
@@ -572,6 +576,8 @@ export function towerDrop(now = false) {
   const s = scene, c = car;
   scene = null; car = null;
   letGo();
+  // the dive lets go of its scene before it walks, so every hall is freed here, not only the scene's
+  document.querySelectorAll(".tw-hall").forEach(x => { x.twIn = false; });
   if (s?.own) {
     if (now || reduced()) s.el.remove();
     else void fade(s.el, 1, 0, DUR.leave).then(() => s.el.remove());
