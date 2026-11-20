@@ -21,6 +21,9 @@ node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json, then 
 node scripts/check-sets.mjs  # list the sample sets that make no sense (Light Clay without a screen); tests/sampleSets.test.mjs holds m-c to it
 npm run data:cpu-learn  # blend players' parties into src/data/random-sets.json (what learn-cpu-sets.yml runs weekly)
 npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own Korean text for each move, ability and item
+python scripts/build-music.py  # rebuild public/music/*.m4a, the battle's music (one CC0 set, fetched from OpenGameArt)
+python scripts/build-sfx.py <dir>  # rebuild public/sfx/sprite.m4a and src/pages/battle/sfxSprite.js from the unpacked CC0 packs (its docstring lists them)
+python scripts/build-cry-levels.py  # rebuild src/pages/battle/cryLevels.js, each cry's gain to -22 LUFS (rerun after build-cries.py)
 node scripts/build-sprite-ink.cjs  # rebuild src/data/sprite-ink.json, every Pokémon picture's ink read ahead (rerun after build-sprites.py)
 python scripts/build-albert-sans.py <AlbertSans[wght].ttf>  # rebuild the Latin font with tabular digits (Albert Sans has no tnum; DESIGN.md "Typesetting")
 npm run font:slices     # re-cut Freesentation into unicode-range slices (needs pip install -r scripts/requirements-fonts.txt)

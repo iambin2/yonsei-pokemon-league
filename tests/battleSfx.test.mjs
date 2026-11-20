@@ -30,3 +30,11 @@ test("every verb of every move sounds", () => {
     assert.ok(loud.test(bodies[v]) || VERB_SOUNDS[v] || EVENT_VERBS.includes(v), `verb "${v}" makes no sound`);
   }
 });
+
+test("every clip a sound plays is in the sprite, and the sprite holds no clip nothing plays", async () => {
+  const { CLIPS } = await import("../src/pages/battle/sfx.js");
+  const used = new Set([...read("sfx.js").matchAll(/\bS\(c, t, (?:"([A-Za-z0-9]+)"|o\.n <= 3 \? "(\w+)" : "(\w+)")/g)].flatMap(m => m.slice(1).filter(Boolean)));
+  for (const id of ["softH"]) used.add(id); // played through heavy()
+  for (const id of used) assert.ok(CLIPS[id], `no clip "${id}"`);
+  for (const id of Object.keys(CLIPS)) assert.ok(used.has(id), `clip "${id}" is never played (scripts/build-sfx.py)`);
+});

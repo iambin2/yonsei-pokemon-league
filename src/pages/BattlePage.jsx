@@ -1368,7 +1368,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const keeper = row.kind === "streak" && seat && streakMaster(seat.wins ?? 0);
   // the jingle is asked first, so the track asked after it (도전의 탑's break) waits for its end
   useEffect(() => { if (shownEnded && seat) music(row.winner === seat.side ? "win" : "lose"); }, [shownEnded]);
-  useMusic(!started ? "lobby" : shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : keeper || lastOne ? "pinch" : "battle");
+  // the end first: a finished game opened again stands with its stage empty, not yet started (2026-11-20, it played the lobby's track)
+  useMusic(shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : !started ? "lobby" : keeper || lastOne ? "pinch" : "battle");
   const nameAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m ? `${side === perspective ? "" : "상대 "}${nameOf(res, m.species)}` : "빈 자리"; };
   // the typing as it stands now (a Soak, a Roost, a Trick-or-Treat), not the species' own
   const typesAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m && !m.fainted ? currentTypes(res, m) : null; };
@@ -1726,6 +1727,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {logBox}
         <span className="t12 mute">배틀 엔진: Pokémon Showdown (MIT)</span>
         <span className="t12 mute">음악: LemonheadVGM (CC0)</span>
+        <span className="t12 mute">효과음: Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}
       {soundOpen && <Modal title="소리" onClose={() => setSoundOpen(false)}><SoundSheet /></Modal>}

@@ -1,6 +1,8 @@
 /* 포켓몬의 울음소리 (DESIGN.md "Battle", Sound). 효과음(sfx.js)도 이 AudioContext 하나로 운다. 나올 때와 쓰러질 때 운다(쓰러질 때는 낮게). 소리는 PokeOS의 HOME 울음소리를
    scripts/build-cries.py가 public/cries/<도감 번호>.m4a로 받아 둔 것이고, Web Audio로 튼다. 브라우저는 손길 없이 소리를 내지 않으므로
    첫 탭이 소리를 깨운다. 그 전이나 파일이 없으면 조용히 넘어가고, 무대는 울음이 끝날 때까지 기다린다(cry가 그때 풀린다). */
+import CRY_DB from "./cryLevels.js";
+
 const AC = typeof window !== "undefined" && (window.AudioContext || window.webkitAudioContext);
 let ctx = null;
 // a page no hand has touched yet cannot sound, so it makes no context: the first gesture makes it (wake below)
@@ -49,12 +51,35 @@ export const mixOf = () => mix;
 export const heard = k => level("all") > 0 && level(k) > 0;
 export const soundOn = () => !mix.all.mute;
 const gains = new Map();
-// the channel's input on c: the live context's channel gain, or an offline render's own output (sfx.js renderSound)
+/* the mix's end (2026-11-20, measured with earshot on a recorded battle: the output reached +1.4 dBTP with 2,763 clipped samples, the
+   cries 10 dB over the music): 전체 goes through a limiter before the speakers, and the music through its own duck (duck below) */
+function master(c) {
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -6; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = .001; lim.release.value = .12;
+  const g = c.createGain(); g.gain.value = level("all");
+  // the compressor has no look-ahead, so its first milliseconds overshoot (-1.1 dBTP measured): 1 dB under it keeps the peaks inside -1
+  const trim = c.createGain(); trim.gain.value = .89;
+  g.connect(lim).connect(trim).connect(c.destination);
+  gains.set("all", g);
+  const d = c.createGain(); d.connect(g); gains.set("duck", d);
+}
+// the channel's input on the live context: its gain, made as a sound first needs it
 export function channel(c, k) {
-  if (c !== ctx) return c.destination;
-  if (!gains.has("all")) { const g = c.createGain(); g.gain.value = level("all"); g.connect(c.destination); gains.set("all", g); }
-  if (!gains.has(k)) { const g = c.createGain(); g.gain.value = level(k); g.connect(gains.get("all")); gains.set(k, g); }
+  if (!gains.has("all")) master(c);
+  if (!gains.has(k)) { const g = c.createGain(); g.gain.value = level(k); g.connect(gains.get(k === "music" ? "duck" : "all")); gains.set(k, g); }
   return gains.get(k);
+}
+/* the music steps back while a cry or a big moment sounds (from at seconds on, db down for hold seconds, then back over a quarter of a second), so they
+   are heard over it; the steps never stack lower than the deepest one asked */
+let duckUntil = 0;
+export function duck(hold = .6, db = -7, at = 0) {
+  const d = gains.get("duck");
+  if (!d) return;
+  const t = d.context.currentTime + at, until = Math.max(duckUntil, t + hold);
+  d.gain.cancelScheduledValues(t);
+  d.gain.setTargetAtTime(10 ** (db / 20), t, .04);
+  d.gain.setTargetAtTime(1, until, .25);
+  duckUntil = until;
 }
 const listeners = new Set();
 export const onMix = fn => { listeners.add(fn); return () => listeners.delete(fn); };
@@ -88,18 +113,30 @@ export function loadCry(num) {
     buffers.set(num, fetch(`${import.meta.env?.BASE_URL ?? "/"}cries/${num}.m4a`)
       .then(res => (res.ok ? res.arrayBuffer() : null))
       .then(data => data && new Promise(resolve => decoder().decodeAudioData(data, resolve, () => resolve(null))))
+      .then(buffer => buffer && { buffer, gain: CRY_DB[num] != null ? 10 ** (CRY_DB[num] / 20) : levelOf(buffer) })
       .catch(() => null));
   }
   return buffers.get(num);
 }
 
+/* the cries' own files differ by 13 dB (2026-11-20, 60 measured: -15.6 to -2.6 LUFS, median -7.3, some over 0 dBTP): each is brought to
+   -22 LUFS by the gain scripts/build-cry-levels.py measured (cryLevels.js), or one not measured there from the RMS of its loudest 0.4 s */
+const CRY_RMS = 10 ** (-24 / 20);
+function levelOf(buffer) {
+  const x = buffer.getChannelData(0), win = Math.round(buffer.sampleRate * .4);
+  let sum = 0, top = 0;
+  for (let i = 0; i < x.length; i++) { sum += x[i] * x[i]; if (i >= win) sum -= x[i - win] * x[i - win]; if (i >= win - 1 || i === x.length - 1) top = Math.max(top, sum / Math.min(win, i + 1)); }
+  return top > 0 ? Math.min(4, CRY_RMS / Math.sqrt(top)) : 1;
+}
 // plays the cry and resolves when it has been heard (rate under 1 is lower and longer); a cry not ready in a moment is let go
 export async function cry(num, rate = 1) {
-  const buffer = await Promise.race([loadCry(num), new Promise(resolve => setTimeout(resolve, 400))]);
-  if (!buffer || !heard("cry") || ctx?.state !== "running") return;
-  const src = ctx.createBufferSource();
+  const loaded = await Promise.race([loadCry(num), new Promise(resolve => setTimeout(resolve, 400))]);
+  if (!loaded || !heard("cry") || ctx?.state !== "running") return;
+  const { buffer } = loaded, src = ctx.createBufferSource(), g = ctx.createGain();
   src.buffer = buffer;
   src.playbackRate.value = rate;
-  src.connect(channel(ctx, "cry"));
+  g.gain.value = loaded.gain;
+  src.connect(g).connect(channel(ctx, "cry"));
+  duck(buffer.duration / rate);
   await new Promise(resolve => { src.onended = resolve; src.start(); setTimeout(resolve, buffer.duration / rate * 1000 + 300); });
 }
