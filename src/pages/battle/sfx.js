@@ -1,7 +1,7 @@
 /* 배틀의 효과음 (DESIGN.md "Battle", Sound). 자리마다 하나씩: 누르는 키, 공을 던지고 여는 소리, 돌아오는 빛, 기술이 모이고 날아가고
    맞는 소리(타입마다, 베기와 물기와 주먹마다), 효과가 굉장함과 별로와 급소, 빗나감, 능력이 오르고 내리는 소리, 상태 이상마다의 소리,
    회복, 쓰러짐, 방어, 특성과 도구, 대타, 날씨와 필드와 벽과 함정, 메가진화, 턴, 시계, 승패.
-   소리는 배경음악(LemonheadVGM의 록과 EDM)과 같은 결의 녹음된 효과음이다(2026-11-20, 운영자: "AI 스테레오 타입 같은 느낌"이던 합성음을
+   소리는 배경음악(오케스트라 록)과 같은 결의 녹음된 효과음이다(2026-11-20, 운영자: "AI 스테레오 타입 같은 느낌"이던 합성음을
    바꿈): Kenney와 Lentikula의 CC0 팩에서 고른 것을 scripts/build-sfx.py가 public/sfx/sprite.m4a 하나에 이어 두고(sfxSprite.js가 자리),
    여기서 그 조각을 무대의 그림과 같은 시각에 튼다(at: 무대의 ms). 연출 속도를 따르고, 건너뛰기는 조용하고, 소리 시트의 채널(기술 효과음,
    알림음)을 따른다. 왼쪽은 우리, 오른쪽은 상대: 소리가 나는 자리를 따라 좌우로 놓이고, 경기장의 울림(짧은 잔향)이 뒤에 깔린다. */
@@ -165,10 +165,11 @@ const LIB = {
   faint: (c, t, o) => { const k = o.k || 1; S(c, t, "fall", { g: .6, pan: o.pan, rate: .7, wet: .4 }); heavy(c, t, .55 * k, .9, o.pan); S(c, t, "soft", { g: .4, pan: o.pan, at: .62 * k }); },
   megaStart: (c, t, o) => { S(c, t, "gather", { g: .6, pan: o.pan, wet: .4, rate: .8 }); S(c, t, "field", { g: .45, pan: o.pan, rate: .7 }); S(c, t, "bright", { g: .8, wet: .6, at: .6 }); S(c, t, "sparkle", { g: .5, wet: .6, at: .75 }); },
   megaEnd: (c, t) => { S(c, t, "boom", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .8, wet: .4 }); S(c, t, "shine", { g: .5, wet: .6, at: .05 }); },
-  // the result's own jingle is the music's (music.js): here only the board's click as it lights the result, under it
-  win: (c, t) => S(c, t, "turn", { g: .35, wet: .4, rate: 1.12 }),
-  lose: (c, t) => S(c, t, "soft", { g: .45, wet: .3, rate: .85 }),
-  draw: (c, t) => S(c, t, "woodL", { g: .45, wet: .3 }),
+  /* the result (2026-11-20, the owner: the music's jingles are let go, the effects say it): a win rises and rings bright twice over a
+     thump, a loss falls away onto a heavy body, a draw is one chime; the music fades under them (BattlePage) */
+  win: (c, t) => { S(c, t, "lamp", { g: .7, wet: .4 }); S(c, t, "rise", { g: .8, wet: .5, rate: 1.1 }); S(c, t, "bright", { g: .75, wet: .6, at: .18 }); S(c, t, "chime", { g: .5, wet: .6, rate: 1.25, at: .34 }); },
+  lose: (c, t) => { S(c, t, "fall", { g: .8, wet: .5, rate: .7 }); S(c, t, "softH", { g: .65, wet: .4, at: .5 }); S(c, t, "dream", { g: .35, wet: .6, rate: .55, at: .55 }); },
+  draw: (c, t) => S(c, t, "chime", { g: .55, wet: .5 }),
 
   /* ---------- a move ---------- */
   // light gathering at the user, at the type's pitch

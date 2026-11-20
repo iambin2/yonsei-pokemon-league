@@ -1,6 +1,6 @@
 """Build public/sfx/sprite.m4a and src/pages/battle/sfxSprite.js, every sound of the battle (src/pages/battle/sfx.js).
 
-The sounds are recorded ones in one family, so they sit with the music (LemonheadVGM's rock and EDM, scripts/build-music.py):
+The sounds are recorded ones in one family, so they sit with the music (orchestral rock, scripts/build-music.py):
 Kenney's Impact, Sci-Fi, Interface and Digital Audio packs (kenney.nl, CC0) and Lentikula's Basic, Druid and Healing Spell
 Impacts and Sci-Fi Weapon Shots (lentikula.itch.io, CC0). Each clip is cut from its silence, held to a length, brought to one
 loudness (its loudest tenth of a second), and laid one after another in one file with a little silence between, so the battle

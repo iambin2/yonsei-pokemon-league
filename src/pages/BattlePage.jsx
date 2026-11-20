@@ -19,7 +19,7 @@ import { createBattleReader, fourMoves, josa, parseHP, requestKey, revives, slot
 import { LobbyArena, LobbyStage, STATUS, Stage, effLabel, effectiveness, nameOf, other, sceneOf, typesOf, useBox, useStageTape } from "./battle/Stage.jsx";
 import { goIn, prewarm, setSpeed as setStageSpeed } from "./battle/stageFx.js";
 import { sfx } from "./battle/sfx.js";
-import { music, useMusic } from "./battle/music.js";
+import { useMusic } from "./battle/music.js";
 import { CHANNELS, audio, madeAudio, mixOf, onMix, setMix, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
 import { readRunState } from "../services/battleService.js";
 import { BOARD_DRAFT_KEY, battleHref, battlePollDelay, canRematch, cancelBattle, chooseInBattle, createBattle, recordCpuBattle, readCpuReplay, forfeitBattle, forgetSeat, isDoubles, joinBattle, listEventBattles, listOpenRooms, playerViewIsCurrent, readBattleRow, readBattleVersion, readSeat, rematchBattle, runGames, takeOfficialSeat, viewBattle, warmBattle } from "../services/battleService.js";
@@ -1357,19 +1357,10 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const foe = other(perspective);
   // before the leads are sent out the stage is empty: the team preview stands in its place
   const started = Boolean(scene && [...scene.p1.active, ...scene.p2.active].some(Boolean));
-  /* the music (music.js): the team preview's, then the battle's, the tense one once the side watched from is down to its last brought
-     Pokémon or for 도전의 탑's 수문장; at the end a player hears the result's jingle (then the tower's, in a run) and a watcher's fades */
-  /* a player's brought Pokémon are the engine's request (the scene's own roster does not mark them fainted, 2026-11-20); the tense
-     track comes in once the stage has played the faint out, and stays */
-  const pinchAt = useRef(null);
-  const alive = (request?.side?.pokemon || []).filter(m => !String(m.condition).endsWith(" fnt")).length;
-  if (seat && alive === 1 && request.side.pokemon.length > 1 && !tape.playing) pinchAt.current = row.id;
-  const lastOne = pinchAt.current === row.id;
-  const keeper = row.kind === "streak" && seat && streakMaster(seat.wins ?? 0);
-  // the jingle is asked first, so the track asked after it (도전의 탑's break) waits for its end
-  useEffect(() => { if (shownEnded && seat) music(row.winner === seat.side ? "win" : "lose"); }, [shownEnded]);
-  // the end first: a finished game opened again stands with its stage empty, not yet started (2026-11-20, it played the lobby's track)
-  useMusic(shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : !started ? "lobby" : keeper || lastOne ? "pinch" : "battle");
+  /* the music (music.js): the team preview's, then the battle's; at the end it fades (the result's sound is the effects', sfx.js win
+     and lose) and a run of 도전의 탑 goes back to the tower's. The end first: a finished game opened again stands with its stage empty,
+     not yet started (2026-11-20, it played the lobby's track) */
+  useMusic(shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : !started ? "lobby" : "battle");
   const nameAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m ? `${side === perspective ? "" : "상대 "}${nameOf(res, m.species)}` : "빈 자리"; };
   // the typing as it stands now (a Soak, a Roost, a Trick-or-Treat), not the species' own
   const typesAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m && !m.fainted ? currentTypes(res, m) : null; };
@@ -1726,7 +1717,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {othersBox}
         {logBox}
         <span className="t12 mute">배틀 엔진: Pokémon Showdown (MIT)</span>
-        <span className="t12 mute">음악: LemonheadVGM (CC0)</span>
+        <span className="t12 mute">음악: YPL (Suno로 제작)</span>
         <span className="t12 mute">효과음: Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}

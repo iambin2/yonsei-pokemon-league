@@ -12,3 +12,6 @@ supabase/.temp
 .playwright-mcp/
 supabase/functions/battle/engine.bundle.mjs
 src/services/.cpu-base-*.js
+
+# the music's masters (Suno, kept by the owner; scripts/build-music.py)
+/music/
