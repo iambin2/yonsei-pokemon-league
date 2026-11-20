@@ -6,7 +6,7 @@ import Seg from "../components/common/Seg.jsx";
 import Empty from "../components/common/Empty.jsx";
 import ErrorNote from "../components/common/ErrorNote.jsx";
 import Loader, { Busy } from "../components/common/Loader.jsx";
-import { Bang, Chips, Choice, Counter, Dock, Mon, OptionRows, Question, Row, SectionHead, TabsLine, Toast } from "../components/common/Board.jsx";
+import { Bang, Bar, Chips, Choice, Counter, Dock, Mon, OptionRows, Question, Row, SectionHead, TabsLine, Toast } from "../components/common/Board.jsx";
 import ListSearch from "../components/common/ListSearch.jsx";
 import Pager from "../components/common/Pager.jsx";
 import { siteConfirm } from "../components/common/SiteDialog.jsx";
@@ -19,7 +19,8 @@ import { createBattleReader, fourMoves, josa, parseHP, requestKey, revives, slot
 import { LobbyArena, LobbyStage, STATUS, Stage, effLabel, effectiveness, nameOf, other, sceneOf, typesOf, useBox, useStageTape } from "./battle/Stage.jsx";
 import { goIn, prewarm, setSpeed as setStageSpeed } from "./battle/stageFx.js";
 import { sfx } from "./battle/sfx.js";
-import { audio, madeAudio, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
+import { music, useMusic } from "./battle/music.js";
+import { CHANNELS, audio, madeAudio, mixOf, onMix, setMix, setSoundOn, soundOn, whenAudio } from "./battle/cries.js";
 import { readRunState } from "../services/battleService.js";
 import { BOARD_DRAFT_KEY, battleHref, battlePollDelay, canRematch, cancelBattle, chooseInBattle, createBattle, recordCpuBattle, readCpuReplay, forfeitBattle, forgetSeat, isDoubles, joinBattle, listEventBattles, listOpenRooms, playerViewIsCurrent, readBattleRow, readBattleVersion, readSeat, rematchBattle, runGames, takeOfficialSeat, viewBattle, warmBattle } from "../services/battleService.js";
 import { parseBoutKey } from "../services/teamBouts.js";
@@ -989,6 +990,23 @@ function readSpeed() {
 
 /* the whole log behind its key. It reads its lines by itself (Stage.jsx useBox), so a line added draws the log and not the match, and
    a log that stands shut draws no line at all: shut, it still drew every line of the battle again for each one added (2026-11-10) */
+/* the sound sheet (DESIGN.md "Battle", Sound; 2026-11-20, the owner's draft A): 전체 and each channel as a switch and a slider of 5 steps.
+   A slider moved turns its channel back on; 전체 off quiets every channel without losing their levels */
+function SoundSheet() {
+  const [m, setM] = useState(mixOf);
+  useEffect(() => onMix(setM), []);
+  return <div className="stack bt-mixer">{CHANNELS.map(([k, label]) => {
+    const on = !m[k].mute, pct = Math.round(m[k].v * 100), lit = on && (k === "all" || !m.all.mute);
+    return <div key={k} className={"pn bt-mix" + (lit ? "" : " off")}>
+      <b className="t15">{label}</b>
+      <span className="t15 bt-mix-n">{on ? pct : "끔"}</span>
+      <button type="button" className={"sw" + (on ? " on" : "")} role="switch" aria-checked={on} aria-label={label} onClick={() => setMix(k, { mute: on })}><i /></button>
+      <Bar thick value={m[k].v}><input type="range" min="0" max="100" step="5" value={pct} aria-label={`${label} 음량`}
+        onChange={e => setMix(k, { v: Number(e.target.value) / 100, mute: false })} /></Bar>
+    </div>;
+  })}</div>;
+}
+
 const LogBox = React.memo(function LogBox({ box }) {
   const [open, setOpen] = useState(false);
   return <details className="bt-logbox" onToggle={e => setOpen(e.currentTarget.open)}>
@@ -1114,7 +1132,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   useEffect(() => { setStageSpeed(speed); try { localStorage.setItem(SPEED_KEY, String(speed)); } catch { /* the next visit plays at 보통 */ } }, [speed]);
   // the battle's sound (DESIGN.md "Battle", Sound): cries and effects on unless the viewer turns them off, remembered on the device
   const [sound, setSound] = useState(soundOn);
-  const toggleSound = () => { setSoundOn(!sound); setSound(!sound); };
+  useEffect(() => onMix(() => setSound(soundOn())), []);
+  const toggleSound = () => setSoundOn(!sound);
+  const [soundOpen, setSoundOpen] = useState(false);
   /* the browser keeps a page silent until its first tap or key (cries.js wakes the sound then). A replay that plays by itself has
      had none, so it played silent (2026-11-07, the user: "리플레이에서는 소리가 안 나오네"): the replay bar's sound key shows it and
      wakes it */
@@ -1337,6 +1357,18 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const foe = other(perspective);
   // before the leads are sent out the stage is empty: the team preview stands in its place
   const started = Boolean(scene && [...scene.p1.active, ...scene.p2.active].some(Boolean));
+  /* the music (music.js): the team preview's, then the battle's, the tense one once the side watched from is down to its last brought
+     Pokémon or for 도전의 탑's 수문장; at the end a player hears the result's jingle (then the tower's, in a run) and a watcher's fades */
+  /* a player's brought Pokémon are the engine's request (the scene's own roster does not mark them fainted, 2026-11-20); the tense
+     track comes in once the stage has played the faint out, and stays */
+  const pinchAt = useRef(null);
+  const alive = (request?.side?.pokemon || []).filter(m => !String(m.condition).endsWith(" fnt")).length;
+  if (seat && alive === 1 && request.side.pokemon.length > 1 && !tape.playing) pinchAt.current = row.id;
+  const lastOne = pinchAt.current === row.id;
+  const keeper = row.kind === "streak" && seat && streakMaster(seat.wins ?? 0);
+  // the jingle is asked first, so the track asked after it (도전의 탑's break) waits for its end
+  useEffect(() => { if (shownEnded && seat) music(row.winner === seat.side ? "win" : "lose"); }, [shownEnded]);
+  useMusic(!started ? "lobby" : shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : keeper || lastOne ? "pinch" : "battle");
   const nameAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m ? `${side === perspective ? "" : "상대 "}${nameOf(res, m.species)}` : "빈 자리"; };
   // the typing as it stands now (a Soak, a Roost, a Trick-or-Treat), not the species' own
   const typesAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m && !m.fainted ? currentTypes(res, m) : null; };
@@ -1590,9 +1622,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     <Question id="bt-speed" label="연출" group>
       <Choice name="bt-speed" options={SPEEDS.map(([, label]) => label)} value={speedLabel} onChange={label => setSpeedChoice(SPEEDS.find(([, l]) => l === label)[0])} />
     </Question>
-    <button type="button" className="pn row switch-row bt-sound" role="switch" aria-checked={sound} onClick={toggleSound}>
-      <span className="row-main"><b className="t15">소리</b></span><span className={"sw" + (sound ? " on" : "")} aria-hidden="true"><i /></span>
-    </button>
+    <Row className="bt-sound" title="소리" value={<span className="t15 dim">{sound ? "켬" : "끔"}</span>} label={`소리 ${sound ? "켬" : "끔"}, 음량 조절`}
+      onClick={() => { setMenuOpen(false); setSoundOpen(true); }} />
     {(!seat || ended) && <Question id="bt-pov" label="시점" group>
       <Choice name="bt-pov" options={[names.p1, names.p2]} value={names[perspective]} onChange={who => turnTo(who === names.p1 ? "p1" : "p2")} />
     </Question>}
@@ -1694,8 +1725,10 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {othersBox}
         {logBox}
         <span className="t12 mute">배틀 엔진: Pokémon Showdown (MIT)</span>
+        <span className="t12 mute">음악: LemonheadVGM (CC0)</span>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}
+      {soundOpen && <Modal title="소리" onClose={() => setSoundOpen(false)}><SoundSheet /></Modal>}
       {partyOpen && party.current && <Modal title="내 파티" onClose={() => setPartyOpen(false)} className="wide">
         <div className="stack bt-cards sheet-cards">{ownList().map(({ key, ...c }) => <MonCard key={key} res={res} {...c} explain />)}</div>
       </Modal>}

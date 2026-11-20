@@ -194,6 +194,11 @@
 .bt-menu > .bt-forfeit { margin-top: var(--s8); }
 @media (min-width: 860px) { .bt-menu > .bt-forfeit { margin-top: var(--s3); } }
 .bt-sound { min-height: var(--h-row); }
+/* the sound sheet: each channel a panel, its name, level and switch on one line and its slider under them */
+.bt-mix { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--s3) var(--s5); padding: var(--s3) var(--pad) var(--s5); }
+.bt-mix > .bar { grid-column: 1 / -1; }
+.bt-mix-n { min-width: var(--s8); text-align: right; font-variant-numeric: tabular-nums; }
+.bt-mix.off > :not(.sw) { opacity: .382; }
 /* what a thing is (Information at hand): its name and tags, its figures as cells, then what it does in the games' words */
 .bt-tip { display: grid; gap: var(--s3); min-width: 0; }
 .bt-tip-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }

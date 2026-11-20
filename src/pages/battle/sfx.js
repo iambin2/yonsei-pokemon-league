@@ -4,7 +4,7 @@
    게임의 소리 파일은 하나도 쓰지 않는다: 모두 브라우저가 Web Audio로 그 자리에서 만든다(파일도 의존성도 없음). 무대의 그림과 같은
    시각에 울리고(at: 무대의 ms), 연출 속도를 따르고, 건너뛰기는 조용하고, 소리 칩이 꺼지면 울음과 함께 멎는다. 왼쪽은 우리, 오른쪽은
    상대: 소리가 나는 자리를 따라 좌우로 놓이고, 경기장의 울림(짧은 잔향)이 뒤에 깔린다. */
-import { madeAudio, primeAudio, soundOn } from "./cries.js";
+import { channel, heard, madeAudio, primeAudio } from "./cries.js";
 
 const LEVEL = .5; // the stage under the cries, never startling
 let speed = 1;
@@ -12,7 +12,7 @@ export const setSfxSpeed = s => { speed = s; };
 let moveType = "normal";
 export const setMoveType = t => { moveType = String(t || "normal").toLowerCase(); };
 
-let bus = null, wetIn = null, noiseBuf = null;
+let bus = null, wetIn = null, noiseBuf = null, buses = null;
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -32,14 +32,21 @@ function room(ctx) {
 }
 // the keys and the clock are not effects: they sound under 건너뛰기 too
 const ALWAYS = new Set(["select", "tick"]);
-// the stage's output: every voice into one bus, a compressor, and the stadium's air behind it
-function wire(ctx) {
+// 알림음 in the sound sheet: what tells the player where the battle stands, not what a move does
+const UI = new Set(["select", "tick", "turn", "lamps", "win", "lose", "draw"]);
+// one channel's output: its voices into a bus, a compressor, and the stadium's air behind it, into the channel's gain (cries.js)
+function strip(ctx, out) {
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = .002; comp.release.value = .18;
-  bus = ctx.createGain(); bus.gain.value = LEVEL;
-  bus.connect(comp).connect(ctx.destination);
+  const b = ctx.createGain(); b.gain.value = LEVEL;
+  b.connect(comp).connect(out);
   const verb = ctx.createConvolver(); verb.buffer = room(ctx);
-  wetIn = ctx.createGain(); wetIn.connect(verb).connect(bus);
+  const w = ctx.createGain(); w.connect(verb).connect(b);
+  return [b, w];
+}
+function wire(ctx) {
+  buses = { fx: strip(ctx, channel(ctx, "fx")), ui: strip(ctx, channel(ctx, "ui")) };
+  [bus, wetIn] = buses.fx;
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -48,7 +55,7 @@ function ready(always) {
   // a context just made is not running yet either, so the sound that asked for it was never heard
   const ctx = madeAudio();
   if (!ctx) primeAudio();
-  if (!ctx || ctx.state !== "running" || !soundOn() || (!speed && !always)) return null;
+  if (!ctx || ctx.state !== "running" || (!speed && !always)) return null;
   if (!bus || bus.context !== ctx) wire(ctx);
   return ctx;
 }
@@ -56,9 +63,9 @@ function ready(always) {
 export const warmSound = () => { ready(true); };
 // one sound rendered off the line, for the lab and the checks: its loudest sample (0 is silence) and its samples, mixed to one channel
 export async function renderSound(name, o = {}, seconds = 2.5, rate = 44100) {
-  const off = new OfflineAudioContext(2, Math.round(rate * seconds), rate), kept = [bus, wetIn, noiseBuf];
+  const off = new OfflineAudioContext(2, Math.round(rate * seconds), rate), kept = [bus, wetIn, noiseBuf, buses];
   wire(off);
-  try { LIB[name](off, .01, { type: "normal", sec: 0, k: 1, ...o }); } finally { [bus, wetIn, noiseBuf] = kept; }
+  try { LIB[name](off, .01, { type: "normal", sec: 0, k: 1, ...o }); } finally { [bus, wetIn, noiseBuf, buses] = kept; }
   const out = await off.startRendering(), l = out.getChannelData(0), r = out.getChannelData(1), mono = new Float32Array(l.length);
   let peak = 0;
   for (let i = 0; i < l.length; i++) { mono[i] = (l[i] + r[i]) / 2; peak = Math.max(peak, Math.abs(l[i]), Math.abs(r[i])); }
@@ -383,8 +390,10 @@ const last = new Map();
 /* name: a sound of the library; o.at: the stage's ms from now (played at the playback speed), o.dur: how long it lasts on the stage,
    o.pan: -1 left (ours) to 1 right (theirs), o.type: the move's type. The same sound is not stacked inside 45 ms. */
 export function sfx(name, o = {}) {
-  const make = LIB[name], ctx = make && ready(ALWAYS.has(name));
+  const ch = UI.has(name) ? "ui" : "fx";
+  const make = LIB[name], ctx = make && heard(ch) && ready(ALWAYS.has(name));
   if (!ctx) return;
+  [bus, wetIn] = buses[ch];
   const t = ctx.currentTime + .008 + Math.max(0, o.at || 0) * (speed || 1) / 1000;
   const key = name + (o.type || "");
   if (Math.abs((last.get(key) ?? -1) - t) < .045) return;

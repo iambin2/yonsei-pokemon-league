@@ -27,11 +27,45 @@ export function primeAudio(idle = () => Promise.resolve()) {
   if (!AC || !touched()) return Promise.resolve(null);
   return (primed ||= Promise.resolve(ctx ? null : navigator.mediaDevices?.enumerateDevices?.()).catch(() => null).then(idle).then(() => audio()));
 }
-// the 소리 chip (BattlePage.jsx): cries and every effect sound go quiet together, remembered on the device
-const SOUND_KEY = "ypl-battle:audio"; // not the old "ypl-battle:sound", which saved "off" for every visitor of the first sound
-let on = (() => { try { return localStorage.getItem(SOUND_KEY) !== "off"; } catch { return true; } })();
-export const soundOn = () => on;
-export function setSoundOn(value) { on = Boolean(value); try { localStorage.setItem(SOUND_KEY, on ? "on" : "off"); } catch { /* the next visit sounds */ } if (on) audio()?.resume?.().catch(() => {}); }
+/* the sound sheet (BattlePage.jsx SoundSheet, 2026-11-20): 전체 and four channels, each a level 0 to 1 and a mute, remembered on the
+   device. 배경음악 (music.js), 울음소리 (cry below), 기술 효과음 and 알림음 (sfx.js: the keys, the clock, the turn, the lamps and the result
+   are 알림음, every other sound 기술 효과음). Each channel is one gain into 전체's, made on the live context as a sound first needs it */
+export const CHANNELS = [["all", "전체"], ["music", "배경음악"], ["cry", "울음소리"], ["fx", "기술 효과음"], ["ui", "알림음"]];
+const MIX_KEY = "ypl-battle:mix";
+const MIX_DEFAULT = { all: 1, music: .5, cry: 1, fx: 1, ui: 1 };
+let mix = (() => {
+  const m = Object.fromEntries(CHANNELS.map(([k]) => [k, { v: MIX_DEFAULT[k], mute: false }]));
+  try {
+    const saved = JSON.parse(localStorage.getItem(MIX_KEY) || "null");
+    if (saved) for (const [k] of CHANNELS) if (saved[k]) m[k] = { v: Math.min(1, Math.max(0, Number(saved[k].v) || 0)), mute: Boolean(saved[k].mute) };
+    // the 소리 switch before the sheet ("ypl-battle:audio" off) is 전체 muted
+    else if (localStorage.getItem("ypl-battle:audio") === "off") m.all.mute = true;
+  } catch { /* the defaults */ }
+  return m;
+})();
+const level = k => (mix[k].mute ? 0 : mix[k].v);
+export const mixOf = () => mix;
+// a channel that would make no sound is not played at all (no node is built for it)
+export const heard = k => level("all") > 0 && level(k) > 0;
+export const soundOn = () => !mix.all.mute;
+const gains = new Map();
+// the channel's input on c: the live context's channel gain, or an offline render's own output (sfx.js renderSound)
+export function channel(c, k) {
+  if (c !== ctx) return c.destination;
+  if (!gains.has("all")) { const g = c.createGain(); g.gain.value = level("all"); g.connect(c.destination); gains.set("all", g); }
+  if (!gains.has(k)) { const g = c.createGain(); g.gain.value = level(k); g.connect(gains.get("all")); gains.set(k, g); }
+  return gains.get(k);
+}
+const listeners = new Set();
+export const onMix = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+export function setMix(k, patch) {
+  mix = { ...mix, [k]: { ...mix[k], ...patch } };
+  try { localStorage.setItem(MIX_KEY, JSON.stringify(mix)); } catch { /* the next visit has the defaults */ }
+  gains.get(k)?.gain.setTargetAtTime(level(k), ctx.currentTime, .03);
+  if (level(k) > 0) audio()?.resume?.().catch(() => {});
+  listeners.forEach(fn => fn(mix));
+}
+export const setSoundOn = value => setMix("all", { mute: !value });
 /* the first touch of a page that loaded untouched does not make the context in its own task: made there, it held the click that opens
    도전의 탑 for 346 ms at a phone's speed and froze the tower's entrance (2026-11-19). It is primed (the audio service woken, then made in
    an idle moment once what the touch opened has come in: an idle moment alone fell inside the tower's 1.78 s entrance, still 290 ms);
@@ -62,10 +96,10 @@ export function loadCry(num) {
 // plays the cry and resolves when it has been heard (rate under 1 is lower and longer); a cry not ready in a moment is let go
 export async function cry(num, rate = 1) {
   const buffer = await Promise.race([loadCry(num), new Promise(resolve => setTimeout(resolve, 400))]);
-  if (!buffer || !on || ctx?.state !== "running") return;
+  if (!buffer || !heard("cry") || ctx?.state !== "running") return;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.playbackRate.value = rate;
-  src.connect(ctx.destination);
+  src.connect(channel(ctx, "cry"));
   await new Promise(resolve => { src.onended = resolve; src.start(); setTimeout(resolve, buffer.duration / rate * 1000 + 300); });
 }
