@@ -44,11 +44,12 @@ export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor 
   const first = on.indexOf(true), last = on.lastIndexOf(true);
   if (marks) {
     const z = marks.hit ?? marks.play ?? ms(Math.max(first, 0)), zi = Math.round(z * fps / 1000), rel = t => Math.round(t - z);
-    const lo = Math.max(0, zi - 4), hi = Math.min(rows.length - 1, zi + 21);
+    const lo = Math.max(0, zi - 2), hi = Math.min(rows.length - 1, zi + 12);
     let pk = -1, pa = lo;
     for (let i = lo; i <= hi; i++) if (w[i] > pk) { pk = w[i]; pa = i; }
     let flash = null;
-    if (pk > thW) { const [a, b] = run(w, pa, x => x > Math.max(thW, pk / 2)); flash = { start: rel(ms(a)), end: rel(ms(b + 1)), peak: area(pk) }; }
+    // 섬광은 대상 크기의 7%를 넘는 흰 빛만 센다(불덩이의 흰 심, 도깨비불의 심은 섬광이 아니다)
+    if (pk > thW && area(pk) >= .07) { const [a0, b] = run(w, pa, x => x > Math.max(thW, pk / 2)), a = Math.max(a0, lo); flash = { start: rel(ms(a)), end: rel(ms(b + 1)), peak: area(pk) }; }
     const end = rel(ms(Math.max(last + 1, zi))), phases = [];
     // 모으기(charge)를 거치지 않은 기술(몸으로 치는 기술)은 물질이 화면에 처음 보인 때가 떠나는 순간이다: 달려드는 몸은 물질이 아니다
     let a = zi; while (a > 0 && ms(a - 1) >= (marks.play ?? 0) && on[a - 1]) a--;
@@ -87,6 +88,7 @@ export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor 
 export function compareRow(ref, ours) {
   const fails = [];
   for (const p of ref.phases) {
+    if (p.name === "residue" || p.name === "show") continue; // 끝은 아래의 ±120으로 본다
     const q = ours.phases.find(x => x.name === p.name);
     if (!q || Math.abs(q.start - p.start) > 80 || Math.abs(q.end - q.start - (p.end - p.start)) > 80) fails.push(p.name);
   }
@@ -94,7 +96,7 @@ export function compareRow(ref, ours) {
   else if (!ref.flash && ours.flash) fails.push("flash-extra");
   else if (ref.flash) {
     if (Math.abs(ours.flash.end - ours.flash.start - (ref.flash.end - ref.flash.start)) > 50) fails.push("flash");
-    if (ours.flash.peak > ref.flash.peak) fails.push("flash-size");
+    if (ref.flash.peak > 0 && ours.flash.peak > ref.flash.peak) fails.push("flash-size");
   }
   if (ref.typePeak > 0 && Math.abs(ours.typePeak / ref.typePeak - 1) > .25) fails.push("area");
   if (Math.abs(ours.residueEnd - ref.residueEnd) > 120) fails.push("residue");

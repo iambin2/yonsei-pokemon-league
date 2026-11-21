@@ -24,6 +24,9 @@ const measure = args => JSON.parse(sh("node", [join(HERE, "fxmeasure.mjs"), ...a
 
 // the lab plays the move 800ms after the page is ready, so the recording holds a still stage first (the baseline)
 const PRE = id => `(async () => { await new Promise(r => { const t = setInterval(() => { if (window.__bench && window.__bench.stage()?.__gl) { clearInterval(t); r(); } }, 100); }); window.__bench.setFormat("singles"); await new Promise(r => setTimeout(r, 2500));
+  // 한 번 미리 재생한다: 페이지를 연 뒤 첫 연출에서 430ms쯤 멈추는 프레임이 하나 있고(처음 쓰는 것을 준비하는 값), 무대 시계는
+  // 한 프레임을 50ms까지만 세므로 그만큼 연출이 늘어져 재진다(2026-11-21, 모든 기술에서 한 단계가 +390ms로 나왔다)
+  await window.__bench.play(${JSON.stringify(id)}); await new Promise(r => setTimeout(r, 700));
   const m = document.createElement("div"); m.id = "fxmark"; m.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;pointer-events:none"; document.body.append(m);
   let hit = false; window.__fxMark = n => { if (n === "hit") { if (hit) return; hit = true; } m.style.opacity = { play: ".9", emit: ".8", hit: ".7" }[n]; };
   setTimeout(() => window.__bench.play(${JSON.stringify(id)}), 800); })()`;
@@ -60,7 +63,8 @@ for (const s of segs) {
   if (g("charge") && n("charge") < n("emit")) phases.push({ name: "charge", start: at("charge"), end: at("emit") });
   if (n("emit") < n("hit")) phases.push({ name: "travel", start: at("emit"), end: 0 });
   phases.push({ name: self ? "show" : "residue", start: 0, end: at("end") });
-  const ref = { phases, flash: g("flashEnd") ? { start: 0, end: at("flashEnd"), peak: area.flash ? area.flash.peak : 0 } : null, typePeak: area.typePeak, residueEnd: at("end") };
+  const ref = { phases, // 섬광의 길이는 30fps로 잰 값이 있으면 그것을 쓴다(10fps로 읽은 flashEnd는 100ms 단위다). 맞는 쪽 컷에서 섬광이 안 잡히면 크기는 0(모름)
+    flash: g("flashEnd") ? { start: 0, end: area.flash ? area.flash.end - area.flash.start : at("flashEnd"), peak: area.flash ? area.flash.peak : 0 } : null, typePeak: area.typePeak, residueEnd: at("end") };
   const ours = measure([join(ourDir, "frames"), "--type", type, "--ink", opt("ink", "0.42"), "--marks", marksOf(ourDir), ...flag]);
   const { pass, fails } = compareRow(ref, ours);
   out.push([g("recipe"), move, type, pass ? "pass" : "fail", fails.join(","), JSON.stringify(ref), JSON.stringify(ours), g("note")]);

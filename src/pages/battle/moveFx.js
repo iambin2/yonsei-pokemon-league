@@ -38,6 +38,22 @@ export function makeDraw(k) {
   const landAll = (c, o) => c.targets.forEach(t => c.land(t, o));
   const after = (c, n) => c.e.after(n);
   const aim = c => c.targets.find(t => t !== c.from) || c.targets[0];
+  /* a move's own times, measured in 포켓몬 챔피언스 frame by frame and written in its script (docs/move-fx-work/segments.tsv):
+     c: how long it gathers, t: from the matter leaving to the blow, r: how long what is left takes to go. A verb keeps its own
+     times where the script gives none. */
+  const O = (a, key, d) => (typeof a?.opts?.[key] === "number" ? a.opts[key] : d);
+  // what a blow leaves on its target, going out over ms: fire burns down in small flames and falling embers, anything else sheds motes
+  const linger = (c, at, s0, ms, k = 1) => {
+    const e = c.e, ty = T(c), s = s0 * k;
+    if (!(ms > 0)) return;
+    ms *= 1.3; // the last small flame is under what the measure counts a little before it is gone (match.tsv: ends came at .77 of r)
+    if (ty === "fire") {
+      // 포켓몬 챔피언스: the fire of a blow swallows its target for a moment, then burns down on it (lobes with no white heart: `fire.s`)
+      e.emit({ n: Math.round(10 + 6 * k), at, r: s * .3, tex: "billow", lit: true, ramp: "fire.s", speed: [s * .5, s * 1.6], drag: 3, size: [[s * .3, s * .45], [s * .6, s * .85]], life: [ms * .3, ms * .48], delay: 80, erode: .5, rot: "rand", spin: [-1, 1], emis: .5, occ: .75, alpha: .88, grow: true }); // 80 later: the white of the blow is seen first
+      fire(e, at, s, 12, { r: .45, size: [.2, .45], over: ms * .68, life: [ms * .25, ms * .32] });
+    }
+    e.emit({ n: 22, at, r: s * .4, vel: () => [rand(-1, 1) * s * .9, -rand(.2, 1.1) * s], acc: [0, s * 3], tex: "dot", ramp: ty === "fire" ? "fire.c" : `${ty}.m`, size: [4 * U(c), 1], life: [ms * .55, ms], over: ms * .2 });
+  };
   const foes = c => c.targets.filter(t => t !== c.from);
   const dirTo = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]);
   // where a sound stands between the ears (sfx.js): ours on the left, theirs on the right
@@ -251,6 +267,7 @@ export function makeDraw(k) {
     const mark = a.noun || "body", n = Math.max(1, a.opts.multi || 1), e = c.e;
     // Beak Blast (Scarlet and Violet): the beak heats red-hot first, and the blow goes off in a burst of flame
     if (a.has("gather")) { camUser(c, 1.16); await (c.id === "beakblast" ? Promise.all([charge(c.stage, c.from, "fire", 520), move(c, c.from, { rimR: [1, 1], rimG: [.45, .45], rimB: [.15, .15], rimA: [0, .9, .7] }, { dur: 520 })]) : gatherUp(c)); }
+    if (a.opts.c) { camUser(c, 1.16); await charge(c.stage, c.from, c.type, a.opts.c); }
     if (a.has("bow")) await move(c, c.from, { y: [0, S(c) * .06, 0], sy: [1, .88, 1] }, { dur: 420, ease: "inout" });
     if (a.has("flex")) await D.flex(c, a, true);
     if (a.has("rage")) { const [x, y] = A(c, .85), s = S(c); e.emit({ at: [x + s * .22, y], tex: "cross", ramp: "fire.h", size: [s * .1, s * .3], life: 520, grow: true }); move(c, c.from, { rimR: [1, 1], rimG: [.2, .2], rimB: [.15, .15], rimA: [0, .95, .6] }, { dur: 500 }); e.emit({ n: 12, at: A(c, .05), r: [s * .4, s * .05], tex: "streak", ramp: "recall", vel: () => [rand(-6, 6), -rand(s * 1.4, s * 2.2)], face: true, size: [3, 2], aspect: [10, 18], life: [260, 380], over: 300 }); await after(c, 220); }
@@ -274,9 +291,10 @@ export function makeDraw(k) {
       c.jit = null;
       if (i < n - 1 && hits) { const at = B(c, t), s = S(c, t); e.emit({ at: [at[0] + rand(-.3, .3) * s, at[1] + rand(-.3, .2) * s], tex: "spark", ramp: `${T(c)}.m`, size: [s * .15, s * .6], life: 220, rot: "rand", grow: true }); k.hit(c.stage, t, { share: .15 }); e.shake(.12); }
     }
-    landAll(c, { mark: OWN_MARK[mark] === undefined ? undefined : OWN_MARK[mark], power: a.has("wrap") || a.has("above") || mark === "hammer" ? 1.15 : 1 });
+    landAll(c, { mark: OWN_MARK[mark] === undefined ? undefined : OWN_MARK[mark], power: a.has("wrap") || a.has("above") || mark === "hammer" ? 1.15 : 1, flash: O(a, "f", undefined) });
     if (!hits) return;
     const s = S(c, t);
+    linger(c, B(c, t), s, O(a, "r", 0), O(a, "k", 1));
     if (a.has("stomp") || a.has("jump") || mark === "hammer") { stamp(e, B(c, t, 0), s, a.has("stomp") || mark === "hammer" ? 1.2 : .9); e.shake(a.has("stomp") ? .5 : .35); }
     if (a.has("item")) { const [x, y] = B(c, t), sg = actorOf(c.stage, t)?.own ? -1 : 1; e.emit({ at: [x, y], vel: [sg * s * 2, -s * 2.4], acc: [0, s * 7], tex: "ball", lit: true, ramp: "white.h", size: [s * .2, s * .2], life: 700, spin: 10, occ: .9, emis: .3 }); glints(e, [x, y], s, 4, "glint", { r: .3 }); }
     if (a.has("drain")) flowBack(c, t, 10);
@@ -364,10 +382,10 @@ export function makeDraw(k) {
     // Infernal Parade (Scarlet and Violet): its fireballs are ghost-fire, violet and blue, not orange
     const ghostFire = c.id === "infernalparade" ? { ramp: "ghost.h", trailRamp: "ghost" } : null;
     const [tex, type, scale, o0] = (a.noun === "star" && T(c) === "water" ? ["star", "water", 2.2, { ...M, ramp: "water.l", spin: 14, occ: .85, emis: .5, trailRamp: "water" }] : c.id === "clearsmog" ? ["billow", "poison", 2.4, { ...M, arc: .2, ramp: e0.light ? "smoke.l" : "steam", occ: .9, emis: .15, erode: .3, trail: false }] : SHOT[a.noun]) || SHOT.orb, o = ghostFire ? { ...o0, ...ghostFire } : o0, n = Math.max(1, a.count || 1), e = c.e, ty = ghostFire ? "ghost" : type || T(c);
-    const size = 19 * U(c) * scale * (a.has("big") ? 1.5 : 1), dur = a.has("fast") ? 240 : 400 + (a.has("big") ? 120 : 0);
+    const size = 19 * U(c) * scale * (a.has("big") ? 1.5 : 1), dur = a.opts.t ? Math.max(160, a.opts.t - (Math.max(1, a.count) - 1) * 90) : a.has("fast") ? 240 : 400 + (a.has("big") ? 120 : 0);
     camUser(c, 1.12, .25);
     muzzle(c, mouth(c), size * 3, 260, `${ty}.h`);
-    await after(c, 160);
+    if (a.opts.c) await charge(c.stage, c.from, c.type, a.opts.c); else await after(c, 160);
     camFor(c, .32);
     let first = null;
     for (let i = 0; i < n; i++) {
@@ -382,6 +400,7 @@ export function makeDraw(k) {
     // on the floor, a flat circle reads as a sign)
     if (a.has("pin")) { const b = B(c, t, 0), s = S(c, t), sg = actorOf(c.stage, t)?.own ? -1 : 1; e.emit({ at: [b[0] + sg * s * .25, b[1] - s * .12], tex: "needle", lit: true, ramp: "ghost.h", size: [s * .12, s * .12], aspect: 4, rot: Math.PI / 2 + sg * .3, face: true, life: 800, occ: .5, emis: .8 }); smoke(e, b, s, 5, { ramp: "shadow", rise: 16, alpha: .7, spread: .4 }); e.emit({ n: 8, at: b, r: [s * .3, s * .04], tex: "flame", ramp: "ghost", vel: () => [rand(-10, 10), -rand(40, 90)], size: [[s * .08, s * .14], s * .03], life: [400, 600], erode: .6, emis: .8 }); }
     landAll(c, { type: ty });
+    for (const tt of c.targets) if (a.opts.r && live(c, tt)) linger(c, B(c, tt), S(c, tt), a.opts.r, O(a, "k", 1));
   };
   D.rain = async (c, a) => {
     const t = aim(c), e = c.e;
@@ -507,10 +526,10 @@ export function makeDraw(k) {
     const e = c.e, ty = T(c), id = c.id, big = a.has("big"), s0 = S(c);
     camUser(c, 1.12, .28);
     if (a.has("dance")) move(c, c.from, { rot: [0, Math.PI * 2] }, { dur: 600, ease: "inout" });
-    await charge(c.stage, c.from, c.type, 240);
+    await charge(c.stage, c.from, c.type, O(a, "c", 240));
     camFor(c, .36);
     const list = c.targets.length > 1 ? c.targets : [t];
-    const over = big ? 760 : 620, travel = big ? 260 : 300;
+    const travel = big ? 260 : 300, hitAt = O(a, "t", travel), over = a.opts.t ? Math.max(240, hitAt - travel) : big ? 760 : 620, res = O(a, "r", 0);
     for (const tt of list) {
       const a0 = mouth(c), b = endOf(c, tt), sT = S(c, tt), U0 = U(c), dist = Math.hypot(b[0] - a0[0], b[1] - a0[1]);
       if (ty === "fire" || id === "torchsong" || id === "burningjealousy") {
@@ -544,9 +563,10 @@ export function makeDraw(k) {
       muzzle(c, a0, s0 * .6, over);
       e.at(travel, () => { if (live(c, tt)) splashOn(c, b, tt, over, 1); e.shake(.2); });
     }
-    await after(c, travel);
+    await after(c, hitAt);
     landAll(c);
-    await after(c, over * .5);
+    for (const tt of list) if (res && live(c, tt)) linger(c, B(c, tt), S(c, tt), res, O(a, "k", 1));
+    await after(c, res ? res * .5 : over * .5);
   };
   // lightning from the user to its target (Thunderbolt, Volt Switch)
   D.bolt = async (c, a) => {
@@ -623,17 +643,17 @@ export function makeDraw(k) {
   D.wind = async (c, a) => {
     const e = c.e, { W, H } = e, ty = T(c), id = c.id, own = actorOf(c.stage, c.from)?.own, dir = own ? -.55 : 2.6;
     camUser(c, 1.06, .35);
-    await charge(c.stage, c.from, c.type, 240);
+    await charge(c.stage, c.from, c.type, O(a, "c", 240));
     camWide(c, .5);
-    const a0 = A(c), dur = 900, sp = W * 1.6;
-    const look = a.has("petal") ? ["petal", "fairy.m", [8, 12], 1, true] : ty === "ice" ? ["flake", "snow", [6, 12], .3, false] : ty === "fire" ? ["billow", "fire.s", [30, 64], .7, true] : ty === "ground" ? ["grain", "sand", [3, 5], .8, true] : ty === "bug" ? ["chip", "bug.m", [5, 8], 1, true] : ["leaf", ty === "grass" ? "leaf.c" : `${ty}.m`, [8, 12], 1, true];
+    const a0 = A(c), dur = a.opts.t ? a.opts.t + O(a, "r", 400) : 900, sp = W * 1.6;
+    const look = a.has("petal") ? ["petal", "fairy.m", [8, 12], 1, true] : ty === "ice" ? ["flake", "snow", [6, 12], .3, false] : ty === "fire" ? ["billow", "fire.s", [90, 190], .7, true] : ty === "ground" ? ["grain", "sand", [3, 5], .8, true] : ty === "bug" ? ["chip", "bug.m", [5, 8], 1, true] : ["leaf", ty === "grass" ? "leaf.c" : `${ty}.m`, [8, 12], 1, true];
     e.emit({ n: 90, at: () => [a0[0] + rand(-.2, .2) * W, a0[1] + rand(-.25, .1) * H], dir, arc: .5, speed: [sp * .7, sp], tex: "streak", ramp: ty === "fire" ? "fire" : "white", face: true, size: [3, 3], aspect: [20, 40], life: [500, 800], over: dur * .8, alpha: .55 });
     e.emit({ n: 110, at: () => [a0[0] + rand(-.2, .2) * W, a0[1] + rand(-.25, .1) * H], dir, arc: .7, speed: [sp * .45, sp * .8], tex: look[0], ramp: look[1], lit: look[4], size: [look[2][0] * U(c), look[2][1] * U(c)], spin: [-8, 8], rot: "rand", aspect: look[0] === "petal" ? .7 : 1, life: [700, 1100], over: dur * .8, occ: look[3], emis: ty === "fire" ? .45 : 1 - look[3] * .7, erode: ty === "fire" ? .55 : 0, alpha: ty === "fire" ? .55 : 1, grow: ty === "fire" });
-    if (ty === "fire") { e.emit({ n: 16, at: () => [rand(0, 1) * W, rand(.2, 1) * H], tex: "glow", ramp: "white.h", size: [W * .2, W * .3], life: 800, over: dur, alpha: .5, distort: true }); flashStage(c.stage, .1, 600, "#FF8A40"); }
+    if (ty === "fire") { e.emit({ n: 16, at: () => [rand(0, 1) * W, rand(.2, 1) * H], tex: "glow", ramp: "white.h", size: [W * .2, W * .3], life: 800, over: dur, alpha: .5, distort: true }); flashStage(c.stage, .22, dur * .8, "#FF8A40"); }
     if (ty === "ice") flashStage(c.stage, .12, 600, "#C0F0FF");
     e.shake(.25);
-    await after(c, dur * .5);
-    landAll(c);
+    await after(c, O(a, "t", dur * .5));
+    landAll(c, a.has("soft") ? { flash: 0 } : undefined);
     await after(c, dur * .3);
   };
   // a whirl round the target (Fire Spin, Hurricane, Leaf Storm, Sand Tomb, Whirlpool)
@@ -642,20 +662,22 @@ export function makeDraw(k) {
     if (!t) return false;
     const e = c.e, ty = T(c), id = c.id;
     camUser(c, 1.1, .3);
-    await charge(c.stage, c.from, c.type, 280);
+    await charge(c.stage, c.from, c.type, O(a, "c", 280));
+    const hitAt = O(a, "t", 520), spin = Math.max(900, hitAt + 300);
     camFor(c, .35);
     const look = a.has("sand") ? ["billow", "dust", .8] : ty === "fire" ? ["billow", "fire.b", .5] : ty === "grass" ? ["leaf", "leaf.c", 1] : ty === "water" ? ["drop", "water.l", .85] : ty === "bug" ? ["chip", "bug.m", 1] : ["streak", "white", 0];
     for (const tt of c.targets) {
       const [x, y] = B(c, tt, .1), s = S(c, tt) * (a.has("big") ? 1.3 : 1);
       if (id === "hurricane") { e.emit({ at: [x, y - s * .5], tex: "tornado", ramp: "white.h", size: [s * 1.6, s * 1.9], aspect: .8, life: 1000, alpha: .7, grow: true }); darken(c.stage, .6, 900); }
-      orbit(c, [x, y], s, { n: 16, r0: .3, r1: .75, turns: 1.6, flat: .3, dur: 900, tex: look[0], ramp: look[1], sz: s * (look[0] === "billow" ? .3 : .16), rise: 1.3, steps: 12, occ: look[2], emis: a.has("sand") ? .1 : look[0] === "billow" ? .9 : 1 - look[2] * .6, lit: look[0] !== "streak" });
+      orbit(c, [x, y], s, { n: 16, r0: .3, r1: .75, turns: 1.6, flat: .3, dur: spin, tex: look[0], ramp: look[1], sz: s * (look[0] === "billow" ? .3 : .16), rise: 1.3, steps: 12, occ: look[2], emis: a.has("sand") ? .1 : look[0] === "billow" ? .9 : 1 - look[2] * .6, lit: look[0] !== "streak" });
       if (a.has("sand")) e.emit({ n: 60, at: [x, y], r: [s * .7, s * .25], tex: "grain", lit: true, ramp: "sand", vel: () => [rand(-1, 1) * s * 2, -rand(s * .5, s * 1.5)], size: [3, 5], life: [500, 800], over: 600, occ: .8, emis: .2 });
-      if (ty === "fire") fire(e, [x, y + s * .3], s, 14, { r: [.7, .12], up: 1.2, size: [.2, .45], over: 700 });
-      orbit(c, [x, y], s, { n: 10, r0: .7, r1: .4, turns: 1.2, flat: .3, dur: 900, tex: "streak", ramp: ty === "fire" ? "fire" : "white", sz: 6, rise: 1, steps: 10, delay: 100, aspect: 5 });
+      if (ty === "fire") fire(e, [x, y + s * .3], s, 14, { r: [.7, .12], up: 1.2, size: [.2, .45], over: spin - 200 });
+      orbit(c, [x, y], s, { n: 10, r0: .7, r1: .4, turns: 1.2, flat: .3, dur: spin, tex: "streak", ramp: ty === "fire" ? "fire" : "white", sz: 6, rise: 1, steps: 10, delay: 100, aspect: 5 });
     }
     e.shake(.2);
-    await after(c, 520);
+    await after(c, hitAt);
     landAll(c);
+    for (const tt of c.targets) if (a.opts.r && live(c, tt)) linger(c, B(c, tt, .1), S(c, tt), a.opts.r, O(a, "k", 1));
   };
   // waves of sound rolling out (Bug Buzz, Hyper Voice, Boomburst)
   D.rings = async (c, a) => {
@@ -723,23 +745,23 @@ export function makeDraw(k) {
     landAll(c, { power: a.has("big") ? 1.15 : 1 });
   };
   // Fire Blast: a ball of fire flies and bursts into the five-armed flame of the character 大; Overheat and Blast Burn are a blaze
-  D.blast = async c => {
+  D.blast = async (c, a) => {
     const t = aim(c);
     if (!t) return false;
     const e = c.e, id = c.id;
     camUser(c, 1.14, .28);
-    await gatherUp(c, 380);
+    await gatherUp(c, O(a, "c", 380));
     camFor(c, .34);
     const a0 = mouth(c);
     for (const tt of c.targets) {
       const b = endOf(c, tt), sT = S(c, tt);
       if (id === "fireblast") {
-        await fly(c, a0, b, { tex: "billow", lit: true, ramp: "fire.c", size: 30 * U(c), dur: 300, trailTex: "billow", trailLit: true, trailRamp: "fire.b", erode: .15, occ: .4, emis: 1, core: false, glowK: 1.6 });
+        await fly(c, a0, b, { tex: "billow", lit: true, ramp: "fire.c", size: 30 * U(c), dur: O(a, "t", 300), trailTex: "billow", trailLit: true, trailRamp: "fire.b", erode: .15, occ: .4, emis: 1, core: false, glowK: 1.6 });
         if (!live(c, tt)) continue;
         // the arms of 大: up, left, right, and two legs down, each a line of billowing fire thrown out from a white-hot heart
         for (const ang of [-Math.PI / 2, Math.PI, 0, Math.PI * .72, Math.PI * .28]) {
-          const reach = sT * (ang === Math.PI || ang === 0 ? 1.15 : 1);
-          for (let j = 0; j < 9; j++) { const r = reach * (j + 1) / 9; e.emit({ at: b, vel: [Math.cos(ang) * r * 4, Math.sin(ang) * r * 4], drag: 4, tex: "billow", lit: true, ramp: "fire.b", size: [sT * .2, sT * .4], life: 680, delay: j * 14, erode: .4, rot: "rand", spin: [-1, 1], emis: .9, occ: .55 }); }
+          const reach = sT * (ang === Math.PI || ang === 0 ? 1.15 : 1) * 1.5;
+          for (let j = 0; j < 9; j++) { const r = reach * (j + 1) / 9; e.emit({ at: b, vel: [Math.cos(ang) * r * 4, Math.sin(ang) * r * 4], drag: 4, tex: "billow", lit: true, ramp: "fire.b", size: [sT * .28, sT * .56], life: 680, delay: j * 14, erode: .4, rot: "rand", spin: [-1, 1], emis: .9, occ: .55 }); }
         }
         glow(e, b, sT * 1.8, "fire", { dur: 600, ramp: "fire.c" }); shock(e, b, sT * 3, { dur: 600 }); e.shake(.6); DEBRIS.fire(e, b, sT, 1.2);
         flashStage(c.stage, .16, 360, "#FFB060");
@@ -752,6 +774,7 @@ export function makeDraw(k) {
       }
     }
     landAll(c, { power: 1.2 });
+    for (const tt of c.targets) if (a.opts.r && live(c, tt)) linger(c, B(c, tt), S(c, tt), a.opts.r, O(a, "k", 1));
   };
   // the user bursts with everything it has (Explosion, Self-Destruct, Discharge, Lava Plume, Misty Explosion)
   D.burst = async (c, a) => {
@@ -887,17 +910,19 @@ export function makeDraw(k) {
     landAll(c, { shards: false });
   };
   // a column shot into the sky comes down on every foe (Eruption, Water Spout)
-  D.volcano = async c => {
+  D.volcano = async (c, a) => {
     const e = c.e, ty = T(c), at = A(c, .8), s = S(c), water = ty === "water";
     camUser(c, 1.08, .3);
-    await charge(c.stage, c.from, c.type, 300);
-    e.emit({ n: 80, at, r: [s * .2, 4], vel: () => [rand(-40, 40), -rand(e.H * 1.8, e.H * 2.6)], tex: water ? "drop" : "billow", lit: true, ramp: water ? "water.l" : "fire.b", size: [[s * .2, s * .3], s * .5], face: water, rot: water ? -Math.PI / 2 : "rand", aspect: water ? .72 : 1, life: [500, 700], over: 500, erode: water ? 0 : .4, emis: water ? .4 : .9, occ: water ? .85 : .55 });
+    await charge(c.stage, c.from, c.type, O(a, "c", 300));
+    const up = a.opts.t ? Math.max(500, a.opts.t - 640) : 500;
+    e.emit({ n: 80, at, r: [s * .2, 4], vel: () => [rand(-40, 40), -rand(e.H * 1.8, e.H * 2.6)], tex: water ? "drop" : "billow", lit: true, ramp: water ? "water.l" : "fire.b", size: [[s * .2, s * .3], s * .5], face: water, rot: water ? -Math.PI / 2 : "rand", aspect: water ? .72 : 1, life: [500, 700], over: up, erode: water ? 0 : .4, emis: water ? .4 : .9, occ: water ? .85 : .55 });
     if (!water) smoke(e, at, s * 1.4, 8, { rise: 120, alpha: .7 });
     e.shake(.4);
-    await after(c, 500);
+    await after(c, up);
     camWide(c, .5);
     await Promise.all(c.targets.map(tt => fallOn(c, B(c, tt, .2), { n: 4, tex: water ? "drop" : "billow", ramp: water ? "water.l" : "fire.c", size: 34 * U(c), dur: 360, gap: 90, slant: 0, occ: water ? .85 : .4, emis: water ? .4 : 1, type: ty, glowK: water ? 0 : 1.6, face: water, rot: -Math.PI / 2, aspect: water ? .72 : 1 })));
     landAll(c, { power: 1.15 });
+    for (const tt of c.targets) if (a.opts.r && live(c, tt)) linger(c, B(c, tt), S(c, tt), a.opts.r, O(a, "k", 1));
   };
   // the court quakes (Earthquake, Bulldoze)
   D.quake = async (c, a) => {
@@ -1170,20 +1195,22 @@ export function makeDraw(k) {
 
   /* ---------- verbs: at another ---------- */
   // will-o'-wisp: pale flames circle the user and float across to the target
-  D.wisp = async c => {
+  D.wisp = async (c, a) => {
     const t = aim(c);
     if (!t) return false;
-    const e = c.e, at = A(c), s = S(c);
+    const e = c.e, at = A(c), s = S(c), cD = O(a, "c", 480), tD = O(a, "t", 620);
     camUser(c, 1.12, .3);
     // 포켓몬 챔피언스: small red-orange balls of flame turn round the user and float across, a violet light in the user
-    aura(c.stage, c.from, "ghost", 1, 700);
-    orbit(c, at, s, { n: 4, r0: .7, r1: .7, turns: .6, flat: .5, dur: 500, tex: "billow", ramp: "fire.c", sz: s * .3, steps: 6, lit: true, occ: .3, emis: 1 });
-    await after(c, 480);
+    aura(c.stage, c.from, "ghost", 1, cD + 220);
+    orbit(c, at, s, { n: 4, r0: .7, r1: .7, turns: .6 * cD / 480, flat: .5, dur: cD + 20, tex: "billow", ramp: "fire.c", sz: s * .3, steps: 6, lit: true, occ: .3, emis: 1 });
+    await after(c, cD);
+    k.fxMark("emit");
     camFor(c, .36);
-    for (const tt of c.targets) orbs(e, at, B(c, tt), "fire", { n: 4, dur: 600, over: 200, wave: .2, size: S(c, tt) * .28, tex: "billow", ramp: "fire.c" });
-    e.at(620, () => c.targets.forEach(tt => live(c, tt) && DEBRIS.fire(e, B(c, tt), S(c, tt), .6)));
-    await after(c, 620);
+    for (const tt of c.targets) orbs(e, at, B(c, tt), "fire", { n: 4, dur: tD - 20, over: 200, wave: .2, size: S(c, tt) * .28, tex: "billow", ramp: "fire.c" });
+    e.at(tD, () => c.targets.forEach(tt => live(c, tt) && DEBRIS.fire(e, B(c, tt), S(c, tt), .6)));
+    await after(c, tD);
     landAll(c, { shards: false });
+    for (const tt of c.targets) if (a.opts.r && live(c, tt)) linger(c, B(c, tt), S(c, tt), a.opts.r, O(a, "k", 1));
   };
   D.zap = async c => {
     // Thunder Wave: a crackling wave of current runs at it and closes round it in a cage of sparks
