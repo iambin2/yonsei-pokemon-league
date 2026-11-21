@@ -21,8 +21,8 @@
     <meta name="google-site-verification" content="PtIcYR3QMpJUDvg78_GOMnCpEHtBegBKk0N40dYvhXU" />
     <!-- 검색용 대표 주소: App.jsx가 화면마다 바꾼다 -->
     <link rel="canonical" href="https://league.pokeyonsei.com/" />
-    <!-- 검색 결과의 설명은 이름 한 줄뿐: 긴 글을 두면 메신저 미리보기에도 그 글이 길게 붙는다 -->
-    <meta name="description" content="Yonsei Pokémon League" />
+    <!-- 검색 결과의 설명은 한 줄뿐: 긴 글을 두면 메신저 미리보기에도 그 글이 길게 붙는다. "포센연"으로 찾는 사람이 이 사이트에 닿도록 동아리 이름을 넣는다 -->
+    <meta name="description" content="포센연(포켓몬센터 연세점)의 배틀 리그" />
     <meta property="og:title" content="Yonsei Pokémon League" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="YPL" />
@@ -35,7 +35,7 @@
     <meta property="og:image:alt" content="네이비 판 한가운데의 YPL 로고" />
     <meta name="twitter:card" content="summary_large_image" />
     <!-- 검색 결과 맨 위의 사이트 이름과 로고: 없으면 Google이 옛 주소의 "GitHub Pages documentation"을 붙인다 -->
-    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"YPL","alternateName":["Yonsei Pokémon League","연세 포켓몬 리그"],"url":"https://league.pokeyonsei.com/"},{"@type":"SportsOrganization","name":"Yonsei Pokémon League","alternateName":"YPL","url":"https://league.pokeyonsei.com/","logo":"https://league.pokeyonsei.com/icon-512.png"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"YPL","alternateName":["Yonsei Pokémon League","연세 포켓몬 리그","포센연 배틀 리그"],"url":"https://league.pokeyonsei.com/"},{"@type":"SportsOrganization","name":"Yonsei Pokémon League","alternateName":"YPL","url":"https://league.pokeyonsei.com/","logo":"https://league.pokeyonsei.com/icon-512.png","parentOrganization":{"@type":"Organization","name":"포센연","alternateName":["Pokémon Center Yonsei","포켓몬센터 연세점"],"url":"https://pokeyonsei.com/"}}]}</script>
     <!-- 서체: 한글은 Freesentation, 라틴과 숫자는 Albert Sans. 첫 화면의 글자가 바로 바뀌도록 본문과 제목의 첫 조각, 라틴 파일을 미리 받는다(scripts/build-font-slices.py). -->
     <link rel="preload" href="/fonts/albert-sans-latin-wght.woff2" as="font" type="font/woff2" crossorigin />
     <!-- font-preloads:start -->
@@ -48,7 +48,7 @@
     <!-- 첫 그림부터 고른 테마로: 번들이 도는 뒤에 바꾸면 다크를 고른 사람에게 흰 화면이 잠깐 보인다 -->
     <script>var t;try{t=localStorage.getItem("ypl-theme");if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}catch(e){}if(t==="light"){document.documentElement.dataset.theme="light";document.documentElement.style.colorScheme="light";document.documentElement.style.background="#fff"}</script>
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
-    <title>Yonsei Pokémon League</title>
+    <title>Yonsei Pokémon League | 포센연 배틀 리그</title>
   </head>
   <body>
     <div id="root"></div>

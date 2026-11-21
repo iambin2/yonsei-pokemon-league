@@ -3,7 +3,7 @@ import { useEffect } from "react";
 /* The tab's title names where one is (2026-11-16: every notice, post and trainer read "공지 | YPL", so the back list and a shared
    link's preview could not tell them apart): the thing open, then the page. App names the page; a page names what it has open. */
 let page = "", item = "";
-const apply = () => { const parts = [item, page].filter(Boolean); document.title = parts.length ? `${parts.join(" | ")} | YPL` : "Yonsei Pokémon League"; };
+const apply = () => { const parts = [item, page].filter(Boolean); document.title = parts.length ? `${parts.join(" | ")} | YPL` : "Yonsei Pokémon League | 포센연 배틀 리그"; };
 export function setPageTitle(label) { page = label || ""; apply(); }
 export function useItemTitle(name) {
   useEffect(() => {
