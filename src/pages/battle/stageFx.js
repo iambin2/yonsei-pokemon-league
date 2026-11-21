@@ -347,7 +347,7 @@ function done(anim) {
 /* the white of a blow, at the point it lands and nowhere else (2026-11-21, measured in 포켓몬 챔피언스 frame by frame: 100 to 200ms,
    about .4 of the target's height squared for a plain blow; docs/move-fx-work/match.tsv). It is light in the air over the point:
    the body's own values are never part of it, so a struck Pokémon does not turn white. k scales it, 0 leaves it out. */
-export function impactFlash(stage, at, s, k = 1, life = 300) {
+export function impactFlash(stage, at, s, k = 1, life = 170) {
   const e = E(stage);
   if (!e || instant() || !(k > 0)) return;
   const alpha = e.light ? .6 : 1;
@@ -1250,6 +1250,6 @@ function dodge(stage, key) {
 const kit = {
   E, centre, sizeOf, unitOf, actorOf, ownKey, rand, lerp, clamp, times, around, typeId, colorOf,
   glow, ring, shock, sparks, smoke, dust, fire, splash, glints, stamp, beamStrip, boltStrip, slashStrip, pathStrip, orbs, DEBRIS, MARK, bladeOf,
-  burst, hit, charge, aura, lunge, quake, dodge, flashMon, flashStage, darken, heal, boost, ailment, sway, morph, leave, shake: shakeOf, wait, reduced,
+  fxMark, burst, hit, charge, aura, lunge, quake, dodge, flashMon, flashStage, darken, heal, boost, ailment, sway, morph, leave, shake: shakeOf, wait, reduced,
 };
 const DRAW = makeDraw(kit);
