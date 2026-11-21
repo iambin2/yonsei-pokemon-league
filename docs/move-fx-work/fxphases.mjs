@@ -4,7 +4,7 @@
 // 연출이 실제로 내는 색의 범위(타입 토큰의 색이 아니라 화면에 보이는 빛: 불꽃은 빨강에서 노랑까지).
 // hue는 도, 범위가 0을 넘으면 [330, 20]처럼 쓴다. nearWhite 타입은 옅은 빛도 타입의 빛으로 센다.
 const WIN = {
-  normal: [[20, 70], .1, .75, true], fire: [[0, 58], .55, .7], water: [[185, 235], .4, .55], electric: [[38, 66], .5, .8],
+  normal: [[20, 70], .1, .75, true], fire: [[0, 58], .55, .7], water: [[180, 240], .06, .6, true], electric: [[38, 66], .5, .8],
   grass: [[75, 150], .4, .5], ice: [[170, 215], .04, .75, true], fighting: [[10, 45], .5, .7], poison: [[265, 305], .35, .45],
   ground: [[18, 45], .35, .4], flying: [[190, 230], .04, .75, true], psychic: [[300, 350], .35, .6], bug: [[55, 95], .45, .5],
   rock: [[30, 60], .08, .6, true], ghost: [[255, 310], .3, .3], dragon: [[225, 265], .4, .5], dark: [[250, 20], .15, .12],
@@ -40,9 +40,14 @@ export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor 
   const thW = Math.max(3 * sd("white"), floor), thT = Math.max(3 * sd("type"), floor);
   const w = rows.map(r => r.white - base.white), t = rows.map(r => r.type - base.type);
   const ms = i => (i * 1000) / fps, area = x => x / (ink * ink);
-  const on = rows.map((_, i) => w[i] > thW || t[i] > thT);
+  // any(첫 프레임과 달라진 화소)가 있으면 그것으로도 켜짐을 본다: 타입 색 범위에 안 드는 옅은 물질도 남아 있는 동안은 센다
+  // 서 있는 포켓몬도 숨을 쉬듯 움직여 화면의 1.7%까지 달라진다(2026-11-21에 잰 값): 그보다 큰 변화만 물질로 센다
+  const hasAny = rows[0]?.any !== undefined;
+  const on = rows.map((r, i) => w[i] > thW || t[i] > thT || (hasAny && r.any > .022));
   const first = on.indexOf(true), last = on.lastIndexOf(true);
   if (marks) {
+    if (!hit) marks = { play: marks.play }; // 대상을 치지 않는 기술은 착지가 불려도 맞는 순간이 없다: 시작부터 끝까지가 한 단계다
+    const onC = rows.map((_, i) => w[i] > thW || t[i] > thT); // 맞기 전의 물질은 색으로만 본다: 달려드는 몸도 화소를 바꾸지만 물질이 아니다
     const z = marks.hit ?? marks.play ?? ms(Math.max(first, 0)), zi = Math.round(z * fps / 1000), rel = t => Math.round(t - z);
     const lo = Math.max(0, zi - 2), hi = Math.min(rows.length - 1, zi + 12);
     let pk = -1, pa = lo;
@@ -52,7 +57,7 @@ export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor 
     if (pk > thW && area(pk) >= .07) { const [a0, b] = run(w, pa, x => x > Math.max(thW, pk / 2)), a = Math.max(a0, lo); flash = { start: rel(ms(a)), end: rel(ms(b + 1)), peak: area(pk) }; }
     const end = rel(ms(Math.max(last + 1, zi))), phases = [];
     // 모으기(charge)를 거치지 않은 기술(몸으로 치는 기술)은 물질이 화면에 처음 보인 때가 떠나는 순간이다: 달려드는 몸은 물질이 아니다
-    let a = zi; while (a > 0 && ms(a - 1) >= (marks.play ?? 0) && on[a - 1]) a--;
+    let a = zi; while (a > 0 && ms(a - 1) >= (marks.play ?? 0) && onC[a - 1]) a--;
     const emit = marks.emit != null && marks.emit < z ? marks.emit : Math.min(ms(a), z);
     if (marks.hit != null) {
       if (marks.emit != null && emit - marks.play > 50) phases.push({ name: "charge", start: rel(marks.play), end: rel(emit) });
@@ -90,8 +95,12 @@ export function compareRow(ref, ours) {
   for (const p of ref.phases) {
     if (p.name === "residue" || p.name === "show") continue; // 끝은 아래의 ±120으로 본다
     const q = ours.phases.find(x => x.name === p.name);
-    if (!q || Math.abs(q.start - p.start) > 80 || Math.abs(q.end - q.start - (p.end - p.start)) > 80) fails.push(p.name);
+    // 길이만 본다: 시작은 뒤 단계의 길이에 따라 밀리고, 그 어긋남은 그 단계에서 이미 센다
+    if (!q || Math.abs(q.end - q.start - (p.end - p.start)) > 80) fails.push(p.name);
   }
+  // 기술이 시작해 맞기까지(모으기 + 날아가기)는 ±120ms: 단계의 나눔이 달라도 맞는 순간은 원작과 같은 때에 온다
+  const lead = o => -Math.min(0, ...o.phases.map(q => q.start));
+  if (Math.abs(lead(ours) - lead(ref)) > 120) fails.push("lead");
   if (ref.flash && !ours.flash) fails.push("flash");
   else if (!ref.flash && ours.flash) fails.push("flash-extra");
   else if (ref.flash) {

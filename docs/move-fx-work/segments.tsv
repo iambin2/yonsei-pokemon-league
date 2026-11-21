@@ -13,3 +13,212 @@ hit body jump wrap	heatcrash	fire	135.7	136.5	137.4	137.5	138.2	0.4
 vortex big	inferno	fire	149.2	149.8	150.6	150.8	151.8	0.5		
 shoot fireball	pyroball	fire								영상에 없음
 wisp	willowisp	fire	220.7	222.2	223.7		224.4	0.45		원작의 도깨비불은 보라색
+hit body fast wrap	aquajet	water	5.5	5.7	6.2	6.2	6.6	0.5		water wraps user, white-blue jet streaks across, burst, spray falls
+aura	aquaring	water		8.1	8.1		9.6	0.8	1	bubbles rise, blue water ring sphere swells round user and thins
+hit kick dance	aquastep	water	0.4	2.3	2.3	3.4	3.6	0.5		blue kick crescents and dash trails; about 6 white bursts 2.3 to 3.4
+hit tail wrap	aquatail	water	12.5	13.2	13.3	13.4	13.9	0.5		water swirls under tail; blue arc, white-cyan burst, drops and ripples
+hit pincer	crabhammer	water	30.2	31.6	31.6	31.7	32.2	0.5		claws glow cyan; white-blue water burst at blow, grey mist after
+stream big	hydropump	water	65.9	67.0	67.7	68.7	69.6	0.5		bubbles gather, twin jets; stream holds 0.8 s, second white burst 68.5, ground ring
+hit fist fast wrap	jetpunch	water	74.5	75.1	75.4	75.6	76.0	0.4		fist glows blue, water jet dash, orange glow at blow, white burst 75.5
+wave	surf	water	116.2	117.8	118.9	118.9	120.2	0.3		water floods floor, crest rises and rolls, foam, wash drains 1.3 s
+shoot water fast	snipeshot	water								not in video
+shoot star 3 fast	watershuriken	water	131.7	131.9	132.1	132.1	132.5	0.5		blue-white star forms at hand, small burst, spray; 2 throws, second hits 133.6
+orb	energyball	grass	36.3	37.1	37.5	37.6	38.2	0.45		green glow gathers, white launch flash, green orb, white-green burst, sparkles
+shoot seed 5	bulletseed	grass		14.9	15.1	15.4	19.4	0.2		3 hits 15.1/17.1/18.9; yellow streaks, green-white burst, each gone in 0.6 s
+powder	cottonspore	grass	30.4	31.3	31.4		32.3	0.3		white cotton puffs, green haze round user then on target; no flash
+spikes root	drumbeating	grass		56.9	58.6	59.9	60.8	0.3		ref: Frenzy Plant; roots erupt, reach target 57.8; 5 yellow-white bursts; leaves fall
+beam wide gather	solarbeam	grass	198.0	200.2	200.6	201.3	202.0	0.45		charge turn 194.9-195.9; green orb overhead, yellow-green beam, smoke; HP drops 201.4
+shoot bouquet	flowertrick	grass	41.1	41.8	42.5	42.5	44.3	0.45		green sight ring at hand; bouquet drops from above; yellow flash, green smoke, confetti
+drain	gigadrain	grass		65.2	65.2		67.5	0.25		green orbs leave target, reach user 66.2; pale burst and dome on user
+trap	grassknot	grass		90.5	91.5	91.9	92.2	0.4		grass sprouts and knots by target 90.5-91.4; white star, green ring, leaf bits
+hit body glide	grassyglide	grass		84.4	84.7	84.8	85.3	0.45		user slides in green leafy cocoon; white-green burst, leaves scatter
+rain apple 1	gravapple	grass		98.5	100.1	100.1	100.7	0.6		tree cutscene from 96.5; one red apple falls; pale burst, apple chunks and juice
+hit horn drain	hornleech	grass	108.0	108.3	108.4	108.5	110.9	0.4		gold antlers form, strike; green burst; orbs to user 108.7-109.3, heal glow to 110.3
+seed	leechseed	grass		137.6	137.8		138.5	0.45		yellow seeds land round target, green glow; sprouts stay planted after; no flash
+wind petal	petalblizzard	grass		161.3	161.8	162.2	162.8	0.3		pink-white wind rings spread from user, petals; white burst then slashes on target
+rain seed 4	seedbomb	grass		182.7	183.1	183.7	184.1	0.45		4 brown seeds thrown, hits 183.1/183.3/183.5/183.7; green-white bursts, husk bits
+hit slash gather	solarblade	grass	209.7	213.4	213.6	213.7	214.6	0.3		charge turn 206.3-207.5; light orb to pillar blade 211.1; white burst, brown dust, rocks
+hit body leaves	trailblaze	grass		268.0	269.2	269.3	269.7	0.5		dust and leaf trail at feet while running; green-white burst, leaves
+hit body spin wrap	aurawheel	electric	9.3	10.1	11.4	11.5	12.0	0.4		pink-blue ringed wheel with purple sparks forms on user 0.8 s, rolls, pink-white burst
+charge	charge	electric		18.9	18.9		22.1	0.4	1	yellow glow and bolts build on user, brightest 20.4 to 21.0, then fade
+burst	discharge	electric	34.7	35.2	35.4		36.3	0.3		yellow glow, white-yellow burst at user 35.2, yellow bolt field washes over target; no flash on target
+hit body wrap zap	doubleshock	electric								not in video
+zap	thunderwave	electric	157.5	158.3	159.0		160.5	0.4		yellow rings spiral from user, form a ring cage on target, collapses 159.7, yellow dust
+terrain	electricterrain	electric		46.0	46.0		49.8	0.4	1	user glow, yellow dome, ground sparks to 47.4; field flash 48.7 (white), yellow wash to 49.7
+web	electroweb	electric	88.9	89.0	89.9	90.0	90.4	0.5		pale green-white threads fly, web wraps target from 89.2, snaps with pale burst at 89.9
+hit body zap	nuzzle	electric		106.9	107.6	107.6	108.3	0.3		no contact: yellow ring swells on target 0.7 s, yellow-white star burst, bolts scatter
+burst drain	paraboliccharge	electric	116.5	116.9	117.2		119.0	0.3		teal ring, yellow dome spreads, sparks on target; teal orb returns 117.6 to 118.1, green bubble on user
+hit body above wrap	supercellslam	electric	132.8	133.2	134.2	134.4	135.4	0.3		yellow aura, user shoots up as light, yellow column falls 134.1, white-yellow burst, ground sparks
+sky	thunder	electric	139.1	139.5	141.8	141.8	143.5	0.3		bolt up from user, cloud glows 140.0 to 141.0, bolt falls 141.1, white burst, bolts strike 1.5 s
+bolt	thunderbolt	electric	165.3	165.8	166.4	166.8	167.5	0.3		yellow glow and bolts on user, bolt arcs in from above, second white burst at 166.8
+bolt back	voltswitch	electric	171.9	172.2	172.4	172.6	173.3	0.4		yellow ring ball with blue sparks flies, full-screen white flash, rings spin off; user recalled at 178
+orb big	zapcannon	electric	197.6	198.8	199.4	199.6	200.7	0.5		blue-white orb with yellow bolts held 198.0 to 198.7, flies, blue-white starburst, sparks linger
+screen	auroraveil	ice		9.6	9.6		12.6	0.4	1	green-cyan-violet aurora curtains rise around user, sparkles, fade from 11.9
+rain ice 4	avalanche	ice	16.5	17.5	17.9	18.2	19.2	0.6		ice plate on user's back; snow mass drops, white splash, mist lingers
+beam	icebeam	ice	48.4	49.0	50.1	51.1	51.6	0.5		pale blue ball then beam; holds 0.8 s; white burst 50.9-51.1; floor frost
+weather	chillyreception	ice		163.9	163.9		164.9	0.5	1	pastel mint-pink puffs round user; snow weather whiteout later at 168.6-168.9
+frost	freezedry	ice		30.1	30.9	31.3	33.0	0.4		white frost breath; ice block 31.4-32.2; white shatter 32.3-32.5, shards
+clear	haze	ice		43.1	43.1		45.2	0.5	1	black smoke from user fills screen; full black 44.4-45.0; no white
+shoot shard 3 fast	iceshard	ice	76.2	76.7	76.8	77.0	77.5	0.8		one ice chunk forms at tusks, flies; blue-white burst, snowflakes
+rain icicle 3	iciclecrash	ice	101.2	101.3	103.6	105.0	105.6	0.5		snowflake stream to ceiling cloud 102.0; icicles fall 103.6-104.8; white ring burst 104.9
+shoot icicle 4	iciclespear	ice	108.5	108.7	108.8	109.0	109.7	0.4		frost ring at mouth, blue-white burst; 3 hits 108.8 110.7 112.1; all gone 112.8
+shoot ice 2 big	mountaingale	ice	131.0	132.2	133.3	134.1	135.2	0.4		ice boulders form, arc up, fall; ice mound 133.5-133.9; white shatter 134.0; chunks
+frost big	sheercold	ice	138.0	138.8	139.5	140.9	141.7	0.5		ice sheet spreads on floor; crystal encases 139.6-140.8, screen dark blue; white shatter 140.9
+hit kick spin multi:3	tripleaxel	ice		152.0	152.0	152.1	152.3	0.5		blue-white star burst per kick; 2 hits shown 152.0 153.5; all gone 153.8
+hit kick jump	axekick	fighting		15.5	16.1	16.1	16.7	0.5		giant orange foot rises over target, slams down; yellow-white burst, dust ring
+hit body jump	bodypress	fighting		21.9	21.9	22.0	22.7	0.5		user drops from above; yellow-white burst, brown dust cloud lingers
+hit chop	brickbreak	fighting		27.0	27.1	27.2	28.0	0.7		orange streak from above, white-yellow burst; glowing orange hand lingers after 27.4
+flex	bulkup	fighting		32.3	32.3		33.2	0.5	1	body flashes white-orange, ground ring; stat-rise anim later (34.8) not counted
+hit throw	circlethrow	fighting		37.7	38.4	38.5	38.9	0.7		target glows orange, arcs overhead with trail, slammed; orange burst, sparks
+hit fist multi:5	closecombat	fighting		49.6	49.6	50.9	51.2	0.7		about 7 orange ring bursts every 0.2 s; big white final burst 50.8-50.9
+hit cross	crosschop	fighting		63.6	63.8	63.9	64.3	0.6		two orange hand blades cross; white flash, orange X lingers 0.4 s
+hit fist drain	drainpunch	fighting		87.8	87.8	87.9	90.0	0.7		white fist, yellow-white burst; green orbs to user 88.3-89.5, user glows green
+hit fist gather	dynamicpunch	fighting		93.8	93.8	93.9	95.4	0.4		white fist burst, then orange explosions with many fists and stars to 95.2
+orb big gather	focusblast	fighting	111.8	113.5	114.7	114.9	115.5	0.7		gold rays gather, pale blue orb overhead, flies; white then blue burst, smoke
+hit hammer	hammerarm	fighting		138.8	139.2		139.7	0.3		giant orange arm raised then slammed; orange sparks, debris; no white flash
+hit knee jump	highjumpkick	fighting		146.7	146.8	146.9	147.4	0.4		white streak dives on dark screen; ring, white-yellow burst, orange glow fades
+hit kick low	lowkick	fighting		151.0	151.2	151.3	151.6	0.7		orange-blue arc sweep at feet, footprint; white-yellow burst, sparks
+hit fist fast	machpunch	fighting		162.9	163.1	163.2	163.4	0.8		white fist with speed lines flies, turns orange; white burst, debris
+guard	quickguard	fighting		189.0	189.0		190.1	0.5	1	two white fists glow teal, open to green hands, green hexagon wall spreads
+hit kick then shoot arrow 3	triplearrows	fighting		230.6	230.8	230.9	232.2	0.4		kick arc, yellow burst; 3 orange arrows nock 231.1, fly 231.7, land 231.8-232.0
+hit palm fast	upperhand	fighting		241.3	241.9	241.9	242.2	0.4		big orange palm appears by user, shoots forward; pale yellow ring burst, smoke
+pulse fast	vacuumwave	fighting	251.0	251.1	251.2	251.2	251.7	0.6		white air rings from fist, fast; yellow-white burst, grey smoke puff
+harden	acidarmor	poison		15.6	15.6		17.0	0.6	1	body darkens, melts flat into floor, gone 16.2-16.7, pops back 16.8; no particles
+splash	acidspray	poison		8.4	8.9	9.0	10.0	0.6		magenta acid glob spat, white-pink burst, pink drips run down 1 s
+shoot needle 6	barbbarrage	poison								not in video
+shoot mud	clearsmog	poison	39.6	40.0	40.4	40.5	40.9	0.2		faint ring at mouth, white smoke puff, small white star burst; wide shot only
+cloud	corrosivegas	poison	53.1	53.5	53.6		55.4	0.3		olive-yellow gas from user fills screen to 54.2, puffs cling to targets till 55.3
+shoot garbage big	gunkshot	poison	79.6	80.2	81.7	81.8	83.7	0.6		purple sludge ball lobbed, yellow-white burst, purple fog and floor pool
+shoot shell	shellsidearm	poison		122.3	123.0	123.1	124.6	0.7		purple sludge shot from shell, white burst, dark blobs, sludge drips and pool
+hit bone multi:3	bonerush	ground		30.6	30.9	31.0	31.3	0.6		white bone appears, white swing arc, yellow-white burst; three hits 30.9 33.1 34.7
+quake stomp	bulldoze	ground		22.3	22.4		24.5	0.4		yellow ring under user and target, brown rocks and dust; three stomps 22.4 23.1 23.8; floor turns sand 21.9-25.0
+hit body burrow	dig	ground		16.0	16.7	16.8	18.3	0.6		strike turn only; brown dirt churns under target, yellow-white burst, dust settles
+hit drill spin	drillrun	ground	41.0	41.3	41.9	42.0	42.2	0.5		blue jet trail behind spinning user; drill grinds with sparks from 41.4; yellow-white burst
+erupt	earthpower	ground		50.2	50.8		52.4	0.5		ground under target glows orange, cracks, yellow-orange eruption, brown dust 1.5 s; no white
+quake	earthquake	ground		57.1	58.1	58.2	59.1	0.4		floor turns cracked earth 57.1-59.4, pebbles hop; yellow-white bursts 58.1 58.4 58.7
+crack	fissure	ground		64.5	65.9		67.2	0.5		earth floor from 63.5; crack opens under target, brown dust, target falls in; no flash
+hit body stomp	highhorsepower	ground		76.6	76.7	76.8	77.6	0.6		glowing orange horseshoe mark over target, white-yellow radial burst; mark fades to 77.5
+shoot mud 2 fast	mudslap	ground		89.0	89.5		90.1	0.6		brown mud clump flung from hand, covers target, small yellow spark; no white
+vortex sand	sandtomb	ground								cast not in video (only the end-of-turn damage)
+hit wing fast	acrobatics	flying		9.4	9.4	10.3	10.5	0.6		about 8 blows 9.4 to 10.3: yellow-white star sparks, thin white slash lines
+hit slash fast	aerialace	flying		14.4	14.6	14.8	15.1	0.55		white streak dives from above, white-yellow burst, yellow sparks scatter
+cut	airslash	flying	23.2	23.4	23.6	24.1	24.3	0.5		pale cyan-white wind blade from wing, crossing slash arcs on target 0.6 s
+hit beak gather	beakblast	flying	33.3	34.4	35.2	35.4	36.7	0.6		orange fire at beak, fireball flies, white burst, fire cloud, smoke 1 s; heat-up turn 28.5 to 29.9
+hit body above	bounce	flying		52.4	53.0	53.1	53.5	0.5		blue-white comet dives from sky, white-yellow burst, grey dust; leap turn 41.0 to 42.4
+hit body wrap	bravebird	flying	57.7	58.0	60.1	60.3	60.9	0.4		golden fire aura, white-gold burst on user, gold streak flies, gold burst and sparks
+gust	tailwind	flying		139.1	139.1		140.7	0.35	1	white-grey wind streaks blow diagonally across the user from behind
+hit drill	drillpeck	flying		74.4	74.5	75.1	75.4	0.45		white spiral swirl round beak, cyan-white drilling 0.6 s, final white-cyan burst 75.1
+hit wing multi:2	dualwingbeat	flying		78.2	78.2	78.2	78.5	0.2		white-blue star burst then pale blue swirl; second hit 80.7, gone 81.1
+feathers	featherdance	flying	86.5	87.0	87.5		88.6	0.2		white feathers and blue swirl round user, feathers shower on target 1 s; no flash
+vortex	hurricane	flying		109.1	110.3	111.4	112.1	0.35		grey-white wind bands, vortex lifts target from 109.8; blue-white bursts 110.3 to 111.4; dust
+hit beak	pluck	flying		116.1	116.1	116.3	116.7	0.55		white-blue burst, yellow-white star, cyan burst 116.3, white streak lines
+roost	roost	flying		119.6	119.6		121.5	0.4	1	white feathers swirl round user, green glow and rings 120.4 to 120.9, sparkles
+hit body wrap gather	skyattack	flying		131.4	131.9	132.0	132.8	0.35		blue-white glow, white light wings; sky cutscene 126.8 to 131.0; white burst, feathers fall
+speed	agility	psychic		22.4	22.4		23.9	0.55	1	violet-blue wash with horizontal speed lines; user blurs side to side 22.5-23.5
+swap	allyswitch	psychic		29.5	29.5		31.4	0.4	1	purple wash, horizontal streaks; user fades to silhouette 30.5-31.2 and vanishes
+sigil	calmmind	psychic		44.0	44.0		48.9	0.5	1	screen black 44.1, blue drop ripple 44.8-46.0, rainbow rings on user 47.1-48.4, sparkles
+mind	psychic	psychic	214.2	215.1	215.3	215.8	216.7	0.55		pink wash, purple orb on user; rings squeeze target, white-pink burst 215.6; burst gone 216.2
+mind big	expandingforce	psychic	68.1	69.2	70.4	70.6	71.5	0.3		pink bubble on user, floor rings under both foes, white bursts, magenta pillars 70.7-71.2
+room	trickroom	psychic		308.4	308.4		311.6	0.5	1	stage dims, floor tiles light 308.8, white peak 309.9, blue-violet tile walls 310.0-311.4
+wish	healingwish	psychic		114.2	114.2		116.1	0.8	1	stage dims, green light 114.5, mint sphere 114.9-115.4, sparkles; replacement healed 128.1-129.3
+hypnosis	hypnosis	psychic	137.3	137.9	138.1		139.4	0.6		blue glow on head; blue-violet swirl sphere on target to 138.9, pink wash to 139.3
+rest	rest	psychic		264.6	264.6		266.5	0.6	1	soap bubbles and blue Zs by head; green-white heal burst later 272.5-273.2
+beam twin	twinbeam	psychic	315.2	316.4	316.5	316.6	317.0	0.3		pink ring then orb at head, thin violet beam, white-blue burst; 2nd: 318.5/319.2/319.3/319.8
+hit head gather	zenheadbutt	psychic	331.7	332.5	332.8	332.9	333.9	0.55		rainbow aura shrinks to white head glow 332.4, pink streak dash, white burst, purple sparks
+hit sting	fellstinger	bug	21.1	21.2	21.7	21.9	22.8	0.4		green needle flies from a yellow-green burst, green dome with white core, yellow sparks linger
+hit body back	uturn	bug	153.4	153.8	154.5		154.8	0.6		user turns into yellow-green ball, arcs to target, yellow-green starburst; no white flash
+hit fang drain	leechlife	bug		47.7	48.2	48.2	49.7	0.6		white fangs close, white burst, green ring; green motes to user 48.6 to 49.6
+hit horn wrap	megahorn	bug	61.4	62.5	63.0	63.6	63.9	0.4		horn glows green, yellow-orange streak, yellow-green burst 0.7 s, pale core not pure white
+shoot needle 5	pinmissile	bug	70.8	70.9	71.1		71.5	0.4		5 volleys of green needles 1.2 s apart, yellow-green sparks; last ends 76.8
+shards	ancientpower	rock	13.0	14.3	14.8	15.0	15.4	0.3		purple-ringed brown rocks orbit user then fly; cream burst; charge on at clip start
+hit head wrap	headsmash	rock	19.8	20.7	21.6	21.7	22.8	0.6		gold spark aura, user flies as gold comet; white-yellow burst, brown dust, rock chips
+shoot rock 4	rockblast	rock		50.9	51.1	51.1	51.4	0.3		2nd hit timed, 1st cut off; 3rd 52.4; grey rock, white burst, puff
+rain boulder 4	rockslide	rock		62.1	62.3	63.2	63.7	0.5		boulders fall 1 s; yellow-white star bursts every 0.1 s to 63.2; dust
+rain boulder 3 ring	rocktomb	rock		68.0	68.6		69.2	0.5		boulders appear over target, hang 0.5 s, drop; yellow burst 68.7; dust
+shoot boulder big	rockwrecker	rock	73.0	75.3	76.0	76.1	77.1	0.5		pebbles gather into huge boulder (gold flash 74.4); white-gold burst, big tan dust cloud
+shoot salt	saltcure	rock		80.9	82.2	82.3	83.0	0.45		white salt gathers on target, crystal shell 81.5 to 82.1, bursts white; cubes fall
+shoot rock	smackdown	rock		161.5	162.4	162.5	163.9	0.3		grey rock, dust trail, yellow-white burst; target drops to floor 163.1, dust to 163.8
+hazard	stealthrock	rock		101.0	101.0		103.8	0.2	1	gold glow by user to 101.3; pale stones scatter to foe floor 101.9-103.7
+hit axe	stoneaxe	rock		112.1	112.1	112.4	114.0	0.6		yellow slash burst; brown stone spikes stand 112.3 to 113.3, sink; dust to 113.9
+spikes stone	stoneedge	rock		119.4	119.9	120.1	121.1	0.4		floor ring cracks, slab glows, tan spikes erupt 119.8; white-gold burst; rocks sink
+pulse	bittermalice	ghost	8.8	9.7	10.1	10.1	10.8	0.45		violet spike burst on user from 9.0, dark ground spikes travel, pale burst
+confuse	confuseray	ghost	16.9	17.2	18.1		18.7	0.3		pale ring on user, rainbow orbs drift over, rainbow rings circle target; no flash
+curse	curse	ghost		24.9	24.9		27.3	0.45	1	magenta ground glow under user; nail bursts white 26.0, 26.3, 26.7; all on user
+link	destinybond	ghost		38.1	38.1		41.0	0.5	1	violet glow on user, pale burst 39.4, purple flames rise from feet to 40.9
+hex	hex	ghost	58.9	59.6	61.0	61.0	61.6	0.6		magenta flame orbs by target, target darkens, HP drains from 60.3, pink-white burst
+shoot fireball 5	infernalparade	ghost	65.9	67.3	67.7	67.9	68.5	0.4		magenta ghost flames, flash on user 66.5, fireballs stream in to 67.9, one burst
+possess	poltergeist	ghost	91.7	93.8	95.4	95.4	96.2	0.4		dark aura on user, white orb circles target, violet burst, magenta tint
+hit fist rage	ragefist	ghost								not in video
+hit fist shadow	shadowpunch	ghost		116.9	117.0	117.0	117.8	0.45		screen darkens 116.5, blue fist in white-blue burst, blue ball fades to violet
+hit body shadow fast	shadowsneak	ghost		110.6	112.0	112.3	112.4	0.45		floor shadow runs over, red-eyed shadow rises 111.6, small white sparks to 112.3
+shoot arrow pin	spiritshackle	ghost	122.0	122.8	124.6	124.7	125.6	0.35		violet orb, arrows pin shadow 123.8, pale violet burst 124.6, purple smoke
+hit tail spin	breakingswipe	dragon		25.0	25.0	25.1	25.4	0.6		white star burst, pink horizontal streak across frame, pink sparks fade
+rain comet 4	dracometeor	dragon	33.6	33.7	36.9	37.6	38.7	0.5		purple orb bursts skyward, sky cutscene, blue-white meteors 36.9 37.1 37.3, big burst 37.5
+dance	dragondance	dragon		54.0	54.0		55.9	0.5	1	purple aura rays and rings, pink-cyan sphere bursts 54.9-55.1, sparkles fall
+shoot dart 2	dragondarts	dragon		60.4	61.2	61.2	61.6	0.5		white muzzle flash, white-lilac streak dart, purple ring burst; second hit 63.4 to 64.1
+hit tail	dragontail	dragon		87.7	87.8	87.8	88.4	0.6		purple tail arc, white-pink burst, gold-pink sparks, dust
+hit body rage wrap	outrage	dragon	101.1	102.1	102.8		104.2	0.7		purple aura and lightning, pink burst lunge, yellow-purple blows 102.8 103.1 103.5 104.0
+shoot scale 4	scaleshot	dragon		116.2	116.4		116.9	0.6		grey scale shards streak, lilac star sparks; hits 116.4 118.4 119.8 121.3; no white flash
+hit body	assurance	dark		9.7	9.8		10.5	0.5		grey hands slap twice (9.8, 10.1), dark pink spike burst, no white
+hit body multi:3	beatup	dark		16.4	16.4		17.3	0.2		white dust cloud with stars over target; hits 16.4, 19.8, 21.4
+hit fang	bite	dark		27.5	27.8	27.9	28.2	0.45		pale fangs appear open then snap, white-gold burst
+hit slash	ceaselessedge	dark	36.6	36.8	37.1	37.2	38.8	0.4		pink-white slashes 37.1 37.5 37.7 37.9 38.3; biggest 38.4 with HP drop
+hit arms spin	darkestlariat	dark	70.6	71.9	72.2		73.0	0.5		fire on spinning arms, dark red backdrop, yellow-orange burst, embers
+tears	faketears	dark		75.8	75.8		76.7	0.6	1	blue tear drops spray from user eyes; target stat drop 78.0 separate
+shoot item	fling	dark		88.8	89.3	89.3	89.9	0.55		white glowing ball arcs, white then red-gold burst, grey smoke
+hit body shadow	foulplay	dark	94.4	95.0	95.6	95.6	96.1	0.7		magenta burst on user, spiral streak flies, pink-white burst, pink rings
+hit palm item	knockoff	dark		103.4	103.9	104.0	104.1	0.35		white hand appears above then swats down, white-pink burst
+hit slash bow	kowtowcleave	dark	107.8	109.5	109.7	109.7	110.2	0.6		red aura on user till 109.0, pink arc falls, pink-white burst
+hit body rage	lashout	dark	113.3	114.2	115.2		116.6	0.5		purple aura, red streaks; magenta bursts 115.2-116.1, biggest 116.3 with HP
+pulse big	nightdaze	dark	136.4	137.2	137.3	137.3	137.8	0.4		purple orbs and haze at user, purple ground wave, white-blue burst
+hit body gather	payback	dark	155.9	157.0	157.8		158.4	0.5		red sparks gather, user flashes white 156.6, red streaks, yellow bursts to 158.2
+hit body flex	powertrip	dark	160.5	161.8	161.8	162.1	162.5	0.7		pink aura on user till 161.3; purple-pink bursts 161.8 161.9 162.1
+hit fist shadow fast	suckerpunch	dark		178.7	178.7	178.8	179.0	0.35		speed lines from 178.1; dark blue star, full-screen white flash, pink shards
+anger	taunt	dark		198.2	199.9		201.2	0.7		white beckoning hand till 199.1; target reddens 199.4, red anger mark
+hit fist fast multi:2	bulletpunch	steel		11.3	11.3	11.4	12.7	0.5		flurry of white fists with sparks, about 8 hits 11.3 to 12.0, big fist 12.2, white to 12.4
+beam gather	flashcannon	steel	19.1	19.7	20.4	20.7	21.0	0.6		white lines gather, pale blue-white ball then beam, white-out burst 20.5
+hit hammer jump	gigatonhammer	steel	24.0	25.5	25.5	25.7	26.4	0.6		white glint on user, swing streaks 24.5, ground burst, dust and metal shards; target hidden at blow
+hit body spin	gyroball	steel	32.3	33.0	33.3	33.4	33.6	0.3		user becomes silver spinning ball, speed lines, grey-white burst and ring
+hit palm press	hardpress	steel	39.1	39.3	39.8	40.0	40.6	0.3		two grey steel hands appear beside target and clap, yellow-white burst, grey smoke
+hit head	ironhead	steel	58.3	59.4	59.4	59.6	59.9	0.35		glints, body turns steel white 58.5, white starburst, grey shards
+rain coin 7	makeitrain	steel								not in video
+shoot orb 3	metalburst	steel	108.3	108.9	110.2	110.6	110.9	0.55		metal shards gather, violet-white orbs fire rays up; rays land 110.2 to 110.4, white burst 110.5
+hit fist wrap fast	meteormash	steel	85.1	85.8	87.0	87.1	87.7	0.5		white-violet glow on fist, yellow star flies with star trail, cyan fist burst 87.1 to 87.2
+gears	shiftgear	steel								not in video
+hit horn	smartstrike	steel	113.4	114.8	115.0	115.1	115.4	0.6		white arcs and rainbow glint on horn to 114.3, blue-white streak, radial burst
+hit body roll	steelroller	steel	141.9	142.3	142.5	142.7	143.0	0.35		user becomes steel wheel, rolls with sparks, yellow-white burst, shards; terrain clears 148.8 to 149.2
+hit wing	steelwing	steel		153.9	153.9	154.0	155.0	0.7		cyan-white burst, violet glow on target to 154.3, steel feather shards fall
+rings	alluringvoice	fairy		8.9	10.1	10.2	10.8	0.5		notes and bubbles circle target under spotlight, pink-white burst, gold clef ring 10.3-10.6; spotlight till 11.4
+flash	dazzlinggleam	fairy	30.1	30.8	31.7	31.7	32.8	0.6		head glows blue, rainbow starburst, full whiteout 31.3-31.6, second starburst 32.1-32.3, coloured stars
+drain kiss	drainingkiss	fairy		42.2	42.2		44.3	0.5		pink lip-mark orb 42.3-42.6, cyan orbs fly back 42.8-43.5, green-white glow on user 43.6-44.2
+lock	fairylock	fairy		50.8	50.8		53.0	0.7	1	pink chains wrap both, padlocks 51.4, chains burst 51.9-52.0, padlocks fade 52.9
+moon	moonblast	fairy	90.8	93.3	94.0	94.1	94.8	0.45		full-moon cutaway 90.8-92.0, blue light on user 92.3, pink orb, white-blue burst, cyan rings
+sunheal	moonlight	fairy		97.1	97.1		101.6	0.45	1	full-moon cutaway 97.1-98.6, blue light column and ring on user 99.1-101.5
+hit brawl	playrough	fairy		105.4	105.4	105.6	107.1	0.6		grey dust cloud 105.4-106.7, white star flashes repeat inside, yellow stars and scribbles
+hit body fast	extremespeed	normal		1.7	1.8	2.3	2.5	0.5		챔피언스(추정): user vanishes 1.0, streak 1.7, yellow-white burst, red sparks; clip 4.7 s
+focus	acupressure	normal							1	no clip on Namuwiki (still image only)
+clap	fakeout	normal								no clip on Namuwiki (still image only)
+charm	attract	normal								no clip on Namuwiki (still images only)
+protect	protect	normal								clip is not a modern game: BW (5세대): blue-white sparkle veil over user 0.5-1.3; clip 1.
+drum	bellydrum	normal							1	no clip on Namuwiki (still image only)
+squeeze	bind	normal		1.2	1.2		3.9	0.2		SV: grey-white rings coil round target, wide 1.2-1.7 then tight pulses to 3.8; no flash
+chain	block	normal								no clip on Namuwiki (still image only)
+rings big	boomburst	normal								no clip on Namuwiki (still image only)
+hit body item	covet	normal								no clip on Namuwiki (still images only; page is 탐내기)
+hit claw	crushclaw	normal								no clip on Namuwiki (still image only)
+hit tail multi:2	doublehit	normal								no clip on Namuwiki (page 더블 어택 has no media)
+endure	endure	normal							1	no clip on Namuwiki (still image only)
+burst big	explosion	normal								no clip on Namuwiki (still image only)
+spotlight	followme	normal								clip is not a modern game: XY (2014 대회 중계 편집본): white pointing hand wags by user 1.8-2.
+glare	glare	normal								no clip on Namuwiki (still image only)
+notes	healbell	normal							1	no clip on Namuwiki (still image only)
+beam wide	hyperbeam	normal	1.4	3.8	5.9	6.2	8.3	0.35		SwSh: orange-white ball grows 2.1-3.7, white rings, orange beam, yellow blast 7.2 on; clip ends 8.3 mid-blast
+heal	recover	normal							1	no clip on Namuwiki (still image only)
+hit body multi:6	populationbomb	normal		2.5	2.5	2.6	3.3	0.3		SV: 9 hits 2.5 3.6 5.0 6.3 7.6 8.8 10.1 11.4 12.8; white star burst, pale smoke 0.5 s each
+sub	shedtail	normal							1	no clip on Namuwiki (still images only)
+shell	shellsmash	normal							1	no clip on Namuwiki (still images only)
+blades	swordsdance	normal		0.5	0.5		2.6	0.4	1	챔피언스: yellow swords circle over user 0.5-1.4, cross 1.5, gold pillars rise 1.6-2.3; stat aura 3.8-4.6
+hit tail multi:3	tailslap	normal								no clip on Namuwiki (still image only)
+morph	transform	normal							1	no clip on Namuwiki (still image only)
+beam tri	triattack	normal								no clip on Namuwiki (still image only)
+yawn	yawn	normal								no clip on Namuwiki (still images only)

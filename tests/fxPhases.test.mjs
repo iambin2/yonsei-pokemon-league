@@ -56,7 +56,10 @@ test("compareRow holds the design's limits", () => {
   const ref = { phases: [{ name: "travel", start: -500, end: 0 }, { name: "residue", start: 0, end: 700 }], flash: { start: 0, end: 150, peak: .5 }, typePeak: 1, residueEnd: 700 };
   assert.deepEqual(compareRow(ref, ref), { pass: true, fails: [] });
   const long = { ...ref, phases: [{ name: "travel", start: -1100, end: 0 }, ref.phases[1]] };
-  assert.deepEqual(compareRow(ref, long).fails, ["travel"]);
+  assert.deepEqual(compareRow(ref, long).fails, ["travel", "lead"]);
+  // the same time to the blow, split differently: the phases miss, the lead holds
+  const split = { ...ref, phases: [{ name: "charge", start: -500, end: -300 }, { name: "travel", start: -300, end: 0 }, ref.phases[1]] };
+  assert.deepEqual(compareRow(ref, split).fails, ["travel"]);
   assert.deepEqual(compareRow(ref, { ...ref, flash: null }).fails, ["flash"]);
   assert.deepEqual(compareRow({ ...ref, flash: null }, ref).fails, ["flash-extra"]);
   assert.deepEqual(compareRow(ref, { ...ref, flash: { start: 0, end: 150, peak: .6 } }).fails, ["flash-size"]);

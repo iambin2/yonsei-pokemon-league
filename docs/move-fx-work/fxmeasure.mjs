@@ -19,15 +19,19 @@ if (!dir || !opt("type")) { console.error("node fxmeasure.mjs <frames> --type <t
 
 const win = typeWindow(opt("type")), fps = Number(opt("fps", 30)), top = Number(opt("top", 0));
 const files = readdirSync(dir).filter(f => f.endsWith(".png")).sort().slice(Number(opt("from", 0)), Number(opt("to", 1e9)) + 1);
+// --diff: 마지막 프레임과 다른 화소의 비율(any)도 잰다. 카메라가 서 있는 우리 무대에서만 뜻이 있다: 색이 옅은 물, 얼음, 바람도 남아 있는 동안은 잡힌다
+// 기준은 마지막 프레임이다(다 끝나고 선 무대): 첫 프레임은 카메라가 아직 덜 돌아온 때가 있어 끝까지 다르게 나왔다
+let first = has("diff") && files.length ? PNG.sync.read(readFileSync(join(dir, files.at(-1)))).data : null;
 const rows = files.map(f => {
   const { width: w, height: h, data: d } = PNG.sync.read(readFileSync(join(dir, f)));
-  let n = 0, white = 0, type = 0, cx = 0;
+  let n = 0, white = 0, type = 0, cx = 0, any = 0;
   for (let y = Math.floor(h * top); y < h; y += 2) for (let x = 0; x < w; x += 2) {
     const k = (y * w + x) * 4, c = classify([d[k], d[k + 1], d[k + 2]], win);
     n++;
     if (c === "white") white++; else if (c === "type") { type++; cx += x / w; }
+    if (first && Math.abs(d[k] - first[k]) + Math.abs(d[k + 1] - first[k + 1]) + Math.abs(d[k + 2] - first[k + 2]) > 60) any++;
   }
-  return { white: white / n, type: type / n, cx: type ? cx / type : null };
+  return { white: white / n, type: type / n, cx: type ? cx / type : null, ...(first ? { any: any / n } : {}) };
 });
 const tail = rows.slice(-6), avg = k => tail.reduce((a, r) => a + r[k], 0) / tail.length;
 const baseline = opt("base") === "tail" ? { white: avg("white"), type: avg("type") } : undefined;

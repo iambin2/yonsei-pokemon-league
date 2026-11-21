@@ -372,6 +372,8 @@ class Engine {
     this.T = 0; this.R = 0; this.rate = 1; this.slowRate = 1; this.slowUntil = 0;
     // the lab's controls: a slow-motion scale, a pause (the camera holds too), one step of game time while paused, a camera that stays wide
     this.scale = 1; this.paused = false; this.stepMs = 0; this.camFixed = !CAMERA_MOVES;
+    // a move's own times (moveFx.js playScript): moveK slows or quickens the clock while its matter travels, lifeK lengthens what its blow leaves
+    this.moveK = 1; this.lifeK = 1;
     this.light = document.documentElement.dataset.theme === "light" ? 1 : 0;
     this.lightK = this.light;
     this.actors = new Map();
@@ -499,7 +501,7 @@ class Engine {
     const paused = this.paused && !this.stepMs;
     if (!paused) this.R += dt;
     const slow = this.R < this.slowUntil ? this.slowRate : 1;
-    let gdt = paused ? 0 : dt * this.rate * slow * this.scale;
+    let gdt = paused ? 0 : dt * this.rate * slow * this.scale * this.moveK;
     if (this.paused && this.stepMs) { gdt = this.stepMs; this.stepMs = 0; }
     this.T += gdt;
     if (this.timers.length) { const due = this.timers.filter(t => t.at <= this.T); if (due.length) { this.timers = this.timers.filter(t => t.at > this.T); due.forEach(t => t.fn()); } }
@@ -610,10 +612,10 @@ class Engine {
       const size = Array.isArray(s.size) ? s.size : [s.size ?? 20, s.size ?? 20];
       const s0 = pick(size[0]), s1 = size[1] === "same" ? s0 : pick(size[1]) * (s.keep ? s0 / pick(size[0]) : 1);
       const flags = (s.loop ? F.loop : 0) | (s.layer === 0 ? 0 : F.front) | (s.occ ? F.matter : 0) | (s.face ? F.face : 0) | (s.distort ? F.distort : 0) | (s.wrap ? F.wrap : 0) | (s.grow ? F.grow : 0) | (s.bob ? F.bob : 0) | (s.lit ? F.lit : 0);
-      const life = pick(s.life ?? 600);
+      const lk = s.loop || s.fixed ? 1 : this.lifeK, life = pick(s.life ?? 600) * lk;
       // a looping particle is already part way through its life when it comes, so a field is full from its first frame
-      const off = (s.over ? (s.even ? i / Math.max(1, n - 1) : Math.random()) * s.over : 0) + (s.stagger ? i * s.stagger : 0);
-      const T = this.T + (s.delay || 0);
+      const off = ((s.over ? (s.even ? i / Math.max(1, n - 1) : Math.random()) * s.over : 0) + (s.stagger ? i * s.stagger : 0)) * lk;
+      const T = this.T + (s.delay || 0) * lk;
       const t0 = s.hold ? T - life * .5 : s.loop ? T - off : T + off;
       const rot = s.rot === "rand" ? Math.random() * Math.PI * 2 : s.rot ?? 0;
       const rec = [x, y, vx, vy, s.acc?.[0] || 0, s.acc?.[1] || 0, s.bob ? pick(s.bob) : s.drag || 0, t0, life, s0, s1, rot + (s.rj ? rand(-s.rj, s.rj) : 0),
