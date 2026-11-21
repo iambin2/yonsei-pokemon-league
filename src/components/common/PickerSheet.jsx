@@ -5,7 +5,8 @@ import Modal from "./Modal.jsx";
 /* 긴 목록에서 하나를 고르는 시트(M6의 긴 목록판): 검색 하나와 같은 모양의 행(제목, 회색 한 줄, 오른쪽 값).
    폰은 바텀시트, 데스크톱은 가운데 창. 고를 수 없는 항목은 이유(sub)와 함께 흐리게 남는다.
    검색창에서 위아래 화살표로 행을 옮기고 엔터로 고른다(고를 수 없는 행은 건너뛴다).
-   item: { value, label, sub?, search?, match?(query), img?, badges?, trailing?, disabled? } */
+   item: { value, label, sub?, search?, match?(query), img?, badges?, trailing?, disabled?, group? }
+   group: 이웃한 행끼리 같은 묶음 이름이면 그 위에 이름을 한 번 적는다(계산기의 내 팀, 전체). */
 const compact = text => String(text || "").toLowerCase().replace(/\s+/g, "");
 /* 최근 고른 것: recentKey가 있으면 고른 값을 이 브라우저에 여섯까지 기억하고, 검색 전 맨 위에 그림으로 세운다. */
 const RECENT_MAX = 6;
@@ -27,7 +28,7 @@ export default function PickerSheet({ title, placeholder, items, selected, onPic
     if (!q) return items;
     return items.filter(item => item.match ? item.match(query) : compact(item.search ?? item.label).includes(q));
   }, [items, query]);
-  useEffect(() => { listRef.current?.children[cursor]?.scrollIntoView({ block: "nearest" }); }, [cursor]);
+  useEffect(() => { listRef.current?.querySelector(`#pick-opt-${cursor}`)?.scrollIntoView({ block: "nearest" }); }, [cursor]);
   const pick = item => { if (recentKey) writeRecent(recentKey, rememberRecent(readRecent(recentKey), item.value)); onPick(item.value); onClose(); };
   const step = dir => {
     for (let i = 1; i <= shown.length; i++) {
@@ -64,7 +65,8 @@ export default function PickerSheet({ title, placeholder, items, selected, onPic
         ))}</div>
       </div>}
       <div className="pick-list" id="pick-list" role="listbox" aria-label={title} ref={listRef}>
-        {shown.map((item, index) => (
+        {shown.map((item, index) => [
+          item.group && item.group !== shown[index - 1]?.group && shown.some(other => other.group !== item.group) && <p key={`group-${item.group}`} role="presentation" className="t12 dim pick-group">{item.group}</p>,
           <button type="button" key={item.value || "none"} id={`pick-opt-${index}`} role="option" aria-selected={item.value === selected} disabled={item.disabled}
             className={"pick-row" + (item.value === selected ? " sel" : "") + (index === cursor ? " cursor" : "")} onClick={() => pick(item)}>
             {item.img !== undefined && (item.img ? <img src={item.img} alt="" loading="lazy" decoding="async" onError={event => { event.currentTarget.style.visibility = "hidden"; }} /> : <span className="pick-blank" />)}
@@ -72,8 +74,8 @@ export default function PickerSheet({ title, placeholder, items, selected, onPic
             {item.badges}
             {item.trailing != null && <em className="pick-trail">{item.trailing}</em>}
             {item.value === selected && <Icon n="check" size={20} className="check" />}
-          </button>
-        ))}
+          </button>,
+        ])}
         {!shown.length && <p className="tb-pool-empty">{emptyText}</p>}
       </div>
     </Modal>

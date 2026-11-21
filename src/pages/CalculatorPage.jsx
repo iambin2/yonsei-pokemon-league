@@ -207,7 +207,7 @@ function DirectionResults({ title, results, detailData, emptyText, children }) {
   );
 }
 
-function SideCard({ index, side, record, pokemon, detailData, legalItems, display, onChange, onPickPokemon, onImport, onClear, hasSavedTeams }) {
+function SideCard({ index, side, record, pokemon, detailData, legalItems, display, onChange, onPickPokemon, onClear }) {
   const [picker, setPicker] = useState(null);
   const lockedItem = requiredItemForPokemon(detailData, pokemon);
   const nature = ALIGNMENTS.find(entry => entry.id === side.nature) || ALIGNMENTS[0];
@@ -236,10 +236,7 @@ function SideCard({ index, side, record, pokemon, detailData, legalItems, displa
             {record && <TypeBadges types={record.types} />}
           </span>
         </button> : <Empty className="calc-side-empty" title={`${SIDE_NAMES[index]}을 골라 주세요.`} />}
-        {(hasSavedTeams || pokemon) && <div className="calc-side-actions">
-          {hasSavedTeams && <Button variant="link" onClick={onImport}>내 팀에서</Button>}
-          {pokemon && <Button variant="link" onClick={onClear}>비우기</Button>}
-        </div>}
+        {pokemon && <div className="calc-side-actions"><Button variant="link" onClick={onClear}>비우기</Button></div>}
       </div>
 
       {pokemon && <>
@@ -319,7 +316,7 @@ function FieldCard({ field, onChange }) {
   );
 }
 
-function DamageView({ sides, setSide, swapSides, field, setField, records, pokemons, engines, detailData, legalItems, display, openPokemonPicker, openImport, hasSavedTeams }) {
+function DamageView({ sides, setSide, swapSides, field, setField, records, pokemons, engines, detailData, legalItems, display, openPokemonPicker }) {
   const [editing, setEditing] = useState(0);
   const results = [0, 1].map(from => {
     const to = 1 - from;
@@ -364,7 +361,8 @@ function DamageView({ sides, setSide, swapSides, field, setField, records, pokem
 
       <section className="calc-sec" aria-labelledby="calc-field-h"><SectionHead id="calc-field-h" title="배틀 조건" /><FieldCard field={field} onChange={setField} /></section>
 
-      <section className="calc-sec" aria-labelledby="calc-sides-h">
+      {/* like the directions, the settings wait until a Pokémon is chosen: before that the panels above ask for one */}
+      {(pokemons[0] || pokemons[1]) && <section className="calc-sec" aria-labelledby="calc-sides-h">
         <SectionHead id="calc-sides-h" title="세부 설정" />
         <div className="calc-side-switch">
           <Segmented value={String(editing)} onChange={value => setEditing(Number(value))} ariaLabel="편집할 포켓몬" options={[["0", SIDE_NAMES[0]], ["1", SIDE_NAMES[1]]]} />
@@ -372,11 +370,11 @@ function DamageView({ sides, setSide, swapSides, field, setField, records, pokem
         <div className="calc-sides" data-editing={editing}>
           {[0, 1].map(index => (
             <SideCard key={index} index={index} side={sides[index]} record={records[index]} pokemon={pokemons[index]} detailData={detailData} legalItems={legalItems} display={display}
-              onChange={next => setSide(index, next)} onPickPokemon={() => openPokemonPicker(index)} onImport={() => openImport(index)} hasSavedTeams={hasSavedTeams}
+              onChange={next => setSide(index, next)} onPickPokemon={() => openPokemonPicker(index)}
               onClear={() => clearSide(index)} />
           ))}
         </div>
-      </section>
+      </section>}
     </>
   );
 }
@@ -596,8 +594,8 @@ export default function CalculatorPage() {
   const [detailStatus, setDetailStatus] = useState("loading");
   const [koreanNames, setKoreanNames] = useState(new Map());
   const [picker, setPicker] = useState(null);
-  const [importFor, setImportFor] = useState(null);
-  const savedTeams = useMemo(readSavedTeams, [importFor]);
+  const forSide = picker === 0 || picker === 1;
+  const savedTeams = useMemo(readSavedTeams, [picker]);
 
   useEffect(() => {
     let cancelled = false;
@@ -656,19 +654,27 @@ export default function CalculatorPage() {
     };
   }).sort((a, b) => a.label.localeCompare(b.label, "ko")), [pool, detailData, display]);
 
-  const importItems = useMemo(() => {
-    if (importFor == null || !detailData) return [];
+  // the saved teams' members head the side picker under 내 팀; picking one brings its whole set
+  const teamItems = useMemo(() => {
+    if (!forSide || !detailData) return [];
     return savedTeams.flatMap(team => team.members.map((saved, index) => {
       const member = memberFromSaved(saved, REGULATIONS[team.regulationId] || REGULATION, { detailData, legalItems });
       if (member.resolutionState !== "resolved" || !poolByName.has(member.pokemon.name)) return null;
       const label = display(member.pokemon);
       return {
-        value: `${team.id}:${index}`, member, label, img: spriteUrl(member.pokemon.name),
+        value: `team:${team.id}:${index}`, member, label, img: spriteUrl(member.pokemon.name), group: "내 팀",
         sub: `${team.name}${member.item ? `, ${itemName(detailData, member.item)}` : ""}`,
+        badges: <TypeBadges types={dexRecord(detailData, member.pokemon)?.types || []} />,
         search: `${label}${member.pokemon.name}${team.name}`.toLowerCase().replace(/\s+/g, ""),
       };
     })).filter(Boolean);
-  }, [importFor, savedTeams, detailData, legalItems, poolByName, display]);
+  }, [forSide, savedTeams, detailData, legalItems, poolByName, display]);
+  const sideItems = useMemo(() => teamItems.length ? [...teamItems, ...pokemonItems.map(item => ({ ...item, group: "전체" }))] : pokemonItems, [teamItems, pokemonItems]);
+  const pickForSide = value => {
+    const entry = teamItems.find(item => item.value === value);
+    if (entry) setSide(picker, { ...sideFromMember(entry.member), conds: sides[picker].conds });
+    else choosePokemon(picker, value);
+  };
 
   const loading = detailStatus !== "ready";
   return (
@@ -684,20 +690,17 @@ export default function CalculatorPage() {
       ) : loading ? <Loader /> : (
         <div className="calc-swap swap" key={tab}>
           {tab === "damage" && <DamageView sides={sides} setSide={setSide} swapSides={swapSides} field={field} setField={setField} records={records} pokemons={pokemons} engines={engines}
-            detailData={detailData} legalItems={legalItems} display={display} openPokemonPicker={setPicker} openImport={setImportFor} hasSavedTeams={savedTeams.length > 0} />}
+            detailData={detailData} legalItems={legalItems} display={display} openPokemonPicker={setPicker} />}
           {tab === "speed" && <SpeedView sides={sides} engines={engines} pokemons={pokemons} pool={pool} detailData={detailData} display={display} field={field} openPokemonPicker={setPicker} />}
           {tab === "dex" && <DexView pokemon={poolByName.get(dexName) || null} detailData={detailData} display={display} openPicker={() => setPicker("dex")} onUse={useInCalculator} />}
         </div>
       )}
       </div>
 
-      {picker != null && <PickerSheet title={picker === "dex" ? "도감" : SIDE_NAMES[picker]} placeholder="이름, 영문 이름 검색" items={pokemonItems} recentKey="ypl-recent-pokemon" recentLabel="최근 고른 포켓몬"
-        selected={picker === "dex" ? dexName : sides[picker]?.name}
-        onPick={name => picker === "dex" ? setDexName(name) : choosePokemon(picker, name)} onClose={() => setPicker(null)} />}
-      {importFor != null && <PickerSheet title="내 팀에서 불러오기" placeholder="포켓몬이나 팀 이름 검색" items={importItems}
-        emptyText="팀 빌더에 저장한 팀이 없습니다."
-        onPick={value => { const entry = importItems.find(item => item.value === value); if (entry) setSide(importFor, sideFromMember(entry.member)); }}
-        onClose={() => setImportFor(null)} />}
+      {picker != null && <PickerSheet title={forSide ? SIDE_NAMES[picker] : "도감"} placeholder={teamItems.length ? "포켓몬이나 팀 이름 검색" : "이름, 영문 이름 검색"}
+        items={forSide ? sideItems : pokemonItems} recentKey="ypl-recent-pokemon" recentLabel="최근 고른 포켓몬"
+        selected={forSide ? sides[picker]?.name : dexName}
+        onPick={value => forSide ? pickForSide(value) : setDexName(value)} onClose={() => setPicker(null)} />}
     </section>
   );
 }
