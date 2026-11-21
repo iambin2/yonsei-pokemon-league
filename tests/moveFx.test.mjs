@@ -32,3 +32,12 @@ test("every verb, mark and projectile in the scripts is drawn by moveFx.js", () 
   }
   assert.deepEqual(unknown, []);
 });
+
+test("the white of a blow is light at its point and never a body's own value", () => {
+  // DESIGN.md "What the stage plays", a hit: the flash is allowed at the point of the blow; a body turning white is not
+  const fx = read("src/pages/battle/stageFx.js");
+  const from = fx.indexOf("export function impactFlash("), body = fx.slice(from, fx.indexOf("\n}\n", from));
+  assert.ok(from > 0, "impactFlash is in stageFx.js");
+  assert.doesNotMatch(body, /actorOf|flashMon|flash:|rim[RGBA]|tint[RGB]/);
+  assert.match(body, /e\.light \? \.6 : 1/, "the light theme takes it at .6, as flashStage does");
+});

@@ -32,7 +32,8 @@ export function classify([r, g, b], win) {
 const run = (xs, i, ok) => { let a = i, z = i; while (a > 0 && ok(xs[a - 1])) a--; while (z < xs.length - 1 && ok(xs[z + 1])) z++; return [a, z]; };
 // rows: [{ white, type }] 화면에서 차지하는 비율(0..1). baseline: 연출 전의 한 줄(없으면 처음 여섯 줄의 평균, 그래서 녹화는 연출보다 200ms 먼저 시작한다).
 // ink: 대상의 잉크 높이를 화면 높이로 나눈 값(면적을 대상 크기로 나누는 분모). hit: 맞는 순간이 있는 기술인가.
-export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor = .004 } = {}) {
+// marks: 실험실이 알려 준 시각(ms, 첫 프레임이 0): { play, emit, hit }. 있으면 단계는 그 시각으로 자르고, 화면에서는 섬광과 끝만 잰다.
+export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor = .004, marks } = {}) {
   const head = rows.slice(0, 6), mean = k => head.reduce((s, r) => s + r[k], 0) / head.length;
   const base = baseline || { white: mean("white"), type: mean("type") };
   const sd = k => Math.sqrt(head.reduce((s, r) => s + (r[k] - mean(k)) ** 2, 0) / head.length);
@@ -41,6 +42,24 @@ export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor 
   const ms = i => (i * 1000) / fps, area = x => x / (ink * ink);
   const on = rows.map((_, i) => w[i] > thW || t[i] > thT);
   const first = on.indexOf(true), last = on.lastIndexOf(true);
+  if (marks) {
+    const z = marks.hit ?? marks.play ?? ms(Math.max(first, 0)), zi = Math.round(z * fps / 1000), rel = t => Math.round(t - z);
+    const lo = Math.max(0, zi - 4), hi = Math.min(rows.length - 1, zi + 21);
+    let pk = -1, pa = lo;
+    for (let i = lo; i <= hi; i++) if (w[i] > pk) { pk = w[i]; pa = i; }
+    let flash = null;
+    if (pk > thW) { const [a, b] = run(w, pa, x => x > Math.max(thW, pk / 2)); flash = { start: rel(ms(a)), end: rel(ms(b + 1)), peak: area(pk) }; }
+    const end = rel(ms(Math.max(last + 1, zi))), phases = [];
+    // 모으기(charge)를 거치지 않은 기술(몸으로 치는 기술)은 물질이 화면에 처음 보인 때가 떠나는 순간이다: 달려드는 몸은 물질이 아니다
+    let a = zi; while (a > 0 && ms(a - 1) >= (marks.play ?? 0) && on[a - 1]) a--;
+    const emit = marks.emit != null && marks.emit < z ? marks.emit : Math.min(ms(a), z);
+    if (marks.hit != null) {
+      if (marks.emit != null && emit - marks.play > 50) phases.push({ name: "charge", start: rel(marks.play), end: rel(emit) });
+      if (z - emit > 50) phases.push({ name: "travel", start: rel(emit), end: 0 });
+    }
+    phases.push({ name: marks.hit != null && hit ? "residue" : "show", start: 0, end });
+    return { zero: z, phases, flash, typePeak: area(Math.max(...t.slice(Math.max(0, zi - 30)), 0)), residueEnd: end };
+  }
   if (first < 0) return { zero: 0, phases: [], flash: null, typePeak: 0, residueEnd: 0 };
 
   const wPeak = Math.max(...w), wAt = w.indexOf(wPeak);

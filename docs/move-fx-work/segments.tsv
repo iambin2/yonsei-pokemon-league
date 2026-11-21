@@ -1,0 +1,15 @@
+recipe	move	type	charge	emit	hit	flashEnd	end	ink	self	note
+stream	flamethrower	fire	122.5	122.9	123.7	123.9	124.5	0.5		
+shoot fireball 3 big	armorcannon	fire	8.5	9.6	10.6	10.7	11.5	0.45		
+blast	fireblast	fire	77.6	78.5	79.4	79.6	80.9	0.3		大 자는 맞은 뒤 0.1~0.6초
+hit slash drain	bitterblade	fire	17.5	18.9	19.3	19.5	19.9	0.45		원작은 보라색 기운. 흡수 구슬은 19.9~22.2
+hit kick	blazekick	fire		36.5	36.5	36.7	37.2	0.5		
+wind	heatwave	fire	142.5	143.5	144.4		144.9	0.35		화면 전체가 주황으로 덮인다
+volcano	eruption	fire	60.4	61.0	63.1	63.3	64.4	0.35		
+stream dance	fierydance	fire	68.3	69.1	70.9	71.0	72.4	0.3		
+hit whip	firelash	fire		96.3	96.6	96.7	97.5	0.5		
+hit fist	firepunch	fire		91.8	91.8	92.0	92.6	0.5		
+hit body jump wrap	heatcrash	fire	135.7	136.5	137.4	137.5	138.2	0.4		
+vortex big	inferno	fire	149.2	149.8	150.6	150.8	151.8	0.5		
+shoot fireball	pyroball	fire								영상에 없음
+wisp	willowisp	fire	220.7	222.2	223.7		224.4	0.45		원작의 도깨비불은 보라색
