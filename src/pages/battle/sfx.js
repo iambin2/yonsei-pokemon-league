@@ -229,12 +229,13 @@ const LIB = {
   // a stat rising and falling in the game's own shapes (scripts/data/sfx-shapes.json); each further stage again, a little higher or lower
   statUp: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "upS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 + i * .08, at: i * .35 }); },
   statDown: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "downS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 - i * .07, at: i * .35 }); },
-  st_brn: (c, t, o) => S(c, t, "burn", { g: .6 * (o.n || 1), pan: o.pan, wet: .3, dur: .7 }),
-  st_par: (c, t, o) => S(c, t, "spark", { g: .6 * (o.n || 1), pan: o.pan, dur: .55 }),
-  st_psn: (c, t, o) => S(c, t, "ooze", { g: .6 * (o.n || 1), pan: o.pan, rate: 1.2, dur: .6, wet: .3 }),
-  st_slp: (c, t, o) => S(c, t, "dream", { g: .55, pan: o.pan, rate: .6, wet: .6 }),
+  // the status conditions in the 3D games' shapes (scripts/data/sfx-shapes.json); sleep is their three falling chirps
+  st_brn: (c, t, o) => S(c, t, "burnS", { g: .7 * (o.n || 1), pan: o.pan, wet: .3 }),
+  st_par: (c, t, o) => S(c, t, "parS", { g: .65 * (o.n || 1), pan: o.pan, wet: .2 }),
+  st_psn: (c, t, o) => S(c, t, "psnS", { g: .7 * (o.n || 1), pan: o.pan, wet: .3 }),
+  st_slp: (c, t, o) => [0, .3, .6].forEach((at, i) => S(c, t, "zzz", { g: .5, pan: o.pan, rate: 1 - i * .1, wet: .5, at })),
   st_frz: (c, t, o) => S(c, t, "frost", { g: .65, pan: o.pan, wet: .45 }),
-  confused: (c, t, o) => [0, .3].forEach((at, i) => S(c, t, "glint", { g: .45, pan: o.pan, rate: 1 + i * .25, wet: .4, at })),
+  confused: (c, t, o) => S(c, t, "confS", { g: .6, pan: o.pan, wet: .4 }),
   cure: (c, t, o) => S(c, t, "chime", { g: .55, pan: o.pan, wet: .5, rate: 1.1 }),
   heal: (c, t, o) => S(c, t, "healS", { g: .7, pan: o.pan, wet: .5 }),
   protect: (c, t, o) => { S(c, t, "field", { g: .65, pan: o.pan, wet: .45, rate: 1.1 }); S(c, t, "veil", { g: .35, pan: o.pan, wet: .55 }); if (o.spiky) S(c, t, "metalL2", { g: .45, pan: o.pan, at: .1 }); },

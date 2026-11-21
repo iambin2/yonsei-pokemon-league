@@ -96,13 +96,11 @@ CLIPS = {
     "lowBoom": (K_SCI + "lowFrequency_explosion_000.ogg", 1.2, {}),
     "lamp": (['kenney-ui-audio/Audio/switch6.ogg', 'kenney-ui-audio/Audio/switch32.ogg'], 0.4, {}),
     "slime": (['rec/oga/water-splash-slime-sfx/slime_06.ogg', 'rec/oga/water-splash-slime-sfx/slime_03.ogg', 'rec/oga/water-splash-slime-sfx/splash_06.ogg'], 0.6, {}),
-    "ooze": (['rec/oga/water-splash-slime-sfx/loop_bubbles_02.ogg@0.0', 'rec/oga/water-splash-slime-sfx/loop_bubbles_02.ogg@2.5'], 1.2, {}),
     "rumble": (K_SCI + "spaceEngineLow_000.ogg", 3, {}),
     "hum": (K_SCI + "spaceEngineSmall_000.ogg", 3, {"gain": -3}),
     "flame": (K_SCI + "thrusterFire_003.ogg", 3, {"gain": -3}),
     # the spells: each type's matter, the field's weather, healing
     "fire": (['rec/bsb/1340.ogg@0.0', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 3.wav', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 4.wav'], 1.2, {}),
-    "burn": (['rec/bsb/3322.ogg@27.7', 'rec/bsb/3322.ogg@13.2'], 0.9, {}),
     "ice": (['lk-basic/Ice Spell Impacts/Ice Spell Impact 1.wav', 'rec/oga/sfx_breaking_and_falling/bfh1_glass_breaking_01.ogg', 'lk-basic/Ice Spell Impacts/Ice Spell Impact 5.wav'], 1, {}),
     "iceL": (['rec/bsb/2205.ogg', 'rec/bsb/2206.ogg', 'rec/bsb/2208.ogg'], 2, {}),
     "frost": (['rec/oga/IceShatters_0/IceShatters/LedasLuzta33.ogg', 'rec/bsb/2205.ogg'], 1, {}),
@@ -152,6 +150,13 @@ CLIPS = {
     "rainS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "rain"}),
     "sunS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 1.7, {"shape": "sun"}),
     "sandS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "sand"}),
+    # 2026-11-21: the status conditions as the 3D games sound them (a Gen 6 effects-only rip, read from its messages) and confusion
+    # (a Gen 6-9 clip); sleep's three falling chirps are notes, so a short blip played three times
+    "burnS": (["lk-basic/Fire Spell Impacts/Fire Spell Impact 5.wav"], 0.9, {"shape": "burn"}),
+    "parS": (["rec/bsb/0952.ogg@2.3"], 1.4, {"shape": "paralysis"}),
+    "psnS": (["rec/oga/water-splash-slime-sfx/slime_06.ogg"], 1.4, {"shape": "poison"}),
+    "confS": (["rec/oga/sfx_breaking_and_falling/bfh1_glass_hit_01.ogg"], 1.5, {"shape": "confused"}),
+    "zzz": ("kenney-interface-sounds/Audio/select_005.ogg", 0.25, {"gain": -3}),
     "pistol": ("lk-scifi/Laser Pistol 1.wav", .5, {}),
 }
 
