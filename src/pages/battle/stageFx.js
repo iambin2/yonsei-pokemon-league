@@ -40,6 +40,8 @@ export const orSkipped = heard => (rush || !heard ? Promise.resolve() : Promise.
 const OUT = EASE_OUT, IN = EASE_IN;
 
 /* ---------- the engine of a stage, at the playback speed ---------- */
+// a recorder asks when a move starts, leaves and lands (docs/move-fx-work/match.mjs sets window.__fxMark in the lab); nothing listens in a battle
+const fxMark = name => globalThis.__fxMark?.(name);
 const E = stage => { const e = glOf(stage); if (e) e.rate = rush ? RUSH : speed ? 1 / speed : 1; return e; };
 // where a sound stands between the ears: ours on the left, theirs on the right (sfx.js)
 const panOf = (e, at) => (e?.W && at ? clamp(at[0] / e.W * 2 - 1, -1, 1) * .55 : 0);
@@ -342,8 +344,18 @@ function done(anim) {
 /* ---------------------------------------------------------------- a blow ---------------------------------------------------------------- */
 // the moment it lands: a white heart, the type's light, streaks out of it, the air bending, the type's debris, the mark (no ring:
 // 포켓몬 챔피언스's blows land as a flash and the type's matter, and a lone circle read as a sign, not a blow)
+/* the white of a blow, at the point it lands and nowhere else (2026-11-21, measured in 포켓몬 챔피언스 frame by frame: 100 to 200ms,
+   about .4 of the target's height squared for a plain blow; docs/move-fx-work/match.tsv). It is light in the air over the point:
+   the body's own values are never part of it, so a struck Pokémon does not turn white. k scales it, 0 leaves it out. */
+export function impactFlash(stage, at, s, k = 1, life = 300) {
+  const e = E(stage);
+  if (!e || instant() || !(k > 0)) return;
+  const alpha = e.light ? .6 : 1;
+  e.emit({ at, tex: "dot", ramp: "white", size: [s * .5 * k, s * .8 * k], life, alpha, emis: 1, grow: true });
+  e.emit({ at, tex: "spark", ramp: "white", size: [s * .7 * k, s * 1.9 * k], rot: rand(0, Math.PI), life, alpha: alpha * .9, emis: 1, grow: true });
+}
 const PALE_LIGHT = { flying: "flying.d", steel: "steel.d", ice: "ice.d", rock: "rock.d" };
-export function burst(stage, key, type, power = 1, { shards = true, mark = null } = {}) {
+export function burst(stage, key, type, power = 1, { shards = true, mark = null, flash = shards ? 1 : 0 } = {}) {
   const e = E(stage);
   if (!e || instant()) return Promise.resolve();
   const at = centre(stage, key), s = sizeOf(stage, key), t = typeId(type), p = clamp(power, .5, 1.8);
@@ -365,6 +377,7 @@ export function burst(stage, key, type, power = 1, { shards = true, mark = null 
   // (2026-11-07 round 3: the star held in its colour from its first frame, `.m`; the type ramp opens white, and four quick blows
   // stacked four white stars into a white body)
   const lit = PALE_LIGHT[t] || `${t}.m`;
+  impactFlash(stage, at, s, flash * p);
   e.emit({ at, tex: "spark", ramp: lit, size: [s * .3 * p, s * 1.3 * p], rot: rand(0, Math.PI), life: 230, alpha: 1, grow: true });
   e.emit({ at, tex: "spark", ramp: "white", size: [s * .08 * p, s * .28 * p], rot: rand(0, Math.PI), life: 120, alpha: .45, grow: true });
   if (!["normal", "flying", "ice", "steel", "rock"].includes(t)) e.emit({ at, tex: "glint", ramp: `${t}.h`, size: [s * .4 * p, s * 1.6 * p], rot: rand(-.3, .3), life: 260, alpha: .3, grow: true });
@@ -1137,7 +1150,7 @@ export function charge(stage, key, type, duration = 420) {
   e.at(D * .85, () => { e.emit({ at, tex: "spark", ramp: `${t}.m`, size: [s * .2, s * .8], rot: rand(0, Math.PI), life: 200, alpha: .7, grow: true }); });
   const a = actorOf(stage, key), c = RIM_OF[t] || colorOf(t), [r, g, b] = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16) / 255);
   if (a) e.anim(a, { rimR: [r, r], rimG: [g, g], rimB: [b, b], rimA: [0, .9, 0] }, { dur: D + 200 });
-  return e.after(D);
+  return e.after(D).then(() => fxMark("emit"));
 }
 // the type's light rising round the user (a cloak of flames, a shine of steel)
 export function aura(stage, key, type, rounds = 1, duration = 600) {
@@ -1197,6 +1210,7 @@ export async function move(stageNode, event, keyOf, ahead = {}) {
   const e = E(stage);
   if (!e || instant() || event.still) return;
   e.sync();
+  fxMark("play");
   const from = keyOf(event.ident);
   const targets = (event.targets || []).map(keyOf).filter(k => slotEl(stage, k));
   const type = event.type || "Normal";
@@ -1207,9 +1221,10 @@ export async function move(stageNode, event, keyOf, ahead = {}) {
   const blocked = k => ahead.blocked?.has(k);
   const mark = event.category === "Physical" ? markOf(id || "") : null;
   const land = (k, o = {}) => {
+    fxMark("hit");
     if (blocked(k)) return null;
     if (missed(k)) return dodge(stage, k);
-    return burst(stage, k, o.type || type, power(k) * (o.power || 1), { shards: o.shards ?? event.category !== "Status", mark: o.mark === undefined ? mark : o.mark });
+    return burst(stage, k, o.type || type, power(k) * (o.power || 1), { shards: o.shards ?? event.category !== "Status", mark: o.mark === undefined ? mark : o.mark, flash: o.flash });
   };
   const recipe = recipeOf(id);
   const at = (k, lift) => centre(stage, k, lift);

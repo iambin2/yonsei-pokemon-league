@@ -31,5 +31,8 @@ const rows = files.map(f => {
 });
 const tail = rows.slice(-6), avg = k => tail.reduce((a, r) => a + r[k], 0) / tail.length;
 const baseline = opt("base") === "tail" ? { white: avg("white"), type: avg("type") } : undefined;
-const out = phasesOf(rows, { fps, baseline, ink: Number(opt("ink", 1)), hit: !has("self") });
+// --marks play,emit,hit: 실험실이 알려 준 시각(ms). 빈칸은 없는 것(예: "800,,2100")
+const mk = opt("marks") ? opt("marks").split(",").map(x => (x === "" ? undefined : Number(x))) : null;
+const marks = mk ? { play: mk[0], emit: mk[1], hit: mk[2] } : undefined;
+const out = phasesOf(rows, { fps, baseline, marks, ink: Number(opt("ink", 1)), hit: !has("self") });
 console.log(JSON.stringify(has("rows") ? { ...out, rows } : out, null, 1));
