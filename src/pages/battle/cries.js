@@ -62,11 +62,12 @@ function master(c) {
   g.connect(lim).connect(trim).connect(c.destination);
   gains.set("all", g);
   const d = c.createGain(); d.connect(g); gains.set("duck", d);
+  const u = c.createGain(); u.connect(g); gains.set("under", u);
 }
 // the channel's input on the live context: its gain, made as a sound first needs it
 export function channel(c, k) {
   if (!gains.has("all")) master(c);
-  if (!gains.has(k)) { const g = c.createGain(); g.gain.value = level(k); g.connect(gains.get(k === "music" ? "duck" : "all")); gains.set(k, g); }
+  if (!gains.has(k)) { const g = c.createGain(); g.gain.value = level(k); g.connect(gains.get(k === "music" ? "duck" : k === "fx" ? "under" : "all")); gains.set(k, g); }
   return gains.get(k);
 }
 /* the music steps back while a cry or a big moment sounds (from at seconds on, db down for hold seconds, then back over a quarter of a second), so they
@@ -81,6 +82,20 @@ export function duck(hold = .6, db = -7, at = 0) {
   d.gain.setTargetAtTime(1, until, .25);
   duckUntil = until;
 }
+/* the effects step back under a cry too (2026-11-21, the owner: "울음소리 전부가 원본이랑 완전히 다른데"): the send-out measured from
+   포켓몬 챔피언스 (sfx.js ballOpen) starts with the cry and stood 5 to 10 dB over it for its first 0.7 s (recorded through this mix:
+   -15 against -25 to -20 dB), so every cry was heard through a burst of noise. In the game the cry is over everything; the effects
+   channel is held 12 dB down while one sounds, as the music is */
+function under(hold) {
+  const u = gains.get("under");
+  if (!u) return;
+  const t = u.context.currentTime, until = Math.max(underUntil, t + hold);
+  u.gain.cancelScheduledValues(t);
+  u.gain.setTargetAtTime(10 ** (-12 / 20), t, .01);
+  u.gain.setTargetAtTime(1, until, .15);
+  underUntil = until;
+}
+let underUntil = 0;
 const listeners = new Set();
 export const onMix = fn => { listeners.add(fn); return () => listeners.delete(fn); };
 export function setMix(k, patch) {
@@ -138,5 +153,6 @@ export async function cry(num, rate = 1) {
   g.gain.value = loaded.gain;
   src.connect(g).connect(channel(ctx, "cry"));
   duck(buffer.duration / rate);
+  under(buffer.duration / rate);
   await new Promise(resolve => { src.onended = resolve; src.start(); setTimeout(resolve, buffer.duration / rate * 1000 + 300); });
 }

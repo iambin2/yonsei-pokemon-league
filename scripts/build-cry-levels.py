@@ -1,7 +1,7 @@
 """Write src/pages/battle/cryLevels.js: each cry's gain in dB to one loudness (src/pages/battle/cries.js plays it).
 
 The HOME cries (public/cries/<dex number>.m4a, scripts/build-cries.py) differ by 13 dB, some over 0 dBTP (2026-11-20, measured with
-earshot). Each is measured once here by BS.1770 (scripts/build-music.py's meter; a cry shorter than one 400 ms block by its RMS) and
+earshot). Each is measured once here by BS.1770 (scripts/compose-music.py's meter; a cry shorter than one 400 ms block by its RMS) and
 given the gain that brings it to TARGET, its peak kept under -1 dBFS.
 
     python scripts/build-cry-levels.py
@@ -15,7 +15,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGET = -22.0  # LUFS: a cry stands about 4 dB over the music as it plays (music -20 LUFS on its 0.5 default)
-spec = importlib.util.spec_from_file_location("music", ROOT / "scripts" / "build-music.py")
+spec = importlib.util.spec_from_file_location("music", ROOT / "scripts" / "compose-music.py")
 music = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(music)
 

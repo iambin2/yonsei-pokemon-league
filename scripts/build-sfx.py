@@ -29,7 +29,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 SR = 44100
-PAD = 2048  # silence at each end: an AAC file's first and last frames are not exact (scripts/build-music.py)
+PAD = 2048  # silence at each end: an AAC file's first and last frames are not exact (as the music, scripts/compose-music.py)
 GAP = 2205  # 50 ms between clips
 TARGET = 10 ** (-12 / 20)  # the RMS of each clip's loudest 100 ms
 

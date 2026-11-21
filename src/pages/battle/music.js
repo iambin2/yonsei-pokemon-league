@@ -1,4 +1,5 @@
-/* 배틀의 배경음악 (DESIGN.md "Battle", Sound). 운영자가 Suno로 만든 한 벌(2026-11-20)을 scripts/build-music.py가 public/music/에 둔다:
+/* 배틀의 배경음악 (DESIGN.md "Battle", Sound). 코드로 지은 한 벌(2026-11-21, 운영자가 고른 시안 C: 전광판 램프 같은 부드러운 펄스)을
+   scripts/compose-music.py가 public/music/에 둔다:
    lobby(대기실과 선출), battle(배틀), tower(도전의 탑의 선출, 문, 쉼). 승패는 음악이 아니라 효과음이 알린다(sfx.js win, lose).
    울음소리와 같은 AudioContext로 끝없이 돌고, 소리 시트의 배경음악 채널(cries.js channel)을 따른다. 첫 탭 전에는 조용하고,
    곡이 없으면 조용히 넘어간다. */
@@ -19,13 +20,15 @@ function load(name) {
   return buffers.get(name);
 }
 
-/* each loop's length in samples, and the PAD of its own sound on each side (scripts/build-music.py): an AAC file's first and last frames
+/* each loop's length in samples, and the PAD of its own sound on each side (scripts/compose-music.py prints them): an AAC file's first and last frames
    are not exact, so the seam is played from the middle of the file. Chrome also keeps the encoder's 1024 samples of silence at the
    start of the decoded buffer (2026-11-20, measured against the source) and a decoder that trims them keeps none: the loop is counted
    from the buffer's end, so it stays on the beat either way */
-const LENGTH = { battle: 6296640, lobby: 4277248, tower: 5952960 };
+const LENGTH = { battle: 1282909, lobby: 920348, tower: 1568000 };
 const PAD = 2048;
-const FADE = .6;
+/* a track comes in slowly and goes out quicker (2026-11-21, the owner: "갑자기 재생되는 것 같고"): in over 2.4 s, only a sixth of the
+   way up in its first second, out over 1.2 s under the next one coming in */
+const FADE = 1.2, FADE_IN = 2.4;
 let now = null; // { name, src, gain }
 let want = null; // the track asked last
 function stopNow(fade = FADE) {
@@ -45,10 +48,11 @@ export function music(name) {
     stopNow();
     const src = c.createBufferSource(), gain = c.createGain();
     src.buffer = buffer;
-    // the loop runs between two bar lines (build-music.py): the track starts on its first bar and comes back to it
+    // the loop is whole bars (compose-music.py): the track starts on its first bar and comes back to it
     const sr = buffer.sampleRate, end = (buffer.length - PAD) / sr, lead = end - LENGTH[name] / sr;
     src.loop = true; src.loopStart = lead; src.loopEnd = end;
-    gain.gain.setValueAtTime(0, c.currentTime); gain.gain.linearRampToValueAtTime(1, c.currentTime + FADE);
+    const t = c.currentTime; // ramps, not a value curve: a fade out may cut in at any moment (stopNow)
+    gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(.15, t + FADE_IN * .42); gain.gain.linearRampToValueAtTime(1, t + FADE_IN);
     src.connect(gain).connect(channel(c, "music"));
     src.start(0, lead);
     now = { name, src, gain };
