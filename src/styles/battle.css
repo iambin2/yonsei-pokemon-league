@@ -289,7 +289,9 @@
 .bt-replay-rail { position: relative; width: 100%; height: var(--s1); background: var(--panel-2); }
 .bt-replay-rail > i { position: absolute; inset: 0; background: var(--dim); transform: scaleX(var(--p)); transform-origin: 0 50%; transition: transform var(--move-tone); }
 /* the handle moves by transform only: its holder spans the rail and slides by the share played */
-.bt-replay-at { position: absolute; inset: 0; transform: translateX(calc(var(--p) * 100%)); transition: transform var(--move-tone); }
+/* the handle's layer is the rail's width moved along it: at the end it lay over the keys to its right and took their presses (2026-11-21:
+   the sound key of a match watched 실시간 did nothing), so it takes none; the range input under it is what is dragged */
+.bt-replay-at { position: absolute; inset: 0; pointer-events: none; transform: translateX(calc(var(--p) * 100%)); transition: transform var(--move-tone); }
 .bt-replay-at > b { position: absolute; top: 50%; left: 0; display: grid; place-items: center; min-width: var(--s5); height: var(--s5); padding: 0 var(--s1); background: var(--lit); color: var(--ground); font-size: var(--t12); line-height: var(--l12); font-weight: 700; font-variant-numeric: tabular-nums; translate: -50% -50%; }
 /* the timeline's marks (2026-11-18): a tick a stop on the rail; over a turn in which a Pokémon fell a square in the HP bar's red, under
    one with a Mega Evolution a gold diamond. The handle stands over its own tick */
@@ -988,10 +990,34 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 .bt-castlog .bt-log { contain: none; }
 .bt-match.cast .bt-castlog .bt-line { display: flex; align-items: center; min-height: var(--h-row); padding-block: 0; }
 @media (max-width: 859px) {
-  .bt-match.cast .bs-stage.hud { --say-h: 0px; }
-  .bt-match.cast :is(.bt-say, .bt-clock) { display: none; }
+  .bt-match.cast:not(.theater) .bs-stage.hud { --say-h: 0px; }
+  .bt-match.cast:not(.theater) :is(.bt-say, .bt-clock) { display: none; }
   .bt-match.cast .bt-castlog .bt-log { height: calc(var(--h-row) * 4 + var(--seam) * 3); max-height: none; }
 }
+
+/* 전체화면 (2026-11-21, the user: "유튜브에서 배틀 영상을 보듯이 더 생생하고 보는 맛이 있게"): the match leaves the page and takes the
+   screen, the head on top as the broadcast's board (what it is, 관전 N, the names, the turn), both strips round the stage, and the
+   stage all that is left. The message window and the clock come back on a phone (the log band steps away): the words are read on the
+   picture as a broadcast's captions. The replay keys stand over the foot of the screen on the ground and step away (opacity only)
+   once nothing has moved for a moment, the pointer with them; a pointer, a touch or a key brings them back, and a key in focus or the
+   end's keys keep them */
+.bt-match.theater .bt-main {
+  position: fixed; inset: 0; z-index: calc(var(--z-header) + var(--z-raised)); display: flex; flex-direction: column; gap: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  background: var(--ground);
+}
+.bt-match.theater .bt-main > .bt-head { flex: none; padding-top: 0; }
+.bt-match.theater .bt-stagebox { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.bt-match.theater .bt-stagebox > .bt-arena { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.bt-match.theater .bs-stage.hud { flex: 1 1 auto; width: 100%; aspect-ratio: auto; min-height: 0; max-height: none; }
+.bt-match.theater .bt-castlog { display: none; }
+.bt-match.theater .bt-deck {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky); min-height: 0 !important;
+  padding: var(--s3) calc(var(--s3) + env(safe-area-inset-right, 0px)) calc(var(--s3) + env(safe-area-inset-bottom, 0px)) calc(var(--s3) + env(safe-area-inset-left, 0px));
+  background: var(--ground); transition: opacity var(--move-tone);
+}
+.bt-match.theater.idle .bt-main { cursor: none; }
+.bt-match.theater.idle .bt-deck:not(:has(:focus-visible, .bt-end)) { opacity: 0; pointer-events: none; }
 
 /* reduced motion (DESIGN.md "Motion"): everything appears at once and only tone remains, in a battle as on every page */
 @media (prefers-reduced-motion: reduce) {

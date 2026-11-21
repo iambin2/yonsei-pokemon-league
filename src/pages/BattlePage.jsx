@@ -1111,6 +1111,8 @@ function useMatchLit() {
     return () => cancelAnimationFrame(frame);
   }, []);
 }
+// 전체화면 kept from one game of a run to the next (Arena, theater)
+let theaterKept = false;
 export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, onRematch, replayId, api = SERVER, streak = null, watchers = null, onOpen = null, lost = false }) {
   useMatchLit();
   // a battle with the computer lives on this device only: there is no link to share and no replay page to point to
@@ -1207,11 +1209,48 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     else if (action === "first") jump(stops[0].at);
     else if (action === "last") jump(ended ? stops[stops.length - 1].at : Infinity);
     else if (action === "sound") soundKey();
+    else if (action === "full") toggleTheater();
     else {
       const i = SPEEDS.findIndex(([v]) => v === speed) + (action === "slower" ? -1 : 1);
       if (SPEEDS[i]) setSpeedChoice(SPEEDS[i][0]);
     }
   };
+  /* 전체화면 (2026-11-21, the user: "유튜브에서 배틀 영상을 보듯이 더 생생하고 보는 맛이 있게"): the stage takes the whole screen with
+     both strips, the head over its top and the replay keys over its foot, which step away while nothing moves (as a video player's
+     do) and come back with the pointer, a touch or a key. The browser's own full screen where it has one; where it has none (an
+     iPhone) the match still fills the window. A run's next game keeps it (theaterKept), leaving the battle ends it */
+  const [theater, setTheater] = useState(() => theaterKept);
+  const toggleTheater = () => setTheater(on => !on);
+  useEffect(() => {
+    theaterKept = theater;
+    const root = document.documentElement;
+    if (theater && !document.fullscreenElement) root.requestFullscreen?.({ navigationUI: "hide" }).then(() => screen.orientation?.lock?.("landscape")).catch(() => {});
+    if (!theater && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    if (!theater) return undefined;
+    // Esc (or the system's back) ends the browser's full screen: the match follows
+    const off = () => { if (!document.fullscreenElement) setTheater(false); };
+    document.addEventListener("fullscreenchange", off);
+    // the screen stays awake while a match is watched
+    let lock = null, gone = false;
+    navigator.wakeLock?.request("screen").then(l => { if (gone) l.release(); else lock = l; }, () => {});
+    return () => { gone = true; lock?.release(); document.removeEventListener("fullscreenchange", off); };
+  }, [theater]);
+  // leaving the battle ends it; going into a run's next game (a new match standing at once) does not
+  useEffect(() => () => setTimeout(() => {
+    if (document.querySelector(".bt-match")) return;
+    theaterKept = false;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }), []);
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    if (!theater) { setIdle(false); return undefined; }
+    let timer = null;
+    const wake = () => { setIdle(false); clearTimeout(timer); timer = setTimeout(() => setIdle(true), 2600); };
+    wake();
+    const on = ["pointermove", "pointerdown", "keydown"];
+    on.forEach(t => window.addEventListener(t, wake, { passive: true }));
+    return () => { clearTimeout(timer); on.forEach(t => window.removeEventListener(t, wake)); };
+  }, [theater]);
   const keysOn = Boolean(bar && bar.stops.length > 1 && (ended || watching));
   useEffect(() => {
     if (!keysOn) return undefined;
@@ -1636,11 +1675,11 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     // a won 도전의 탑 game's beaten six are known whole (2026-11-18), so a trade's foe opens its whole set
     beaten: () => (readSeat(row.id)?.beaten || []).map((m, i) => ({ key: m.species + i, species: m.species, ability: m.ability, item: m.item, moves: (m.moves || []).map(id => ({ id: toID(id), pp: "" })) })) });
   return (
-    <div className={"bt-page bt-match" + (cast ? " cast" : "")} onPointerDown={pressStart} onPointerMove={pressEnd} onPointerUp={pressEnd} onPointerCancel={pressEnd}
+    <div className={"bt-page bt-match" + (cast ? " cast" : "") + (theater ? " theater" : "") + (theater && idle ? " idle" : "")} onPointerDown={pressStart} onPointerMove={pressEnd} onPointerUp={pressEnd} onPointerCancel={pressEnd}
       onClickCapture={pressClick} onContextMenu={pressMenu}>
       <div className="bt-main">
-        {compact && head}
-        <div className="bt-stagebox" ref={setStageBox}>
+        {(compact || theater) && head}
+        <div className="bt-stagebox" ref={setStageBox} onDoubleClick={bar ? e => { if (!e.target.closest?.("button, a, input")) toggleTheater(); } : undefined}>
           {/* a finished battle stands on its stage from the first moment, empty until the leads come out: its replay opens on the
               board saying who plays, never on the team preview (2026-11-07, the user: "처음에 선택 창이 미묘하게 보이는 문제") */}
           {started || ended
@@ -1656,9 +1695,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         </div>
         <div className="bt-deck" ref={deckRef}>
         {shownEnded && replay && replay.stops.length > 1 && <ReplayBar stops={replay.stops} at={at} playing={autoplay} onJump={jump} onStep={stepOn} onPlay={play}
-          sound={sound} awake={awake} onSound={soundKey} />}
+          sound={sound} awake={awake} onSound={soundKey} full={theater} onFull={toggleTheater} />}
         {watching && started && liveStops && liveStops.stops.length > 1 && <ReplayBar stops={liveStops.stops} at={at} playing={autoplay} onJump={jump} onStep={stepOn} onPlay={play}
-          sound={sound} awake={awake} onSound={soundKey} live={cue == null} onLive={() => jump(Infinity)} />}
+          sound={sound} awake={awake} onSound={soundKey} live={cue == null} onLive={() => jump(Infinity)} full={theater} onFull={toggleTheater} />}
         {cast && narrow && started && <div className="bt-castlog"><Log box={tape.lines} live /></div>}
         {shownEnded && <section className="bt-end" aria-label="배틀 결과">
           {/* the end's words wait for the end: a replay played from its start showed 다음 판을 기다리는 중… and 나가기 through its opening
@@ -1705,7 +1744,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         </div>
       </div>
       {!compact && <div className="bt-side">
-        {head}
+        {!theater && head}
         {/* a 도전의 탑 game's stake on its team preview stands under the head on a desktop, so the pick stays in one window */}
         {!started && !ended && row.kind === "streak" && seat && <StreakBand wins={seat.wins ?? 0} lives={seat.lives} />}
         {wide && pickDock}
