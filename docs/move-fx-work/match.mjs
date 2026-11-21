@@ -30,7 +30,7 @@ const PRE = id => `(async () => { await new Promise(r => { const t = setInterval
   await window.__bench.play(${JSON.stringify(id)}); await new Promise(r => setTimeout(r, 700));
   const m = document.createElement("div"); m.id = "fxmark"; m.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;pointer-events:none"; document.body.append(m);
   let hit = false; window.__fxMark = n => { if (n === "hit") { if (hit) return; hit = true; } m.style.opacity = { play: ".9", emit: ".8", hit: ".7" }[n]; };
-  setTimeout(() => window.__bench.play(${JSON.stringify(id)}), 800); })()`;
+  setTimeout(() => window.__bench.play(${JSON.stringify(id)}), 2200); })()`; // 2.2초 뒤: 여럿을 함께 찍으면 녹화가 1초 넘게 늦게 시작할 때가 있고, 그러면 시작 신호가 녹화 앞에 떨어져 모으기가 없는 것처럼 재진다
 // stageFx.js marks a move's start, the end of its charge and its first landing on #fxmark's opacity; the capture samples it every frame
 const marksOf = dir => {
   const s = JSON.parse(readFileSync(join(dir, "track.json"), "utf8")).samples.filter(x => x.t >= 0 && x.els["#fxmark"]);
