@@ -351,8 +351,8 @@ export function impactFlash(stage, at, s, k = 1, life = 170) {
   const e = E(stage);
   if (!e || instant() || !(k > 0)) return;
   const alpha = e.light ? .6 : 1;
-  e.emit({ at, tex: "dot", ramp: "white", size: [s * .5 * k, s * .8 * k], life, alpha, emis: 1, grow: true });
-  e.emit({ at, tex: "spark", ramp: "white", size: [s * .7 * k, s * 1.9 * k], rot: rand(0, Math.PI), life, alpha: alpha * .9, emis: 1, grow: true });
+  e.emit({ at, tex: "dot", ramp: "white", size: [s * .5 * k, s * .8 * k], life, alpha, emis: 1, grow: true, fixed: true });
+  e.emit({ at, tex: "spark", ramp: "white", size: [s * .7 * k, s * 1.9 * k], rot: rand(0, Math.PI), life, alpha: alpha * .9, emis: 1, grow: true, fixed: true });
 }
 const PALE_LIGHT = { flying: "flying.d", steel: "steel.d", ice: "ice.d", rock: "rock.d" };
 export function burst(stage, key, type, power = 1, { shards = true, mark = null, flash = shards ? 1 : 0 } = {}) {

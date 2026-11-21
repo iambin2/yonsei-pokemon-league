@@ -15,15 +15,18 @@ export function parse(phase) {
   let count = 0, noun = null;
   for (const w of rest) {
     if (/^\d+$/.test(w)) count = Number(w);
-    else if (w.includes(":")) { const [key, v] = w.split(":"); opts[key] = Number(v) || v; }
+    else if (w.includes(":")) { const [key, v] = w.split(":"); opts[key] = v !== "" && !Number.isNaN(Number(v)) ? Number(v) : v; }
     else { if (!noun) noun = w; words.add(w); }
   }
   return { verb, noun, count, opts, has: w => words.has(w) };
 }
 
 export function makeDraw(k) {
-  const { centre, sizeOf, unitOf, actorOf, rand, lerp, clamp, times, around, typeId, colorOf, glow, ring, shock, sparks, smoke, dust, fire, splash, glints, stamp, beamStrip, boltStrip, slashStrip, pathStrip, orbs, DEBRIS, MARK, bladeOf, charge, aura, lunge, quake, flashMon, flashStage, darken, heal, boost, ailment, sway, morph, reduced } = k;
+  const { centre, sizeOf, unitOf, actorOf, rand, lerp, clamp, times, around, typeId, colorOf, glow, ring, shock, sparks, smoke, dust, fire, splash, glints, stamp, beamStrip, boltStrip, slashStrip, pathStrip, orbs, DEBRIS, MARK, bladeOf, charge: charge0, aura, lunge, quake, flashMon, flashStage, darken, heal, boost, ailment, sway, morph, reduced } = k;
   const D = {};
+  // a script that gives its own gathering time (c:) is gathered once before its verb (D.pre), and the verb's own gathering is passed over
+  let pre = false;
+  const charge = (stage, key, type, dur) => (pre ? Promise.resolve() : charge0(stage, key, type, dur));
   /* ---------- where, how big, which way ---------- */
   const A = (c, lift = .5) => centre(c.stage, c.from, lift);
   const B = (c, t, lift = .45) => centre(c.stage, t, lift);
@@ -165,7 +168,7 @@ export function makeDraw(k) {
     });
     aura(c.stage, c.from, c.type, 1, dur);
   }
-  const gatherUp = (c, hold = 420) => Promise.all([charge(c.stage, c.from, c.type, hold), flashMon(c.stage, c.from, .3)]);
+  const gatherUp = (c, hold = 420) => (pre ? Promise.resolve() : Promise.all([charge(c.stage, c.from, c.type, hold), flashMon(c.stage, c.from, .3)]));
   // the light at the mouth as it lets go
   // (round 4: no white dot; it lit the user's face white before every shot)
   const muzzle = (c, at, size, dur = 400, ramp = null) => { c.e.emit({ at, tex: "glow", ramp: ramp || `${T(c)}.h`, size: [size * .5, size * .6], life: dur, alpha: .35 }); };
@@ -267,7 +270,6 @@ export function makeDraw(k) {
     const mark = a.noun || "body", n = Math.max(1, a.opts.multi || 1), e = c.e;
     // Beak Blast (Scarlet and Violet): the beak heats red-hot first, and the blow goes off in a burst of flame
     if (a.has("gather")) { camUser(c, 1.16); await (c.id === "beakblast" ? Promise.all([charge(c.stage, c.from, "fire", 520), move(c, c.from, { rimR: [1, 1], rimG: [.45, .45], rimB: [.15, .15], rimA: [0, .9, .7] }, { dur: 520 })]) : gatherUp(c)); }
-    if (a.opts.c) { camUser(c, 1.16); await charge(c.stage, c.from, c.type, a.opts.c); }
     if (a.has("bow")) await move(c, c.from, { y: [0, S(c) * .06, 0], sy: [1, .88, 1] }, { dur: 420, ease: "inout" });
     if (a.has("flex")) await D.flex(c, a, true);
     if (a.has("rage")) { const [x, y] = A(c, .85), s = S(c); e.emit({ at: [x + s * .22, y], tex: "cross", ramp: "fire.h", size: [s * .1, s * .3], life: 520, grow: true }); move(c, c.from, { rimR: [1, 1], rimG: [.2, .2], rimB: [.15, .15], rimA: [0, .95, .6] }, { dur: 500 }); e.emit({ n: 12, at: A(c, .05), r: [s * .4, s * .05], tex: "streak", ramp: "recall", vel: () => [rand(-6, 6), -rand(s * 1.4, s * 2.2)], face: true, size: [3, 2], aspect: [10, 18], life: [260, 380], over: 300 }); await after(c, 220); }
@@ -1754,6 +1756,8 @@ export function makeDraw(k) {
 
   // no recipe: the type's own flight to one target
   D.flight = (c, t) => fly(c, mouth(c), endOf(c, t), { tex: "orb", size: 16 * U(c), dur: 380 });
+  D.pre = async (c, ms) => { camUser(c, 1.14, .3); await charge0(c.stage, c.from, c.type, ms); pre = true; };
+  D.done = () => { pre = false; };
   return D;
 }
 
@@ -1761,16 +1765,35 @@ export function makeDraw(k) {
    (only the first phase can: a later one has already drawn). Only the last phase lands the blow, so no target is hit twice. */
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const centreX = c => (c.at ? c.at(c.from, .5)[0] : 0);
+// verbs that read c: themselves (their gathering is their own picture, not the common one)
+const OWN_C = new Set(["wisp"]);
+/* a script's own times, measured in 포켓몬 챔피언스 (docs/move-fx-work): c: ms it gathers before anything leaves, ts: how many times
+   longer its matter travels than the verb draws it (the clock is slowed until the first landing), rs: how many times longer what the
+   blow leaves lasts (the particles born at the landing live that much longer; bodies and the clock are not touched), f: the white of
+   the blow (0 for none). t:, r: and k: are read by the verbs that know them. */
 export async function playScript(D, c, script) {
   const phases = String(script || "").split(" then ").filter(Boolean);
   if (!phases.length) return false;
-  for (let i = 0; i < phases.length; i++) {
-    const a = parse(phases[i]);
-    const draw = D[a.verb];
-    if (!draw) return i > 0 ? undefined : false;
-    verbSound(a.verb, { pan: c.e?.W ? clamp(centreX(c) / c.e.W * 2 - 1, -1, 1) * .55 : 0 });
-    const out = await draw(i < phases.length - 1 ? { ...c, land: () => null } : c, a);
-    if (out === false) return i > 0 ? undefined : false;
-  }
-  return undefined;
+  const e = c.e;
+  try {
+    for (let i = 0; i < phases.length; i++) {
+      const a = parse(phases[i]), o = a.opts, last = i === phases.length - 1;
+      const draw = D[a.verb];
+      if (!draw) return i > 0 ? undefined : false;
+      verbSound(a.verb, { pan: e?.W ? clamp(centreX(c) / e.W * 2 - 1, -1, 1) * .55 : 0 });
+      if (typeof o.c === "number" && !OWN_C.has(a.verb) && D.pre) await D.pre(c, o.c);
+      if (typeof o.ts === "number" && o.ts > 0 && e) e.moveK = 1 / o.ts;
+      let landed = false;
+      const land = (key, opt = {}) => {
+        if (!landed) { landed = true; if (e) { e.moveK = 1; if (typeof o.rs === "number" && o.rs > 0) e.lifeK = o.rs; } }
+        return c.land(key, typeof o.f === "number" && opt.flash === undefined ? { ...opt, flash: o.f } : opt);
+      };
+      const out = await draw(last ? { ...c, land } : { ...c, land: () => null }, a);
+      D.done?.();
+      // what is born from the landing until a little after the verb is done lives rs times as long
+      if (e) { e.moveK = 1; if (e.lifeK !== 1) e.at(260, () => { e.lifeK = 1; }); }
+      if (out === false) return i > 0 ? undefined : false;
+    }
+    return undefined;
+  } finally { D.done?.(); if (e) e.moveK = 1; }
 }
