@@ -159,7 +159,10 @@ const LIB = {
   lamps: (c, t) => { [0, .26, .52].forEach((at, i) => S(c, t, "lamp", { g: .8, rate: 1 - i * .06, wet: .45, at })); S(c, t, "hum", { g: .25, dur: 1.4, lp: 800, wet: .4 }); },
   throw: (c, t, o) => S(c, t, "whoosh", { g: .55, pan: o.pan, dur: o.sec || .72, rate: 1.1 }),
   // the game's send-out (its shape measured from 포켓몬 챔피언스, scripts/data/sfx-shapes.json): a bright band rising to the top fast
-  ballOpen: (c, t, o) => S(c, t, "open", { g: .8, pan: o.pan, wet: .35 }),
+  /* only its burst, the first 0.22 s: the footage the shape was measured from has the Pokémon's cry right after the ball opens, and that
+     part read as a monster's growl (earshot, forced choice: 96% for the whole clip, 1% for its first 0.2 s, which reads as a burst of
+     light), heard at every send-out even with 울음소리 off (2026-11-21, the owner: "이상한 괴물 울음소리가 나던데? 아예 소리 안 나는 걸로") */
+  ballOpen: (c, t, o) => S(c, t, "open", { g: .8, pan: o.pan, wet: .35, dur: .22 }),
   // the red light flying home: a power falling away, then a short rise as it reaches the ball
   recall: (c, t, o) => S(c, t, "recallS", { g: .8, pan: o.pan, wet: .35, rate: 1 / Math.max(.6, Math.min(1.6, o.k || 1)) }),
   drag: (c, t, o) => { S(c, t, "breeze", { g: .6, pan: o.pan, dur: .6 }); heavy(c, t, 0, .4, o.pan); },
