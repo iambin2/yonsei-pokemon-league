@@ -1200,7 +1200,7 @@ export function makeDraw(k) {
   D.wisp = async (c, a) => {
     const t = aim(c);
     if (!t) return false;
-    const e = c.e, at = A(c), s = S(c), cD = O(a, "c", 480), tD = O(a, "t", 620);
+    const e = c.e, at = A(c), s = S(c), cD = Math.min(O(a, "c", 480), GATHER_MAX), tD = O(a, "t", 620);
     camUser(c, 1.12, .3);
     // 포켓몬 챔피언스: small red-orange balls of flame turn round the user and float across, a violet light in the user
     aura(c.stage, c.from, "ghost", 1, cD + 220);
@@ -1767,6 +1767,10 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const centreX = c => (c.at ? c.at(c.from, .5)[0] : 0);
 // verbs that read c: themselves (their gathering is their own picture, not the common one)
 const OWN_C = new Set(["wisp"]);
+// the longest a move gathers before anything leaves (2026-11-21, the owner: "모으기 짧게"). 포켓몬 챔피언스 gathers for one to
+// three seconds behind a scene of its own; here the same seconds were motes round the user and read as waiting. A script keeps the
+// measured time in c:, and the stage plays this much of it at most.
+export const GATHER_MAX = 600;
 /* a script's own times, measured in 포켓몬 챔피언스 (docs/move-fx-work): c: ms it gathers before anything leaves, ts: how many times
    longer its matter travels than the verb draws it (the clock is slowed until the first landing), rs: how many times longer what the
    blow leaves lasts (the particles born at the landing live that much longer; bodies and the clock are not touched), f: the white of
@@ -1781,7 +1785,7 @@ export async function playScript(D, c, script) {
       const draw = D[a.verb];
       if (!draw) return i > 0 ? undefined : false;
       verbSound(a.verb, { pan: e?.W ? clamp(centreX(c) / e.W * 2 - 1, -1, 1) * .55 : 0 });
-      if (typeof o.c === "number" && !OWN_C.has(a.verb) && D.pre) await D.pre(c, o.c);
+      if (typeof o.c === "number" && !OWN_C.has(a.verb) && D.pre) await D.pre(c, Math.min(o.c, GATHER_MAX));
       if (typeof o.ts === "number" && o.ts > 0 && e) e.moveK = 1 / o.ts;
       let landed = false;
       const land = (key, opt = {}) => {
