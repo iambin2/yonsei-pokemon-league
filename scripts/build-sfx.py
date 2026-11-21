@@ -102,7 +102,6 @@ CLIPS = {
     "flame": (K_SCI + "thrusterFire_003.ogg", 3, {"gain": -3}),
     # the spells: each type's matter, the field's weather, healing
     "fire": (['rec/bsb/1340.ogg@0.0', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 3.wav', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 4.wav'], 1.2, {}),
-    "fireL": (['rec/bsb/1340.ogg@0.0', 'rec/bsb/3322.ogg@13.2'], 2, {}),
     "burn": (['rec/bsb/3322.ogg@27.7', 'rec/bsb/3322.ogg@13.2'], 0.9, {}),
     "ice": (['lk-basic/Ice Spell Impacts/Ice Spell Impact 1.wav', 'rec/oga/sfx_breaking_and_falling/bfh1_glass_breaking_01.ogg', 'lk-basic/Ice Spell Impacts/Ice Spell Impact 5.wav'], 1, {}),
     "iceL": (['rec/bsb/2205.ogg', 'rec/bsb/2206.ogg', 'rec/bsb/2208.ogg'], 2, {}),
@@ -114,14 +113,12 @@ CLIPS = {
     "rain": (['rec/bsb/1289.ogg@35.3', 'rec/oga/water-splash-slime-sfx/loop_rain.ogg@3.9'], 2, {}),
     "earth": (['rec/oga/sfx_breaking_and_falling/bfh1_rock_falling_03.ogg', 'rec/bsb/1022.ogg@15.9', 'lk-druid/Earth Spell Impacts/Earth Spell Impact 2.wav'], 1, {}),
     "earthL": (lk("earth", 5), 2, {}),
-    "sand": (['rec/bsb/1635.ogg@51.3', 'rec/bsb/2889.ogg@21.6'], 1.6, {}),
     "plant": (['rec/bsb/2889.ogg@8.9', 'rec/bsb/1299.ogg@2.3'], 1.4, {}),
     "wind": (['rec/oga/wind/wind/Wind3.ogg', 'rec/bsb/0152.ogg@21.9'], 2, {}),
     "whoosh": (['rec/oga/swishes/swishes/swish-5.wav', 'rec/oga/swishes/swishes/swish-7.wav', 'rec/oga/swishes/swishes/swish-6.wav'], 1, {}),
     "whoosh2": (['rec/oga/swishes/swishes/swish-5.wav', 'rec/oga/swishes/swishes/swish-7.wav', 'rec/oga/swishes/swishes/swish-6.wav'], 1, {}),
     "breeze": (['rec/oga/wind/wind/Wind.ogg@0.3'], 1.4, {'gain': -2}),
     "swish": (['rec/bsb/0128.ogg', 'rec/oga/swishes/swishes/swish-11.wav'], 0.5, {}),
-    "heal": (['lk-heal/Impacts/Healing Spell Impact 1.wav', 'lk-heal/Impacts/Healing Spell Impact 5.wav'], 1.6, {}),
     "shine": (['lk-heal/Impacts/Healing Spell Impact 5.wav', 'lk-heal/Impacts/Healing Spell Impact 6.wav', 'lk-heal/Impacts/Healing Spell Impact 12.wav'], 0.7, {}),
     "chime": (lk("heal", 9), 1, {}),
     "rise": (lk("heal", 4), .7, {}),
@@ -144,6 +141,17 @@ CLIPS = {
     # not very effective: the nearest recordings as they are came closer to the game's than any shaped (CLAP 0.65)
     "hitR": (["rec/oga/sfx_breaking_and_falling/bfh1_breaking_03.ogg", "rec/oga/sfx_breaking_and_falling/bfh1_hit_06.ogg"], 0.4, {}),
     "knockS": (["kenney-rpg-audio/Audio/doorClose_3.ogg", "rec/bsb/1022.ogg@1.1"], 0.6, {"shape": "knock"}),
+    # 2026-11-21: clean rips of the 3D games' stat, healing, Reflect and Legends Z-A's Mega Evolution, and the newest part of each
+    # weather move's comparison with its music taken out
+    "upS": (["rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "statUp"}),
+    "downS": (["rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "statDown"}),
+    "healS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2.2, {"shape": "heal"}),
+    "screenS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2.8, {"shape": "screen"}),
+    "megaA": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2, {"shape": "megaStart"}),
+    "megaB": (["rec/bsb/0153.ogg@11.6"], 1.8, {"shape": "megaEnd"}),
+    "rainS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "rain"}),
+    "sunS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 1.7, {"shape": "sun"}),
+    "sandS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "sand"}),
     "pistol": ("lk-scifi/Laser Pistol 1.wav", .5, {}),
 }
 

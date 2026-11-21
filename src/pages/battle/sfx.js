@@ -164,8 +164,9 @@ const LIB = {
   recall: (c, t, o) => S(c, t, "recallS", { g: .8, pan: o.pan, wet: .35, rate: 1 / Math.max(.6, Math.min(1.6, o.k || 1)) }),
   drag: (c, t, o) => { S(c, t, "breeze", { g: .6, pan: o.pan, dur: .6 }); heavy(c, t, 0, .4, o.pan); },
   faint: (c, t, o) => { const k = o.k || 1; S(c, t, "faintS", { g: .75, pan: o.pan, wet: .4, rate: 1 / Math.max(.6, Math.min(1.6, k)) }); heavy(c, t, .55 * k, .5, o.pan); },
-  megaStart: (c, t, o) => { S(c, t, "gather", { g: .6, pan: o.pan, wet: .4, rate: .8 }); S(c, t, "field", { g: .45, pan: o.pan, rate: .7 }); S(c, t, "bright", { g: .8, wet: .6, at: .6 }); S(c, t, "sparkle", { g: .5, wet: .6, at: .75 }); },
-  megaEnd: (c, t) => { S(c, t, "boom", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .8, wet: .4 }); S(c, t, "shine", { g: .5, wet: .6, at: .05 }); },
+  // Mega Evolution as the newest games sound it (Legends Z-A, shapes measured): a rising charge, then the burst over a low blow
+  megaStart: (c, t, o) => S(c, t, "megaA", { g: .8, pan: o.pan, wet: .5 }),
+  megaEnd: (c, t) => { S(c, t, "megaB", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .6, wet: .4 }); },
   /* the result (2026-11-20, the owner: the music's jingles are let go, the effects say it): a win rises and rings bright twice over a
      thump, a loss falls away onto a heavy body, a draw is one chime; the music fades under them (BattlePage) */
   win: (c, t) => { S(c, t, "lamp", { g: .7, wet: .4 }); S(c, t, "rise", { g: .8, wet: .5, rate: 1.1 }); S(c, t, "bright", { g: .75, wet: .6, at: .18 }); S(c, t, "chime", { g: .5, wet: .6, rate: 1.25, at: .34 }); },
@@ -225,8 +226,9 @@ const LIB = {
 
   /* ---------- the Pokémon's state ---------- */
   // a stat rising: a bright rise for each stage; falling, the same played backwards and lower
-  statUp: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "rise", { g: .7, pan: o.pan, wet: .4, rate: 1 + i * .12, at: i * .26 }); },
-  statDown: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "fall", { g: .7, pan: o.pan, wet: .4, rate: .85 - i * .08, at: i * .3 }); },
+  // a stat rising and falling in the game's own shapes (scripts/data/sfx-shapes.json); each further stage again, a little higher or lower
+  statUp: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "upS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 + i * .08, at: i * .35 }); },
+  statDown: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "downS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 - i * .07, at: i * .35 }); },
   st_brn: (c, t, o) => S(c, t, "burn", { g: .6 * (o.n || 1), pan: o.pan, wet: .3, dur: .7 }),
   st_par: (c, t, o) => S(c, t, "spark", { g: .6 * (o.n || 1), pan: o.pan, dur: .55 }),
   st_psn: (c, t, o) => S(c, t, "ooze", { g: .6 * (o.n || 1), pan: o.pan, rate: 1.2, dur: .6, wet: .3 }),
@@ -234,7 +236,7 @@ const LIB = {
   st_frz: (c, t, o) => S(c, t, "frost", { g: .65, pan: o.pan, wet: .45 }),
   confused: (c, t, o) => [0, .3].forEach((at, i) => S(c, t, "glint", { g: .45, pan: o.pan, rate: 1 + i * .25, wet: .4, at })),
   cure: (c, t, o) => S(c, t, "chime", { g: .55, pan: o.pan, wet: .5, rate: 1.1 }),
-  heal: (c, t, o) => S(c, t, "heal", { g: .65, pan: o.pan, wet: .6 }),
+  heal: (c, t, o) => S(c, t, "healS", { g: .7, pan: o.pan, wet: .5 }),
   protect: (c, t, o) => { S(c, t, "field", { g: .65, pan: o.pan, wet: .45, rate: 1.1 }); S(c, t, "veil", { g: .35, pan: o.pan, wet: .55 }); if (o.spiky) S(c, t, "metalL2", { g: .45, pan: o.pan, at: .1 }); },
   ability: (c, t, o) => S(c, t, "plate", { g: .55, pan: o.pan, wet: .3 }),
   item: (c, t, o) => S(c, t, "plate2", { g: .55, pan: o.pan, wet: .35 }),
@@ -245,13 +247,14 @@ const LIB = {
   glass: (c, t, o) => { S(c, t, "glassH", { g: .75, pan: o.pan, wet: .4 }); S(c, t, "glassM", { g: .5, pan: o.pan, at: .04, wet: .4 }); },
 
   /* ---------- the field ---------- */
-  rain: (c, t) => S(c, t, "rain", { g: .75, wet: .4 }),
-  sun: (c, t) => { S(c, t, "fireL", { g: .5, wet: .5, rate: .8 }); S(c, t, "sparkle", { g: .45, wet: .6 }); },
-  sand: (c, t) => { S(c, t, "sand", { g: .7, wet: .4 }); S(c, t, "wind", { g: .4, dur: 1.4, wet: .4 }); },
+  // the weathers in the newest games' shapes (measured from their moves with the music taken out)
+  rain: (c, t) => S(c, t, "rainS", { g: .75, wet: .4 }),
+  sun: (c, t) => S(c, t, "sunS", { g: .7, wet: .5 }),
+  sand: (c, t) => S(c, t, "sandS", { g: .75, wet: .4 }),
   snow: (c, t) => { S(c, t, "iceL", { g: .55, wet: .5, rate: .85 }); S(c, t, "breeze", { g: .35, wet: .5 }); },
   terrain: (c, t, o) => { S(c, t, "sparkle", { g: .55, rate: rateOf(o.type), wet: .55 }); if (o.type === "electric") S(c, t, "spark", { g: .4, dur: .6 }); else if (o.type === "grass") S(c, t, "plant", { g: .35, wet: .4 }); },
   room: (c, t) => { S(c, t, "field", { g: .55, rate: .6, wet: .6 }); S(c, t, "field2", { g: .45, rate: .8, wet: .6, at: .1 }); },
-  screen: (c, t, o) => { const r = clamp((o.f || 1175) / 1175, .8, 1.4); S(c, t, "bright", { g: .6, pan: o.pan, rate: r, wet: .6 }); S(c, t, "field", { g: .4, pan: o.pan, rate: r, wet: .5 }); },
+  screen: (c, t, o) => S(c, t, "screenS", { g: .65, pan: o.pan, rate: clamp((o.f || 1175) / 1175, .85, 1.25), wet: .5 }),
   rocks: (c, t, o) => [0, .14, .28].forEach((at, i) => S(c, t, "mining2", { g: .6, pan: o.pan, rate: 1 + i * .1, at })),
   spikes: (c, t, o) => [0, .12, .24].forEach((at, i) => S(c, t, "metalL2", { g: .5, pan: o.pan, rate: 1.1 + i * .15, at })),
   web: (c, t, o) => S(c, t, "slime", { g: .55, pan: o.pan, rate: .7, wet: .3 }),
