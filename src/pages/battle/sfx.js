@@ -158,11 +158,12 @@ const LIB = {
   // the stadium's lamps, bank by bank: three heavy switches and the hum of the power coming up
   lamps: (c, t) => { [0, .26, .52].forEach((at, i) => S(c, t, "lamp", { g: .8, rate: 1 - i * .06, wet: .45, at })); S(c, t, "hum", { g: .25, dur: 1.4, lp: 800, wet: .4 }); },
   throw: (c, t, o) => S(c, t, "whoosh", { g: .55, pan: o.pan, dur: o.sec || .72, rate: 1.1 }),
-  ballOpen: (c, t, o) => { S(c, t, "shine", { g: .75, pan: o.pan, wet: .35 }); S(c, t, "field3", { g: .35, pan: o.pan, rate: 1.4, wet: .3 }); },
+  // the game's send-out (its shape measured from 포켓몬 챔피언스, scripts/data/sfx-shapes.json): a bright band rising to the top fast
+  ballOpen: (c, t, o) => S(c, t, "open", { g: .8, pan: o.pan, wet: .35 }),
   // the red light flying home: a power falling away, then a short rise as it reaches the ball
-  recall: (c, t, o) => { const k = o.k || 1; S(c, t, "fall", { g: .7, pan: o.pan, wet: .35 }); S(c, t, "phaserDown", { g: .3, pan: o.pan, rate: .8 }); S(c, t, "rise", { g: .45, pan: o.pan, wet: .4, at: 1.1 * k, dur: .3 }); },
+  recall: (c, t, o) => S(c, t, "recallS", { g: .8, pan: o.pan, wet: .35, rate: 1 / Math.max(.6, Math.min(1.6, o.k || 1)) }),
   drag: (c, t, o) => { S(c, t, "breeze", { g: .6, pan: o.pan, dur: .6 }); heavy(c, t, 0, .4, o.pan); },
-  faint: (c, t, o) => { const k = o.k || 1; S(c, t, "fall", { g: .6, pan: o.pan, rate: .7, wet: .4 }); heavy(c, t, .55 * k, .9, o.pan); S(c, t, "soft", { g: .4, pan: o.pan, at: .62 * k }); },
+  faint: (c, t, o) => { const k = o.k || 1; S(c, t, "faintS", { g: .75, pan: o.pan, wet: .4, rate: 1 / Math.max(.6, Math.min(1.6, k)) }); heavy(c, t, .55 * k, .5, o.pan); },
   megaStart: (c, t, o) => { S(c, t, "gather", { g: .6, pan: o.pan, wet: .4, rate: .8 }); S(c, t, "field", { g: .45, pan: o.pan, rate: .7 }); S(c, t, "bright", { g: .8, wet: .6, at: .6 }); S(c, t, "sparkle", { g: .5, wet: .6, at: .75 }); },
   megaEnd: (c, t) => { S(c, t, "boom", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .8, wet: .4 }); S(c, t, "shine", { g: .5, wet: .6, at: .05 }); },
   /* the result (2026-11-20, the owner: the music's jingles are let go, the effects say it): a win rises and rings bright twice over a
@@ -214,11 +215,12 @@ const LIB = {
   },
   // the damage itself: a plain blow, a heavier double crunch when it is super effective, a muffled one when it is not very effective,
   // a sharp crack over it on a critical hit; HP lost to the field or a status is a dull knock
-  damage: (c, t, o) => { const p = clamp(.7 + (o.share || .2), .7, 1.4); S(c, t, "punch2", { g: .7 * p, pan: o.pan }); S(c, t, "soft", { g: .4 * p, pan: o.pan }); },
-  super: (c, t, o) => { S(c, t, "punchH2", { g: 1, pan: o.pan, wet: .3 }); S(c, t, "crunch", { g: .55, pan: o.pan, wet: .3 }); S(c, t, "punchH", { g: .75, pan: o.pan, at: .07 }); },
-  resist: (c, t, o) => { S(c, t, "soft", { g: .75, pan: o.pan, lp: 900 }); S(c, t, "wood", { g: .45, pan: o.pan, lp: 1200 }); },
+  // the hits as the game voices them (shapes measured from clean rips of the 3D games, the same sounds 포켓몬 챔피언스 plays)
+  damage: (c, t, o) => S(c, t, "hitN", { g: .8 * clamp(.7 + (o.share || .2), .7, 1.4), pan: o.pan, wet: .25 }),
+  super: (c, t, o) => S(c, t, "hitS", { g: 1, pan: o.pan, wet: .3 }),
+  resist: (c, t, o) => S(c, t, "hitR", { g: .75, pan: o.pan, wet: .2 }),
   crit: (c, t, o) => { S(c, t, "plate3", { g: .75, pan: o.pan, wet: .3 }); S(c, t, "metalL", { g: .55, pan: o.pan, wet: .35 }); S(c, t, "punchH", { g: .6, pan: o.pan }); },
-  knock: (c, t, o) => S(c, t, "wood", { g: .7, pan: o.pan }),
+  knock: (c, t, o) => S(c, t, "knockS", { g: .7, pan: o.pan, wet: .25 }),
   flinch: (c, t, o) => { S(c, t, "woodL", { g: .55, pan: o.pan }); S(c, t, "soft", { g: .3, pan: o.pan, rate: 1.2 }); },
 
   /* ---------- the Pokémon's state ---------- */

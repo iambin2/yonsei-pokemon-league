@@ -13,6 +13,8 @@ fetches and decodes one file. The packs are not kept in the repository; unpack t
     <dir>/rec/oga/...           OpenGameArt CC0: rubberduck's breaking/falling/hit and water/splash/slime packs, BMacZero's spark,
                                 IgnasD's ice and wind, artisticdude's swishes, StarNinjas' sword clashes (each zip unpacked in its name)
 
+The sounds of every turn take the game's own shape (shaped(), scripts/data/sfx-shapes.json, measured 2026-11-21 from 포켓몬 챔피언스 footage
+with the music taken out and from clean rips of the 3D games' hits: numbers only, the game's audio is never used).
 Since 2026-11-20 every place was chosen by earshot (match to a description of the sound, realness) over 834 candidates and then by
 the slot's meaning; most places hold two or three takes the battle plays in turn.
 
@@ -71,7 +73,6 @@ CLIPS = {
     "punchD": (['kenney-impact-sounds/Audio/impactPunch_heavy_002.ogg', 'kenney-rpg-audio/Audio/bookClose.ogg'], 0.4, {}),
     "soft": (['kenney-rpg-audio/Audio/cloth3.ogg', 'kenney-rpg-audio/Audio/dropLeather.ogg'], 0.3, {}),
     "softH": (['rec/bsb/2452.ogg', 'rec/bsb/2453.ogg', 'rec/bsb/2454.ogg'], 0.5, {}),
-    "wood": (['rec/bsb/1022.ogg@1.1', 'rec/bsb/1022.ogg@9.4'], 0.3, {}),
     "woodL": (['rec/bsb/0026.ogg@1.3', 'rec/bsb/0026.ogg@4.3'], 0.15, {}),
     "plank": (['rec/bsb/2205.ogg', 'rec/bsb/1300.ogg'], 0.4, {}),
     "plate3": (K_IMP + "impactPlate_heavy_000.ogg", .45, {}),
@@ -99,7 +100,6 @@ CLIPS = {
     "rumble": (K_SCI + "spaceEngineLow_000.ogg", 3, {}),
     "hum": (K_SCI + "spaceEngineSmall_000.ogg", 3, {"gain": -3}),
     "flame": (K_SCI + "thrusterFire_003.ogg", 3, {"gain": -3}),
-    "phaserDown": (K_DIG + "phaserDown3.ogg", .45, {"gain": -3}),
     # the spells: each type's matter, the field's weather, healing
     "fire": (['rec/bsb/1340.ogg@0.0', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 3.wav', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 4.wav'], 1.2, {}),
     "fireL": (['rec/bsb/1340.ogg@0.0', 'rec/bsb/3322.ogg@13.2'], 2, {}),
@@ -134,6 +134,16 @@ CLIPS = {
     "gather": (lk("heal", 15), .8, {}),
     "wish": (lk("heal", 2), 1.2, {}),
     "beam": ("lk-scifi/Laser Beam 1.wav", 3, {"gain": -2}),
+    # the game's own shapes (shaped above) on real recordings' grain: the sounds of every turn
+    "open": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 0.8, {"shape": "sendout"}),
+    "recallS": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 1.3, {"shape": "recall"}),
+    # the footage's faints are under the music; the game's faint is the recall's falling band sweeping back (measured 2026-11-07)
+    "faintS": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "recall"}),
+    "hitN": (["lk-druid/Earth Spell Impacts/Earth Spell Impact 4.wav", "kenney-sci-fi-sounds/Audio/explosionCrunch_000.ogg"], 0.9, {"shape": "hitNormal"}),
+    "hitS": (["rec/oga/sfx_breaking_and_falling/bfh1_falling_04.ogg"], 1.4, {"shape": "hitSuper"}),
+    # not very effective: the nearest recordings as they are came closer to the game's than any shaped (CLAP 0.65)
+    "hitR": (["rec/oga/sfx_breaking_and_falling/bfh1_breaking_03.ogg", "rec/oga/sfx_breaking_and_falling/bfh1_hit_06.ogg"], 0.4, {}),
+    "knockS": (["kenney-rpg-audio/Audio/doorClose_3.ogg", "rec/bsb/1022.ogg@1.1"], 0.6, {"shape": "knock"}),
     "pistol": ("lk-scifi/Laser Pistol 1.wav", .5, {}),
 }
 
@@ -144,6 +154,40 @@ def decode(path):
     parts = [f.to_ndarray() for frame in src.decode(audio=0) for f in resample.resample(frame)]
     parts += [f.to_ndarray() for f in resample.resample(None)]
     return np.concatenate(parts, axis=1).astype(np.float32)
+
+
+SHAPES = json.loads((ROOT / "scripts" / "data" / "sfx-shapes.json").read_text())
+
+
+def shaped(x, name):
+    """The texture x (a real recording) given the game's own shape for `name` (scripts/data/sfx-shapes.json: 포켓몬 챔피언스's
+    sound measured from footage and clean rips, 1/3-octave band levels every 10 ms, numbers only): frame by frame each band is
+    brought to the shape's level, so the result moves through time and frequency as the game's does while its grain stays the
+    recording's (2026-11-20, the owner: "효과음만 포켓몬 챔피언스 원작과 아주 비슷하게")."""
+    edges = np.array(SHAPES["edges_hz"])
+    shape = np.array(SHAPES["shapes"][name], dtype=np.float64)
+    n, hop = 2048, int(SHAPES["hop_s"] * SR)
+    frames = len(shape)
+    need = frames * hop + n
+    x = np.tile(x, (1, int(np.ceil(need / x.shape[1])) + 1))[:, :need]
+    win = np.hanning(n)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    centres = np.sqrt(edges[:-1] * edges[1:])
+    which = [(f >= edges[k]) & (f < edges[k + 1]) for k in range(len(edges) - 1)]
+    out = np.zeros((x.shape[0], need))
+    norm = np.zeros(need)
+    for i in range(frames):
+        a = i * hop
+        spec = np.fft.rfft(x[:, a:a + n] * win, axis=1)
+        power = (np.abs(spec) ** 2).mean(axis=0)
+        have = np.array([10 * np.log10(power[w].sum() + 1e-12) for w in which])
+        g = np.clip(shape[i] - have, -60, 40)
+        gain = 10 ** (np.interp(np.log2(np.maximum(f, 20)), np.log2(centres), g) / 20)
+        gain[f < edges[0] * 0.7] *= 0.1
+        out[:, a:a + n] += np.fft.irfft(spec * gain, n, axis=1) * win
+        norm[a:a + n] += win ** 2
+    y = out / np.maximum(norm, 1e-3)
+    return y[:, : frames * hop].astype(np.float32)
 
 
 def clip(x, longest, rev=False, gain=0):
@@ -180,6 +224,8 @@ def main():
             x = decode(src / file)
             if start:
                 x = x[:, int(float(start) * SR): int((float(start) + 2) * SR)]
+            if opt.get("shape"):
+                x = shaped(x, opt["shape"])
             x = clip(x, longest, opt.get("rev", False), opt.get("gain", 0))
             table[name].append([at, x.shape[1]])
             parts += [x, np.zeros((2, GAP), np.float32)]
