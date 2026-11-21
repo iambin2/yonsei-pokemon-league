@@ -20,12 +20,13 @@ import { stopIndex } from "../../services/battleReplay.js";
 const stopWord = s => (s.end ? "끝" : s.turn === 0 ? "선출" : `${s.turn}턴`);
 
 // the replay's controls stand back under the stage: small round keys with their signs and a thin track to drag to any turn
-const KEY = { sound: "M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.4 6a8.5 8.5 0 0 1 0 12L17 16.6a6.5 6.5 0 0 0 0-9.2z", mute: "M4 9h4l5-4v14l-5-4H4zM15.3 9.4l1.4-1.4 2.1 2.1 2.1-2.1 1.4 1.4-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z", first: "M6 6h2v12H6zM18 6l-9 6 9 6z", prev: "M16 6l-9 6 9 6z", play: "M8 5l11 7-11 7z", pause: "M8 5h3v14H8zM13 5h3v14h-3z", next: "M8 6l9 6-9 6z", last: "M16 6h2v12h-2zM6 6l9 6-9 6z" };
+const KEY = { sound: "M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.4 6a8.5 8.5 0 0 1 0 12L17 16.6a6.5 6.5 0 0 0 0-9.2z", mute: "M4 9h4l5-4v14l-5-4H4zM15.3 9.4l1.4-1.4 2.1 2.1 2.1-2.1 1.4 1.4-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z", first: "M6 6h2v12H6zM18 6l-9 6 9 6z", prev: "M16 6l-9 6 9 6z", play: "M8 5l11 7-11 7z", pause: "M8 5h3v14H8zM13 5h3v14h-3z", next: "M8 6l9 6-9 6z", last: "M16 6h2v12h-2zM6 6l9 6-9 6z",
+  full: "M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z", unfull: "M8 4h2v6H4V8h4zM14 4h2v4h4v2h-6zM4 14h6v6H8v-4H4zM14 14h6v2h-4v4h-2z" };
 // each key names its keyboard key too (replayKey below), as Showdown's replays answer to theirs
 const Key = ({ d, label, keys, hint, ...rest }) => <button type="button" className="bt-rkey" aria-label={label} title={`${label} (${hint})`} aria-keyshortcuts={keys} {...rest}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg></button>;
 /* live: a battle still being played (중계), true while the stage follows it: its last key is 실시간, lit with the amber lamp while it
    stands there and the main key once the watcher went back, to come back. The track is the replay's own, nothing added to it */
-export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, awake, onSound, live, onLive }) {
+export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, awake, onSound, live, onLive, full, onFull }) {
   const i = stopIndex(stops, at);
   const last = stops.length - 1;
   const following = live === true;
@@ -54,13 +55,15 @@ export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, a
       {/* the sound, as Showdown's replays keep it with the playback: lit while the page is still silent and waits for a press */}
       <Key d={sound && awake ? KEY.sound : KEY.mute} label={sound && awake ? "소리 끄기" : "소리 켜기"} keys="M" hint="m"
         onClick={onSound} className={"bt-rkey" + (sound && !awake ? " main" : "")} />
+      {/* 전체화면 (2026-11-21, the user: "유튜브에서 배틀 영상을 보듯이"): the last key, as a video player keeps it */}
+      {onFull && <Key d={full ? KEY.unfull : KEY.full} label={full ? "전체화면 끝내기" : "전체화면"} keys="F" hint="f" aria-pressed={full} onClick={onFull} />}
     </div>
   );
 }
 
 /* the replay's keyboard, after Showdown's replays (k, j, l, Shift for first and last, < > for speed, m for sound) with the arrows,
    Home and End beside them. A key typed into a field, with a modifier, or a space on a focused key is left to the page */
-const REPLAY_KEYS = { " ": "play", k: "play", ArrowLeft: "prev", j: "prev", ArrowRight: "next", l: "next", Home: "first", J: "first", End: "last", L: "last", "<": "slower", ">": "faster", m: "sound" };
+const REPLAY_KEYS = { " ": "play", k: "play", ArrowLeft: "prev", j: "prev", ArrowRight: "next", l: "next", Home: "first", J: "first", End: "last", L: "last", "<": "slower", ">": "faster", m: "sound", f: "full" };
 export function replayKey(e) {
   if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return null;
   const t = e.target;
