@@ -20,6 +20,18 @@
   `actorlog.mjs 기술`: 재생 중 포켓몬의 flash, rim, tint 값을 40ms마다 찍는다. 몸이 하얀 것이 몸의 값인지, 위에 쌓인 빛인지 가른다.
 - 실험실이 촬영 중에 더블로 바뀌는 일이 있다. 그 장은 다시 찍는다(`white.tsv`가 0 근처로 나오거나 상대가 둘이면 의심).
 
+## 원작과 수치로 맞추기 (2026-11-21)
+
+설계는 `docs/superpowers/specs/2026-11-21-move-fx-match-design.md`, 순서는 `docs/superpowers/plans/2026-11-21-move-fx-match.md`.
+
+- `fxmeasure.mjs <프레임 폴더> --type fire`: 프레임마다 흰 면적과 타입 색 면적을 재고 단계(모으기, 날아가기, 섬광, 남는 것)를 ms로 낸다.
+  원작은 맞는 쪽을 비추는 컷만 잘라 `--from --to --base tail --top 0.12`로 잰다(컷마다 배경색이 달라서 앞 컷은 기준선이 못 된다).
+  우리 쪽은 녹화가 연출보다 200ms 넘게 먼저 시작해야 한다(처음 여섯 프레임이 기준선).
+- `fxphases.mjs`: 그 계산과 통과 기준(`compareRow`: 단계 ±80ms, 섬광 길이 ±50ms이고 크기는 원작 이하, 타입 색 면적 ±25%, 남는 것 ±120ms).
+  타입마다 재는 색의 범위(`WIN`)도 여기 있다. `tests/fxPhases.test.mjs`가 검사한다.
+- 프레임 자르기와 녹화는 Reanimate 스킬(`~/.claude/skills/reanimate/scripts`, Bun)의 `frames.ts`, `capture.ts`를 쓴다.
+  원작 영상은 저장소에 넣지 않는다.
+
 ## 지킬 것
 
 - 평평한 원(바닥 고리, 충전 고리), 흰 별, 몸이 하얗게 뜨는 것은 쓰지 않는다.

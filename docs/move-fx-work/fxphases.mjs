@@ -1,0 +1,83 @@
+// 프레임마다 잰 수치(흰 면적, 타입 색 면적)에서 연출의 단계를 자르고, 원작과 우리 것을 비교한다.
+// 설계: docs/superpowers/specs/2026-11-21-move-fx-match-design.md. 순수 계산뿐이라 tests/fxPhases.test.mjs가 검사한다.
+
+// 연출이 실제로 내는 색의 범위(타입 토큰의 색이 아니라 화면에 보이는 빛: 불꽃은 빨강에서 노랑까지).
+// hue는 도, 범위가 0을 넘으면 [330, 20]처럼 쓴다. nearWhite 타입은 옅은 빛도 타입의 빛으로 센다.
+const WIN = {
+  normal: [[20, 70], .1, .75, true], fire: [[0, 58], .55, .7], water: [[185, 235], .4, .55], electric: [[38, 66], .5, .8],
+  grass: [[75, 150], .4, .5], ice: [[170, 215], .04, .75, true], fighting: [[10, 45], .5, .7], poison: [[265, 305], .35, .45],
+  ground: [[18, 45], .35, .4], flying: [[190, 230], .04, .75, true], psychic: [[300, 350], .35, .6], bug: [[55, 95], .45, .5],
+  rock: [[30, 60], .08, .6, true], ghost: [[255, 310], .3, .3], dragon: [[225, 265], .4, .5], dark: [[250, 20], .15, .12],
+  steel: [[180, 220], .04, .7, true], fairy: [[290, 340], .25, .7],
+};
+export function typeWindow(type) {
+  const w = WIN[type];
+  if (!w) throw new Error(`unknown type ${type}`);
+  return { hue: w[0], minSat: w[1], minVal: w[2], nearWhite: Boolean(w[3]) };
+}
+function hsv(r, g, b) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, mx ? d / mx : 0, mx / 255];
+}
+export function classify([r, g, b], win) {
+  const [h, s, v] = hsv(r, g, b), [a, z] = win.hue;
+  const inType = (a <= z ? h >= a && h <= z : h >= a || h <= z) && s >= win.minSat && v >= win.minVal;
+  const white = r > 235 && g > 225 && b > 200;
+  if (win.nearWhite && inType) return "type";
+  return white ? "white" : inType ? "type" : null;
+}
+
+const run = (xs, i, ok) => { let a = i, z = i; while (a > 0 && ok(xs[a - 1])) a--; while (z < xs.length - 1 && ok(xs[z + 1])) z++; return [a, z]; };
+// rows: [{ white, type }] 화면에서 차지하는 비율(0..1). baseline: 연출 전의 한 줄(없으면 처음 여섯 줄의 평균, 그래서 녹화는 연출보다 200ms 먼저 시작한다).
+// ink: 대상의 잉크 높이를 화면 높이로 나눈 값(면적을 대상 크기로 나누는 분모). hit: 맞는 순간이 있는 기술인가.
+export function phasesOf(rows, { fps = 30, baseline, ink = 1, hit = true, floor = .004 } = {}) {
+  const head = rows.slice(0, 6), mean = k => head.reduce((s, r) => s + r[k], 0) / head.length;
+  const base = baseline || { white: mean("white"), type: mean("type") };
+  const sd = k => Math.sqrt(head.reduce((s, r) => s + (r[k] - mean(k)) ** 2, 0) / head.length);
+  const thW = Math.max(3 * sd("white"), floor), thT = Math.max(3 * sd("type"), floor);
+  const w = rows.map(r => r.white - base.white), t = rows.map(r => r.type - base.type);
+  const ms = i => (i * 1000) / fps, area = x => x / (ink * ink);
+  const on = rows.map((_, i) => w[i] > thW || t[i] > thT);
+  const first = on.indexOf(true), last = on.lastIndexOf(true);
+  if (first < 0) return { zero: 0, phases: [], flash: null, typePeak: 0, residueEnd: 0 };
+
+  const wPeak = Math.max(...w), wAt = w.indexOf(wPeak);
+  let flash = null, zeroI = first;
+  if (wPeak > thW) { const [a, z] = run(w, wAt, x => x > Math.max(thW, wPeak / 2)); flash = { a, z, peak: area(wPeak) }; }
+  if (hit) zeroI = flash ? flash.a : t.indexOf(Math.max(...t));
+  const zero = ms(zeroI), rel = i => Math.round(ms(i) - zero);
+
+  const phases = [];
+  if (hit && zeroI > first) {
+    // 맞기 직전까지 끊기지 않고 이어진 구간이 날아가는 시간, 그 앞에 따로 떨어진 것이 모으기
+    let a = zeroI; while (a > first && on[a - 1]) a--;
+    if (a > first) phases.push({ name: "charge", start: rel(first), end: rel(a) });
+    if (zeroI > a) phases.push({ name: "travel", start: rel(a), end: 0 });
+  }
+  if (last + 1 > zeroI) phases.push({ name: hit ? "residue" : "show", start: 0, end: rel(last + 1) });
+  return {
+    zero, phases,
+    flash: flash && { start: rel(flash.a), end: rel(flash.z + 1), peak: flash.peak },
+    typePeak: area(Math.max(...t, 0)), residueEnd: rel(last + 1),
+  };
+}
+
+// 설계의 통과 기준: 단계 ±80ms, 섬광 길이 ±50ms이고 크기는 원작 이하, 타입 색 면적 ±25%, 남는 것 ±120ms
+export function compareRow(ref, ours) {
+  const fails = [];
+  for (const p of ref.phases) {
+    const q = ours.phases.find(x => x.name === p.name);
+    if (!q || Math.abs(q.start - p.start) > 80 || Math.abs(q.end - q.start - (p.end - p.start)) > 80) fails.push(p.name);
+  }
+  if (ref.flash && !ours.flash) fails.push("flash");
+  else if (!ref.flash && ours.flash) fails.push("flash-extra");
+  else if (ref.flash) {
+    if (Math.abs(ours.flash.end - ours.flash.start - (ref.flash.end - ref.flash.start)) > 50) fails.push("flash");
+    if (ours.flash.peak > ref.flash.peak) fails.push("flash-size");
+  }
+  if (ref.typePeak > 0 && Math.abs(ours.typePeak / ref.typePeak - 1) > .25) fails.push("area");
+  if (Math.abs(ours.residueEnd - ref.residueEnd) > 120) fails.push("residue");
+  return { pass: !fails.length, fails };
+}
