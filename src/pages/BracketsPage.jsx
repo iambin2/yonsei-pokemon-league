@@ -1343,7 +1343,7 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
   const roundRobin = {sp:slot=>slot?.pid};
   const renderMatch=(match,editable)=><div className="stack pn" key={match.id}>
     <Row title={`${nameOf(match.a.pid)} vs ${nameOf(match.b.pid)}`} line={match.winner?`승자 ${nameOf(match[match.winner].pid)}`:"경기 전"}/>
-    {editable&&<div className="stack bk-dock">
+    {editable&&<div className="stack bk-pick">
       {["a","b"].map(side=><Button key={side} variant={match.winner===side?"main":"second"} disabled={busy}
         onClick={()=>run(()=>setGroupStageWinner(b,match,match.winner===side?null:match[side].pid))}>
         {match.winner===side?`${nameOf(match[side].pid)} 승자 취소`:`${nameOf(match[side].pid)} 승리`}
