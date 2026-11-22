@@ -398,7 +398,7 @@ function CpuRoom({ res, say, go, onLeave, onRestart }) {
       setState({ row: data.row, view: data.view });
       // an ended battle goes to the server once; a failure is tried again the next time this battle is opened
       if (kept.status === "ended" && !kept.recorded) {
-        recordCpuBattle(kept.inputLog).then(({ recorded, id }) => {
+        recordCpuBattle(kept.inputLog, kept.level).then(({ recorded, id }) => {
           if (recorded && readCpuBattle()?.inputLog === kept.inputLog) keepCpuBattle({ ...readCpuBattle(), recorded: true, replayId: id });
         }, () => { /* 다음에 이 배틀을 열 때 다시 보낸다 */ });
       }
@@ -449,7 +449,7 @@ function CpuRoom({ res, say, go, onLeave, onRestart }) {
   const replayId = async () => {
     const kept = readCpuBattle() || {};
     if (kept.replayId) return kept.replayId;
-    const { recorded, id } = await recordCpuBattle(kept.inputLog);
+    const { recorded, id } = await recordCpuBattle(kept.inputLog, kept.level);
     if (!recorded || !id) throw new Error("지금은 리플레이를 만들 수 없습니다. 잠시 뒤 다시 시도해 주세요.");
     if (readCpuBattle()?.inputLog === kept.inputLog) keepCpuBattle({ ...readCpuBattle(), recorded: true, replayId: id });
     return id;

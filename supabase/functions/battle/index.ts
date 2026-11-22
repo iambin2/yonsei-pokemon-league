@@ -788,15 +788,20 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
 
   /* A finished battle with the computer, kept for the computer to learn from (docs/db/cpu_battles.sql). Every fact is read off the
      replay here; a record that does not replay is refused. recorded false: the site is taking too many just now, nothing more. */
-  async record({ inputLog }) {
+  async record({ inputLog, level }) {
     let facts;
     try { facts = readCpuRecord(inputLog); } catch { refuse(422, "배틀 기록을 읽지 못했습니다."); }
     const text = facts.inputLog;
     const id = await sha256(text);
-    const recorded = await rpc("cpu_battle_record", {
+    const args = {
       p_id: id, p_format_id: facts.formatid, p_engine: ENGINE, p_winner: facts.winner,
       p_ended_by: facts.endedBy, p_turns: facts.turns, p_input_log: text,
-    });
+    };
+    // the level the screen says it played (docs/db/battle_records.sql): for win rates by level only, so it is not checked against the
+    // replay; before that SQL runs the function without it is all there is
+    const lv = /^[a-z0-9-]{1,20}$/.test(String(level ?? "")) ? String(level) : "";
+    const { data, error } = await db.rpc("cpu_battle_record", { ...args, p_level: lv });
+    const recorded = error?.code === "PGRST202" ? await rpc("cpu_battle_record", args) : (() => { if (error) throw error; return data; })();
     // id: the kept record's, the address of its replay (cpureplay)
     return { recorded: recorded === true, id };
   },

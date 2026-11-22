@@ -20,3 +20,10 @@ test("the list is what waits, in the order it happens, and an open application i
   assert.match(tasks[2].line, /대회일이 지났습니다/);
   assert.deepEqual(adminTasks(null), []);
 });
+
+test("a site battle that never reached the bracket is the first thing on the list", () => {
+  const e = { id: "A", name: "A", step: 3, stage: "8강", done: 1, total: 4, left: 3, battles: 0, unapplied: 2, awaiting: false };
+  const tasks = adminTasks({ events: [e], requests: [], battles: 0 });
+  assert.deepEqual(tasks.map(t => t.kind), ["battles", "play"]);
+  assert.match(tasks[0].line, /2판/);
+});

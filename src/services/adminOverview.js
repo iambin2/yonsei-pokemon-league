@@ -1,5 +1,7 @@
 import { applicationsOpen } from "./announcementTimes.js";
 import { listLiveBoards } from "./battleWatch.js";
+import { listUnappliedBattles } from "./battleService.js";
+import { parseBoutKey } from "./teamBouts.js";
 import {
   listEventApplications, listEventRegistrationSubmissionStatuses, listEventsAwaitingRecord, listNormalizedBracketRuntimes, listSubmissionEvents,
 } from "./normalizedCompetitionService.js";
@@ -16,9 +18,9 @@ export { ADMIN_STEPS, adminTasks } from "./adminTasks.js";
 const safe = promise => Promise.resolve(promise).then(value => value, () => null);
 
 export async function readAdminOverview(announcements = []) {
-  const [events, awaiting, runtimes, requests, live] = await Promise.all([
+  const [events, awaiting, runtimes, requests, live, unapplied] = await Promise.all([
     safe(listSubmissionEvents()), safe(listEventsAwaitingRecord()), safe(listNormalizedBracketRuntimes()),
-    safe(accountsReady().then(ok => (ok ? listLinkRequests() : []))), safe(listLiveBoards()),
+    safe(accountsReady().then(ok => (ok ? listLinkRequests() : []))), safe(listLiveBoards()), safe(listUnappliedBattles()),
   ]);
   const brackets = (runtimes || []).map(row => row.bracket).filter(Boolean);
   const progress = await Promise.all((events || []).map(async event => {
@@ -41,6 +43,9 @@ export async function readAdminOverview(announcements = []) {
       late: statuses ? statuses.reduce((n, s) => n + s.lateSubmittedAt.length, 0) : null,
       stage: play?.stage || "", done: play?.done || 0, total: play?.total || 0, left,
       battles: (live || []).filter(b => b.event_id === event.id).length,
+      // only a match still undecided waits on its battle: one an operator decided by hand is settled
+      unapplied: (unapplied || []).filter(b => b.event_id === event.id
+        && (play?.live || []).some(l => l.id === (parseBoutKey(b.source_node_key)?.parent ?? b.source_node_key))).length,
       awaiting: awaitingRecord,
     };
   }));

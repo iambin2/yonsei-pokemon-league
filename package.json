@@ -16,7 +16,7 @@
     "data:cpu-learn": "node scripts/learn-cpu-sets.mjs",
     "data:battle-info": "node scripts/build-battle-info.mjs",
     "bench:cpu": "node scripts/cpu-benchmark.mjs",
-    "verify:db": "node scripts/verify-league-intake-db.mjs && node scripts/verify-push-db.mjs && node scripts/verify-streak-db.mjs && node scripts/verify-team-bouts-db.mjs && node scripts/verify-tower-cups-db.mjs",
+    "verify:db": "node scripts/verify-league-intake-db.mjs && node scripts/verify-push-db.mjs && node scripts/verify-streak-db.mjs && node scripts/verify-team-bouts-db.mjs && node scripts/verify-tower-cups-db.mjs && node scripts/verify-battle-records-db.mjs",
     "backup": "node scripts/backup-data.mjs"
   },
   "dependencies": {

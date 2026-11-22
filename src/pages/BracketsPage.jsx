@@ -931,6 +931,8 @@ function MatchBattle({ m, ev, battle, startable, eventId, admin=false, onChanged
     const line=battle.applied_at?"배틀 결과가 대진표에 들어갔습니다."
       :battle.ended_by==="void"?`배틀이 무효가 되었습니다. ${battle.apply_error||""}`.trim()
       :matchWinner&&winner===matchWinner?"배틀 결과와 같은 승자가 대진표에 들어가 있습니다."
+      /* a draw is a result, not a failure (2026-11-22: it stood among the apply errors): the match is played again */
+      :battle.winner==="tie"?"배틀이 무승부로 끝났습니다. 다시 경기합니다."
       :battle.apply_error?`배틀 결과를 대진표에 넣지 못했습니다. ${battle.apply_error}`
       :"배틀 결과를 대진표에 넣는 중입니다.";
     const unsettled=!winner||Boolean(battle.apply_error)||battle.ended_by==="void";

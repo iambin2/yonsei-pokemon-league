@@ -50,6 +50,8 @@ export async function listLiveBoards() {
   if (!supa) return [];
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data, error } = await supa.from("battles").select(`${COLUMNS}, spectator_log, event_id, source_node_key, run_id, deadline_at`).eq("status", "active").gte("updated_at", since)
+    // a code room (비밀 방) is played between those who have its code: it is not on 중계 for everyone (2026-11-22)
+    .or("room.is.null,room.neq.code")
     .order("updated_at", { ascending: false }).limit(30);
   /* a battle whose clock ran out a minute ago and that nobody ended has been left by its players: it can no longer move, so it is not
      shown as being played (2026-11-09: a run's game left by its player stood on 중계 for half an hour) */

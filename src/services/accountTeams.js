@@ -8,7 +8,7 @@ import { visitorSignedIn, visitorToken } from "./visitorAuth.js";
 const URL_BASE = String(import.meta.env?.VITE_SUPABASE_URL || "").replace(/\/?$/, "/");
 const KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
 export const TEAM_BYTES = 16384;
-export const MY_BATTLES = 60;
+export const MY_BATTLES = 10; // pages of 100: up to 1000 battles
 
 // the SQL has not run: no such table (42P01, PGRST205) or function (PGRST202, 42883); PostgREST answers those with 404
 export const featureMissing = error => error?.status === 404 || ["42P01", "PGRST205", "PGRST202", "42883"].includes(String(error?.code || ""));
@@ -53,6 +53,15 @@ export function putAccountTeams(teams) {
 }
 export const deleteAccountTeam = id => call(`account_teams?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", prefer: "return=minimal" });
 
-// the battles the account sat in (my_battles), each with my_side; null: off
-// ponytail: the newest 60, paged on the device with this device's own; page on the server if an account outgrows that
-export const readMyBattles = () => off(() => call("rpc/my_battles", { method: "POST", body: { p_limit: MY_BATTLES, p_offset: 0 } }));
+// the battles the account sat in (my_battles), each with my_side; null: off. Every one of them (2026-11-22: the newest 60 had been
+// all an account ever saw), a hundred a request, the most the function gives; paged on the device with this device's own.
+// ponytail: MY_BATTLES pages at most; an account past 1000 battles sees its newest 1000 and would need paging on the server.
+export const readMyBattles = () => off(async () => {
+  const rows = [];
+  for (let offset = 0; offset < MY_BATTLES * 100; offset += 100) {
+    const page = await call("rpc/my_battles", { method: "POST", body: { p_limit: 100, p_offset: offset } });
+    rows.push(...page);
+    if (page.length < 100) break;
+  }
+  return rows;
+});

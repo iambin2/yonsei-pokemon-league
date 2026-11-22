@@ -24,7 +24,7 @@ export async function createBattle({ regulation, battleFormat, name, team, room 
   return made;
 }
 // a finished battle with the computer, kept on the server for the computer to learn from (docs/db/cpu_battles.sql)
-export const recordCpuBattle = inputLog => callFunction("battle", { action: "record", inputLog });
+export const recordCpuBattle = (inputLog, level) => callFunction("battle", { action: "record", inputLog, level });
 // a kept battle with the computer as a replay anyone may watch (리플레이 공유): played again on the server from its record, as a row
 export const readCpuReplay = id => callFunction("battle", { action: "cpureplay", id }).then(out => out.row);
 export async function joinBattle(id, { name, team, code }) {
@@ -247,27 +247,43 @@ export async function listEventBattles(eventId) {
 }
 // 배틀이 어떻게 끝났는지(목록의 한 줄). 끝까지 싸운 배틀은 빈 문자열이다.
 export const endedByLine = b => ({ forfeit: "기권", timeout: "시간 초과", void: "무효" })[b?.ended_by] || "";
+// PostgREST는 한 번에 1000행까지 준다. 기록은 하나도 빠지면 안 되므로 끝까지 나눠 읽는다. 하나라도 실패하면 빈 목록(읽지 못함)이다.
+async function readEvery(query, page = 1000) {
+  const rows = [];
+  for (let from = 0; ; from += page) {
+    const { data, error } = await query().range(from, from + page - 1);
+    if (error) return [];
+    rows.push(...(data || []));
+    if (!data || data.length < page) return rows;
+  }
+}
 // 선수들의 끝난 공식 배틀(트레이너 기록). 전부 읽는다.
-// ponytail: PostgREST가 한 번에 1000행까지 준다. 한 트레이너의 공식 배틀이 그만큼 쌓이면 range로 나눠 읽는다.
 export async function listPlayerBattles(playerIds = []) {
   const ids = [...new Set(playerIds.filter(Boolean))];
   if (!supa || !ids.length) return [];
   const list = ids.join(",");
-  const { data, error } = await supa.from("battles").select(LIST)
+  return readEvery(() => supa.from("battles").select(LIST)
     .eq("kind", "official").eq("status", "ended").neq("ended_by", "void").or(`p1_player_id.in.(${list}),p2_player_id.in.(${list})`)
-    .order("updated_at", { ascending: false });
-  return error ? [] : data || [];
+    .order("updated_at", { ascending: false }).order("id"));
 }
 /* 끝난 공식 배틀의 관전 로그(포켓몬 기록의 선출과 선봉). 선출과 선봉은 무대에 나온 포켓몬이라 관전 로그로 전체 로그와 똑같이 센다.
-   전체 로그는 파티 공개 전에 읽을 수 없다. 무효가 된 배틀은 세지 않는다. 공식 경기 수만큼이라 작다.
-   ponytail: 한 번에 300판까지 읽는다. 넘으면 서버에서 집계한 표로 바꾼다. */
+   전체 로그는 파티 공개 전에 읽을 수 없다. 무효가 된 배틀은 세지 않는다. 예전에는 최근 300판에서 끊어 오래된 판이 통계에서 조용히
+   빠졌다(2026-11-22). 이제 전부 읽는다. 공식 경기는 한 대회에 수십 판이라 몇 학기는 이대로 충분하다.
+   ponytail: 판이 수천을 넘어 화면이 느려지면 서버에서 포켓몬별로 집계한 표로 바꾼다. */
 export async function listOfficialBattleLogs() {
   if (!supa) return [];
-  const { data, error } = await supa.from("battles").select("id, spectator_log, p1_player_id, p2_player_id, winner")
-    .eq("kind", "official").eq("status", "ended").neq("ended_by", "void").order("updated_at", { ascending: false }).limit(300);
-  return error ? [] : (data || []).map(({ spectator_log, ...row }) => ({ ...row, log: spectator_log }));
+  const rows = await readEvery(() => supa.from("battles").select("id, spectator_log, p1_player_id, p2_player_id, winner")
+    .eq("kind", "official").eq("status", "ended").neq("ended_by", "void").order("updated_at", { ascending: false }).order("id"), 300);
+  return rows.map(({ spectator_log, ...row }) => ({ ...row, log: spectator_log }));
 }
 
+// 끝났지만 대진표에 들어가지 않은 공식 배틀(운영의 할 일). 무효와 무승부는 운영진이 이미 알거나 다시 치르는 것이라 뺀다.
+// 대진표에 같은 승자가 이미 있는 판(운영진이 손으로 넣음)은 화면이 경기와 맞춰 본 뒤에야 알 수 있어, 그 대회의 경기 시트에서 확인한다.
+export async function listUnappliedBattles() {
+  if (!supa) return [];
+  return readEvery(() => supa.from("battles").select("id, event_id, source_node_key, apply_error")
+    .eq("kind", "official").eq("status", "ended").is("applied_at", null).neq("ended_by", "void").neq("winner", "tie").order("id"));
+}
 // 끝난 공식 배틀의 승자를 대진표에 다시 넣는다(실패 뒤, 또는 함수가 끝과 반영 사이에서 멈췄을 때). 배틀 자신의 사실로만 정해진다.
 export const retryBattleApply = id => callFunction("battle", { action: "apply", id });
 // 운영진: 더 이어지지 않는 공식 배틀을 닫는다. 기다리던 배틀은 지우고, 진행 중이던 배틀은 무효로 끝나 관전 로그가 리플레이로 남는다.
