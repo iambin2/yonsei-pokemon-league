@@ -194,6 +194,12 @@ export async function readMyStreakRuns() {
   }
 }
 
+/* each past month's top three of 도전의 탑 (tower_history.sql); null before that SQL has run */
+export async function readTowerMonthTops() {
+  try { return await rest("rpc/streak_month_tops", { method: "POST", body: {}, auth: false }); }
+  catch (error) { if (error.status === 404 || error.code === "PGRST202") return null; throw error; }
+}
+
 /* a month's board (streak_board): read as the account when signed in, so the viewer's own row is marked. month: "2026-11-01", or
    none for this month. Before docs/db/streak_runs.sql has run there is no such function, and the feature stands aside (null). */
 export async function readStreakBoard(month) {

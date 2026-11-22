@@ -43,6 +43,9 @@ export async function isPushOn() {
   return !!subscription;
 }
 
+// whether this device holds a subscription, read only (더보기's 내 계정): isPushOn also saves it again, which only the alerts page should
+export const pushOnHere = () => browserSubscription().then(s => Boolean(s), () => false);
+
 export async function enablePush() {
   if (await Notification.requestPermission() !== "granted") throw new Error("브라우저 설정에서 이 사이트의 알림을 허용해 주세요.");
   await navigator.serviceWorker.register(`${SCOPE}sw.js`);

@@ -6,9 +6,12 @@ const ymd = raw => String(raw || "").slice(0, 10).replace(/-/g, "");
 const esc = text => String(text || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 
 // days: [{ label, day: "2026-11-22", time: "16:00" | "" }], the notice's own days (one, or the qualifier and the final)
-export function calendarFile({ id, title, days, url, now = new Date() }) {
+export const calendarFile = ({ now, ...notice }) => calendarFileOf([notice], now);
+
+// many notices in one file (the notice list's 다가오는 대회, 2026-11-22)
+export function calendarFileOf(notices = [], now = new Date()) {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  const events = (days || []).filter(d => /^\d{4}-\d{2}-\d{2}/.test(String(d.day || ""))).map((d, i) => {
+  const events = notices.flatMap(({ id, title, days, url }) => (days || []).filter(d => /^\d{4}-\d{2}-\d{2}/.test(String(d.day || ""))).map((d, i) => {
     const when = /^(\d{1,2}):(\d{2})/.exec(String(d.time || ""));
     const date = ymd(d.day);
     const timing = when
@@ -17,7 +20,7 @@ export function calendarFile({ id, title, days, url, now = new Date() }) {
       : [`DTSTART;VALUE=DATE:${date}`];
     return ["BEGIN:VEVENT", `UID:${esc(id)}-${i}@league.pokeyonsei.com`, `DTSTAMP:${stamp}`, ...timing,
       `SUMMARY:${esc(d.label ? `${title} ${d.label}` : title)}`, ...(url ? [`URL:${esc(url)}`, `DESCRIPTION:${esc(url)}`] : []), "END:VEVENT"];
-  });
+  }));
   if (!events.length) return "";
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//YPL//league.pokeyonsei.com//KO", "CALSCALE:GREGORIAN", ...events.flat(), "END:VCALENDAR", ""].join("\r\n");
 }

@@ -91,6 +91,8 @@ const DEVICES = {
     c.fill(P("M52 2C56 16 74 26 72 42C70 54 60 58 50 58C40 58 30 54 28 42C27 33 32 26 37 22C37 29 40 33 45 33C43 22 45 11 52 2Z")); c.restore();
     for (const d of ["M46 98L46 56L54 56L54 98Z", "M50 84C50 70 40 62 22 62C22 78 32 86 50 84Z", "M50 80C50 66 60 58 78 58C78 74 68 82 50 80Z"]) c.fill(P(d));
   },
+  /* 탑의 정상: the tower of 도전의 탑, three storeys and a spire, its door cut in (the month's first; the owner's draft A, 2026-11-22) */
+  tower: c => { c.fill(P("M18 78L82 78L82 94L18 94Z M27 54L73 54L73 78L27 78Z M35 31L65 31L65 54L35 54Z M42 12L58 12L58 31L42 31Z M50 2L60 12L40 12Z")); cut(c, () => c.fill(P("M44 80C44 74 56 74 56 80L56 94L44 94Z"))); },
   /* 파트너: a paw print, the one sign of a companion */
   paw: c => { c.fill(P("M50 50C64 50 76 62 76 76C76 88 66 92 58 90C54 89 52 87 50 87C48 87 46 89 42 90C34 92 24 88 24 76C24 62 36 50 50 50Z")); for (const [x, y, rx, ry, a] of [[20, 44, 9, 12, -.4], [36, 24, 9, 13, -.15], [64, 24, 9, 13, .15], [80, 44, 9, 12, .4]]) { c.beginPath(); c.ellipse(x, y, rx, ry, a, 0, Math.PI * 2); c.fill(); } },
 };

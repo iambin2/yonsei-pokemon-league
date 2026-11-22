@@ -10,7 +10,7 @@ import { Dropdown, Empty, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAle
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
-import { calendarFile, noticeDays } from "../services/calendarFile.js";
+import { calendarFile, calendarFileOf, noticeDays } from "../services/calendarFile.js";
 import { shareLink } from "../services/communityStore.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingForm, visitorSignedIn } from "../services/visitorAuth.js";
@@ -249,6 +249,16 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
     </section>);
   }
 
+  /* 다가오는 대회 (2026-11-22, the owner's draft A): every notice whose event day is still ahead, the nearest first, with its day, its
+     closing and the days left; 캘린더에 추가 takes them all as one .ics. Read from the notices alone, so it needs nothing new stored */
+  const upcoming=data.announcements.map(x=>({a:x,facts:eventFacts(x)})).filter(x=>x.facts?.next).sort((p,q)=>p.facts.next.dday-q.facts.next.dday);
+  const allToCalendar=()=>{
+    const ics=calendarFileOf(upcoming.map(({a:x})=>({id:x.id,title:x.form?.eventDraft?.name||x.title,days:noticeDays(x).filter(d=>d.day),url:`${window.location.origin}/?view=news&notice=${encodeURIComponent(x.id)}`})));
+    if(!ics) return;
+    const url=URL.createObjectURL(new Blob([ics],{type:"text/calendar;charset=utf-8"}));
+    const link=document.createElement("a"); link.href=url; link.download="YPL 대회 일정.ics"; document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+  };
+
   return (<section className="nw">
     <header className="nw-head">
       <h1 className="t32">공지</h1>
@@ -256,6 +266,16 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
         {admin&&<Button variant="link" onClick={()=>setModal({type:"ann"})}>공지 작성</Button>}
       </span>
     </header>
+    {upcoming.length>0&&!kw&&<section className="nw-upcoming" aria-labelledby="nw-upcoming-h">
+      <SectionHead id="nw-upcoming-h" title="다가오는 대회" link="캘린더에 추가" onLink={allToCalendar}/>
+      <div className="stack">{upcoming.map(({a:x,facts})=>{
+        // the day in full, the closing short (a phone's line holds both): its date while it is ahead, 신청 마감 once it has passed
+        const closes=x.form?.closesAt, closed=closes&&applicationsClosed(x.form);
+        const line=[...facts.rows.filter(([k])=>/일시/.test(k)).map(([,v])=>v), closes?(closed?"신청 마감":`신청 ${formatDate(closes)}까지`):""].filter(Boolean).join(", ");
+        return <Row key={x.id} title={x.form?.eventDraft?.name||x.title} line={line} onClick={()=>openArticle(x.id)}
+          value={<span className="num t15">{facts.next.dday===0?"오늘":`D-${facts.next.dday}`}</span>} label={`${x.form?.eventDraft?.name||x.title}, ${line}, ${facts.next.dday===0?"오늘":`${facts.next.dday}일 남음`}`}/>;
+      })}</div>
+    </section>}
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {list.length===0?(kw
       ? <>

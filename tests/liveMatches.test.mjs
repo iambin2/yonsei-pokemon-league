@@ -39,3 +39,13 @@ test("my next match: the first undecided one I stand in, the opponent once known
   const groups = { participants: mine, groups: [{ name: "A", matches: [{ id: "g1", a: { pid: "a" }, b: { pid: "b" }, winner: "a" }, { id: "g2", a: { pid: "c" }, b: { pid: "a" }, winner: null }] }] };
   assert.deepEqual(Object.values(myNextMatch(groups, "Pa")), ["g2", "A조", "A", "C"]);
 });
+
+test("my record: won and lost, a whole rate, and the three opponents met most named by id or by name", async () => {
+  const { myMatchRecord } = await import("../src/services/recordsAnalytics.js");
+  const m = (won, who) => (who.startsWith("p") ? { won, opponentPlayerId: who } : { won, opponent: who });
+  const profile = { matches: [m(true, "p1"), m(false, "p1"), m(false, "p1"), m(true, "이진우"), m(true, "이진우"), m(true, "p3"), m(true, "p4"), { won: null }] };
+  const rec = myMatchRecord(profile, id => ({ p1: "김성빈", p3: "강진영", p4: "정두호" })[id]);
+  assert.deepEqual([rec.wins, rec.losses, rec.total, rec.rate], [5, 2, 7, 71]);
+  assert.deepEqual(rec.rivals.map(r => [r.name, r.wins, r.losses]), [["김성빈", 1, 2], ["이진우", 2, 0], ["강진영", 1, 0]]);
+  assert.deepEqual(myMatchRecord({}).rate, null);
+});

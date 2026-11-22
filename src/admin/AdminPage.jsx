@@ -9,6 +9,9 @@ import { formatDate } from "../services/dateFormat.js";
 import { ADMIN_STEPS, adminTasks, readAdminOverview } from "../services/adminOverview.js";
 import { cancelEventWithoutBracket } from "../services/normalizedCompetitionService.js";
 import { siteAlert, siteConfirm } from "../components/common/SiteDialog.jsx";
+import { readTowerMonthTops } from "../services/visitorAuth.js";
+import { TOWER_TITLE, towerMonthLabel, towerTitlesDue } from "../services/towerTitles.js";
+import { applyTitleAwards } from "../services/titleAwards.js";
 
 /* 운영 (DESIGN.md "Admin", 2026-11-08): the operators' one place. Their work had stood scattered inside the public pages (a notice's
    responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counters,
@@ -61,6 +64,15 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
   const counted = n => { setPending(n); onRequests?.(n); };
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
+  /* 탑의 정상 (2026-11-22): a past month's first of 도전의 탑 waits here as a task until it is given; one press gives it, the toast undoes it */
+  const [towerTops, setTowerTops] = useState(null);
+  useEffect(() => { if (!admin) return undefined; let on = true; readTowerMonthTops().then(rows => on && setTowerTops(rows), () => {}); return () => { on = false; }; }, [admin]);
+  const towerDue = towerTitlesDue(towerTops || [], data.titleGroups || []);
+  const grantTower = async due => {
+    const before = data.titleGroups || [];
+    const next = { ...data, titleGroups: applyTitleAwards(before, [{ groupKey: "etc", title: TOWER_TITLE, holder: due.trainer_name, eventId: due.grantId, desc: "도전의 탑 달 1위" }]) };
+    if (await save(next, `${due.trainer_name}에게 ${TOWER_TITLE}을 주었습니다.`)) flash(`${due.trainer_name}에게 ${TOWER_TITLE}을 주었습니다.`, { label: "되돌리기", run: () => save({ ...next, titleGroups: before }, "되돌렸습니다.") });
+  };
   useEffect(() => {
     if (!admin) return undefined;
     let on = true;
@@ -98,7 +110,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
   return <div className="ad-page">
     <h1 className="t32">운영</h1>
     <div className="stack ad-counts">
-      <Counter label="할 일" value={n(tasks.length)} lamp={tasks.length > 0} />
+      <Counter label="할 일" value={n(tasks.length + towerDue.length)} lamp={tasks.length + towerDue.length > 0} />
       <Counter label="신청" value={n(events.filter(e => e.step === 1).reduce((s, e) => s + (e.applicants || 0), 0))} cells={3} />
       <Counter label="남은 경기" value={n(events.reduce((s, e) => s + e.left, 0))} />
       <Counter label="연결 요청" value={requests == null ? null : String(requests)} lamp={requests > 0} />
@@ -111,7 +123,10 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
         <div className="ad-main">
           <section className="ad-block" aria-labelledby="ad-todo-h">
             <SectionHead id="ad-todo-h" title="할 일" />
-            {tasks.length ? <div className="stack">{tasks.map(t => <Row key={t.key} title={t.title} line={t.line} lamp={true} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}</div>
+            {tasks.length || towerDue.length ? <div className="stack">
+              {tasks.map(t => <Row key={t.key} title={t.title} line={t.line} lamp={true} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}
+              {towerDue.map(d => <Row key={d.grantId} title={`${towerMonthLabel(d.month)} ${TOWER_TITLE}`} line={`도전의 탑 1위 ${d.trainer_name}, ${d.wins}연승. 누르면 칭호를 줍니다.`} lamp={true} onClick={() => grantTower(d)} label={`${towerMonthLabel(d.month)} ${TOWER_TITLE}, ${d.trainer_name}에게 주기`} />)}
+            </div>
               : <div className="pn ad-none"><span className="t15">지금 할 일이 없습니다.</span></div>}
           </section>
           <section className="ad-block" aria-labelledby="ad-doors-h">

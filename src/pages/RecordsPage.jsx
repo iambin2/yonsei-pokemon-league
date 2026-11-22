@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Dropdown, Empty, ErrorNote, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
 import { Bar, Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
 import TeamSheet, { rosterSheet, useTeamDisplay } from "../components/common/TeamSheet.jsx";
-import { buildRecordsSnapshot, displayRecordMeta, displayTeamName } from "../services/recordsAnalytics.js";
+import { buildRecordsSnapshot, displayRecordMeta, displayTeamName, myMatchRecord } from "../services/recordsAnalytics.js";
 import { formatDate } from "../services/dateFormat.js";
 import { buildNormalizedRecordsProjection } from "../services/normalizedRecordsProjection.js";
 import { ALIGNMENTS, STAT_KEYS, STAT_LABELS, TYPE_KO, abilityName, dexRecord, itemName, moveName, natureName, spriteUrl } from "../services/teamBuilderCore.js";
@@ -25,9 +25,10 @@ import Seg from "../components/common/Seg.jsx";
 import { battleHref, endedByLine, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
 import { battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
-import { VISITOR_EVENT, accountsKnown, accountsReady, deleteMyAccount, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, unlinkMyAccount, visitorSignedIn } from "../services/visitorAuth.js";
+import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
 import { useItemTitle } from "../components/layout/title.js";
 import { useMe } from "../components/common/useMe.js";
+import AccountKeys from "../components/AccountKeys.jsx";
 
 /* 사이트 배틀로 치른 공식 경기(DESIGN.md "Battle"): 트레이너의 배틀 이력과 포켓몬의 실제 선출, 선봉, 승률.
    끝난 공식 배틀의 로그는 한 번만 읽어 둔다. */
@@ -351,6 +352,27 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   );
 }
 
+/* 내 전적 (2026-11-22, the owner's draft C): on the trainer's own sheet only (their Google account linked to this record), the official
+   matches won and lost, the rate, and the three opponents met most. Win rates stay off everyone else's sheet, as they were. */
+function MyRecord({ snapshot, profile }) {
+  const me = useMe();
+  if (!me?.playerId || me.playerId !== profile.playerId) return null;
+  const rec = myMatchRecord(profile, id => snapshot.profiles?.[`player:${id}`]?.name || "");
+  if (!rec.total) return null;
+  return (
+    <section className="rc-sec" aria-labelledby="rc-mine-h">
+      <SectionHead id="rc-mine-h" title="내 전적" />
+      <div className="stack"><Row title="나에게만 보입니다." line="다른 사람의 시트에는 전적이 서지 않습니다." /></div>
+      <div className="stack rc-counts rc-mine-counts">
+        <Counter label="승" value={rec.wins} unit="승" />
+        <Counter label="패" value={rec.losses} unit="패" />
+        <Counter label="승률" value={rec.rate} unit="%" cells={rec.rate >= 100 ? 3 : 2} after={<span className="t15">%</span>} />
+      </div>
+      {rec.rivals.length > 0 && <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line="자주 만난 상대" value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>}
+    </section>
+  );
+}
+
 function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = false }) {
   const [season, setSeason] = useState("");
   const [histPage, setHistPage] = useState(1);
@@ -400,6 +422,7 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
       </div>
       {/* found from 내 기록 찾기: right under what the record holds, the key that makes it the visitor's own */}
       {finding && <TrainerLink profile={profile} lead />}
+      <MyRecord snapshot={snapshot} profile={profile} />
       {snapshot.seasons.length > 0 && <div className="rc-seasons"><Chips label="시즌" value={season} onChange={(value) => { setSeason(value); setHistPage(1); }}
         options={[["", "전체 기록"], ...snapshot.seasons.map((name) => [name, name])]} /></div>}
       {/* the trainer's titles as the titles page draws them (DESIGN.md "Titles and hall of fame"): their own faces first, a reign by
@@ -543,23 +566,6 @@ function TrainerLink({ profile, lead = false }) {
       {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
     </section>
   );
-}
-
-/* the account's own keys at the place the account is (2026-11-22, the privacy policy's 제8조 in the visitor's hands): 로그아웃, then
-   연결 해제 while a link stands and 계정 삭제, each asked once since neither is undone */
-function AccountKeys({ link }) {
-  const [note, setNote] = useState("");
-  const run = async (ask, act) => {
-    if (!(await siteConfirm(ask))) return;
-    setNote("");
-    try { await act(); } catch (error) { setNote(error?.message || "잠시 뒤 다시 시도해 주세요."); }
-  };
-  return <div className="stack rc-more">
-    <Button variant="second" onClick={signOutVisitor}>로그아웃</Button>
-    {link && <Button variant="link" onClick={() => run({ title: "기록 연결 해제", body: `${link.requested_name} 기록과 이 구글 계정의 연결을 풉니다. 대회 기록은 그대로 남고, 계정으로 다시 요청할 수 있습니다.`, confirmLabel: "연결 해제", danger: true }, unlinkMyAccount)}>기록 연결 해제</Button>}
-    <Button variant="link" onClick={() => run({ title: "계정 삭제", body: "이 구글 계정과 계정에 저장한 팀, 도전의 탑 기록을 지우고 로그아웃합니다. 대회 기록은 리그 기록으로 남습니다. 되돌릴 수 없습니다.", confirmLabel: "계정 삭제", danger: true }, deleteMyAccount)}>계정 삭제</Button>
-    {note && <FormError>{note}</FormError>}
-  </div>;
 }
 
 /* 내 기록 찾기 (?view=records&tab=trainer&me=1): where the top bar's account key leads, instead of straight to Google. The visitor

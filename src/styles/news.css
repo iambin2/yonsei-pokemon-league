@@ -6,7 +6,7 @@
 
 .nw-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .nw-tools { display: flex; align-items: baseline; gap: var(--s5); }
-.nw-search, .nw-list { margin-top: var(--s5); }
+.nw-upcoming, .nw-search, .nw-list { margin-top: var(--s5); }
 .nw-list .row { height: var(--h-row2); }
 /* 고정 stands first in a notice's grey line, as on the lead panel and the notice itself: 고정, 10.28 수 */
 .nw-pin { font-weight: 600; color: var(--lit); }

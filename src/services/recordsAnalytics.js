@@ -897,6 +897,26 @@ function championRecordsFor(data, name) {
   return out;
 }
 
+/* 내 전적 (2026-11-22, the owner's draft C): a trainer's official matches as won and lost, the rate a whole percent, and the three
+   opponents met most with the score against each. Shown on the trainer's own sheet only (RecordsPage), never on someone else's.
+   nameOf: an opponent's player id to their name (a normalized row names its opponent by id, a legacy row by name) */
+export function myMatchRecord(profile, nameOf = () => "") {
+  const rows = (profile?.matches || []).filter(m => m && typeof m.won === "boolean");
+  const wins = rows.filter(m => m.won).length, total = rows.length;
+  const rivals = new Map();
+  for (const m of rows) {
+    const name = m.opponent || nameOf(m.opponentPlayerId) || "";
+    if (!name) continue;
+    const cur = rivals.get(name) || { name, games: 0, wins: 0, losses: 0 };
+    cur.games += 1; if (m.won) cur.wins += 1; else cur.losses += 1;
+    rivals.set(name, cur);
+  }
+  return {
+    wins, losses: total - wins, total, rate: total ? Math.round((wins / total) * 100) : null,
+    rivals: [...rivals.values()].sort((a, b) => b.games - a.games || b.wins - a.wins || a.name.localeCompare(b.name)).slice(0, 3),
+  };
+}
+
 function summarizeMatches(matches) {
   const wins = matches.filter((m) => m.won).length;
   const losses = matches.filter((m) => !m.won).length;

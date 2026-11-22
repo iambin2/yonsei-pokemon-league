@@ -20,7 +20,7 @@ export const TITLE_MARKS = ["mega"];
 /* 운영자가 고를 수 있는 장식 (그린 것만). 없으면 색의 타입 문양이 선다. */
 export const TITLE_DEVICES = [
   ["hangul", "한글 책"], ["nova", "새 별"], ["rookie", "별똥별"], ["n151", "151"], ["torch", "횃불"], ["sprout", "새싹"],
-  ["bus", "운전대"], ["indigo", "불을 이은 새싹"], ["paw", "발자국"], ["engineering", "칩과 플라스크와 톱니"], ["monkey", "세 원숭이"],
+  ["bus", "운전대"], ["indigo", "불을 이은 새싹"], ["paw", "발자국"], ["engineering", "칩과 플라스크와 톱니"], ["monkey", "세 원숭이"], ["tower", "탑"],
 ];
 const DEVICE_IDS = new Set(TITLE_DEVICES.map(([id]) => id));
 
@@ -39,6 +39,8 @@ const PRESETS = {
   청출어람: { bands: ["water"], device: "indigo" },
   스승: { bands: ["fighting"], device: "torch" },
   제자: { bands: ["grass"], device: "sprout" },
+  // 도전의 탑의 달 1위(tower_history.sql streak_month_tops), 운영 화면에서 달마다 준다
+  탑의정상: { bands: ["dragon"], device: "tower" },
 };
 const nameKey = name => String(name || "").replace(/\s+/g, "");
 
