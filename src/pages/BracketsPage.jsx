@@ -1088,7 +1088,7 @@ const stageOf=(g,m)=>{
   if(li>=0) return lbRoundName(li);
   return m===g.reset?"리셋 결승":"그랜드 파이널";
 };
-function ResultEntry({ g, nameOf, seedOf, onPick, teamMode, onOpenTeam, busy, outcomeOn=false, onOutcome, battles=[], startable=false, eventId=null, onBattleChanged, boutsOf=()=>0 }){
+function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam, busy, outcomeOn=false, onOutcome, battles=[], startable=false, eventId=null, onBattleChanged, boutsOf=()=>0 }){
   const ev=evalGraph(g);
   // the reset final exists only once the losers' side has won the grand final, as on the board
   const rows=collectGraphMatches(g).filter(m=>m!==g.reset||g.gf?.winner==="b").map(m=>({m,a:ev.sp(m.a),b:ev.sp(m.b)})).filter(x=>x.a&&x.b&&x.a!==BYE&&x.b!==BYE);
