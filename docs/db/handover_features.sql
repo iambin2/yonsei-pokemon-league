@@ -22,6 +22,7 @@
 --   8. replace_bracket_entrant: 대진표가 만들어진 뒤, 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로 바꾼다.
 --   9. event_checkins 와 my_checkin: 대회 날 선수가 스스로 남기는 체크인. 운영진은 표를 읽어 대진표를 만들 때 쓴다.
 --  10. match_reports 와 report_match_result: 두 선수가 남기는 결과 보고. 같으면 싱글은 바로 들어가고, 나머지는 운영진이 한 번 누른다.
+--  11. 게시판 사진(저장소 버킷 board)과 신고(community_reports, report_community_item, admin_community_reports).
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
@@ -591,6 +592,81 @@ end;
 $$;
 revoke all on function ypl_schema_validation.report_match_result(uuid, text, boolean) from public, anon;
 grant execute on function ypl_schema_validation.report_match_result(uuid, text, boolean) to authenticated;
+
+-- 11. 게시판 사진과 신고.
+--     사진: 공개 저장소 버킷 board(장당 512KB, webp만). 사이트가 긴 변 1280으로 줄여 webp로 올리고, 이름은 'YYYYMM/12자.webp'만 받는다.
+--     누구나 올릴 수 있지만 바꾸거나 지울 수는 없다(운영진은 대시보드에서). 글에는 그 주소가 링크 칸으로 들어간다.
+--     신고: 누구나 글이나 댓글을 신고하고(한 글 50건, 한 시간 전체 200건까지), 운영진은 운영 화면에서 보고 지운다.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'storage') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('board', 'board', true, 524288, array['image/webp'])
+    on conflict (id) do update set public = true, file_size_limit = 524288, allowed_mime_types = array['image/webp'];
+    execute 'drop policy if exists board_upload on storage.objects';
+    execute $p$create policy board_upload on storage.objects for insert to anon, authenticated
+      with check (bucket_id = 'board' and name ~ '^[0-9]{6}/[a-z0-9]{12}[.]webp$')$p$;
+  end if;
+end;
+$$;
+
+create table if not exists public.community_reports (
+  id bigint generated always as identity primary key,
+  item_id text not null references public.community_items (id) on delete cascade,
+  reason text not null check (reason in ('abuse', 'ad', 'privacy', 'other')),
+  created_at timestamptz not null default now()
+);
+create index if not exists community_reports_item on public.community_reports (item_id);
+alter table public.community_reports enable row level security;
+revoke all on public.community_reports from anon, authenticated;
+grant select on public.community_reports to service_role;
+
+create or replace function public.report_community_item(p_item_id text, p_reason text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_reason not in ('abuse', 'ad', 'privacy', 'other') then
+    raise exception using errcode = 'P0001', message = '신고 사유를 골라 주세요.';
+  end if;
+  if not exists (select 1 from public.community_items i where i.id = p_item_id and i.board in ('free', 'showcase')) then
+    raise exception using errcode = 'P0001', message = '글을 찾을 수 없습니다.';
+  end if;
+  if (select count(*) from public.community_reports r where r.item_id = p_item_id) >= 50
+     or (select count(*) from public.community_reports r where r.created_at > now() - interval '1 hour') >= 200 then
+    return;
+  end if;
+  insert into public.community_reports (item_id, reason) values (p_item_id, p_reason);
+end;
+$$;
+revoke all on function public.report_community_item(text, text) from public;
+grant execute on function public.report_community_item(text, text) to anon, authenticated;
+
+-- 운영진: 신고된 글마다 한 줄(글 id, 게시판, 부모 글, 제목이나 내용 앞부분, 사유별 수, 마지막 신고 시각). p_clear 를 주면 그 글의 신고를 지운다.
+create or replace function public.admin_community_reports(p_clear text default null)
+returns table (item_id text, board text, parent_id text, title text, reasons jsonb, last_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not ypl_schema_validation.is_ypl_admin() then
+    raise exception using errcode = 'P0001', message = '관리자 권한이 필요합니다.';
+  end if;
+  if p_clear is not null then delete from public.community_reports r where r.item_id = p_clear; end if;
+  return query
+    select i.id, i.board, i.parent_id, left(coalesce(nullif(i.payload ->> 'title', ''), i.payload ->> 'body', ''), 60),
+           (select jsonb_object_agg(x.reason, x.n) from (select r2.reason, count(*) as n from public.community_reports r2 where r2.item_id = i.id group by r2.reason) x),
+           max(r.created_at)
+      from public.community_reports r join public.community_items i on i.id = r.item_id
+     group by i.id
+     order by max(r.created_at) desc;
+end;
+$$;
+revoke all on function public.admin_community_reports(text) from public, anon;
+grant execute on function public.admin_community_reports(text) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

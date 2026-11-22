@@ -36,6 +36,7 @@ await pg.exec(`
   create table ypl_schema_validation.registration_submissions (id uuid primary key default gen_random_uuid(), registration_id uuid);
   create table public.player_accounts (player_id uuid references ypl_schema_validation.players(id), auth_user_id uuid, status text);
   create table public.site_data (key text primary key, value jsonb);
+  create table public.community_items (id text primary key, board text, parent_id text, payload jsonb, secret boolean default false);
   create table public.battles (id text primary key, kind text, status text, event_id uuid, spectator_log text, deadline_at timestamptz);
   alter table ypl_schema_validation.events add column competition_settings jsonb default '{}';
   create table public.push_outbox (id bigint generated always as identity, dedup text unique, kind text, auth_user_id uuid, title text, body text, url text);
@@ -220,6 +221,20 @@ await check("two players' matching reports put a single-elimination winner in; a
   assert.deepEqual(await report(U1, null), { status: "decided", mine: true });
   assert.deepEqual(await report("00000000-0000-0000-0000-0000000000f9", true), { status: "not_player" });
   await q(`update public.uid_switch set u = null`);
+});
+
+await check("anyone reports a post with a reason; only operators read and clear the reports", async () => {
+  await q(`insert into public.community_items (id, board, payload) values ('p1', 'free', '{"title":"광고 글"}'), ('pb', 'private_bracket', '{}')`);
+  await q(`select public.report_community_item('p1', 'ad')`);
+  await q(`select public.report_community_item('p1', 'ad')`);
+  await assert.rejects(q(`select public.report_community_item('p1', 'x')`), /사유/);
+  await assert.rejects(q(`select public.report_community_item('pb', 'ad')`), /찾을 수 없습니다/);
+  const rows = await q(`select * from public.admin_community_reports()`);
+  assert.equal(rows.length, 1); assert.equal(rows[0].title, "광고 글"); assert.deepEqual(rows[0].reasons, { ad: 2 });
+  assert.equal((await q(`select * from public.admin_community_reports('p1')`)).length, 0);
+  await q(`update public.admin_switch set on_ = false`);
+  await assert.rejects(q(`select * from public.admin_community_reports()`), /관리자/);
+  await q(`update public.admin_switch set on_ = true`);
 });
 
 await check("the site asks whether this file ran", async () => {

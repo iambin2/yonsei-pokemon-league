@@ -105,7 +105,8 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
     if (/^grant execute on function public\.(tower_cups|tower_cup_board)\(/.test(statement)) continue;
     // A visitor's screen error (handover_features.sql): an insert-only report, capped per hour and trimmed, that nobody but an operator
     // reads back; and the yes the site asks before showing that file's features.
-    if (/^grant execute on function public\.(report_client_error|handover_features_ready)\(/.test(statement)) continue;
+    // A visitor's report of a post (handover_features.sql): insert-only, capped per post and per hour, read back by operators alone.
+    if (/^grant execute on function public\.(report_client_error|handover_features_ready|report_community_item)\(/.test(statement)) continue;
     const rpc = statement.match(/^grant execute on function ypl_schema_validation\.(\w+)\(/);
     if (rpc) { assert.ok(anonRpcs.has(rpc[1]), statement); continue; }
     assert.match(statement, /^grant insert \([^)]*\) on ypl_schema_validation\.event_registrations to anon$/);

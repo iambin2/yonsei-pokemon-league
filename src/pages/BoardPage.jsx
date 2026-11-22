@@ -7,12 +7,13 @@ import { saveTeamSheetImage } from "../components/teamSheetImage.js";
 import { CUP_RULES, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
 import { formatDate } from "../services/dateFormat.js";
 import { freshRead, peekRead } from "../services/readCache.js";
-import { FREE_BOARD_KEY, SHOWCASE_KEY, accountWriting, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
+import { REPORT_REASONS, reportCommunityItem } from "../services/communityReports.js";
+import { FREE_BOARD_KEY, SHOWCASE_KEY, accountWriting, uploadBoardImage, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
 import { PIN_DENIED, threadComments } from "../services/communityItems.js";
 import { DRAFT_STORAGE_KEY, INCOMING_TEAM_KEY, TEAM_STORAGE_KEY, normalizeDraft, normalizeSavedTeam, onSpriteError, spriteUrl } from "../services/teamBuilderCore.js";
-import { takeBoardDraft } from "../services/battleService.js";
+import { handoverReady, takeBoardDraft } from "../services/battleService.js";
 import Button from "../components/common/Button.jsx";
-import { BackLink, Chips, Dock, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
+import { BackLink, Chips, Choice, Dock, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
 import { dotDate } from "../services/dateFormat.js";
 
 const dotDay=dotDate;
@@ -64,6 +65,8 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
   const [tried,setTried]=useState(false);
   const as=useWriteAs();
   const pinShort=!as.on&&pin.length>0&&pin.length<4;
+  const [photoOn,setPhotoOn]=useState(false); const [photo,setPhoto]=useState(""); const fileRef=useRef(null);
+  useEffect(()=>{ let on=true; handoverReady().then(ok=>on&&setPhotoOn(ok)); return ()=>{ on=false; }; },[]);
   const submit=()=>{ if((!as.on&&!nick.trim())||!title.trim()||pinShort){ setTried(true); return; }
     if(!as.on) keepNick(nick.trim().slice(0,20));
     onSubmit({nick:as.on?as.name:nick.trim().slice(0,20),title:title.trim().slice(0,60),body:body.trim(),pin:as.on?"":pin.trim(),link:link.trim(),secret,byAccount:as.on}); };
@@ -79,10 +82,24 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
       <div className="field"><label htmlFor="bd-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-link" value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/>
         {link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={link}/></div>}
       </div>
+      {/* 사진 올리기 (the owner's draft 10 A): a picture from the phone goes up shrunk and its address fills the link above */}
+      {photoOn&&<div className="field"><input ref={fileRef} type="file" accept="image/*" hidden onChange={async e=>{ const file=e.target.files?.[0]; e.target.value=""; if(!file) return;
+        setPhoto("busy"); try{ setLink(await uploadBoardImage(file)); setPhoto(""); }catch(error){ setPhoto(error.message); } }}/>
+        <Button variant="second" icon="plus" disabled={photo==="busy"} onClick={()=>fileRef.current?.click()}>{photo==="busy"?"올리는 중":"사진 올리기"}</Button>
+        {photo&&photo!=="busy"&&<FormError>{photo}</FormError>}</div>}
       <label className="bk-check"><input type="checkbox" checked={secret} onChange={e=>setSecret(e.target.checked)}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>
       {secret&&<div className="bk-hint">이 글은 관리자만 볼 수 있습니다.</div>}
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>등록</Button></div>
     </div>
+  </Modal>);
+}
+
+function ReportSheet({ onClose, onSend }){
+  const [reason,setReason]=useState("");
+  const label=Object.fromEntries(REPORT_REASONS);
+  return (<Modal title="신고" hint="운영진에게만 갑니다. 누가 신고했는지는 남지 않습니다." onClose={onClose}>
+    <Choice name="bd-report" options={REPORT_REASONS.map(([,t])=>t)} value={label[reason]||""} onChange={t=>setReason(REPORT_REASONS.find(([,x])=>x===t)?.[0]||"")}/>
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={!reason} onClick={()=>onSend(reason)}>신고</Button></div>
   </Modal>);
 }
 
@@ -223,6 +240,10 @@ function FreeBoard({ admin, flash, tabs }){
   const closePost=()=>{ const id=article; if(window.history.state?.post) return backWith("b-"+id);
     const url=new URL(window.location.href); url.searchParams.delete("post"); window.history.replaceState(window.history.state,"",url); transition(()=>flushSync(()=>setArticle(null)),{shared:"b-"+id,dir:"back",scrollY:listScroll.current}); };
   const [editing,setEditing]=useState(null);
+  // 신고 (the owner's draft 10 A): a post's own line gets 신고 beside 수정 and 삭제 once handover_features.sql has run
+  const [reporting,setReporting]=useState(null);
+  const [reportOn,setReportOn]=useState(false);
+  useEffect(()=>{ let on=true; if(!admin) handoverReady().then(ok=>on&&setReportOn(ok)); return ()=>{ on=false; }; },[admin]);
   const addPost=async({pin,secret,byAccount,...post})=>{ if(await run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),post,{pin,secret,byAccount}),"글을 등록했습니다.")) setCompose(false); };
   const delPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(FREE_BOARD_KEY,p.id,pin),"삭제했습니다.")) closePost(); };
   const addComment=({pin,byAccount,...c},p)=>run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),c,{parentId:p.id,pin,byAccount}),"댓글을 등록했습니다.");
@@ -243,7 +264,7 @@ function FreeBoard({ admin, flash, tabs }){
         <BackLink to="게시판" onClick={closePost}/>
         {/* a post's 수정 and 삭제 stand as its comments' do, two words at the end of its own line: as two 52 panels under the body they
             were the largest keys on a post, for a visitor who only reads it (2026-11-10, DESIGN.md "Composing a screen" 1) */}
-        <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button></p>
+        <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         <h1 className="t32 bd-title-h" data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</h1>
         {(p.body||p.link)&&<div className="bd-body">
           <Prose text={p.body}/>
@@ -255,6 +276,7 @@ function FreeBoard({ admin, flash, tabs }){
         </div>
       </article>
       {editSheet}
+      {reporting&&<ReportSheet onClose={()=>setReporting(null)} onSend={async reason=>{ try{ await reportCommunityItem(reporting.id,reason); flash("신고했습니다. 운영진이 확인합니다."); setReporting(null); }catch(error){ flash(error.message); } }}/>}
     </section>);
   }
 

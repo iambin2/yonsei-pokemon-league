@@ -82,3 +82,27 @@ export async function shareLink(params, title = "") {
   try { await navigator.clipboard.writeText(url); return "copied"; }
   catch { window.prompt("주소를 복사해 주세요.", url); return "prompted"; }
 }
+
+/* 게시판 사진과 신고 (docs/db/handover_features.sql, 2026-11-22, the owner's draft 10 A).
+   사진은 긴 변 1280의 webp로 줄여 공개 버킷 board 에 'YYYYMM/12자.webp'로 올리고, 그 주소를 글의 링크 칸에 넣는다. 512KB를 넘으면 더 줄인다. */
+const STORAGE_BASE = String(import.meta.env?.VITE_SUPABASE_URL || "").replace(/\/?$/, "/");
+const STORAGE_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
+export async function uploadBoardImage(file) {
+  if (!STORAGE_KEY || !file) throw new Error("사진을 올릴 수 없습니다.");
+  const bitmap = await createImageBitmap(file).catch(() => { throw new Error("사진을 읽지 못했습니다."); });
+  let blob = null;
+  for (const [side, quality] of [[1280, 0.82], [1280, 0.6], [960, 0.6]]) {
+    const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+    const canvas = Object.assign(document.createElement("canvas"), { width: Math.round(bitmap.width * scale), height: Math.round(bitmap.height * scale) });
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    blob = await new Promise(done => canvas.toBlob(done, "image/webp", quality));
+    if (blob && blob.size <= 512 * 1024) break;
+  }
+  if (!blob || blob.size > 512 * 1024 || blob.type !== "image/webp") throw new Error("사진이 너무 큽니다.");
+  const now = new Date(), path = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}/${newCommunityId()}.webp`;
+  const response = await fetch(`${STORAGE_BASE}storage/v1/object/board/${path}`, {
+    method: "POST", body: blob, headers: { apikey: STORAGE_KEY, Authorization: `Bearer ${STORAGE_KEY}`, "Content-Type": "image/webp" },
+  }).catch(() => null);
+  if (!response?.ok) throw new Error("사진을 올리지 못했습니다. 잠시 뒤 다시 시도해 주세요.");
+  return `${STORAGE_BASE}storage/v1/object/public/board/${path}`;
+}

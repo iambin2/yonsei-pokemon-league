@@ -9,6 +9,7 @@ import { DEFAULT_POINT_TABLE } from "../services/bracketRankingAwardSnapshot.js"
 import LinkRequests from "../components/LinkRequests.jsx";
 import ChangeLog from "../components/ChangeLog.jsx";
 import ClientErrors from "../components/ClientErrors.jsx";
+import CommunityReports from "../components/CommunityReports.jsx";
 import { formatDate } from "../services/dateFormat.js";
 import { ADMIN_STEPS, adminTasks, readAdminOverview } from "../services/adminOverview.js";
 import { cancelEventWithoutBracket } from "../services/normalizedCompetitionService.js";
@@ -197,6 +198,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
           </section>
           <ChangeLog />
           <ClientErrors />
+          <CommunityReports go={go} />
           <Exports flash={flash} />
         </div>
         {points && <PointSheet data={data} save={save} onClose={() => setPoints(false)} />}
