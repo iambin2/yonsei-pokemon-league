@@ -18,6 +18,7 @@
 --
 --   6. 배틀의 시계: 공식 배틀은 대회의 턴 시간(competition_settings.turnSeconds)을 쓰고, 운영진이 admin_battle_clock 으로 멈추고
 --      다시 켜고 1분 늘린다. battle_timer.sql 의 battle_set_deadline 을 대신한다(친선과 도전의 탑은 그대로 90초).
+--   7. match_picks: 게임으로 치른 경기의 선출(출전마다 낸 포켓몬). 운영진이 set_match_picks 로 남긴다.
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
@@ -365,6 +366,54 @@ end;
 $$;
 revoke all on function public.admin_battle_clock(text, text) from public, anon;
 grant execute on function public.admin_battle_clock(text, text) to authenticated;
+
+-- 7. 선출: 게임으로 치른 경기에서 출전마다 실제로 낸 포켓몬(pokemon_id, 1에서 6마리). 운영진이 결과 입력에서 남긴다.
+--    파티처럼 대회가 공개되기(team_revealed_at) 전에는 운영진만 읽는다. 승자, 대진, 결과와는 상관없는 사실이라 언제든 고칠 수 있다.
+create table if not exists ypl_schema_validation.match_picks (
+  event_id uuid not null references ypl_schema_validation.events (id) on delete cascade,
+  source_node_key text not null,
+  entry_id uuid not null references ypl_schema_validation.entries (id) on delete cascade,
+  pokemon_ids text[] not null check (cardinality(pokemon_ids) between 1 and 6),
+  updated_at timestamptz not null default now(),
+  primary key (event_id, source_node_key, entry_id)
+);
+alter table ypl_schema_validation.match_picks enable row level security;
+drop policy if exists match_picks_read on ypl_schema_validation.match_picks;
+create policy match_picks_read on ypl_schema_validation.match_picks for select to anon, authenticated
+  using (ypl_schema_validation.is_ypl_admin()
+         or exists (select 1 from ypl_schema_validation.events e where e.id = event_id and e.team_revealed_at is not null));
+grant select on ypl_schema_validation.match_picks to anon, authenticated, service_role;
+
+create or replace function ypl_schema_validation.set_match_picks(p_event_id uuid, p_source_node_key text, p_entry_id uuid, p_pokemon_ids text[])
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_ids text[] := array(select distinct btrim(x) from unnest(coalesce(p_pokemon_ids, '{}')) x where btrim(x) <> '');
+begin
+  if not ypl_schema_validation.is_ypl_admin() then
+    raise exception using errcode = 'P0001', message = '관리자 권한이 필요합니다.';
+  end if;
+  if not exists (select 1 from ypl_schema_validation.matches m where m.event_id = p_event_id and m.source_node_key = p_source_node_key
+                   and p_entry_id in (m.entry_a_id, m.entry_b_id)) then
+    raise exception using errcode = 'P0001', message = '이 경기의 출전이 아닙니다.';
+  end if;
+  if cardinality(v_ids) = 0 then
+    delete from ypl_schema_validation.match_picks p where p.event_id = p_event_id and p.source_node_key = p_source_node_key and p.entry_id = p_entry_id;
+    return;
+  end if;
+  if cardinality(v_ids) > 6 then
+    raise exception using errcode = 'P0001', message = '선출은 여섯 마리까지입니다.';
+  end if;
+  insert into ypl_schema_validation.match_picks (event_id, source_node_key, entry_id, pokemon_ids)
+  values (p_event_id, p_source_node_key, p_entry_id, v_ids)
+  on conflict (event_id, source_node_key, entry_id) do update set pokemon_ids = excluded.pokemon_ids, updated_at = now();
+end;
+$$;
+revoke all on function ypl_schema_validation.set_match_picks(uuid, text, uuid, text[]) from public, anon;
+grant execute on function ypl_schema_validation.set_match_picks(uuid, text, uuid, text[]) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

@@ -21,7 +21,7 @@ await pg.exec(`
   create schema ypl_schema_validation;
   create table public.admin_switch (on_ boolean); insert into public.admin_switch values (true);
   create function ypl_schema_validation.is_ypl_admin() returns boolean language sql as $$ select on_ from public.admin_switch $$;
-  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz);
+  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz, team_revealed_at timestamptz);
   create table ypl_schema_validation.players (id uuid primary key, display_name text, status text default 'active', updated_at timestamptz);
   create table ypl_schema_validation.entries (id uuid primary key, event_id uuid);
   create table ypl_schema_validation.event_registrations (id uuid primary key default gen_random_uuid(), event_id uuid,
@@ -146,6 +146,17 @@ await check("an official battle runs on its event's turn time; an operator pause
   await q(`update public.battles set status = 'ended' where id = 'o1'`);
   row = await one(`select deadline_at, paused_left from public.battles where id = 'o1'`);
   assert.equal(row.deadline_at, null);
+});
+
+await check("an operator keeps each side's picks of a match; a visitor reads them once the event is revealed", async () => {
+  await q(`select ypl_schema_validation.set_match_picks($1, 'single:r1:m1', $2, array['garchomp', 'garchomp', 'incineroar', ' '])`, [E, N1]);
+  assert.deepEqual((await one(`select pokemon_ids from ypl_schema_validation.match_picks`)).pokemon_ids.sort(), ["garchomp", "incineroar"]);
+  await assert.rejects(q(`select ypl_schema_validation.set_match_picks($1, 'single:r9:m9', $2, array['x'])`, [E, N1]), /출전이 아닙니다/);
+  await q(`select ypl_schema_validation.set_match_picks($1, 'single:r1:m1', $2, '{}')`, [E, N1]);
+  assert.equal((await q(`select 1 from ypl_schema_validation.match_picks`)).length, 0);
+  await q(`update public.admin_switch set on_ = false`);
+  await assert.rejects(q(`select ypl_schema_validation.set_match_picks($1, 'single:r1:m1', $2, array['x'])`, [E, N1]), /관리자/);
+  await q(`update public.admin_switch set on_ = true`);
 });
 
 await check("the site asks whether this file ran", async () => {

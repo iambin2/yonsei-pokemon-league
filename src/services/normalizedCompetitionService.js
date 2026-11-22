@@ -1040,6 +1040,40 @@ export async function setEntryDeparture({ eventId, entryId, kind = null } = {}) 
   if (error) fail(error, "기권과 실격을 저장하지 못했습니다.");
 }
 
+// 선출(docs/db/handover_features.sql match_picks): "경기키|출전id" -> pokemon_id 목록. 그 SQL 전에는 표가 없어 null.
+export async function readMatchPicks(eventId) {
+  if (!eventId) return null;
+  const { data, error } = await db().from("match_picks").select("source_node_key, entry_id, pokemon_ids").eq("event_id", eventId);
+  if (error) return null;
+  return new Map((data || []).map(row => [`${row.source_node_key}|${row.entry_id}`, row.pokemon_ids || []]));
+}
+
+// ids 가 비면 지운다. 검사(운영진, 그 경기의 출전)는 RPC가 한다.
+export async function setMatchPicks({ eventId, nodeKey, entryId, ids = [] } = {}) {
+  const { error } = await db().rpc("set_match_picks", { p_event_id: eventId, p_source_node_key: nodeKey, p_entry_id: entryId, p_pokemon_ids: ids });
+  if (error) fail(error, "선출을 저장하지 못했습니다.");
+}
+
+// 대회 중의 파티: 신청마다 가장 최근 제출의 포켓몬(최종 제출은 기록 반영 때 고정되므로 진행 중에는 최신 판을 읽는다). 운영진의 읽기.
+export async function fetchRegistrationLatestRosters(registrationIds = []) {
+  const ids = [...new Set(registrationIds.filter(Boolean))];
+  const rosters = new Map();
+  if (!ids.length) return rosters;
+  const { data: subs, error } = await db().from("registration_submissions").select("registration_id, revision, snapshot_id").in("registration_id", ids);
+  if (error) fail(error, "제출한 파티를 읽지 못했습니다.");
+  const latest = new Map();
+  for (const row of subs || []) if (!latest.has(row.registration_id) || row.revision > latest.get(row.registration_id).revision) latest.set(row.registration_id, row);
+  const snaps = [...latest.values()].map(row => row.snapshot_id).filter(Boolean);
+  if (!snaps.length) return rosters;
+  const { data: members, error: memberError } = await db().from("team_snapshot_members").select("snapshot_id, slot, pokemon_id").in("snapshot_id", snaps);
+  if (memberError) fail(memberError, "제출한 파티를 읽지 못했습니다.");
+  for (const [registrationId, row] of latest) {
+    const party = (members || []).filter(m => m.snapshot_id === row.snapshot_id).sort((a, b) => Number(a.slot) - Number(b.slot)).map(m => m.pokemon_id).filter(Boolean);
+    if (party.length) rosters.set(registrationId, party);
+  }
+  return rosters;
+}
+
 // docs/db/match_outcome_more.sql 이 실행되었는가(팀전의 불참). 그 전에는 함수가 없어 false.
 let outcomeMoreReady = null;
 export function matchOutcomeMoreReady() {
