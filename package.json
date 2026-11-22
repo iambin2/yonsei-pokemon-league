@@ -29,7 +29,7 @@
     "@electric-sql/pglite": "^0.3.16",
     "@pkmn/mods": "0.10.13",
     "@pkmn/sim": "0.10.13",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^6.3.0",
     "esbuild": "0.21.5",
     "vite": "^5.4.0"
   },
