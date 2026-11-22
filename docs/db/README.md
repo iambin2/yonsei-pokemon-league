@@ -70,7 +70,7 @@ node scripts/db-ledger.mjs > ledger.sql
 | 파일 | 내용 | 실행 뒤 확인 |
 |---|---|---|
 | match_outcome_more.sql | 팀전 불참, 사이트 배틀의 기권과 시간 초과를 경기에 forfeit 으로 | `select ypl_schema_validation.match_outcome_more_ready();` 가 true, 트리거 `battle_applied_mark_forfeit` |
-| handover_features.sql | 기권과 실격(entry_departures), 화면 오류(client_errors), 선수 이름 변경과 합치기, 라운드 시작과 파티 마감과 예약 공지 알림(pg_cron `push-bracket-steps`), 공지 수정 알림, 대회별 턴 시간과 배틀 시계 | `select public.handover_features_ready();` 가 true, `select jobname from cron.job;` 에 push-bracket-steps |
+| handover_features.sql | 기권과 실격(entry_departures), 화면 오류(client_errors), 선수 이름 변경과 합치기, 라운드 시작과 파티 마감과 예약 공지 알림(pg_cron `push-bracket-steps`), 공지 수정 알림, 대회별 턴 시간과 배틀 시계, 선출(match_picks), 참가자 교체, 셀프 체크인(event_checkins), 선수 결과 보고(match_reports), 게시판 사진 버킷(storage `board`)과 신고(community_reports) | `select public.handover_features_ready();` 가 true, `select jobname from cron.job;` 에 push-bracket-steps, `select id, public from storage.buckets where id = 'board';` 가 한 줄 |
 
 둘 다 다시 실행해도 안전하고, 실행 전에는 사이트가 그 기능을 숨깁니다. 실행하면 위 장부 표로 옮겨 적습니다.
 
