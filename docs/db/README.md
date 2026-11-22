@@ -64,19 +64,12 @@ node scripts/db-ledger.mjs > ledger.sql
 | tower_history.sql | 2026-11-22 | streak_my_runs, streak_month_tops(방문자도 호출, 아직 지난달 기록 없음), tower_archive 표와 보존 트리거를 확인 |
 | change_log.sql | 2026-11-22 | ypl_audit 스키마, 20개 표의 log_change 트리거, admin_change_log(운영자만)를 확인. 방문자 호출은 거절됨 |
 | battle_records.sql | 2026-11-22 | 열 4개, 트리거 2개, 정리 함수와 pg_cron 작업(매일 한국 04:10), 30일 한도, 난이도 열을 읽기 전용으로 확인. 지난 판 827개 중 끝난 824개에 끝 시각이 채워짐 |
-
-### 실행 대기 (커밋됐지만 운영에 아직 실행하지 않은 파일)
-
-| 파일 | 내용 | 실행 뒤 확인 |
-|---|---|---|
-| match_outcome_more.sql | 팀전 불참, 사이트 배틀의 기권과 시간 초과를 경기에 forfeit 으로 | `select ypl_schema_validation.match_outcome_more_ready();` 가 true, 트리거 `battle_applied_mark_forfeit` |
-| handover_features.sql | 기권과 실격(entry_departures), 화면 오류(client_errors), 선수 이름 변경과 합치기, 라운드 시작과 파티 마감과 예약 공지 알림(pg_cron `push-bracket-steps`), 공지 수정 알림, 대회별 턴 시간과 배틀 시계, 선출(match_picks), 참가자 교체, 셀프 체크인(event_checkins), 선수 결과 보고(match_reports), 게시판 사진 버킷(storage `board`)과 신고(community_reports) | `select public.handover_features_ready();` 가 true, `select jobname from cron.job;` 에 push-bracket-steps, `select id, public from storage.buckets where id = 'board';` 가 한 줄 |
-
-둘 다 다시 실행해도 안전하고, 실행 전에는 사이트가 그 기능을 숨깁니다. 실행하면 위 장부 표로 옮겨 적습니다.
+| match_outcome_more.sql | 2026-11-22 | set_normalized_match_outcome 본문에 팀전 처리, match_outcome_more_ready(authenticated 실행), 트리거 battle_applied_mark_forfeit를 읽기 전용으로 확인 |
+| handover_features.sql | 2026-11-22 | 함수 15개, 표 6개(entry_departures, client_errors, match_picks, event_checkins, match_reports, community_reports), 정책 5개, battles.paused_left, 새 battle_set_deadline(turnSeconds), pg_cron push-bracket-steps(10분마다), 저장소 버킷 board(공개, 512KB)를 확인. set_match_picks는 anon 실행 불가, report_community_item과 handover_features_ready는 anon 실행 가능(의도대로) |
 
 ## 구조 스냅숏
 
-`schema_snapshot_2026_11_22.sql`은 운영 DB의 표, 열, 제약, 색인, RLS 정책, 트리거, 권한, 함수 서명, 확장, 예약 작업을 읽기 전용 카탈로그 조회로 받아 적은 읽는 파일입니다(실행하지 않음, 함수 본문과 데이터는 없음). 위 두 파일이 실행되기 전의 모습입니다.
+`schema_snapshot_2026_11_22.sql`은 운영 DB의 표, 열, 제약, 색인, RLS 정책, 트리거, 권한, 함수 서명, 확장, 예약 작업을 읽기 전용 카탈로그 조회로 받아 적은 읽는 파일입니다(실행하지 않음, 함수 본문과 데이터는 없음). match_outcome_more.sql과 handover_features.sql이 실행되기 전의 모습입니다.
 
 ## 빈 프로젝트에서 다시 만들 때
 
