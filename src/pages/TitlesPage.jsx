@@ -3,7 +3,8 @@ import { Row, TabsLine } from "../components/common/Board.jsx";
 import Empty from "../components/common/Empty.jsx";
 import Button from "../components/common/Button.jsx";
 import Modal from "../components/common/Modal.jsx";
-import { Medal, MedalBoard, usePartnerMedal } from "../components/TitleFaces.jsx";
+import { Medal, MedalBoard, bigMedal, useDesk, usePartnerMedal } from "../components/TitleFaces.jsx";
+import { medalUrl } from "../components/titleMedal.js";
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
 import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, regionMedal, regionOfTitle, typeMedal, typeOfTitle } from "../services/titleLooks.js";
 import { useItemTitle } from "../components/layout/title.js";
@@ -60,7 +61,7 @@ function TitleSheet({ group, item, spec, partner, go, onClose }) {
   const title = partner ? `파트너 ${partner.pokemon}` : item.name;
   const record = name => go ? () => { onClose(); go("records", { trainer: name }); } : undefined;
   return <Modal title={title} hint={partner ? group.desc : item.desc || group.desc} className="tl-sheet" onClose={onClose}>
-    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} /></div>}
+    {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} big /></div>}
     <section className="tl-sheet-sec">
       {/* the sheet's title is its h3, so the section under it is an h4 in the section head's own form */}
       <div className="sh"><h4 className="t20">{partner ? `트레이너 ${holders.length}명` : `주인 ${holders.length}명`}</h4></div>
@@ -102,6 +103,13 @@ export default function TitlesPage({ data, admin, setModal, go }) {
     const m = [...medals, ...(strays.length ? groupMedals({ key: "own" }, strays, item => () => open(item)) : [])].find(x => String(x.key) === k);
     if (m?.onClick) m.onClick(); else setParams({ title: null });
   }, [medals.length]);
+  // the other groups' medals are drawn while this one is read, so a tab pressed switches on whole (this board's own were asked for first)
+  const desk = useDesk();
+  useEffect(() => {
+    if (!partnerMedalOf) return;
+    for (const x of groups) if (x !== g) for (const m of groupMedals(x, x.items || [], () => undefined, data.champions, partnerMedalOf))
+      if (m.spec) medalUrl(m.spec, !m.on, bigMedal((COLS[x.key] || [6, 3])[desk ? 0 : 1], desk), true);
+  }, [groups, Boolean(partnerMedalOf), desk]);
   // 타입과 지방 판에 자리가 없는 항목(운영자가 더한 이름)은 제 메달로 뒤에 선다
   const strays = g?.key === "type" ? items.filter(item => !typeOfTitle(item.name)) : g?.key === "region" ? items.filter(item => !regionOfTitle(item.name)) : [];
 

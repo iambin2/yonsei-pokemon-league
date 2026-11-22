@@ -112,7 +112,7 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
           <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
             <span className="hof-plate-top">{plate(c, 40)}<span className="t12 dim hof-plate-season">{title(c)}</span></span>
             <b className="t20 hof-plate-name">{c.name}</b>
-            <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} /></span>)}</span>
+            <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} small /></span>)}</span>
           </button>
           {/* the edit stands under its own plate, named by the generation, so two reigns of one trainer never read alike */}
           {admin && c.kind !== "normalized" && <Button variant="second" size="sm" onClick={() => setModal({ type: "champion", item: c })}>{[generationText(c.gen), c.name, "수정"].filter(Boolean).join(" ")}</Button>}

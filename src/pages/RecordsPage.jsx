@@ -440,7 +440,7 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
           {(allParties ? parties : parties.slice(0, 4)).map((roster) => (
             <button type="button" key={roster.id || roster.snapshotId} className="pn rc-party-row" onClick={() => onParty({ roster })} aria-label={`${rosterTitle(roster)} 파티 보기, ${(roster.pokemon || []).join(", ")}`}>
               <span className="rc-party-who"><b className="t15">{rosterTitle(roster)}</b><span className="t12 dim">{[formatDate(roster.date), roster.team && displayTeamName(roster.teamName)].filter(Boolean).join(", ")}</span></span>
-              <span className="rc-party-six" aria-hidden="true">{rosterParty(roster).map((m, k) => <span className="stand rc-party-mon" key={k}><i className="floor" /><Mon src={m.img} /></span>)}</span>
+              <span className="rc-party-six" aria-hidden="true">{rosterParty(roster).map((m, k) => <span className="stand rc-party-mon" key={k}><i className="floor" /><Mon src={m.img} small /></span>)}</span>
             </button>
           ))}
         </div>
@@ -746,7 +746,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
                 return <li key={`${row.placement}:${row.name}:${index}`}>
                   <Box {...(roster ? { type: "button", onClick: () => onParty({ roster }), "aria-label": `${row.name} 파티 보기, ${(roster.pokemon || []).join(", ")}` } : {})} className="pn rc-party-row">
                     <span className="rc-party-who"><b className="t15">{row.name}</b><span className="t12 dim">{line}</span></span>
-                    {roster && <span className="rc-party-six" aria-hidden="true">{rosterParty(roster).map((m, k) => <span className="stand rc-party-mon" key={k}><i className="floor" /><Mon src={m.img} /></span>)}</span>}
+                    {roster && <span className="rc-party-six" aria-hidden="true">{rosterParty(roster).map((m, k) => <span className="stand rc-party-mon" key={k}><i className="floor" /><Mon src={m.img} small /></span>)}</span>}
                   </Box>
                 </li>;
               })}

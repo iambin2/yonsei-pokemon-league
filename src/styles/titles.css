@@ -17,6 +17,8 @@
 .tl-cell:disabled { opacity: 1; cursor: default; }
 .tl-medal { display: block; width: 100%; aspect-ratio: 1; padding: var(--s1); }
 .tl-medal > img { display: block; width: 100%; height: 100%; }
+/* a board's medals switch on together: one drawn early waits unseen for the last */
+.tl-board-medals:not(.lit) .tl-medal > img { visibility: hidden; }
 .tl-name { display: flex; align-items: center; justify-content: center; gap: var(--s1); max-width: 100%; min-height: var(--s5); margin-top: var(--s1); }
 .tl-name > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t12); line-height: var(--l12); font-weight: 700; }
 .tl-name > b.t20 { font-size: var(--t15); line-height: var(--l15); }

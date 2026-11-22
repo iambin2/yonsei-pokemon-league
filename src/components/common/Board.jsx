@@ -132,13 +132,36 @@ export function LiveStrip({ name, onGo }) {
   );
 }
 
+/* Pictures that arrive late come on together: those set down in one commit (a party's six, a board's row) wait unseen for the last of
+   them, at most WAIT, so a party never lights one Pokémon at a time (2026-11-22). A lazy picture waits for the scroll, not for the
+   others, and comes on by itself. */
+const WAIT = 1200, groups = new WeakMap();
+let group = null;
+function reveal(imgs) { const here = imgs.filter(img => img.isConnected); here.forEach(img => { delete img.dataset.late; }); place(here); }
+function flush(g) { reveal(g.ready.splice(0)); }
+function late(img) {
+  img.dataset.late = "";
+  if (img.loading === "lazy") return;
+  if (!group) { const g = group = { wait: new Set(), ready: [], over: false }; queueMicrotask(() => { group = null; }); setTimeout(() => { g.over = true; flush(g); }, WAIT); }
+  group.wait.add(img); groups.set(img, group);
+  img.addEventListener("error", () => arrived(img), { once: true });
+}
+function arrived(img) {
+  const g = groups.get(img);
+  if (!g) { reveal([img]); return; }
+  groups.delete(img); g.wait.delete(img); g.ready.push(img);
+  if (g.over || !g.wait.size) flush(g);
+}
+
 /* A Pokémon standing in its panel (DESIGN.md "Where a Pokémon stands"): the parent is a .stand panel with a .floor band; the picture
    stands with its ink's feet on the band's top edge. Pictures that fail to load leave the floor empty. */
-export function Mon({ src, className = "", ...rest }) {
+export function Mon({ src, small = false, className = "", ...rest }) {
   if (!src) return null;
+  // a cell at most 64 across takes the picture's small copy (192: half the bytes and a seventh of the pixels to decode; scripts/build-sprites.py writes both)
+  if (small) src = src.replace("/sprites/pokemon/", "/sprites/pokemon-s/");
   // a picture still loading when its panel lit comes on by tone once it has loaded, instead of popping in (DESIGN.md "Motion")
-  const stand = img => { if (!img) return; if (img.complete && img.naturalWidth) standInk(img); else img.dataset.late = ""; };
-  const loaded = img => { standInk(img); if (img.dataset.late != null) { delete img.dataset.late; place(img); } };
+  const stand = img => { if (!img) return; if (img.complete && img.naturalWidth) standInk(img); else if (img.dataset.late == null) late(img); };
+  const loaded = img => { standInk(img); if (img.dataset.late != null) arrived(img); };
   return <img className={"mon" + (className ? " " + className : "")} src={src} alt="" decoding="async" {...rest} ref={stand} onLoad={e => loaded(e.currentTarget)} />;
 }
 
@@ -161,7 +184,7 @@ export function ChampionPanel({ champion, onClick }) {
         <span className="stand champion-stand"><i className="floor" aria-hidden="true" />{champion && <Mon src={champion.party[0]?.img} fetchpriority="high" />}</span>
       </span>
       {six.length > 0 && <span className="stack champion-six" aria-hidden="true">
-        {six.map((m, i) => <span className="pn2 stand" key={i}><i className="floor" aria-hidden="true" />{m && <Mon src={m.img} />}</span>)}
+        {six.map((m, i) => <span className="pn2 stand" key={i}><i className="floor" aria-hidden="true" />{m && <Mon src={m.img} small />}</span>)}
       </span>}
       <span className="champion-more t12">{champion && <><Icon n="arrow" size={16} />파티 보기</>}</span>
     </button>

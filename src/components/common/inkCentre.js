@@ -32,7 +32,7 @@ function keep(kind, src, shift) {
    it does not hold, the page measures as before */
 let table = null;
 if (typeof window !== "undefined") import("../../data/sprite-ink.json").then(m => { table = m.default; }, () => {});
-const rowOf = src => { const slug = /\/sprites\/pokemon\/([^/?#]+)\.webp/.exec(src)?.[1]; return slug && table ? table[slug] : undefined; };
+const rowOf = src => { const slug = /\/sprites\/pokemon(?:-s)?\/([^/?#]+)\.webp/.exec(src)?.[1]; return slug && table ? table[slug] : undefined; };
 const fromTable = (src, at) => { const row = rowOf(src); return row === undefined ? undefined : row && [row[at], row[at + 1]]; };
 /* the box of a picture's ink as the battle stage reads it ([x0, y0, x1, y1] as shares of the picture), or undefined when the table
    does not hold it (gl.js inkBox then reads the picture) */

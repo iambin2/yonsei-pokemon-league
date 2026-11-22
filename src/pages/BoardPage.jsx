@@ -482,7 +482,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         // 기록의 파티 줄과 같은 꼴: 제목과 회색 줄, 그리고 그림(파티는 여섯, 샘플은 한 마리를 앞에)
         return <button type="button" className={"pn bd-post"+(kind==="sample"?" one":"")} key={post.id} onClick={()=>openPost(post.id)} aria-label={[post.title,by,d&&`${d.day} ${d.weekday}`,cc>0&&`댓글 ${cc}`].filter(Boolean).join(", ")}>
           <span className="bd-post-top"><b className="t15" data-vt={"s-"+post.id}>{post.title}</b><span className="t12 dim">{by}{d&&<span className="bd-day"><span className="num">{d.day}</span> {d.weekday}</span>}</span></span>
-          <span className="bd-minis" aria-hidden="true">{(post.team?.members||[]).map((m,i)=><span className="stand bd-mini" key={i}><i className="floor"/><Mon src={spriteUrl(m.pokemonName)}/></span>)}</span>
+          <span className="bd-minis" aria-hidden="true">{(post.team?.members||[]).map((m,i)=><span className="stand bd-mini" key={i}><i className="floor"/><Mon src={spriteUrl(m.pokemonName)} small/></span>)}</span>
           {cc>0&&<span className="bd-post-cc"><span className="t12 dim">댓글 {cc}</span></span>}
         </button>; })}
     </div>}

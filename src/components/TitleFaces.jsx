@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import Seg from "./common/Seg.jsx";
 import { medalDrawn, medalUrl } from "./titleMedal.js";
 import { loadRecordsPokemonDirectory } from "../services/recordsPokemon.js";
@@ -36,30 +36,42 @@ export function usePartnerMedal() {
   return map ? name => { const record = map.get(name); return partnerMedal(record?.type || "normal", record?.canonicalName ? spriteUrl(record.canonicalName) : ""); } : null;
 }
 
-/* one medal: nothing until it is drawn, then it is there (a medal switches on, it does not arrive) */
-export function Medal({ spec, off = false }) {
-  const ground = useGround(), key = JSON.stringify(spec) + off + ground;
-  const [drawn, setDrawn] = useState(() => (spec ? { key, src: medalDrawn(spec, off) } : { key, src: "" }));
+/* a medal shown wider than the small drawing's 384 device pixels is drawn large: a board's cell is the board's width over its columns,
+   and the medal some .8 of its cell */
+export const bigMedal = (n, desk) => (desk ? 1200 : window.innerWidth) / n * .8 * window.devicePixelRatio > 384;
+
+/* one medal: nothing until it is drawn, then it is there (a medal switches on, it does not arrive). While it waits it says so
+   (data-wait), and tells its board when that changes */
+export function Medal({ spec, off = false, big = false, onDrawn }) {
+  const ground = useGround(), key = JSON.stringify(spec) + off + big + ground;
+  const [drawn, setDrawn] = useState(() => { const src = spec ? medalDrawn(spec, off, big) : ""; return { key, src, done: Boolean(src) }; });
   useEffect(() => {
     if (!spec) return;
-    const ready = medalDrawn(spec, off);
-    if (ready) { setDrawn({ key, src: ready }); return; }
+    const ready = medalDrawn(spec, off, big);
+    if (ready) { setDrawn({ key, src: ready, done: true }); return; }
     let on = true;
-    medalUrl(spec, off).then(src => on && setDrawn({ key, src }));
+    medalUrl(spec, off, big).then(src => on && setDrawn({ key, src, done: true }));
     return () => { on = false; };
   }, [key]);
-  const src = drawn.key === key ? drawn.src : "";
-  return <span className="tl-medal" aria-hidden="true">{src && <img src={src} alt="" decoding="async" />}</span>;
+  const now = drawn.key === key, src = now ? drawn.src : "", wait = !(now && drawn.done);
+  useLayoutEffect(() => { onDrawn?.(); }, [wait]);
+  /* a medal asked for at the other size (a board's medal opened on its sheet) stands in while its own is drawn */
+  const shown = src || (spec && wait ? medalDrawn(spec, off, !big) : "");
+  return <span className="tl-medal" aria-hidden="true" data-wait={wait ? "" : undefined}>{shown && <img src={shown} alt="" decoding="async" />}</span>;
 }
 
-/* a board of medals, each its name under it; a short last row is closed with empty panels so the board stays a rectangle */
+/* a board of medals, each its name under it; a short last row is closed with empty panels so the board stays a rectangle.
+   The board's medals switch on together, once the last is drawn (2026-11-22: they came on one by one, some 100 apart at a phone's
+   speed, 1.7 s for the eighteen types, and the board read as stuttering) */
 export function MedalBoard({ medals, cols, className = "", label }) {
   const desk = useDesk();
-  const n = desk ? cols[0] : cols[1], empty = (n - medals.length % n) % n;
-  return <div className={"stack tl-board-medals " + className} style={{ "--cols": n }} role="list" aria-label={label}>
+  const n = desk ? cols[0] : cols[1], empty = (n - medals.length % n) % n, big = bigMedal(n, desk);
+  const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
+  useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });
+  return <div ref={board} className={"stack tl-board-medals " + className + (lit ? " lit" : "")} style={{ "--cols": n }} role="list" aria-label={label}>
     {medals.map(m => {
       const body = <>
-        <Medal spec={m.spec} off={!m.on} />
+        <Medal spec={m.spec} off={!m.on} big={big} onDrawn={drawn} />
         <span className="tl-name"><b className={m.big ? "t20" : ""}>{m.name}</b>{m.n > 1 && <i>×{m.n}</i>}</span>
         {m.sub && <span className={"t12 tl-sub" + (m.reign ? " reign" : "")}>{m.sub}</span>}
       </>;

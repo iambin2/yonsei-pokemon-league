@@ -163,7 +163,7 @@ const PoolList = memo(function PoolList({ pool, detailData, displayPokemon, sort
         const canReplaceSelected = sameSpeciesMember?.uid === selectedUid && sameSpeciesMember.name !== pokemon.name;
         return (
           <button key={pokemon.name} className="tb-pokemon-row" onClick={() => onAdd(pokemon)} disabled={already && !canReplaceSelected}>
-            <span className="stand tb-pic"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(pokemon.name)} loading="lazy" onError={onSpriteError()} /></span>
+            <span className="stand tb-pic"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(pokemon.name)} small loading="lazy" onError={onSpriteError()} /></span>
             <span className="tb-pokemon-copy"><strong>{displayPokemon(pokemon)}</strong><small>{details?.num ? `#${String(details.num).padStart(4, "0")}` : ""}</small></span>
             <TypeBadges types={details?.types || []} />
             <BaseStatStrip stats={details?.baseStats} sortId={sortId} />
@@ -227,7 +227,7 @@ const TypeMatchups = memo(function TypeMatchups({ team, detailData, displayPokem
         <thead>
           <tr>
             <th scope="col" className="t12 tb-mx-corner">{corner}</th>
-            {team.map((member, index) => <th scope="col" key={member.uid}><span className="stand tb-mx-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(member.pokemon.name)} onError={onSpriteError()} /><span className="sr-only">{names[index]}</span></span></th>)}
+            {team.map((member, index) => <th scope="col" key={member.uid}><span className="stand tb-mx-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(member.pokemon.name)} small onError={onSpriteError()} /><span className="sr-only">{names[index]}</span></span></th>)}
             {totals.map(([label]) => <th scope="col" className="t12 tb-mx-total" key={label}>{label}</th>)}
           </tr>
         </thead>

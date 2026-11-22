@@ -80,6 +80,8 @@
 .stand:not(.champion):has(> .floor:empty) { --floor: var(--s1); }
 .floor.inv { background: var(--lit); }
 .mon { position: absolute; bottom: var(--floor); aspect-ratio: 1; object-fit: contain; object-position: 50% 100%; }
+/* a picture that arrived before the others of its group waits unseen for them (Board.jsx Mon) */
+.mon[data-late] { opacity: 0; }
 
 /* ---------- the current champion (draft B): the reign's half of the big screen. 현 챔피언, the generation, the name at 32 and the season
    at the left, the Pokémon standing at the right, the six as one row of six cells across the panel, → 파티 보기 at its foot ---------- */

@@ -16,8 +16,11 @@ const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${
 const fillEO = (ctx, d) => ctx.fill(P(d), "evenodd");
 const cut = (c, draw) => { c.save(); c.globalCompositeOperation = "destination-out"; draw(); c.restore(); };
 
-/* ---------- the face: everything is drawn in a 100 space (rim 47, hill 37) at 7.68 times its pixels ---------- */
-const S = 768, K = S / 100, C = 50, HILL = 37, FIT = .72, REACH = .93;
+/* ---------- the face: everything is drawn in a 100 space (rim 47, hill 37) at 7.68 times its pixels, or at half that for a medal
+   shown small (a board's medal is some 300 device pixels across; 768 of them were drawn and thrown away, 2026-11-22). One medal is
+   drawn at a time, so the size in hand is S ---------- */
+const BIG = 768, SMALL = 384, C = 50, HILL = 37, FIT = .72, REACH = .93;
+let S = BIG, K = S / 100;
 const layer = () => { const c = Object.assign(document.createElement("canvas"), { width: S, height: S }).getContext("2d"); c.scale(K, K); return c; };
 /* lay one full-size canvas over another, whatever the transform of the one beneath */
 const lay = (ctx, src) => { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(src, 0, 0); ctx.restore(); };
@@ -199,11 +202,11 @@ async function faces(spec, ink) {
     let tf = null;
     if (lone && fits.has(fitKey)) tf = fits.get(fitKey);
     else if (lone) {
-      const N = S / 4, probe = Object.assign(document.createElement("canvas"), { width: N, height: N }).getContext("2d", { willReadFrequently: true });
-      probe.scale(K / 4, K / 4); device(probe);
+      const N = BIG / 4, probe = Object.assign(document.createElement("canvas"), { width: N, height: N }).getContext("2d", { willReadFrequently: true });
+      probe.scale(N / 100, N / 100); device(probe);
       const d = probe.getImageData(0, 0, N, N).data; let x0 = N, y0 = N, x1 = 0, y1 = 0;
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (d[(y * N + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-      const u = 4 / K, w = (x1 - x0 + 1) * u, t = (y1 - y0 + 1) * u;
+      const u = 100 / N, w = (x1 - x0 + 1) * u, t = (y1 - y0 + 1) * u;
       if (x1 >= x0) tf = { s: Math.min(FIT * 2 * HILL / Math.max(w, t), REACH * 2 * HILL / Math.hypot(w, t)), x: (x0 + x1 + 1) / 2 * u, y: (y0 + y1 + 1) / 2 * u };
       fits.set(fitKey, tf);
       await frame();
@@ -270,7 +273,11 @@ function tex(unit, src) {
   return t;
 }
 function context() {
-  if (gl) return gl;
+  if (gl) {
+    /* the other size: the canvas and the two pictures blurred into take it */
+    if (gl.canvas.width !== S) { gl.canvas.width = gl.canvas.height = S; gl.activeTexture(gl.TEXTURE3); for (const { t } of targets) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); } }
+    return gl;
+  }
   const cv = Object.assign(document.createElement("canvas"), { width: S, height: S });
   gl = cv.getContext("webgl2", { premultipliedAlpha: true, preserveDrawingBuffer: true });
   const sh = (t, s) => { const x = gl.createShader(t); gl.shaderSource(x, s); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
@@ -288,23 +295,36 @@ const rgb = hex => { const m = String(hex).trim().match(/^#?([0-9a-f]{6})$/i); c
 const hex = c => "#" + c.map(x => Math.round(Math.min(1, x) * 255).toString(16).padStart(2, "0")).join("");
 
 const cache = new Map(), done = new Map();
-let queue = Promise.resolve();
-const keyOf = (spec, off, ground) => JSON.stringify([spec, off, ground]);
+/* medals wait in a line to be drawn; one a board is showing goes to its head, past those drawn ahead for a board not yet opened */
+const line = [], soon = new Set();
+let busy = false;
+async function pump() { if (busy) return; busy = true; while (line.length) await line.shift().run(); busy = false; }
+const keyOf = (spec, off, ground, big) => JSON.stringify([spec, off, ground, big ? BIG : SMALL]);
+/* a medal drawn once is kept on the device for as long as this build is out (2026-11-22: every visit drew every medal again); a new
+   build may draw it differently, so it keeps its own. Not in dev, where a medal is being changed */
+const BUILD = typeof window !== "undefined" && typeof caches !== "undefined" && window.__YPL_BUILD__ ? "ypl-medals:" + window.__YPL_BUILD__ : "";
+const shelf = BUILD ? caches.open(BUILD).catch(() => null) : null;
+if (BUILD) caches.keys().then(names => names.forEach(name => name.startsWith("ypl-medals:") && name !== BUILD && caches.delete(name)), () => {});
+const kept = key => "/medal/" + encodeURIComponent(key);
 /* a medal already drawn, at once (a board seen before switches on with every medal in place) */
-export function medalDrawn(spec, off = false) { return done.get(keyOf(spec, off, getComputedStyle(document.documentElement).getPropertyValue("--ground").trim())) || ""; }
-/* one medal as an image URL. Medals are drawn one after another, a frame apart, so a board of them never holds the page. */
-export function medalUrl(spec, off = false) {
+export function medalDrawn(spec, off = false, big = false) { return done.get(keyOf(spec, off, getComputedStyle(document.documentElement).getPropertyValue("--ground").trim(), big)) || ""; }
+/* one medal as an image URL. Medals are drawn one after another, a frame apart, so a board of them never holds the page.
+   ahead: drawn before it is shown (another tab's medal), behind whatever is on screen */
+export function medalUrl(spec, off = false, big = false, ahead = false) {
   const css = getComputedStyle(document.documentElement), v = name => rgb(css.getPropertyValue(name));
   const ground = v("--ground"), dark = ground[0] + ground[1] + ground[2] < 1.5;
-  const key = keyOf(spec, off, css.getPropertyValue("--ground").trim());
+  const key = keyOf(spec, off, css.getPropertyValue("--ground").trim(), big);
+  if (!ahead) { soon.add(key); const i = line.findIndex(w => w.key === key); if (i > 0) line.unshift(...line.splice(i, 1)); }
   if (cache.has(key)) return cache.get(key);
   /* an unheld medal is the housing of a lamp that is off: the panel's own tone all through (a step up from the board in dark, a step down in light),
      no colour on its hill, its device pressed in and not raised; never brighter than a held one */
   const blank = hex(v("--panel-2").map(x => dark ? x * 1.06 + .012 : x * .92));
   const body = off ? blank : hex(v(spec.tier === "gold" ? "--medal-gold" : "--medal-white"));
   const enamel = off ? [] : spec.champ ? [hex(v("--medal-enamel"))] : spec.mark ? [hex(v("--medal-white"))] : (spec.enamel || []).map(id => hex(v(`--type-${id}`)));
-  const job = queue = queue.then(async () => {
+  const shade = v("--medal-shade"), pale = v("--medal-shade-pale");
+  const draw = async store => {
     await document.fonts.ready; await frame();
+    S = big ? BIG : SMALL; K = S / 100;
     const t0 = performance.now(), f = await faces({ ...spec, enamel, blank: off }, body);
     /* a medal whose faces took long is lit a frame later, so drawing and lighting never make one long task */
     if (performance.now() - t0 > 20) await frame();
@@ -322,14 +342,22 @@ export function medalUrl(spec, off = false) {
     const u = (n, ...x) => g[`uniform${x.length === 1 ? "1f" : "3f"}`](g.getUniformLocation(prog, n), ...x);
     g.uniform1i(g.getUniformLocation(prog, "uE"), 0); g.uniform1i(g.getUniformLocation(prog, "uD"), 1); g.uniform1i(g.getUniformLocation(prog, "uB"), 2);
     u("uS", S); u("uLift", off ? -8 : 14.9); u("uHill", enamel.length ? 1 : 0);
-    u("uRim", ...rgb(body)); u("uCool", ...v("--medal-shade")); u("uPale", ...v("--medal-shade-pale"));
+    u("uRim", ...rgb(body)); u("uCool", ...shade); u("uPale", ...pale);
     g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
     ts.forEach(t => g.deleteTexture(t));
     const blob = await new Promise(res => g.canvas.toBlob(res, "image/png"));
-    const url = blob ? URL.createObjectURL(blob) : "";
+    if (blob && store) store.put(kept(key), new Response(blob)).catch(() => {});
+    return blob ? URL.createObjectURL(blob) : "";
+  };
+  const job = (async () => {
+    const store = await shelf, hit = store && await store.match(kept(key)).catch(() => null);
+    const url = hit ? URL.createObjectURL(await hit.blob()) : await new Promise(res => {
+      line[soon.has(key) ? "unshift" : "push"]({ key, run: () => draw(store).catch(err => { console.error("medal", err); return ""; }).then(res) });
+      pump();
+    });
     done.set(key, url);
     return url;
-  }).catch(err => { console.error("medal", err); return ""; });
+  })();
   cache.set(key, job);
   return job;
 }

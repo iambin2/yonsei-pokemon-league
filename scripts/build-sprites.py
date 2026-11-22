@@ -6,6 +6,7 @@ spriteUrlForSlug() in src/services/teamBuilderCore.js reads.
 
     python scripts/build-sprites.py            # fetch only what is missing
     python scripts/build-sprites.py --force    # refetch everything
+    python scripts/build-sprites.py --small    # only cut the small copies (public/sprites/pokemon-s) again from the files here
 """
 import io, json, re, sys, urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +14,8 @@ from pathlib import Path
 from PIL import Image
 
 OUT = Path(__file__).resolve().parent.parent / "public" / "sprites" / "pokemon"
+# the same pictures at 192 for the small cells (a party's six, a list's row: at most 64 across on a 3x screen), what <Mon small> asks for
+SMALL_OUT, SMALL = OUT.parent / "pokemon-s", 192
 DEX = "https://play.pokemonshowdown.com/data/pokedex.json"
 SITEMAP = "https://s3.pokeos.com/pokeos-uploads/sitemap/pokemon.xml"
 RENDER = "https://s3.pokeos.com/pokeos-uploads/assets/pokemon/home/render/{}.png"
@@ -94,10 +97,20 @@ def fetch(item):
         return slug, failure
     image.thumbnail((SIZE, SIZE), Image.LANCZOS)
     image.save(OUT / f"{slug}.webp", "WEBP", quality=82, method=6)
+    small(OUT / f"{slug}.webp")
     return slug, None
+
+def small(path):
+    image = Image.open(path).convert("RGBA")
+    image.thumbnail((SMALL, SMALL), Image.LANCZOS)
+    image.save(SMALL_OUT / path.name, "WEBP", quality=82, method=6)
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    SMALL_OUT.mkdir(parents=True, exist_ok=True)
+    if "--small" in sys.argv:
+        with ThreadPoolExecutor(8) as pool: print(len(list(pool.map(small, sorted(OUT.glob("*.webp"))))), "small copies written")
+        return
     jobs, missing = plan()
     todo = [item for item in jobs.items() if "--force" in sys.argv or not (OUT / f"{item[0]}.webp").exists()]
     with ThreadPoolExecutor(8) as pool:

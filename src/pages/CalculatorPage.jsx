@@ -405,7 +405,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
   const meRow = me == null ? null : (
     <li className="calc-tier inv" ref={meRef} key="me">
       <b className="t15">{me}</b>
-      <span className="stand calc-tier-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(pokemons[basis].name)} /></span>
+      <span className="stand calc-tier-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(pokemons[basis].name)} small /></span>
       <span className="calc-tier-copy"><strong className="t15">{display(pokemons[basis])}</strong></span>
       <span className="t12">{SIDE_NAMES[basis]}, 현재 설정</span>
     </li>
@@ -448,7 +448,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
               {index === meIndex && meRow}
               <li className={"pn calc-tier" + (me == null ? "" : row.speed > me ? " faster" : row.speed === me ? " tie" : " slower")}>
                 <b className="t15">{row.speed}</b>
-                <span className="stand calc-tier-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(row.pokemon.name)} loading="lazy" /></span>
+                <span className="stand calc-tier-mon"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(row.pokemon.name)} small loading="lazy" /></span>
                 <span className="calc-tier-copy"><strong className="t15">{display(row.pokemon)}</strong></span>
                 <span className="t12 reg dim">종족값 {row.base}{me != null && row.speed === me ? ", 동속" : ""}</span>
               </li>
