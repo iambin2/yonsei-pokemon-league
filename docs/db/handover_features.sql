@@ -19,6 +19,7 @@
 --   6. 배틀의 시계: 공식 배틀은 대회의 턴 시간(competition_settings.turnSeconds)을 쓰고, 운영진이 admin_battle_clock 으로 멈추고
 --      다시 켜고 1분 늘린다. battle_timer.sql 의 battle_set_deadline 을 대신한다(친선과 도전의 탑은 그대로 90초).
 --   7. match_picks: 게임으로 치른 경기의 선출(출전마다 낸 포켓몬). 운영진이 set_match_picks 로 남긴다.
+--   8. replace_bracket_entrant: 대진표가 만들어진 뒤, 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로 바꾼다.
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
@@ -414,6 +415,65 @@ end;
 $$;
 revoke all on function ypl_schema_validation.set_match_picks(uuid, text, uuid, text[]) from public, anon;
 grant execute on function ypl_schema_validation.set_match_picks(uuid, text, uuid, text[]) to authenticated;
+
+-- 8. 참가자 교체: 대진표가 만들어진 뒤, 아직 한 경기도 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로 바꾼다.
+--    출전(entries.id)은 그대로라 자리, 경기, 일정은 건드리지 않고, 그 출전의 신청과 선수만 바뀐다. 선수가 없는 신청은
+--    이름이 같은 선수(공백과 대소문자 무시)를 쓰고, 없으면 새로 만든다(대진표를 만들 때와 같은 규칙). 개인전만, 챔피언스는 제외.
+create or replace function ypl_schema_validation.replace_bracket_entrant(p_event_id uuid, p_entry_id uuid, p_registration_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_reg ypl_schema_validation.event_registrations%rowtype;
+  v_player uuid;
+begin
+  if not ypl_schema_validation.is_ypl_admin() then
+    raise exception using errcode = 'P0001', message = '관리자 권한이 필요합니다.';
+  end if;
+  perform 1 from ypl_schema_validation.events e
+   where e.id = p_event_id and e.status = 'running' and e.record_applied_at is null and not e.is_team_event
+     and coalesce(e.event_type, '') <> 'champions'
+   for update;
+  if not found then
+    raise exception using errcode = 'P0001', message = '진행 중인 개인전 대회에서만 참가자를 바꿀 수 있습니다.';
+  end if;
+  if not exists (select 1 from ypl_schema_validation.entries n where n.id = p_entry_id and n.event_id = p_event_id) then
+    raise exception using errcode = 'P0001', message = '이 대회의 출전이 아닙니다.';
+  end if;
+  if exists (select 1 from ypl_schema_validation.matches m where m.event_id = p_event_id
+               and p_entry_id in (m.entry_a_id, m.entry_b_id) and m.winner_entry_id is not null) then
+    raise exception using errcode = 'P0001', message = '결과가 있는 출전은 바꿀 수 없습니다.';
+  end if;
+  select * into v_reg from ypl_schema_validation.event_registrations g where g.id = p_registration_id and g.event_id = p_event_id for update;
+  if not found then
+    raise exception using errcode = 'P0001', message = '이 대회의 신청이 아닙니다.';
+  end if;
+  if exists (select 1 from ypl_schema_validation.entry_participants ep where ep.event_id = p_event_id and ep.registration_id = p_registration_id) then
+    raise exception using errcode = 'P0001', message = '이미 대진표에 있는 신청자입니다.';
+  end if;
+  v_player := v_reg.player_id;
+  if v_player is null then
+    select p.id into v_player from ypl_schema_validation.players p
+     where lower(regexp_replace(p.display_name, '\s', '', 'g')) = lower(regexp_replace(v_reg.registration_name, '\s', '', 'g'))
+     limit 1;
+    if v_player is null then
+      insert into ypl_schema_validation.players (display_name) values (btrim(v_reg.registration_name)) returning id into v_player;
+    end if;
+    update ypl_schema_validation.event_registrations g set player_id = v_player where g.id = p_registration_id;
+  end if;
+  begin
+    update ypl_schema_validation.entry_participants ep set registration_id = p_registration_id, player_id = v_player
+     where ep.entry_id = p_entry_id and ep.event_id = p_event_id;
+  exception when unique_violation then
+    raise exception using errcode = 'P0001', message = '그 선수는 이미 이 대회에 출전합니다.';
+  end;
+  update ypl_schema_validation.entries n set display_name = btrim(v_reg.registration_name), updated_at = now() where n.id = p_entry_id;
+end;
+$$;
+revoke all on function ypl_schema_validation.replace_bracket_entrant(uuid, uuid, uuid) from public, anon;
+grant execute on function ypl_schema_validation.replace_bracket_entrant(uuid, uuid, uuid) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

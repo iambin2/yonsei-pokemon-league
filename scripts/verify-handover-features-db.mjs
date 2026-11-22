@@ -21,13 +21,13 @@ await pg.exec(`
   create schema ypl_schema_validation;
   create table public.admin_switch (on_ boolean); insert into public.admin_switch values (true);
   create function ypl_schema_validation.is_ypl_admin() returns boolean language sql as $$ select on_ from public.admin_switch $$;
-  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz, team_revealed_at timestamptz);
-  create table ypl_schema_validation.players (id uuid primary key, display_name text, status text default 'active', updated_at timestamptz);
-  create table ypl_schema_validation.entries (id uuid primary key, event_id uuid);
+  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz, team_revealed_at timestamptz, is_team_event boolean default false, event_type text default 'pokecup');
+  create table ypl_schema_validation.players (id uuid primary key default gen_random_uuid(), display_name text, status text default 'active', updated_at timestamptz);
+  create table ypl_schema_validation.entries (id uuid primary key, event_id uuid, display_name text, updated_at timestamptz);
   create table ypl_schema_validation.event_registrations (id uuid primary key default gen_random_uuid(), event_id uuid,
-    player_id uuid references ypl_schema_validation.players(id), unique (event_id, player_id));
+    player_id uuid references ypl_schema_validation.players(id), registration_name text, unique (event_id, player_id));
   create table ypl_schema_validation.entry_participants (id uuid primary key default gen_random_uuid(), event_id uuid, entry_id uuid,
-    player_id uuid references ypl_schema_validation.players(id));
+    registration_id uuid, player_id uuid references ypl_schema_validation.players(id), unique (event_id, player_id));
   create table ypl_schema_validation.matches (id uuid primary key default gen_random_uuid(), event_id uuid, source text, source_node_key text,
     entry_a_id uuid, entry_b_id uuid, winner_entry_id uuid, winner_player_id uuid references ypl_schema_validation.players(id));
   create table ypl_schema_validation.bracket_runtimes (event_id uuid, round_schedule jsonb);
@@ -157,6 +157,24 @@ await check("an operator keeps each side's picks of a match; a visitor reads the
   await q(`update public.admin_switch set on_ = false`);
   await assert.rejects(q(`select ypl_schema_validation.set_match_picks($1, 'single:r1:m1', $2, array['x'])`, [E, N1]), /관리자/);
   await q(`update public.admin_switch set on_ = true`);
+});
+
+await check("an entrant with no result yet is replaced by another applicant, who becomes a player if new; a played one is not", async () => {
+  const E3 = "00000000-0000-0000-0000-0000000000e3", X1 = "00000000-0000-0000-0000-0000000000c1", X2 = "00000000-0000-0000-0000-0000000000c2";
+  await q(`insert into ypl_schema_validation.events (id, name, status) values ($1, '3회', 'running')`, [E3]);
+  await q(`insert into ypl_schema_validation.entries values ($1, $3, '가나다', null), ($2, $3, '다라', null)`, [X1, X2, E3]);
+  const reg = async (name, player = null) => (await one(`insert into ypl_schema_validation.event_registrations (event_id, player_id, registration_name) values ($1, $2, $3) returning id`, [E3, player, name])).id;
+  const r1 = await reg("가나다", P1), r2 = await reg("다라", P3);
+  await q(`insert into ypl_schema_validation.entry_participants (event_id, entry_id, registration_id, player_id) values ($1, $2, $3, $4), ($1, $5, $6, $7)`, [E3, X1, r1, P1, X2, r2, P3]);
+  await q(`insert into ypl_schema_validation.matches (event_id, source, source_node_key, entry_a_id, entry_b_id) values ($1, 'normalized_bracket_runtime', 'single:r1:m1', $2, $3)`, [E3, X1, X2]);
+  const newcomer = await reg("새 얼굴");
+  await q(`select ypl_schema_validation.replace_bracket_entrant($1, $2, $3)`, [E3, X1, newcomer]);
+  const row = await one(`select ep.registration_id, p.display_name, n.display_name as entry from ypl_schema_validation.entry_participants ep
+    join ypl_schema_validation.players p on p.id = ep.player_id join ypl_schema_validation.entries n on n.id = ep.entry_id where ep.entry_id = $1`, [X1]);
+  assert.deepEqual(row, { registration_id: newcomer, display_name: "새 얼굴", entry: "새 얼굴" });
+  await assert.rejects(q(`select ypl_schema_validation.replace_bracket_entrant($1, $2, $3)`, [E3, X2, newcomer]), /이미 대진표에 있는/);
+  await q(`update ypl_schema_validation.matches set winner_entry_id = $1 where event_id = $2`, [X2, E3]);
+  await assert.rejects(q(`select ypl_schema_validation.replace_bracket_entrant($1, $2, $3)`, [E3, X2, r1]), /결과가 있는/);
 });
 
 await check("the site asks whether this file ran", async () => {

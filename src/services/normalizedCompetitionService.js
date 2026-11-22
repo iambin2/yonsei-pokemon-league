@@ -1074,6 +1074,12 @@ export async function fetchRegistrationLatestRosters(registrationIds = []) {
   return rosters;
 }
 
+// 참가자 교체(docs/db/handover_features.sql): 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로. 검사는 RPC가 한다.
+export async function replaceBracketEntrant({ eventId, entryId, registrationId } = {}) {
+  const { error } = await db().rpc("replace_bracket_entrant", { p_event_id: eventId, p_entry_id: entryId, p_registration_id: registrationId });
+  if (error) fail(error, "참가자를 바꾸지 못했습니다.");
+}
+
 // docs/db/match_outcome_more.sql 이 실행되었는가(팀전의 불참). 그 전에는 함수가 없어 false.
 let outcomeMoreReady = null;
 export function matchOutcomeMoreReady() {
