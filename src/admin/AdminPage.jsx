@@ -4,6 +4,7 @@ import Empty from "../components/common/Empty.jsx";
 import Loader from "../components/common/Loader.jsx";
 import { Counter, Row, SectionHead, Steps } from "../components/common/Board.jsx";
 import LinkRequests from "../components/LinkRequests.jsx";
+import ChangeLog from "../components/ChangeLog.jsx";
 import { formatDate } from "../services/dateFormat.js";
 import { ADMIN_STEPS, adminTasks, readAdminOverview } from "../services/adminOverview.js";
 
@@ -101,6 +102,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
             <SectionHead id="ad-doors-h" title="편집" />
             <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}</div>
           </section>
+          <ChangeLog />
         </div>
         <aside className="ad-side" aria-labelledby="ad-events-h">
           <SectionHead id="ad-events-h" title="대회 진행" />

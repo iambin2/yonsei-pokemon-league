@@ -1024,7 +1024,9 @@ function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, bat
   const s=m.series, bouts=Array.isArray(s?.games)?s.games:[];
   const side=(key,pid)=>{
     const win=m.winner===key, lost=Boolean(m.winner)&&!win, score=sideScore(m,key);
-    return <Row key={key} className={win?"inv":""} title={me&&pid===me?<>{slotName(pid,nameOf)}<MeTag/></>:slotName(pid,nameOf)} line={win?"승자":lost?(m.forfeit?"불참":"패배"):"결과 전"}
+    // when the result went in (matches.played_at, 2026-11-22: kept since the start and shown nowhere)
+    const when=win&&m.playedAt?formatDate(m.playedAt,{time:true}):"";
+    return <Row key={key} className={win?"inv":""} title={me&&pid===me?<>{slotName(pid,nameOf)}<MeTag/></>:slotName(pid,nameOf)} line={win?(when?`승자, ${when} 결과 입력`:"승자"):lost?(m.forfeit?"불참":"패배"):"결과 전"}
       value={score!=null&&!(lost&&m.forfeit)?<span className="num t20">{score}</span>:null}/>;
   };
   const bout=(label,a,b,w)=><Row key={label} title={`${a||"미정"}, ${b||"미정"}`} line={`${label}, ${w==="a"?a:w==="b"?b:"결과 전"}${w?" 승리":""}`}/>;
@@ -1449,7 +1451,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     readMatchOutcomes(b.eventId).then(map=>{ if(!cancelled) setOutcomes(map); }).catch(()=>{ if(!cancelled) setOutcomes(null); });
     return ()=>{ cancelled=true; };
   },[b.eventId,teamMode,championshipRefreshKey,outcomeKey,b.graph]);
-  if(outcomes&&b.graph) collectGraphMatches(b.graph).forEach(m=>{ const o=outcomes.get(m.id); m.scoreA=o?.score_a??null; m.scoreB=o?.score_b??null; m.forfeit=o?.resolution==="forfeit"&&Boolean(m.winner); });
+  if(outcomes&&b.graph) collectGraphMatches(b.graph).forEach(m=>{ const o=outcomes.get(m.id); m.scoreA=o?.score_a??null; m.scoreB=o?.score_b??null; m.forfeit=o?.resolution==="forfeit"&&Boolean(m.winner); m.playedAt=m.winner?o?.played_at||null:null; });
   /* 경기 일정(docs/db/match_schedule.sql): 라운드의 시작 시각과 경기의 테이블. 그 SQL 전에는 null이라 대진표는 지금과 같다 */
   const [schedule,setSchedule]=useState(null);
   const [scheduleKey,setScheduleKey]=useState(0);
@@ -2678,7 +2680,13 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
     if(b.readOnly){ flash("이미 끝난 과거 대진표는 볼 수만 있습니다."); return; }
     if(b.applied){siteAlert("기록 반영을 먼저 취소해 주세요.","기록 반영 취소 후 대진표를 삭제할 수 있습니다.");return;}
     if(deletingRef.current)return;
-    if(!(await siteConfirm({title:"대진표 삭제",body:`‘${b.name}’ 대회를 삭제할까요?`,confirmLabel:"삭제",danger:true})))return;
+    /* a bracket with results in it loses them all, and the draw: its name is typed to delete it (2026-11-22), one with none asks once */
+    const decided=(b.graph?collectGraphMatches(b.graph):[]).concat((b.groups||[]).flatMap(pool=>[...(pool.matches||[]),...(pool.playoffs||[])])).filter(m=>m?.winner).length;
+    if(decided){
+      const typed=await sitePrompt({title:"대진표 삭제",body:`‘${b.name}’ 대진표에는 결과가 들어간 경기가 ${decided}개 있습니다. 지우면 추첨과 모든 결과가 사라지고 되돌릴 수 없습니다. 지우려면 대회 이름을 그대로 입력해 주세요.`,label:"대회 이름",placeholder:b.name,confirmLabel:"삭제"});
+      if(typed==null)return;
+      if(String(typed).trim()!==String(b.name).trim()){ siteAlert("대회 이름이 다릅니다.","대진표를 지우지 않았습니다."); return; }
+    }else if(!(await siteConfirm({title:"대진표 삭제",body:`‘${b.name}’ 대회를 삭제할까요?`,confirmLabel:"삭제",danger:true})))return;
     if(deletingRef.current)return;
     deletingRef.current=true;
     setDeletingId(b.id);

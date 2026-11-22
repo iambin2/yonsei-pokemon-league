@@ -1014,7 +1014,7 @@ export async function readMatchOutcomes(eventId) {
   if (!eventId) return null;
   const { data, error } = await db()
     .from("matches")
-    .select("source_node_key, score_a, score_b, resolution")
+    .select("source_node_key, score_a, score_b, resolution, played_at")
     .eq("event_id", eventId)
     .eq("source", NORMALIZED_BRACKET_RUNTIME_SOURCE);
   if (error) return null;

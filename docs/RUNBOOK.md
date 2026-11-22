@@ -69,6 +69,28 @@
 
 학기마다 한 번은 1~3단계를 실제로 해 보고 행 수가 맞는지 봅니다.
 
+## 누가 언제 바꿨나, 지운 공지 되살리기
+
+`docs/db/change_log.sql`을 실행한 뒤부터 대회 기록과 `site_data`(공지, 칭호, 명예의 전당)의 모든 쓰기가 `ypl_audit.change_log`에 남습니다. 운영 화면 아래의 **최근 변경**에서 최근 것을 보고, 자세히는 SQL 편집기에서 봅니다.
+
+```sql
+-- 한 경기의 모든 변경 (승자 입력, 정정, 지움)
+select at, actor_email, op, old, new from ypl_audit.change_log where table_name = 'matches' and row_id = '<경기 id>' order by at;
+-- 지운 공지: 공지가 바뀐 저장들의 이전 공지 목록
+select id, at, actor_email, jsonb_array_length(old -> 'announcements') from ypl_audit.change_log
+ where table_name = 'site_data' and old ? 'announcements' order by at desc limit 20;
+```
+
+지운 공지는 그 저장의 `old -> 'announcements'`에 있습니다. 그 공지 한 개를 찾아 지금 목록에 다시 넣습니다:
+
+```sql
+update public.site_data set value = jsonb_set(value, '{announcements}', (value -> 'announcements') || (
+  select a from ypl_audit.change_log c, jsonb_array_elements(c.old -> 'announcements') a where c.id = <로그 id> and a ->> 'id' = '<공지 id>'))
+ where key = 'ypl_data_v4';
+```
+
+되살린 뒤 사이트를 새로고침해 확인합니다. 칭호(`titleGroups`)와 명예의 전당(`champions`)도 같은 방법입니다.
+
 ## 랭커 팀 (포켓몬 챔피언스 시즌이 끝났을 때)
 
 도전의 탑의 상대가 배우는 상위 팀 데이터입니다.
