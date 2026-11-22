@@ -22,7 +22,7 @@
   "dependencies": {
     "@smogon/calc": "^0.12.0",
     "@supabase/postgrest-js": "^2.107.0",
-    "react": "^18.3.1",
+    "react": "^19.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
