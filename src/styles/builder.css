@@ -96,6 +96,7 @@
 
 /* ---------- my teams: new and copy, the save line, each team a panel with its six; the open one inverted ---------- */
 .tb-library-top { grid-template-columns: 1.618fr 1fr; }
+.tb-library-text { grid-template-columns: 1fr 1fr; margin-top: var(--s2); }
 .tb-library-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--seam); margin-top: var(--s5); }
 .tb-library-save .cell { --field-bg: transparent; }
 .tb-team-name { min-height: 0; padding: 0; background: none; font-weight: 600; }

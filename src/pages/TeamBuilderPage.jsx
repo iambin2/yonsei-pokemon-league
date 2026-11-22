@@ -1,6 +1,7 @@
 import React, { memo, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Dropdown, Empty, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
+import { Dropdown, Empty, Field, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
+import { teamToText, textToTeam } from "../services/showdownText.js";
 import { Bang, Bar, Cell, Choice, Dock, Mon, OptionRows, Steps, TabsLine, TypeGrid } from "../components/common/Board.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { saveTeamSheetImage } from "../components/teamSheetImage.js";
@@ -29,6 +30,7 @@ import {
   calculatedStat,
   dexRecord,
   itemDisplay,
+  itemEnglishName,
   itemName,
   learnsetFor,
   localizedPokemonName,
@@ -454,6 +456,8 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
   const [draftStatus, setDraftStatus] = useState("idle");
   const [draftSavedAt, setDraftSavedAt] = useState(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  // 쇼다운 텍스트 (2026-11-22): "in" pastes a team in, "out" shows this team as text; text is what the sheet holds
+  const [textSheet, setTextSheet] = useState(null);
   const [saveName, setSaveName] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [storageAvailable, setStorageAvailable] = useState(true);
@@ -1183,6 +1187,26 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
     applyTeamChange(pendingTeamChange);
   }, [pendingTeamChange, currentSaved, defaultTeamName, saveWorkingTeam, applyTeamChange]);
 
+  /* a pasted team becomes the working team, unsaved, under the current regulation; Pokémon the regulation does not have stand as
+     unresolved members (memberFromSaved), as a saved team's would, and lines the text could not read are said once */
+  const importTeamText = useCallback(async text => {
+    const { members, skipped } = textToTeam(text);
+    if (!members.length) { siteAlert("가져올 포켓몬이 없습니다.", "쇼다운이나 포케페이스트에서 복사한 팀을 붙여 넣어 주세요."); return; }
+    if (team.length && dirty && !(await siteConfirm({ title: "팀 바꾸기", body: "저장하지 않은 지금 팀 대신 가져온 팀을 엽니다.", confirmLabel: "가져오기" }))) return;
+    const restored = members.map(member => memberFromSaved(member, regulation, { detailData }));
+    setTeam(restored);
+    setSelectedUid(restored[0]?.uid || null);
+    setActiveSavedTeamId(null);
+    setDirty(true);
+    setSaveName("가져온 팀");
+    setTextSheet(null);
+    setLibraryOpen(false);
+    const unresolved = restored.filter(member => member.resolutionState === "unresolved").length;
+    const notes = [unresolved && `${unresolved}마리는 ${regulation.shortName}에서 쓸 수 없어 확인이 필요합니다.`, skipped.length && `읽지 못한 줄: ${skipped.slice(0, 4).join(", ")}`].filter(Boolean);
+    if (notes.length) siteAlert(`${restored.length}마리를 가져왔습니다.`, notes.join(" "));
+  }, [team.length, dirty, regulation, detailData]);
+  const teamAsText = () => teamToText(serializeMembers(team, { detailData }), { item: id => itemEnglishName(detailData, id), move: id => moveEnglishName(detailData, id) });
+
   const duplicateCurrentTeam = useCallback(() => {
     if (!team.length) {
       setSaveMessage("복제할 포켓몬을 1마리 이상 추가해 주세요.");
@@ -1720,10 +1744,27 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
         </div>
       </Modal>}
 
+      {textSheet && <Modal title={textSheet.mode === "in" ? "텍스트로 가져오기" : "텍스트로 내보내기"} onClose={() => setTextSheet(null)}>
+        <Field label={textSheet.mode === "in" ? "쇼다운이나 포케페이스트의 팀" : "쇼다운 형식"}>
+          <textarea rows={12} value={textSheet.text} readOnly={textSheet.mode === "out"} spellCheck={false}
+            onChange={event => setTextSheet(sheet => ({ ...sheet, text: event.target.value }))} placeholder={"Garchomp @ Choice Scarf\nAbility: Rough Skin\nEVs: 32 Atk / 32 Spe\nJolly Nature\n- Earthquake"} />
+        </Field>
+        <div className="modal-actions">
+          <Button variant="second" type="button" onClick={() => setTextSheet(null)}>닫기</Button>
+          {textSheet.mode === "in"
+            ? <Button variant="main" icon="check" disabled={!textSheet.text.trim()} onClick={() => importTeamText(textSheet.text)}>가져오기</Button>
+            : <Button variant="main" icon="check" onClick={async () => { try { await navigator.clipboard.writeText(textSheet.text); setTextSheet(null); setSaveMessage("팀을 텍스트로 복사했습니다."); } catch { siteAlert("복사하지 못했습니다.", "글을 길게 눌러 직접 복사해 주세요."); } }}>복사</Button>}
+        </div>
+      </Modal>}
+
       {libraryOpen && <Modal title="내 팀" onClose={() => setLibraryOpen(false)}>
         <div className="stack tb-library-top">
           <Button variant="main" icon="plus" disabled={!storageAvailable} onClick={startNewTeam}>새 팀</Button>
           <Button variant="second" disabled={!storageAvailable || team.length === 0} onClick={duplicateCurrentTeam}>현재 팀 복제</Button>
+        </div>
+        <div className="stack tb-library-text">
+          <Button variant="second" onClick={() => setTextSheet({ mode: "in", text: "" })}>텍스트로 가져오기</Button>
+          <Button variant="second" disabled={team.length === 0 || detailStatus === "loading"} onClick={() => setTextSheet({ mode: "out", text: teamAsText() })}>텍스트로 내보내기</Button>
         </div>
         <div className="tb-library-save">
           <Cell label="현재 팀 저장"><input className="tb-team-name" maxLength={40} value={saveName} onChange={event => setSaveName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); saveCurrentTeam(); } }} placeholder="팀 이름" aria-label="팀 이름" /></Cell>
