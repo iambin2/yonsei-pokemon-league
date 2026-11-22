@@ -16,6 +16,9 @@
 --      운영진이 다시 알릴 때 쓴다.
 --   5. handover_features_ready(): 사이트가 이 파일이 실행되었는지 묻는다.
 --
+--   6. 배틀의 시계: 공식 배틀은 대회의 턴 시간(competition_settings.turnSeconds)을 쓰고, 운영진이 admin_battle_clock 으로 멈추고
+--      다시 켜고 1분 늘린다. battle_timer.sql 의 battle_set_deadline 을 대신한다(친선과 도전의 탑은 그대로 90초).
+--
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
 begin;
@@ -288,6 +291,80 @@ begin
   end if;
 end;
 $$;
+
+-- 6. 배틀의 시계: 대회마다 턴 시간, 운영진의 멈춤과 연장 (battle_timer.sql 의 battle_set_deadline 을 대신한다)
+--    competition_settings.turnSeconds(60, 90, 120, 180초, 없으면 90초)를 공식 배틀이 쓴다. 다른 배틀(친선, 도전의 탑)은 그대로 90초.
+--    멈춘 배틀은 paused_left(남은 초)를 들고 deadline_at 이 비어, 배틀 함수의 시간 초과 판정이 일어나지 않는다(마감이 없다).
+--    멈춘 동안 턴이 넘어가면 남은 시간이 그 대회의 한 턴으로 다시 찬다. 선수는 멈춘 동안에도 고를 수 있다.
+alter table public.battles add column if not exists paused_left integer check (paused_left is null or paused_left between 0 and 3600);
+grant select (paused_left) on table public.battles to anon, authenticated;
+
+create or replace function public.battle_set_deadline()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_secs integer := 90;
+begin
+  if new.status <> 'active' then
+    new.deadline_at := null;
+    new.paused_left := null;
+    return new;
+  end if;
+  if tg_op = 'INSERT' or old.status is distinct from 'active' or new.spectator_log is distinct from old.spectator_log then
+    if new.kind = 'official' and new.event_id is not null then
+      select case when (e.competition_settings ->> 'turnSeconds') in ('60', '90', '120', '180') then (e.competition_settings ->> 'turnSeconds')::integer else 90 end
+        into v_secs from ypl_schema_validation.events e where e.id = new.event_id;
+      v_secs := coalesce(v_secs, 90);
+    end if;
+    if new.paused_left is not null then
+      new.paused_left := v_secs;
+      new.deadline_at := null;
+    else
+      new.deadline_at := now() + make_interval(secs => v_secs);
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+-- p_action: 'pause' 멈춤, 'resume' 다시, 'extend' 1분 더(멈춘 배틀은 남은 시간에). 진행 중인 공식 배틀만, 운영진만.
+create or replace function public.admin_battle_clock(p_id text, p_action text)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v public.battles%rowtype;
+begin
+  if not ypl_schema_validation.is_ypl_admin() then
+    raise exception using errcode = 'P0001', message = '관리자 권한이 필요합니다.';
+  end if;
+  select * into v from public.battles b where b.id = p_id for update;
+  if not found or v.kind <> 'official' or v.status <> 'active' then
+    raise exception using errcode = 'P0001', message = '진행 중인 공식 배틀만 시계를 바꿀 수 있습니다.';
+  end if;
+  if p_action = 'pause' and v.paused_left is null then
+    update public.battles b set paused_left = greatest(0, ceil(extract(epoch from (coalesce(v.deadline_at, now()) - now())))::integer), deadline_at = null
+     where b.id = p_id;
+  elsif p_action = 'resume' and v.paused_left is not null then
+    update public.battles b set deadline_at = now() + make_interval(secs => greatest(v.paused_left, 30)), paused_left = null where b.id = p_id;
+  elsif p_action = 'extend' then
+    if v.paused_left is not null then
+      update public.battles b set paused_left = least(v.paused_left + 60, 3600) where b.id = p_id;
+    else
+      update public.battles b set deadline_at = coalesce(v.deadline_at, now()) + interval '60 seconds' where b.id = p_id;
+    end if;
+  elsif p_action not in ('pause', 'resume') then
+    raise exception using errcode = 'P0001', message = '멈춤, 다시, 연장만 할 수 있습니다.';
+  end if;
+  return (select b.deadline_at from public.battles b where b.id = p_id);
+end;
+$$;
+revoke all on function public.admin_battle_clock(text, text) from public, anon;
+grant execute on function public.admin_battle_clock(text, text) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

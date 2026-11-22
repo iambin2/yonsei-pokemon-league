@@ -25,7 +25,7 @@ import { GROUP_TOPOLOGY, groupDraw, validateGroupConfig } from "../services/grou
 import { createGroupFinal, createGroupPlayoff, createIndividualBracketDraw, listSameRoundRookieChampions, reopenGroupStage, setGroupFinalWinner, setGroupStageWinner } from "../services/normalizedCompetitionService.js";
 import { BYE, clearedByPick, collectGraphMatches, evalGraph, withPick, withSeries } from "../services/bracketWinnerPlan.js";
 import { matchStage } from "../services/recordsAnalytics.js";
-import { battleForMatch, battleHref, battleWinnerEntry, listEventBattles, officialBattleHref, retryBattleApply, voidBattle } from "../services/battleService.js";
+import { battleClock, battleForMatch, battleHref, battleWinnerEntry, handoverReady, listEventBattles, officialBattleHref, retryBattleApply, voidBattle } from "../services/battleService.js";
 import { parseBoutKey, teamBouts } from "../services/teamBouts.js";
 import Seg from "../components/common/Seg.jsx";
 import { WORDMARK_PATH } from "../components/layout/SiteHeader.jsx";
@@ -933,16 +933,28 @@ function MatchCard({ m, ev, nameOf, admin, onPick, teamMode, onOpenTeam, seedOf,
 /* a match's battle in its sheet: watching it while it runs, its replay once it ended, or starting one for an open official match.
    A battle that cannot give the match a winner (a tie, a void one, one that could not go in) leaves the match open to be played again.
    The operator's result entry adds 다시 넣기 for a result that did not go in and 배틀 무효 for a battle nobody will finish. */
-function MatchBattle({ m, ev, battle, startable, eventId, admin=false, onChanged }){
+function MatchBattle({ m, ev, battle, startable, eventId, admin=false, onChanged, onWalkover=null }){
   const pa=ev.sp(m.a), pb=ev.sp(m.b);
   const [busy,setBusy]=useState(false);
   const [note,setNote]=useState("");
   const run=async fn=>{ setBusy(true); setNote(""); try{ await fn(); onChanged?.(); }catch(e){ setNote(e?.message||"잠시 뒤 다시 시도해 주세요."); }finally{ setBusy(false); } };
   const canStart=startable&&!m.winner&&pa&&pb&&pa!==BYE&&pb!==BYE;
+  /* the operators' clock (docs/db/handover_features.sql): stop it for a dispute or a dropped phone, give a minute more */
+  const [clockOn,setClockOn]=useState(false);
+  useEffect(()=>{ let on=true; if(admin&&battle?.status==="active") handoverReady().then(ok=>on&&setClockOn(ok)); return ()=>{ on=false; }; },[admin,battle?.status]);
   const error=note&&<p className="t12 reg bk-entry-error"><span className="bang" aria-hidden="true">!</span>{note}</p>;
   if(battle&&battle.status!=="ended") return <div className="stack mb-battle">
     <Row title="사이트 배틀" line={battle.status==="waiting"?"한 선수가 들어와 상대를 기다리는 중입니다.":"지금 배틀로 치르는 중입니다."} lamp={battle.status==="waiting"?"대기":"진행 중"} sig={battle.status!=="waiting"}/>
     <Button variant="second" href={battleHref(battle.id)}>{battle.status==="waiting"?"경기 들어가기":"관전"}</Button>
+    {/* 미착석: 한 선수만 앉아 기다리는 배틀은 운영진이 닫고 그 선수의 부전승으로(상대는 불참) 넣는다 */}
+    {admin&&onWalkover&&battle.status==="waiting"&&battle.p1_entry_id&&[pa,pb].includes(battle.p1_entry_id)&&<Button variant="second" disabled={busy} onClick={async()=>{
+      if(await siteConfirm({title:"부전승",body:`${battle.p1_name}만 들어와 있습니다. 배틀을 닫고 ${battle.p1_name}의 부전승으로, 상대는 불참으로 남깁니다.`,confirmLabel:"부전승",danger:true}))
+        await run(async()=>{ await voidBattle(battle.id); await onWalkover(pa===battle.p1_entry_id?"a":"b"); });
+    }}>{battle.p1_name} 부전승</Button>}
+    {admin&&clockOn&&battle.status==="active"&&<div className="stack bk-entry-actions">
+      <Button variant="second" disabled={busy} onClick={()=>run(()=>battleClock(battle.id,battle.deadline_at?"pause":"resume"))}>{battle.deadline_at?"시계 멈춤":"시계 다시"}</Button>
+      <Button variant="second" disabled={busy} onClick={()=>run(()=>battleClock(battle.id,"extend"))}>1분 연장</Button>
+    </div>}
     {admin&&<Button variant="second" disabled={busy} onClick={async()=>{
       if(await siteConfirm({title:"배틀 무효",body:"이 배틀을 닫습니다. 진행 중이던 배틀은 무효로 끝나 리플레이로 남고, 대진표에는 아무것도 넣지 않습니다. 승자는 결과 입력에서 정합니다.",confirmLabel:"무효",danger:true})) await run(()=>voidBattle(battle.id));
     }}>배틀 무효</Button>}
@@ -1156,7 +1168,8 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
       {side("a",cur.a)}{side("b",cur.b)}
     </div>
     {teamMode?<TeamBouts m={cur.m} ev={ev} battles={battles} boutCount={boutsOf(cur.m,ev)} startable={startable} eventId={eventId} admin onChanged={onBattleChanged}/>
-      :<MatchBattle m={cur.m} ev={ev} battle={battleForMatch(battles,cur.m.id,[cur.a,cur.b])} startable={startable} eventId={eventId} admin onChanged={onBattleChanged}/>}
+      :<MatchBattle m={cur.m} ev={ev} battle={battleForMatch(battles,cur.m.id,[cur.a,cur.b])} startable={startable} eventId={eventId} admin onChanged={onBattleChanged}
+        onWalkover={async side=>{ await onPick(cur.m.id,side); if(outcomeOn) await onOutcome(cur.m.id,{forfeit:true}); }}/>}
     {outcomeOn&&(!teamMode||teamForfeitOn)&&cur.m.winner&&<div className="stack bk-entry-actions">
       <Button variant="second" disabled={busy} onClick={()=>onOutcome(cur.m.id,{forfeit:!cur.m.forfeit})}>{cur.m.forfeit?"불참 취소":`${nameOf(cur.m.winner==="a"?cur.b:cur.a)} 불참 처리`}</Button>
       {/* 대회 도중 떠난 출전: 기권과 실격은 이 경기를 불참으로 남기고, 출전에 그 사유를 단다 */}
@@ -1496,7 +1509,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
   /* 조별 경기도 본선과 같은 결과 입력에서: 승자, 점수, 불참. 한 조의 경기들이 한 라운드처럼 선다 */
   const groupGraph=b.groups?.length&&!b.knockout?{kind:"group",rounds:[b.groups.flatMap(g=>[...g.matches,...(g.playoffs||[])])]}:null;
   const groupStage=(g,m)=>{ const group=b.groups.find(x=>x.matches.includes(m)||(x.playoffs||[]).includes(m)); return group?`${group.name}조${(group.playoffs||[]).includes(m)?" 순위 결정전":""}`:""; };
-  const pickGroupStage=(matchId,side)=>{ const m=groupGraph?.rounds[0].find(x=>x.id===matchId); if(m) void runGroup(()=>setGroupStageWinner(b,m,m.winner===side?null:m[side].pid)); };
+  const pickGroupStage=(matchId,side)=>{ const m=groupGraph?.rounds[0].find(x=>x.id===matchId); if(m) return runGroup(()=>setGroupStageWinner(b,m,m.winner===side?null:m[side].pid)); };
   /* 경기 일정(docs/db/match_schedule.sql): 라운드의 시작 시각과 경기의 테이블. 그 SQL 전에는 null이라 대진표는 지금과 같다 */
   const [schedule,setSchedule]=useState(null);
   const [scheduleKey,setScheduleKey]=useState(0);
@@ -1615,7 +1628,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
   latestRef.current={b,pickNormalized,saveSchedule};
   const pick=(matchId,side)=>{
     if(readOnly||locked)return;
-    void pickNormalized(matchId,side);
+    return pickNormalized(matchId,side);
   };
   const openTeam=(m,pa,pb)=>{ if(readOnly||locked)return; const A=(b.participants||[]).find(p=>p.id===pa),B=(b.participants||[]).find(p=>p.id===pb); if(!A||!B)return; setSeries({m,A,B}); };
   const saveSeries=async(sObj,winnerSide)=>{

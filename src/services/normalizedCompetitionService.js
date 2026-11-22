@@ -116,7 +116,7 @@ export async function saveLeagueIntake({ eventId = null, announcementId, eventDr
   const matchPlay = matchPlayOf({ competition_settings: { matchPlay: eventDraft.matchPlay } });
   for (const id of [intake.master_event_id, intake.rookie_event_id]) {
     const row = await getEvent(id);
-    const { error: playError } = await db().from("events").update({ competition_settings: { ...(row?.competition_settings || {}), matchPlay } }).eq("id", id);
+    const { error: playError } = await db().from("events").update({ competition_settings: { ...(row?.competition_settings || {}), matchPlay, turnSeconds: turnSecondsOf(eventDraft.turnSeconds) } }).eq("id", id);
     if (playError) fail(playError, "경기 진행 방식을 저장하지 못했습니다.");
   }
   const event = await getEvent(intake.master_event_id);
@@ -775,6 +775,10 @@ const EVENT_DETAIL_SELECT = `
 const MATCH_PLAYS = ["champions", "site", "random"];
 export const matchPlayOf = event => (MATCH_PLAYS.includes(event?.competition_settings?.matchPlay) ? event.competition_settings.matchPlay : "champions");
 // played on the site's battle (with the submitted party or a random one)
+/* 사이트 배틀의 한 결정에 주는 시간(초). 대회마다 정하고(competition_settings.turnSeconds), 정하지 않으면 90초다.
+   docs/db/handover_features.sql 의 battle_set_deadline 이 같은 값을 읽는다(그 SQL 전에는 모든 배틀이 90초). */
+export const TURN_SECONDS = [60, 90, 120, 180];
+export const turnSecondsOf = value => (TURN_SECONDS.includes(Number(value)) ? Number(value) : 90);
 export const sitePlayed = event => matchPlayOf(event) !== "champions";
 
 export async function getEvent(eventId) {
@@ -1258,6 +1262,7 @@ export async function saveApplicationEvent({
     recordRuleLabel,
     // how its matches are played (the committee, 2026-11-05): in the game by default, or on the site's battle
     matchPlay: matchPlayOf({ competition_settings: { matchPlay: eventDraft.matchPlay ?? requestedCompetitionSettings.matchPlay } }),
+    turnSeconds: turnSecondsOf(eventDraft.turnSeconds ?? requestedCompetitionSettings.turnSeconds),
     titleAward: normalizeEventTitleAward(
       eventDraft.titleAward !== undefined ? eventDraft.titleAward : requestedCompetitionSettings.titleAward
     ),

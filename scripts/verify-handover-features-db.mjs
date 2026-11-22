@@ -34,6 +34,8 @@ await pg.exec(`
   create table ypl_schema_validation.registration_submissions (id uuid primary key default gen_random_uuid(), registration_id uuid);
   create table public.player_accounts (player_id uuid references ypl_schema_validation.players(id), auth_user_id uuid, status text);
   create table public.site_data (key text primary key, value jsonb);
+  create table public.battles (id text primary key, kind text, status text, event_id uuid, spectator_log text, deadline_at timestamptz);
+  alter table ypl_schema_validation.events add column competition_settings jsonb default '{}';
   create table public.push_outbox (id bigint generated always as identity, dedup text unique, kind text, auth_user_id uuid, title text, body text, url text);
   create function public.push_closes_at(p_value text) returns timestamptz language plpgsql stable as $$
   declare v text := btrim(coalesce(p_value, ''));
@@ -50,6 +52,8 @@ await q(`insert into ypl_schema_validation.entries values ($1, $3), ($2, $3)`, [
 const sql = readFileSync("docs/db/handover_features.sql", "utf8");
 await pg.exec(sql);
 await pg.exec(sql); // safe to run again
+// the trigger battle_timer.sql laid in production, on the function this file replaces
+await pg.exec(`create trigger battles_deadline before insert or update on public.battles for each row execute function public.battle_set_deadline()`);
 
 await check("an operator marks a withdrawal and a disqualification, changes it and clears it; a visitor cannot", async () => {
   await q(`select ypl_schema_validation.set_entry_departure($1, $2, 'withdrew', ' 몸이 아파서 ')`, [E, N1]);
@@ -121,6 +125,27 @@ await check("a scheduled notice goes out once its time has come, and an operator
   await q(`select public.push_queue_notice_edit('a2')`);
   assert.equal((await q(`select 1 from public.push_outbox where title = 'YPL 공지 수정'`)).length, 1);
   await assert.rejects(q(`select public.push_queue_notice_edit('zz')`), /찾을 수 없습니다/);
+});
+
+await check("an official battle runs on its event's turn time; an operator pauses, extends and resumes it", async () => {
+  await q(`update ypl_schema_validation.events set competition_settings = '{"turnSeconds":"120"}' where id = $1`, [E]);
+  await q(`insert into public.battles (id, kind, status, event_id) values ('o1', 'official', 'active', $1), ('f1', 'friendly', 'active', null)`, [E]);
+  const left = async id => Number((await one(`select extract(epoch from deadline_at - now()) as s from public.battles where id = $1`, [id])).s);
+  assert.ok(Math.abs(await left("o1") - 120) < 5); assert.ok(Math.abs(await left("f1") - 90) < 5);
+  await q(`select public.admin_battle_clock('o1', 'pause')`);
+  let row = await one(`select deadline_at, paused_left from public.battles where id = 'o1'`);
+  assert.equal(row.deadline_at, null); assert.ok(row.paused_left >= 115);
+  await q(`update public.battles set spectator_log = 'turn 2' where id = 'o1'`); // a turn passes while paused: still paused, a full turn left
+  row = await one(`select deadline_at, paused_left from public.battles where id = 'o1'`);
+  assert.equal(row.deadline_at, null); assert.equal(row.paused_left, 120);
+  await q(`select public.admin_battle_clock('o1', 'extend')`);
+  assert.equal((await one(`select paused_left from public.battles where id = 'o1'`)).paused_left, 180);
+  await q(`select public.admin_battle_clock('o1', 'resume')`);
+  assert.ok(Math.abs(await left("o1") - 180) < 5);
+  await assert.rejects(q(`select public.admin_battle_clock('f1', 'pause')`), /공식 배틀/);
+  await q(`update public.battles set status = 'ended' where id = 'o1'`);
+  row = await one(`select deadline_at, paused_left from public.battles where id = 'o1'`);
+  assert.equal(row.deadline_at, null);
 });
 
 await check("the site asks whether this file ran", async () => {

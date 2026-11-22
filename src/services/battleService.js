@@ -147,7 +147,7 @@ export async function cancelBattle(id) {
 }
 
 const PUBLIC = "id, regulation, format_id, engine, status, p1_name, p2_name, turn, winner, ended_by, spectator_log, version, created_at, updated_at, kind, event_id, source_node_key, p1_entry_id, p2_entry_id, p1_player_id, p2_player_id, applied_at, apply_error, run_id";
-const LIST = "id, status, p1_name, p2_name, turn, winner, ended_by, kind, event_id, source_node_key, p1_entry_id, p2_entry_id, p1_player_id, p2_player_id, applied_at, apply_error, updated_at";
+const LIST = "id, status, p1_name, p2_name, turn, winner, ended_by, kind, event_id, source_node_key, p1_entry_id, p2_entry_id, p1_player_id, p2_player_id, applied_at, apply_error, updated_at, deadline_at";
 
 // 공개 행. 진행 중에는 관전 로그만, 끝나면 전체 로그와 입력 기록까지 있다.
 /* Three columns come with later SQL: room (docs/db/battle_rooms.sql), rematch_id (docs/db/battle_rematch.sql) and deadline_at
@@ -287,6 +287,19 @@ export async function listUnappliedBattles() {
 // 끝난 공식 배틀의 승자를 대진표에 다시 넣는다(실패 뒤, 또는 함수가 끝과 반영 사이에서 멈췄을 때). 배틀 자신의 사실로만 정해진다.
 export const retryBattleApply = id => callFunction("battle", { action: "apply", id });
 // 운영진: 더 이어지지 않는 공식 배틀을 닫는다. 기다리던 배틀은 지우고, 진행 중이던 배틀은 무효로 끝나 관전 로그가 리플레이로 남는다.
+/* 운영진의 시계(docs/db/handover_features.sql): 'pause' 멈춤, 'resume' 다시, 'extend' 1분 더. 멈춘 배틀은 deadline_at 이 비어 있다. */
+export async function battleClock(id, action) {
+  const { error } = await supa.rpc("admin_battle_clock", { p_id: id, p_action: action });
+  if (error) throw new Error(error.message);
+}
+
+// docs/db/handover_features.sql 이 실행되었는가. 그 전에는 함수가 없어 false.
+let handover = null;
+export function handoverReady() {
+  handover ||= supa ? supa.rpc("handover_features_ready").then(({ data, error }) => !error && data === true, () => false) : Promise.resolve(false);
+  return handover;
+}
+
 export async function voidBattle(id) {
   const { data, error } = await supa.rpc("battle_void", { p_id: id });
   if (error) throw new Error(error.message);
