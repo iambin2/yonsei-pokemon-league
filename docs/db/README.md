@@ -65,6 +65,19 @@ node scripts/db-ledger.mjs > ledger.sql
 | change_log.sql | 2026-11-22 | ypl_audit 스키마, 20개 표의 log_change 트리거, admin_change_log(운영자만)를 확인. 방문자 호출은 거절됨 |
 | battle_records.sql | 2026-11-22 | 열 4개, 트리거 2개, 정리 함수와 pg_cron 작업(매일 한국 04:10), 30일 한도, 난이도 열을 읽기 전용으로 확인. 지난 판 827개 중 끝난 824개에 끝 시각이 채워짐 |
 
+### 실행 대기 (커밋됐지만 운영에 아직 실행하지 않은 파일)
+
+| 파일 | 내용 | 실행 뒤 확인 |
+|---|---|---|
+| match_outcome_more.sql | 팀전 불참, 사이트 배틀의 기권과 시간 초과를 경기에 forfeit 으로 | `select ypl_schema_validation.match_outcome_more_ready();` 가 true, 트리거 `battle_applied_mark_forfeit` |
+| handover_features.sql | 기권과 실격(entry_departures), 화면 오류(client_errors), 선수 이름 변경과 합치기, 라운드 시작과 파티 마감과 예약 공지 알림(pg_cron `push-bracket-steps`), 공지 수정 알림, 대회별 턴 시간과 배틀 시계 | `select public.handover_features_ready();` 가 true, `select jobname from cron.job;` 에 push-bracket-steps |
+
+둘 다 다시 실행해도 안전하고, 실행 전에는 사이트가 그 기능을 숨깁니다. 실행하면 위 장부 표로 옮겨 적습니다.
+
+## 구조 스냅숏
+
+`schema_snapshot_2026_11_22.sql`은 운영 DB의 표, 열, 제약, 색인, RLS 정책, 트리거, 권한, 함수 서명, 확장, 예약 작업을 읽기 전용 카탈로그 조회로 받아 적은 읽는 파일입니다(실행하지 않음, 함수 본문과 데이터는 없음). 위 두 파일이 실행되기 전의 모습입니다.
+
 ## 빈 프로젝트에서 다시 만들 때
 
 순서대로 실행한다는 보장은 시험해 본 적이 없습니다. 위 표의 날짜 순서가 실제로 실행된 순서에 가장 가깝고, "한 번만" 파일은 건너뜁니다. 가장 확실한 방법은 운영 DB의 스키마 덤프입니다.
