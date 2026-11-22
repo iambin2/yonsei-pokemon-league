@@ -4,7 +4,7 @@ import { backWith, popHandlers, pushHistory } from "../components/layout/history
 import { formatDate } from "../services/dateFormat.js";
 import { josa } from "../services/josa.js";
 import { Button, Dropdown, Empty, ErrorNote, Field, FormError, Icon, ListSearch, Loader, Modal, Prose, STAGGER, Segmented, siteAlert, siteConfirm, sitePrompt, transition } from "../components/index.js";
-import { BackLink, Counter, Dock, Lead, Row, Status, Steps, TabsLine, Toast, useArrival } from "../components/common/Board.jsx";
+import { BackLink, Counter, Dock, Lead, Row, SectionHead, Status, Steps, TabsLine, Toast, useArrival } from "../components/common/Board.jsx";
 import { reduced } from "../components/common/motion.js";
 import { Busy } from "../components/common/Loader.jsx";
 import { dotDate } from "../services/dateFormat.js";
@@ -1189,6 +1189,28 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
   </section>);
 }
 
+/* 목록 보기 (2026-11-22, the owner's draft A): the same matches as rows, a round a section, for a screen reader and a narrow phone.
+   Matches with a bye are left out, as on the board; the reset final only once it is played for. */
+function BracketList({ g, nameOf, me=null, battles=[] }){
+  if(!g) return null;
+  const {sp}=evalGraph(g);
+  const rounds=[...g.rounds.map((r,i)=>[roundLabel(g,i),r]),...(g.lb||[]).map((r,i)=>[lbRoundName(i),r]),...(g.gf?[["그랜드 파이널",[g.gf]]]:[]),...(g.reset&&g.gf?.winner==="b"?[["리셋 결승",[g.reset]]]:[])];
+  return <div className="bk-rounds">{rounds.map(([label,matches])=>{
+    const rows=matches.map(m=>({m,a:sp(m.a),b:sp(m.b)})).filter(x=>x.a!==BYE&&x.b!==BYE&&(x.a||x.b));
+    if(!rows.length) return null;
+    return <section key={label} className="stack"><SectionHead title={label}/><div className="stack">{rows.map(({m,a,b})=>{
+      const win=m.winner?(m.winner==="a"?a:b):null, lose=m.winner?(m.winner==="a"?b:a):null;
+      const battle=battleForMatch(battles,m.id,[a,b]);
+      const live=!m.winner&&battle&&battle.status!=="ended";
+      const sa=sideScore(m,"a"), sb=sideScore(m,"b");
+      const name=pid=>pid?(pid===me?<>{nameOf(pid)}<MeTag/></>:nameOf(pid)):"대기";
+      return <Row key={m.id} title={<>{name(a)}, {name(b)}</>} lamp={live} sig={live}
+        line={win?(m.forfeit?`${nameOf(win)} 승리, ${nameOf(lose)} ${lossWord(battle,m)}`:`${nameOf(win)} 승리`):live?"진행 중":"경기 전"}
+        value={win&&sa!=null&&sb!=null&&!m.forfeit?<span className="num t20">{sa}:{sb}</span>:null}/>;
+    })}</div></section>;
+  })}</div>;
+}
+
 /* ===== 대진표 보드 =====
    경기 상자는 74(36, 이음매 2, 36). 첫 열의 상자는 94 간격(상자와 20)으로 서고, 다음 열은 앞의 두 상자 사이에 선다.
    끝난 경기의 승자 길은 2px의 켜진 선, 아직인 길은 1px 선이다. */
@@ -1527,6 +1549,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     return ()=>{ cancelled=true; };
   },[b.eventId,runtimeId,scheduleKey,b.graph,b.knockout]);
   const me=useMyEntry(b.participants);
+  const [shape,setShape]=useState("tree");
   /* 내 경기로 (2026-11-22): a signed-in player's next match on a long bracket, one press away. The first undecided match they stand in. */
   const myMatch=me?[...[b.graph,b.knockout].filter(Boolean).flatMap(g=>{ const {sp}=evalGraph(g); return collectGraphMatches(g).map(m=>({m,a:sp(m.a),b:sp(m.b)})); }),
     ...(b.knockout?[]:(b.groups||[]).flatMap(g=>[...g.matches,...(g.playoffs||[])]).map(m=>({m,a:m.a?.pid,b:m.b?.pid})))]
@@ -1719,13 +1742,16 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
       <h2 className="t20">본선</h2>
       {editAdmin&&!(res&&res.done)&&<ResultEntry g={b.knockout} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupFinal} outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null}
         battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
-      <ElimBoard g={b.knockout} nameOf={nameOf} admin={editAdmin} onPick={pickGroupFinal} battles={battles}
-        startable={battleStartable} eventId={b.eventId} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.knockout):null}/>
+      <TabsLine value={shape} onChange={setShape} options={[["tree","대진표"],["list","목록"]]} label="보기"/>
+      {shape==="list"?<BracketList g={b.knockout} nameOf={nameOf} me={me} battles={battles}/>:<ElimBoard g={b.knockout} nameOf={nameOf} admin={editAdmin} onPick={pickGroupFinal} battles={battles}
+        startable={battleStartable} eventId={b.eventId} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.knockout):null}/>}
     </>}
     {admin&&!locked&&b.format==="elim"&&b.graph&&!(res&&res.done)&&<ResultEntry g={b.graph} nameOf={nameOf} busy={matchMutationBusy} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} outcomeOn={Boolean(outcomes)} teamForfeitOn={teamForfeitOn} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null}
       battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()} boutsOf={boutsOf}
       seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}/>}
-    {b.format==="elim"&&<ElimBoard g={b.graph} nameOf={nameOf} admin={editAdmin} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} qualifier={championshipEvent?.championship_phase==="qualifier"} seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}
+    {b.format==="elim"&&b.graph&&<TabsLine value={shape} onChange={setShape} options={[["tree","대진표"],["list","목록"]]} label="보기"/>}
+    {b.format==="elim"&&shape==="list"&&<BracketList g={b.graph} nameOf={nameOf} me={me} battles={battles}/>}
+    {b.format==="elim"&&shape!=="list"&&<ElimBoard g={b.graph} nameOf={nameOf} admin={editAdmin} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} qualifier={championshipEvent?.championship_phase==="qualifier"} seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}
       battles={battles} startable={battleStartable} eventId={b.eventId} boutsOf={boutsOf} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.graph):null}/>}
     {scheduling&&<ScheduleSheet g={scheduling} schedule={schedule} nameOf={nameOf} eventName={championshipEvent?.name||b.name||""} day={championshipEvent?.held_on||null} onClose={()=>setScheduling(null)} onSave={saveSchedule}/>}
     {series&&<TeamMatchModal teamA={series.A} teamB={series.B} init={series.m.series} onClose={()=>setSeries(null)} onSave={saveSeries}/>}
