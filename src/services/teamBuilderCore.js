@@ -53,6 +53,9 @@ export const DATA_ID_OVERRIDES = {
   "Samurott [Hisuian Form]": "samurotthisui",
   "Zoroark [Hisuian Form]": "zoroarkhisui",
   "Stunfisk [Galarian Form]": "stunfiskgalar",
+  "Floette [Eternal Flower]": "floetteeternal",
+  "Vivillon [Fancy Pattern]": "vivillonfancy",
+  "Vivillon [Poké Ball Pattern]": "vivillonpokeball",
   "Meowstic [Female]": "meowsticf",
   "Goodra [Hisuian Form]": "goodrahisui",
   "Gourgeist [Small Variety]": "gourgeistsmall",
@@ -92,6 +95,9 @@ export const SPRITE_SLUG_OVERRIDES = {
   "Samurott [Hisuian Form]": "samurott-hisui",
   "Zoroark [Hisuian Form]": "zoroark-hisui",
   "Stunfisk [Galarian Form]": "stunfisk-galar",
+  "Floette [Eternal Flower]": "floette-eternal",
+  "Vivillon [Fancy Pattern]": "vivillon-fancy",
+  "Vivillon [Poké Ball Pattern]": "vivillon-pokeball",
   "Meowstic [Female]": "meowstic-f",
   "Goodra [Hisuian Form]": "goodra-hisui",
   "Gourgeist [Small Variety]": "gourgeist-small",
@@ -126,14 +132,16 @@ export function makeUid(prefix = "team") {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const MEGA_NAME = /^(.+?)(?:-([MF]))?-Mega(?:-([A-Z]))?$/i;
+
 export function canonicalBaseName(name = "") {
-  const mega = name.match(/^(.+?)-Mega(?:-[A-Z])?$/i);
+  const mega = name.match(MEGA_NAME);
   if (mega) return mega[1];
   const regional = name.match(/^(.+?) \[(Alolan|Hisuian|Galarian) Form\]$/);
   if (regional) return regional[1];
   if (name.startsWith("Tauros [")) return "Tauros";
   if (/^(Heat|Wash|Frost|Fan|Mow) Rotom$/.test(name)) return "Rotom";
-  for (const base of ["Florges", "Furfrou", "Meowstic", "Gourgeist", "Lycanroc", "Polteageist", "Alcremie", "Basculegion", "Maushold", "Sinistcha", "Vivillon", "Toxtricity", "Indeedee", "Squawkabilly"]) {
+  for (const base of ["Floette", "Florges", "Furfrou", "Meowstic", "Gourgeist", "Lycanroc", "Polteageist", "Alcremie", "Basculegion", "Maushold", "Sinistcha", "Vivillon", "Toxtricity", "Indeedee", "Squawkabilly"]) {
     if (name.startsWith(`${base} [`)) return base;
   }
   return name;
@@ -178,7 +186,17 @@ function formIdentityCandidates(pokemon) {
 }
 
 function isMegaRecord(record) {
-  return Boolean(record?.requiredItem && /^Mega(?:-|$)/i.test(String(record?.forme || "")));
+  return Boolean(record?.requiredItem && MEGA_NAME.test(record.name));
+}
+
+// These Showdown battleOnly forms evolve from an alternate form of the species.
+const MEGA_BASE_FORM_IDS = {
+  floettemega: "floetteeternal",
+  meowsticfmega: "meowsticf",
+};
+
+function megaBaseId(record) {
+  return MEGA_BASE_FORM_IDS[record.id] || toID(record.baseSpecies);
 }
 
 export function isMegaPokemon(detailData, pokemon) {
@@ -190,7 +208,7 @@ export function isMegaPokemon(detailData, pokemon) {
    메가리자몽Y brought Drought's sun in on turn 0. */
 export function abilitiesFor(detailData, pokemon) {
   const record = dexRecord(detailData, pokemon);
-  const base = isMegaRecord(record) ? detailData?.pokedex?.[toID(record.baseSpecies)] : null;
+  const base = isMegaRecord(record) ? detailData?.pokedex?.[megaBaseId(record)] : null;
   return (base || record)?.abilities || [];
 }
 
@@ -214,12 +232,12 @@ function megaPokemonEntry(record) {
 export function pokemonPoolForRegulation(regulation, detailData, legalItems = [], { includeUnavailableMega = false } = {}) {
   const basePool = regulation?.pokemon || [];
   if (!detailData?.pokedex) return [...basePool];
-  const allowedBaseNames = new Set(basePool.map(pokemon => pokemon.name));
+  const allowedBaseIds = new Set(basePool.map(dataId));
   const existingNames = new Set(basePool.map(pokemon => pokemon.name));
   const legalItemIds = new Set((legalItems || []).map(item => item.id));
   const megaForms = Object.values(detailData.pokedex)
     .filter(record => isMegaRecord(record))
-    .filter(record => allowedBaseNames.has(record.baseSpecies))
+    .filter(record => allowedBaseIds.has(megaBaseId(record)))
     .filter(record => !existingNames.has(record.name))
     .filter(record => includeUnavailableMega || legalItemIds.has(toID(record.requiredItem)))
     .map(megaPokemonEntry);
@@ -230,7 +248,7 @@ export function pokemonAllowedInRegulation({ pokemon, regulation, detailData, le
   const allowedNames = new Set(regulation?.pokemon?.map(entry => entry.name) || []);
   if (!isMegaPokemon(detailData, pokemon)) return allowedNames.has(pokemon?.name);
   const details = dexRecord(detailData, pokemon);
-  if (!allowedNames.has(details?.baseSpecies)) return false;
+  if (!regulation?.pokemon?.some(entry => dataId(entry) === megaBaseId(details))) return false;
   const legalItemIds = new Set((legalItems || []).map(item => item.id));
   return legalItemIds.has(requiredItemForPokemon(detailData, pokemon));
 }
@@ -242,7 +260,7 @@ export function pokemonAllowedInRegulation({ pokemon, regulation, detailData, le
  */
 export function resolveCanonicalPokemonId(detailData, pokemon) {
   if (!detailData?.pokedex || !pokemon?.name) return null;
-  const isForm = /\[[^\]]+\]/.test(String(pokemon.name)) || / Rotom$/.test(String(pokemon.name)) || /-Mega(?:-[A-Z])?$/i.test(String(pokemon.name));
+  const isForm = /\[[^\]]+\]/.test(String(pokemon.name)) || / Rotom$/.test(String(pokemon.name)) || MEGA_NAME.test(pokemon.name);
   const baseId = toID(canonicalBaseName(pokemon.name));
   const candidates = formIdentityCandidates(pokemon);
   for (const candidate of candidates) {
@@ -257,7 +275,8 @@ export function resolveCanonicalPokemonId(detailData, pokemon) {
   // to that stable base ID; unknown or battle-distinct forms still fail closed.
   const baseRecord = detailData.pokedex[baseId];
   const candidateSet = new Set(candidates);
-  if (isForm && baseRecord?.cosmeticFormes?.some(form => candidateSet.has(toID(form)))) {
+  const isDefaultPattern = pokemon.name === "Vivillon [Meadow Pattern]";
+  if (isForm && baseRecord && (isDefaultPattern || baseRecord.cosmeticFormes?.some(form => candidateSet.has(toID(form))))) {
     return baseRecord.id || baseId;
   }
 
@@ -283,7 +302,7 @@ export function dexRecord(detailData, pokemon) {
   if (!detailData || !pokemon) return null;
   const exact = detailData.pokedex?.[dataId(pokemon)];
   if (exact) return exact;
-  if (/-Mega(?:-[A-Z])?$/i.test(String(pokemon.name || ""))) return null;
+  if (MEGA_NAME.test(pokemon.name)) return null;
   return detailData.pokedex?.[speciesFallbackKey(pokemon)] || null;
 }
 
@@ -300,7 +319,7 @@ const BATTLE_FORM_SLUGS = new Set(["castformsunny", "castformrainy", "castformsn
 const COSMETIC_BASES = new Set(["vivillon", "alcremie"]);
 export function spriteSlug(name = "") {
   if (SPRITE_SLUG_OVERRIDES[name]) return SPRITE_SLUG_OVERRIDES[name];
-  if (/-Mega(?:-[A-Z])?$/i.test(name)) {
+  if (MEGA_NAME.test(name)) {
     const [base, ...forme] = name.split("-");
     return `${toID(base)}-${toID(forme.join(""))}`;
   }
@@ -588,13 +607,10 @@ export function fromTeamSnapshotV1({ snapshot, members = [], regulation, detailD
 }
 
 export function membersRemovedByRuleChange({ team = [], regulation, cupRuleId = "none", assignedTypeId = "", detailData = null } = {}) {
-  const allowedNames = new Set(regulation?.pokemon?.map(pokemon => pokemon.name) || []);
+  const allowedNames = new Set(pokemonPoolForRegulation(regulation, detailData, [], { includeUnavailableMega: true }).map(pokemon => pokemon.name));
   const rule = CUP_RULES[cupRuleId] || CUP_RULES.none;
   return team.filter(member => {
-    const details = dexRecord(detailData, member.pokemon);
-    const allowedByName = allowedNames.has(member.pokemon?.name);
-    const allowedMegaBase = isMegaRecord(details) && allowedNames.has(details.baseSpecies);
-    if (!allowedByName && !allowedMegaBase) return true;
+    if (!allowedNames.has(member.pokemon?.name)) return true;
     if (rule.kind === "monotype" && assignedTypeId && detailData) {
       return !pokemonMatchesCupRule({ pokemon: member.pokemon, cupRuleId, assignedTypeId, detailData });
     }
@@ -647,7 +663,34 @@ const FORM_NAMES_KO = {
   "Blue Plumage": "블루 페더",
   "Yellow Plumage": "옐로 페더",
   "White Plumage": "화이트 페더",
+  "Eternal Flower": "영원의 꽃",
   "High Plains Pattern": "황야의 모양",
+  "Meadow Pattern": "화원의 모양",
+  "Icy Snow Pattern": "빙설의 모양",
+  "Polar Pattern": "설국의 모양",
+  "Tundra Pattern": "설원의 모양",
+  "Continental Pattern": "대륙의 모양",
+  "Garden Pattern": "정원의 모양",
+  "Elegant Pattern": "우아한 모양",
+  "Modern Pattern": "모던한 모양",
+  "Marine Pattern": "마린의 모양",
+  "Archipelago Pattern": "군도의 모양",
+  "Sandstorm Pattern": "사진의 모양",
+  "River Pattern": "대하의 모양",
+  "Monsoon Pattern": "스콜의 모양",
+  "Savanna Pattern": "사바나의 모양",
+  "Sun Pattern": "태양의 모양",
+  "Ocean Pattern": "오션의 모양",
+  "Jungle Pattern": "정글의 모양",
+  "Fancy Pattern": "팬시한 모양",
+  "Poké Ball Pattern": "볼의 모양",
+  "Heart Trim": "하트컷",
+  "Star Trim": "스타컷",
+  "Diamond Trim": "다이아컷",
+  "Debutante Trim": "레이디컷",
+  "La Reine Trim": "퀸컷",
+  "Kabuki Trim": "가부키컷",
+  "Pharaoh Trim": "킹덤컷",
   "Yellow Flower": "노란 꽃",
   "Orange Flower": "오렌지색 꽃",
   "Blue Flower": "파란 꽃",
@@ -677,9 +720,13 @@ export function localizedPokemonName(pokemon, koreanNames) {
   const base = canonicalBaseName(pokemon.name);
   const ko = koreanNames?.get?.(speciesNameKey(base));
   if (!ko) return pokemon.name;
-  const mega = pokemon.name.match(/-Mega(?:-([A-Z]))?$/i);
-  // Official Korean mega naming, matching legacy record snapshots (메가리자몽X).
-  if (mega) return `메가${ko}${mega[1]?.toUpperCase() || ""}`;
+  const mega = pokemon.name.match(MEGA_NAME);
+  // Show X/Y/Z next to the name and keep Meowstic’s two starting forms distinct.
+  if (mega) {
+    const [, , gender, variant] = mega;
+    const genderLabel = gender ? (gender.toUpperCase() === "F" ? " (암컷)" : " (수컷)") : "";
+    return `메가${ko}${variant?.toUpperCase() || ""}${genderLabel}`;
+  }
   if (pokemon.name.endsWith("[Alolan Form]")) return `알로라 ${ko}`;
   if (pokemon.name.endsWith("[Hisuian Form]")) return `히스이 ${ko}`;
   if (pokemon.name.endsWith("[Galarian Form]")) return `가라르 ${ko}`;
@@ -702,10 +749,11 @@ export function matchesLocalizedSearch(korean, english, query) {
 }
 
 export function pokemonSearchAliases(pokemon, localizedName = "") {
-  const match = String(pokemon?.name || "").match(/^(.+?)-Mega(?:-([A-Z]))?$/i);
+  const match = String(pokemon?.name || "").match(MEGA_NAME);
   if (!match) return [];
-  const variant = match[2]?.toUpperCase() || "";
-  const localizedBase = String(localizedName || "").match(new RegExp(`^메가(.+)${variant}$`))?.[1] || "";
+  const variant = match[3]?.toUpperCase() || "";
+  const localizedBase = String(localizedName || "").replace(/ \((?:암컷|수컷)\)$/, "")
+    .match(new RegExp(`^메가(.+)${variant}$`))?.[1] || "";
   return [
     `Mega ${match[1]}${variant ? ` ${variant}` : ""}`,
     `${match[1]} Mega${variant ? ` ${variant}` : ""}`,
@@ -832,7 +880,9 @@ export function itemDisplay(detailData, id) {
 
 export function learnsetFor(detailData, pokemon) {
   if (!detailData || !pokemon) return [];
-  return detailData.learnsets?.[dataId(pokemon)] || detailData.learnsets?.[speciesFallbackKey(pokemon)] || [];
+  const record = dexRecord(detailData, pokemon);
+  const id = isMegaRecord(record) ? megaBaseId(record) : dataId(pokemon);
+  return detailData.learnsets?.[id] || detailData.learnsets?.[speciesFallbackKey(pokemon)] || [];
 }
 
 // Champions caps base PP at 20 and always grants full PP Ups (data/mods/champions/scripts.ts).
@@ -856,7 +906,7 @@ export function pokemonMatchesCupRule({ pokemon, cupRuleId, assignedTypeId, deta
     if (!assignedTypeId || !detailData) return false;
     const selectedDetails = dexRecord(detailData, pokemon);
     const details = isMegaRecord(selectedDetails)
-      ? detailData?.pokedex?.[toID(selectedDetails.baseSpecies)] || selectedDetails
+      ? detailData?.pokedex?.[megaBaseId(selectedDetails)] || selectedDetails
       : selectedDetails;
     return Boolean(details?.types?.some(type => toID(type) === assignedTypeId));
   }
