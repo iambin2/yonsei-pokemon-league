@@ -7,6 +7,8 @@ import LinkRequests from "../components/LinkRequests.jsx";
 import ChangeLog from "../components/ChangeLog.jsx";
 import { formatDate } from "../services/dateFormat.js";
 import { ADMIN_STEPS, adminTasks, readAdminOverview } from "../services/adminOverview.js";
+import { cancelEventWithoutBracket } from "../services/normalizedCompetitionService.js";
+import { siteAlert, siteConfirm } from "../components/common/SiteDialog.jsx";
 
 /* 운영 (DESIGN.md "Admin", 2026-11-08): the operators' one place. Their work had stood scattered inside the public pages (a notice's
    responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counters,
@@ -26,7 +28,7 @@ const when = e => (e.heldOn ? formatDate(e.startTime ? `${String(e.heldOn).slice
 // now in Korea as the notice editor writes its times ("2026-11-08T21:05"): the server reads closesAt as Korean time
 const koreaNow = () => new Date().toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 16).replace(" ", "T");
 
-function EventPanel({ e, main, go, onClose }) {
+function EventPanel({ e, main, go, onClose, onCancel }) {
   const facts = [
     e.step === 1 && e.closesAt && ["신청 마감", `${formatDate(e.closesAt, { time: true })}까지`],
     e.applicants != null && ["신청", `${e.applicants}명`],
@@ -48,6 +50,8 @@ function EventPanel({ e, main, go, onClose }) {
         {e.closesAt && <Button variant="second" onClick={() => onClose(e)}>지금 마감</Button>}
         <Button variant="second" onClick={() => go("news", { notice: e.noticeId })}>신청 현황</Button>
       </div>}
+    {/* an event that will not be held (2026-11-22: two stood open for weeks, the notice undeletable for its applications) */}
+    {e.step <= 2 && <Button variant="link" onClick={() => onCancel(e)}>대회 취소</Button>}
   </section>;
 }
 
@@ -56,12 +60,24 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
   const [pending, setPending] = useState(null);
   const counted = n => { setPending(n); onRequests?.(n); };
   const [failed, setFailed] = useState(false);
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     if (!admin) return undefined;
     let on = true;
     readAdminOverview(data.announcements).then(o => on && setOverview(o), () => on && setFailed(true));
     return () => { on = false; };
-  }, [admin, data.announcements]);
+  }, [admin, data.announcements, reload]);
+  /* 대회 취소: it is not undone from a toast (the event leaves this page), so it asks once and says what stays */
+  const cancelEvent = async e => {
+    if (!(await siteConfirm({ title: "대회 취소", body: `${e.name}을 취소할까요? 공지와 신청은 남고, 이 화면과 기록 반영 알림에서 빠집니다.`, confirmLabel: "대회 취소", cancelLabel: "닫기", danger: true }))) return;
+    try {
+      await cancelEventWithoutBracket(e.id);
+      // the server already refuses applications to a cancelled event; the notice's form shuts too, so nobody fills it in for nothing
+      if (e.noticeId && e.step === 1) await save({ ...data, announcements: data.announcements.map(a => (a.id === e.noticeId ? { ...a, form: { ...a.form, closesAt: koreaNow() } } : a)) }, "신청을 마감했습니다.");
+      flash("대회를 취소했습니다."); setReload(n => n + 1);
+    }
+    catch (error) { siteAlert("대회를 취소하지 못했습니다.", error?.message || "잠시 뒤 다시 시도해 주세요."); }
+  };
   /* 지금 마감: the notice's closing time becomes now, so the form shuts and the server refuses new applications
      (docs/db/application_close.sql). It can be undone, so it acts at once and the toast offers 되돌리기 (Composing a screen 18). */
   const closeNow = async e => {
@@ -106,7 +122,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
         </div>
         <aside className="ad-side" aria-labelledby="ad-events-h">
           <SectionHead id="ad-events-h" title="대회 진행" />
-          {events.length ? events.map((e, i) => <EventPanel key={e.id} e={e} main={i === 0} go={go} onClose={closeNow} />)
+          {events.length ? events.map((e, i) => <EventPanel key={e.id} e={e} main={i === 0} go={go} onClose={closeNow} onCancel={cancelEvent} />)
             : <div className="pn ad-none"><span className="t15">진행 중인 대회가 없습니다.</span></div>}
         </aside>
       </div>}

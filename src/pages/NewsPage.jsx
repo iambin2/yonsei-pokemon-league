@@ -12,7 +12,7 @@ import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingForm, visitorSignedIn } from "../services/visitorAuth.js";
-import { builderRouteSearch, editEventApplication, findApplicantNameRecord, listEventApplications, openEventApplication, playerNameKey, tidyApplicantName, listEventRegistrationSubmissionStatuses, loadPrivateAnswers, resetSubmissionPin, resolveChampionshipSubmissionEvents } from "../services/index.js";
+import { builderRouteSearch, editEventApplication, findApplicantNameRecord, listEventApplications, openEventApplication, playerNameKey, tidyApplicantName, listEventRegistrationSubmissionStatuses, loadPrivateAnswers, resetSubmissionPin, deleteEventRegistration, resolveChampionshipSubmissionEvents } from "../services/index.js";
 import { useItemTitle } from "../components/layout/title.js";
 
 const fmtDT=iso=>formatDate(iso,{time:true});
@@ -129,6 +129,12 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
     try{ await resetSubmissionPin(row.id); siteAlert("제출 비밀번호를 초기화했습니다."); }
     catch(error){ siteAlert("초기화하지 못했습니다.",error?.message||"잠시 뒤 다시 시도해 주세요."); }
   };
+  // a linked application with no party and no bracket place (deleteEventRegistration checks both): asked once, then the list is read again
+  const delRegistration=async(row)=>{
+    if(!(await siteConfirm({title:"신청 삭제",body:`${row.registrationName||"이 신청"}의 신청을 지울까요? 되돌릴 수 없고, 운영 화면의 최근 변경에 남습니다.`,confirmLabel:"삭제",danger:true})))return;
+    try{ await deleteEventRegistration(row.id); await refreshEventApplications(respAnn); }
+    catch(error){ siteAlert("신청을 지우지 못했습니다.",error?.message||"잠시 뒤 다시 시도해 주세요."); }
+  };
   const delResp=(rid)=>{ const announcements=data.announcements.map(a=>a.id!==respId?a:{...a,form:{...(a.form||{}),responses:((a.form||{}).responses||[]).filter(r=>r.id!==rid)}}); save({...data,announcements}); };
   const a=article?data.announcements.find(x=>x.id===article):null;
   useItemTitle(a?.title);
@@ -140,7 +146,7 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
   // back from Google sign-in that started on a form: the same form opens again (after the reset above)
   useEffect(()=>{ const id=takePendingForm(); if(id&&id===article) setFill(id); },[]);
   const modals=<>
-    {respAnn&&<FormResponsesModal ann={respAnn} responsesOverride={respAnn.form?.eventId?(eventResponses[respAnn.id]||[]):null} onClose={()=>setRespId(null)} onDeleteResp={respAnn.form?.eventId?null:delResp} onResetPin={respAnn.form?.eventId?resetPin:null}/>}
+    {respAnn&&<FormResponsesModal ann={respAnn} responsesOverride={respAnn.form?.eventId?(eventResponses[respAnn.id]||[]):null} onClose={()=>setRespId(null)} onDeleteResp={respAnn.form?.eventId?null:delResp} onDeleteRegistration={respAnn.form?.eventId?delRegistration:null} onResetPin={respAnn.form?.eventId?resetPin:null}/>}
   </>;
 
   // 신청 한 장은 공지에서 들어가고 공지로 나온다: 두 방향 모두 화면 전환으로 켜진다(motion.js transition)
@@ -490,7 +496,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
     </>,
   });
 }
-function FormResponsesModal({ ann, onClose, onDeleteResp, responsesOverride, onResetPin }){
+function FormResponsesModal({ ann, onClose, onDeleteResp, onDeleteRegistration, responsesOverride, onResetPin }){
   const form=ann.form||{}; const fields=form.fields||[]; const normalized=Array.isArray(responsesOverride); const base=normalized?responsesOverride:(form.responses||[]);
   // 공개 표시가 없는 질문의 답은 운영진만 읽는 표에서 따로 온다(docs/db/private_answers.sql)
   const [hidden,setHidden]=useState(()=>new Map());
@@ -542,6 +548,7 @@ function FormResponsesModal({ ann, onClose, onDeleteResp, responsesOverride, onR
           {subs&&(sent(r)?<span className="t12 fr-sent"><i className="lamp" aria-hidden="true"/>제출</span>:<span className="t12 dim">미제출</span>)}
           {/* the PIN is set by a first party submission or a first 신청 수정, so any row may hold one */}{onResetPin&&<Button variant="link" onClick={()=>onResetPin(r)}>비밀번호 초기화</Button>}
           {onDeleteResp&&<button type="button" className="fr-del" onClick={async()=>{if(await siteConfirm({title:"응답 삭제",body:"이 응답을 삭제할까요? 삭제한 응답은 되돌릴 수 없습니다.",confirmLabel:"삭제",danger:true}))onDeleteResp(r.id);}} aria-label="삭제"><Icon n="trash" size={16}/></button>}
+          {onDeleteRegistration&&subs&&!sent(r)&&<button type="button" className="fr-del" onClick={()=>onDeleteRegistration(r)} aria-label={`${nameOf(r)||"이 신청"} 삭제`}><Icon n="trash" size={16}/></button>}
         </div>
       </div>))}
       {!shown.length&&<Empty title={q.trim()?"이 이름의 신청이 없습니다.":"해당하는 신청이 없습니다."}/>}</div>}

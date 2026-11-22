@@ -1788,7 +1788,8 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
     else { add(nameOf(res.champ),{win:1,points:ptWinN}); if(res.ru)add(nameOf(res.ru),{ru:1,points:ptRuN}); res.sf.map(nameOf).forEach(n=>add(n,{top4:1,points:ptSfN})); }
     return deltas; };
   const buildResult=()=>{
-    const roundNum=roundStr.trim()||autoNext;
+    const ownRound=Number(linkedContext?.event?.round_number);
+    const roundNum=roundStr.trim()||(linked&&Number.isInteger(ownRound)&&ownRound>0?String(ownRound):autoNext);
     const deltas=computeDeltas();
     const willRank=bumpRank&&rankKey&&!excluded, willSeason=bumpSeason&&recordSeason&&!champ&&!excluded;
     return { deltas, roundNum, willRank, willSeason };
@@ -2015,19 +2016,13 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
             </div>
           </div>
 
-          <div className="bk-grow2">
-            <Field label="회차 번호"><input
-                value={roundStr}
-                onChange={e=>setRoundStr(e.target.value)}
-                placeholder={autoNext}
-              /></Field>
-
-            <Field label="날짜 표기"><input
-                value={date}
-                onChange={e=>setDate(e.target.value)}
-                placeholder="2026.09"
-              /></Field>
-          </div>
+          {/* 연결된 대회의 회차와 날짜는 대회 자신의 것이다(COMPETITION_EDITIONS.md). 2026-11-22까지 여기 있던 회차와 날짜 표기 칸은
+              챔피언스 본선의 회차 말고는 서버로 가지 않아, 고쳐도 반영된다고 믿게 했다. 챔피언스만 회차를 남긴다 */}
+          {champ&&<Field label="회차 번호"><input
+              value={roundStr}
+              onChange={e=>setRoundStr(e.target.value)}
+              placeholder={autoNext}
+            /></Field>}
 
           <div className="field">
             <span className="field-label">반영 내용</span>
@@ -2497,8 +2492,9 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
   useItemTitle(open?.name);
   // 관람 중인 진행 대진표는 화면이 보이는 동안 15초마다 그 대회의 경기만 확인하고, 달라졌을 때 전체를 다시 읽는다.
   // 경기 밖의 변화(기록 반영)는 2분마다의 전체 조회가 따라잡는다.
-  // 관리자는 자기 쓰기 뒤에 이미 다시 읽고, 바뀐 것이 없으면 다시 그리지 않는다.
-  const liveEventId=!admin&&!drawId&&open?.status==="active"&&open?.projection?.source==="normalized"?open.eventId:null;
+  // 운영자도 같다(2026-11-22): 대회 날 두 사람이 나눠 입력하면 서로의 입력을 자기가 쓰기 전까지 보지 못하고 낡은 판을 눌렀다.
+  // 자기 쓰기 뒤에는 이미 다시 읽으므로, 이 확인은 다른 사람(다른 운영자, 사이트 배틀)이 넣은 결과를 따라잡는 몫이다. 추첨 중에는 읽지 않는다.
+  const liveEventId=!drawId&&open?.status==="active"&&open?.projection?.source==="normalized"?open.eventId:null;
   const liveRuntimeId=open?.projection?.runtimeId||null;
   useEffect(()=>{
     if(!liveEventId) return undefined;

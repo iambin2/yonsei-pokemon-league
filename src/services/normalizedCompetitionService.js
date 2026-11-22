@@ -1071,6 +1071,25 @@ export async function listRegistrationSubmissions(registrationId) {
 }
 
 // 운영진 전용. 비밀번호를 잊었거나 다른 사람이 먼저 제출한 경우의 복구이며 파티 이력은 그대로 둔다.
+/* 운영진: 대회에 연결된 신청 하나를 지운다(장난, 중복, 본인이 취소한 신청, 2026-11-22). 파티를 냈거나 대진표에 들어간 신청은 지우지
+   않는다: 화면이 먼저 묻고, DB의 외래 키(registration_submissions, entry_participants의 restrict)가 끝까지 막는다. 비공개 답은 신청과 함께
+   지운다. 지운 신청은 change_log.sql이 남긴다. */
+export async function deleteEventRegistration(registrationId) {
+  if (!registrationId) throw new Error("지울 신청을 찾지 못했습니다.");
+  const [{ count: submissions, error: subError }, { count: entries, error: entryError }] = await Promise.all([
+    db().from("registration_submissions").select("id", { count: "exact", head: true }).eq("registration_id", registrationId),
+    db().from("entry_participants").select("entry_id", { count: "exact", head: true }).eq("registration_id", registrationId),
+  ]);
+  if (subError || entryError) fail(subError || entryError, "신청을 확인하지 못했습니다.");
+  if (submissions) throw new Error("파티를 낸 신청은 지울 수 없습니다. 제출 기록이 함께 남아야 합니다.");
+  if (entries) throw new Error("대진표에 들어간 신청은 지울 수 없습니다.");
+  const { data, error } = await db().from("event_registrations").delete().eq("id", registrationId).select("id");
+  if (error) fail(error, "신청을 지우지 못했습니다.");
+  if (!data?.length) throw new Error("신청을 지우지 못했습니다. 이미 지워졌거나 권한이 없습니다.");
+  await client.from("form_private_answers").delete().eq("subject", registrationId);
+  return true;
+}
+
 export async function resetSubmissionPin(registrationId) {
   const { error } = await client.rpc("reset_submission_pin", { p_registration_id: registrationId });
   if (error) fail(error, "제출 비밀번호를 초기화하지 못했습니다.");
@@ -1547,6 +1566,23 @@ export async function cancelApplicationEvent(eventId, { preflight = null } = {})
   if (error) fail(error, "연결된 대회를 정리하지 못했습니다.");
   if (!data) throw new Error("대회 상태가 변경되어 취소하지 못했습니다.");
   return { event_id: data.id, cancelled: data.status === "cancelled" };
+}
+
+/* 운영진: 열리지 못한 대회를 취소로 닫는다(2026-11-22). 공지 삭제와 달리 신청과 공지는 그대로 남아 "신청했지만 열리지 않은 대회"로
+   기록되고, 운영 화면과 "기록 반영 전" 알림에서 빠진다. 대진표가 있거나 참가가 확정된 대회는 취소하지 않는다(대진표를 먼저 지운다). */
+export async function cancelEventWithoutBracket(eventId) {
+  if (!eventId) throw new Error("취소할 대회를 찾지 못했습니다.");
+  const [{ count: runtimes, error: runtimeError }, { count: entries, error: entryError }] = await Promise.all([
+    db().from("bracket_runtimes").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+    db().from("entries").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+  ]);
+  if (runtimeError || entryError) fail(runtimeError || entryError, "대회를 확인하지 못했습니다.");
+  if (runtimes || entries) throw new Error("대진표가 있는 대회는 취소할 수 없습니다. 대진표를 먼저 지워 주세요.");
+  const { data, error } = await db().from("events").update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("id", eventId).is("record_applied_at", null).in("status", ["planned", "open", "running"]).select("id").maybeSingle();
+  if (error) fail(error, "대회를 취소하지 못했습니다.");
+  if (!data) throw new Error("대회 상태가 바뀌어 취소하지 못했습니다.");
+  return true;
 }
 
 const EMPTY_RECORD_PLAN = { inserts: [], updates: [], deleteIds: [] };
