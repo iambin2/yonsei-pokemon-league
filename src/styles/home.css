@@ -39,6 +39,8 @@
 .ho-live-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); margin: 0; }
 .ho-live-row { display: flex; align-items: center; min-height: var(--h-row); padding: 0 var(--pad); margin: 0; font-weight: 700; }
 @media (hover: hover) { .ho-live :is(button.pn2, button > .pn2):hover, .ho-live > button:hover > .pn2 { background: var(--rule); } }
+/* 내 다음 경기: my own row stays the lit one under the pointer, as an inverted key does (board.css) */
+@media (hover: hover) { .ho-live > button:hover > .pn2.inv { background: var(--dim); color: var(--ground); } }
 
 /* ---------- the sections ---------- */
 .ho-sec { margin-top: var(--s13); min-width: 0; }

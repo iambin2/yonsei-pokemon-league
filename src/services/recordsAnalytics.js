@@ -158,6 +158,38 @@ export function liveMatches(bracket) {
   };
 }
 
+/* 내 다음 경기 (home, 2026-11-22 draft A): the signed-in trainer's first undecided match in a bracket, the opponent named once known
+   ("" while the match feeding it is still played). null when they are not in the bracket or have no match left (out, or champion).
+   playerId: the account's approved player (useMe); a team bracket finds them among a team's members. */
+export function myNextMatch(bracket, playerId) {
+  if (!bracket || !playerId) return null;
+  const mine = (bracket.participants || []).find(p => p.playerId === playerId || p.memberIdentities?.some(x => x.playerId === playerId));
+  if (!mine) return null;
+  const nameOf = pid => (bracket.participants || []).find(p => p.id === pid)?.name || "";
+  if (bracket?.groups?.length && !bracket.knockout) {
+    for (const pool of bracket.groups) {
+      for (const [match, stage] of [...pool.matches.map(m => [m, `${pool.name}조`]), ...(pool.playoffs || []).map(m => [m, `${pool.name}조 순위 결정전`])]) {
+        if (match.winner || ![match.a?.pid, match.b?.pid].includes(mine.id)) continue;
+        const other = match.a?.pid === mine.id ? match.b?.pid : match.a?.pid;
+        return { id: match.id, stage, me: mine.name, opponent: nameOf(other) };
+      }
+    }
+    return null;
+  }
+  const graph = bracket.knockout || bracket.graph;
+  if (!graph) return null;
+  const { slotPlayer } = evalGraph(graph);
+  for (const { match, stage, reset } of collectGraphMatches(graph)) {
+    if (match.winner || (reset && graph.gf?.winner !== "b")) continue;
+    const a = slotPlayer(match.a), b = slotPlayer(match.b);
+    if (a !== mine.id && b !== mine.id) continue;
+    const other = a === mine.id ? b : a;
+    if (other === BYE) continue;
+    return { id: match.id, stage: stageLabel(graph, stage), me: mine.name, opponent: other ? nameOf(other) : "" };
+  }
+  return null;
+}
+
 function eliminationResult(graph) {
   if (!graph || !(graph.rounds || []).length) return null;
   const { win, lose } = evalGraph(graph);

@@ -12,7 +12,8 @@ import { loadChampions, loadFacts, seenChampions, seenFacts } from "../component
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { getEvent, getLeagueIntakeEvents, listNormalizedBracketRuntimes } from "../services/normalizedCompetitionService.js";
 import { freshRead } from "../services/readCache.js";
-import { liveMatches } from "../services/recordsAnalytics.js";
+import { liveMatches, myNextMatch } from "../services/recordsAnalytics.js";
+import { useMe } from "../components/common/useMe.js";
 import { listEventBattles } from "../services/battleService.js";
 import { submissionDue } from "../services/submissionDue.js";
 import { applicationsOpen } from "../services/announcementTimes.js";
@@ -134,10 +135,16 @@ export default function HomePage({ data, go, admin }) {
      사이트 배틀로 치르는 경기를 모두 관전으로 잇는다. 공지 하나가 루키와 마스터를 함께 받으면 두 리그의 대회를 함께 본다.
      화면에 있는 동안 15초마다 다시 읽는다(2026-11-08, 중계 강화: 한 경기만, 한 번만 읽었다). */
   const [live, setLive] = useState(null);
+  /* 내 다음 경기 (2026-11-22, the owner's draft A): on the day, a signed-in trainer whose account is linked sees their own next match
+     first, with its table and its round's start (docs/db/match_schedule.sql), read with the live matches every 15 seconds */
+  const me = useMe();
+  const [myNext, setMyNext] = useState(null);
+  const [myWhere, setMyWhere] = useState(null);
   const [liveBattles, setLiveBattles] = useState([]);
   /* the live match's table and its round's start, as its sheet shows them (docs/db/match_schedule.sql; nothing until it has run) */
   const [liveWhere, setLiveWhere] = useState(null);
-  const liveMatch = live?.live?.[0] || null;
+  // the match shown as 지금 경기 is another than my own, which stands in its own card above (2026-11-22: the same final stood twice)
+  const liveMatch = live?.live?.find(m => m.id !== myNext?.id) || null;
   useEffect(() => {
     if (!liveMatch || !live?.runtimeId) { setLiveWhere(null); return undefined; }
     let on = true;
@@ -161,6 +168,9 @@ export default function HomePage({ data, go, admin }) {
           if (!on) return;
           const plays = (rows || []).map(row => row.bracket).filter(b => eventIds.includes(b?.eventId)).map(b => ({ ...liveMatches(b), eventId: b.eventId, runtimeId: b.projection?.runtimeId || null }));
           setLive(plays.find(p => p.live.length) || null);
+          const mineIn = me?.playerId ? (rows || []).map(row => row.bracket).filter(b => eventIds.includes(b?.eventId))
+            .map(b => { const m = myNextMatch(b, me.playerId); return m && { ...m, eventId: b.eventId, runtimeId: b.projection?.runtimeId || null }; }).find(Boolean) : null;
+          setMyNext(prev => (prev && mineIn && prev.id === mineIn.id && prev.opponent === mineIn.opponent ? prev : mineIn || null));
         })
         .catch(error => { console.warn("home live matches read failed", error); if (on) setLive(null); });
       Promise.all(eventIds.map(listEventBattles)).then(lists => { if (on) setLiveBattles(lists.flat().filter(row => row.status === "active")); }, () => {});
@@ -168,7 +178,17 @@ export default function HomePage({ data, go, admin }) {
     read();
     const timer = setInterval(read, 15_000);
     return () => { on = false; clearInterval(timer); };
-  }, [now?.today, now?.eventId]);
+  }, [now?.today, now?.eventId, me?.playerId]);
+  useEffect(() => {
+    if (!myNext?.runtimeId) { setMyWhere(null); return undefined; }
+    let on = true;
+    readBracketSchedule({ eventId: myNext.eventId, runtimeId: myNext.runtimeId }).then(sc => {
+      if (!on || !sc) return;
+      const at = sc.rounds[roundKeyOf(myNext.id)], table = sc.tables.get(myNext.id);
+      setMyWhere({ at: at || null, table: table || "" });
+    }, () => {});
+    return () => { on = false; };
+  }, [myNext?.id, myNext?.runtimeId]);
   /* 다음 대회가 없는 날의 첫 자리는 지난 대회의 결과다 (2026-11-16): 꺼진 88 대신 날짜, 이름, 리그마다의 우승, 대진표 보기 */
   const [last, setLast] = useState(() => (now ? null : seenLast()));
   useEffect(() => {
@@ -177,7 +197,7 @@ export default function HomePage({ data, go, admin }) {
     loadLast(admin).then(next => { if (on) setLast(next); }, error => console.warn("home last event read failed", error));
     return () => { on = false; };
   }, [!now, data]);
-  const primary = !now ? (last ? ["대진표 보기", "bracket", { eventId: last.eventId }] : ["공지 보기", "news"]) : now.today ? ["대진표 보기", "bracket"] : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
+  const primary = !now ? (last ? ["대진표 보기", "bracket", { eventId: last.eventId }] : ["공지 보기", "news"]) : now.today ? (myNext ? ["내 경기 보기", "bracket", { eventId: myNext.eventId, m: myNext.id }] : ["대진표 보기", "bracket"]) : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
   const notices = useMemo(() => [...data.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.date < b.date ? 1 : -1)).slice(0, 3), [data.announcements]);
   const reigning = (facts || waited) ? champions?.[0] || null : null;
   const season = facts?.season;
@@ -224,13 +244,29 @@ export default function HomePage({ data, go, admin }) {
       <div className="ho-go">
         <Button variant="main" onClick={() => go(primary[1], primary[2])}>{primary[0]}</Button>
       </div>
+      {myNext && (() => {
+        const start = myWhere?.at ? new Date(myWhere.at) : null;
+        const clock = start ? start.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }) : "";
+        const ahead = start && start.getTime() > Date.now();
+        const where = [myWhere?.table ? tableWord(myWhere.table) : "", clock ? `${clock} 시작` : ""];
+        return <div className="stack ho-live ho-mine" role="group" aria-label="내 다음 경기">
+          <button type="button" className="stack" onClick={() => go("bracket", { eventId: myNext.eventId, m: myNext.id })}
+            aria-label={`내 다음 경기, ${myNext.stage}, ${myNext.opponent ? `상대 ${myNext.opponent}` : "상대 결정 전"}${where.filter(Boolean).length ? `, ${where.filter(Boolean).join(", ")}` : ""}, 경기 보기`}>
+            <span className="pn2 ho-live-head t12"><span>내 다음 경기, {myNext.stage}</span>
+              {!myNext.opponent ? <span className="dim">상대 결정 전</span> : ahead ? <span className="dim">곧 시작</span> : <span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span>}</span>
+            <span className="pn2 ho-live-row t15 inv">{myNext.me}</span>
+            <span className={"pn2 ho-live-row t15" + (myNext.opponent ? "" : " dim")}>{myNext.opponent || "앞 경기의 승자"}</span>
+          </button>
+          {where.some(Boolean) && <p className="pn2 ho-live-head t12"><span className="dim">{where[0]}</span><span>{where[1]}</span></p>}
+        </div>;
+      })()}
       {live?.live.length > 0 && <div className="stack ho-live" role="group" aria-label="지금 경기">
         {/* the match is a door to its own bracket, as every panel that names a place is */}
-        <button type="button" className="stack" onClick={() => go("bracket", { eventId: live.eventId, m: live.live[0].id })} aria-label={`${live.live[0].stage}${liveWhere ? `, ${liveWhere}` : ""}, ${live.live[0].a} 대 ${live.live[0].b}, 진행 중, 경기 보기`}>
-          <span className="pn2 ho-live-head t12"><span className="dim">{[live.live[0].stage, liveWhere].filter(Boolean).join(", ")}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></span>
-          <span className="pn2 ho-live-row t15">{live.live[0].a}</span>
-          <span className="pn2 ho-live-row t15">{live.live[0].b}</span>
-        </button>
+        {liveMatch && <button type="button" className="stack" onClick={() => go("bracket", { eventId: live.eventId, m: liveMatch.id })} aria-label={`${liveMatch.stage}${liveWhere ? `, ${liveWhere}` : ""}, ${liveMatch.a} 대 ${liveMatch.b}, 진행 중, 경기 보기`}>
+          <span className="pn2 ho-live-head t12"><span className="dim">{[liveMatch.stage, liveWhere].filter(Boolean).join(", ")}</span><span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />진행 중</span></span>
+          <span className="pn2 ho-live-row t15">{liveMatch.a}</span>
+          <span className="pn2 ho-live-row t15">{liveMatch.b}</span>
+        </button>}
         <p className="pn2 ho-live-head t12"><span className="dim">{live.stage} 진행</span><span>{live.done} / {live.total} 종료</span></p>
         {/* every match of the day being played as a site battle, one strip each, opening it to watch */}
         {liveBattles.map(b => <button key={b.id} type="button" className="pn2 ho-live-head t12" onClick={() => go("battle", { battle: b.id })}>
