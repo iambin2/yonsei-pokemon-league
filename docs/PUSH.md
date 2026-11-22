@@ -11,6 +11,8 @@ PGlite 검사는 `node scripts/verify-push-db.mjs <pglite dist/index.js>`다.
 | `notice` | 공지 | 켠 모두 | 운영진이 새 공지를 올린 직후 | `?view=news&notice=…` |
 | `schedule` | 대회 일정 | 켠 모두 | 신청 마감 하루 전 안쪽(한 번), 대회의 대진표가 처음 생긴 뒤, 대회 결과를 기록에 반영한 뒤 | 공지, 그 대회의 대진표 |
 | `match` | 내 경기 | 그 경기 상대 출전(팀이면 팀원 모두)의 계정 | 공식 경기의 배틀 방을 먼저 연 선수가 기다리기 시작한 직후 | `?view=battle&event=…&match=…` (제출 비밀번호로 앉는 화면) |
+| `match` | 내 경기 | 그 라운드의 경기에 선 출전의 계정 | 라운드 시작 30분 전(bracket_runtimes.round_schedule, 10분마다 pg_cron `push-bracket-steps`, handover_features.sql) | `?view=bracket&eventId=…` |
+| `match` | 내 경기 | 아직 파티를 내지 않은 신청자의 계정 | 파티 제출 마감(대회 시작) 하루 전부터(같은 작업) | `?view=builder&eventId=…` |
 | `reply` | 내 글의 댓글 | 계정으로 쓴 글과 댓글의 계정 | 계정으로 쓴 글에 댓글이나 대댓글이 달렸을 때(글쓴이에게), 계정으로 쓴 댓글에 대댓글이 달렸을 때(그 댓글쓴이에게). 자기가 쓴 것으로는 보내지 않고, 비밀글의 알림에는 내용을 담지 않는다(`docs/db/community_accounts.sql`) | 그 글 |
 | `board` | 게시판 새 글 | 켠 모두 | 지난 게시판 알림 뒤에 공개 글(자유, 샘플, 파티. 비밀글, 댓글, 사설 대진표 제외)이 올라왔을 때 | 글이 하나면 그 글, 여럿이면 `?view=board` |
 | `tower` | 도전의 탑 순위 | 앞질린 계정 | 이번 달 도전(오늘의 탑 제외)이 한 판 이겨, 같은 연승에 먼저 닿아 위에 있던 계정을 넘었을 때(2연승부터) | `?view=battle&tab=streak` |
