@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { makeQr } from "../services/qrCode.js";
+import { splitTeams } from "../services/teamSplit.js";
 import { flushSync } from "react-dom";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { formatDate } from "../services/dateFormat.js";
@@ -577,6 +578,22 @@ function BracketWizard({ data, onClose, onCreate }){
     }catch(error){ setEventError(`랭킹을 읽지 못했습니다. ${error?.message||""}`.trim()); }
     finally{ setSeeding(false); }
   };
+  /* 팀 나누기 (2026-11-22, the owner's draft 5 A): a team event's applicants dealt into the teams by this season's ranking points, the
+     cards filled to be edited as before; 다시 나누기 deals again with equal points in another order */
+  const [splitNote,setSplitNote]=useState("");
+  const splitByRanking=async()=>{
+    setSeeding(true);
+    try{
+      const raw=await freshRead("records",fetchNormalizedRecordsSnapshot,60000);
+      const season=buildNormalizedRecordsProjection(data,raw,null).ranking?.seasons?.[0];
+      const points=new Map((season?.rows||[]).map(row=>[playerNameKey(row.name||""),row.points]));
+      const n=Math.max(2,teams.length);
+      const dealt=splitTeams(eventRegs.map(r=>r.registration_name),name=>points.get(playerNameKey(name))??0,n);
+      setTeams(dealt.map((t,i)=>({name:teams[i]?.name||`${i+1}팀`,members:t.members.join(", ")})));
+      setSplitNote(`팀마다 포인트 합 ${dealt.map(t=>t.points).join(", ")}`);
+    }catch(error){ setEventError(`랭킹을 읽지 못했습니다. ${error?.message||""}`.trim()); }
+    finally{ setSeeding(false); }
+  };
   const swapPlaces=(x,y)=>{ if(!x||!y||x===y)return; setPlacement(p=>({...p,plan:p.plan.map(pair=>pair.map(k=>k===x?y:k===y?x:k))})); };
   const placeName=key=>placement?.parts.find(p=>p.id===key)?.name||"";
   const tapPlace=key=>{ if(dragFrom.current?.moved){ dragFrom.current=null; return; } if(held==null) setHeld(key); else { swapPlaces(held,key); setHeld(null); } };
@@ -805,6 +822,10 @@ function BracketWizard({ data, onClose, onCreate }){
           })()}</div>
         </div>
 
+        {eventRegs.length>1&&<div className="stack bk-pin-keys">
+          <Button variant="second" size="sm" onClick={splitByRanking} loading={seeding} disabled={seeding}>{splitNote?"다시 나누기":`신청자 ${eventRegs.length}명 팀 나누기`}</Button>
+        </div>}
+        {splitNote&&<div className="bk-hint">{splitNote}</div>}
         <div className="bk-fill">
           {teams.map((t,i)=>(<div className="bk-team-card" key={i} style={{animationDelay:(i*STAGGER.row)+"ms"}}>
                 <span className="bk-pin-no gold">{i+1}</span>
