@@ -109,6 +109,14 @@ export async function myCheckin(eventIds, checkIn = false) {
   catch (error) { if (checkIn) throw error; return null; }
 }
 
+/* 결과 보고 (docs/db/handover_features.sql, the owner's draft 7 A): a player's own report of a match played in the game. won null reads
+   the state only. { status, mine } or null before that SQL has run or when signed out. */
+export async function reportMatch(eventId, nodeKey, won = null) {
+  if (!visitorSignedIn() || !eventId) return null;
+  try { return await rest("rpc/report_match_result", { method: "POST", body: { p_event_id: eventId, p_source_node_key: nodeKey, p_won: won }, profile: "ypl_schema_validation" }); }
+  catch (error) { if (won !== null) throw error; return null; }
+}
+
 export async function myPlayerLink() {
   const rows = await rest("player_accounts?select=requested_name,status,player_id,email");
   return rows?.[0] || null;

@@ -21,6 +21,7 @@
 --   7. match_picks: 게임으로 치른 경기의 선출(출전마다 낸 포켓몬). 운영진이 set_match_picks 로 남긴다.
 --   8. replace_bracket_entrant: 대진표가 만들어진 뒤, 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로 바꾼다.
 --   9. event_checkins 와 my_checkin: 대회 날 선수가 스스로 남기는 체크인. 운영진은 표를 읽어 대진표를 만들 때 쓴다.
+--  10. match_reports 와 report_match_result: 두 선수가 남기는 결과 보고. 같으면 싱글은 바로 들어가고, 나머지는 운영진이 한 번 누른다.
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
@@ -519,6 +520,77 @@ end;
 $$;
 revoke all on function ypl_schema_validation.my_checkin(uuid[], boolean) from public, anon;
 grant execute on function ypl_schema_validation.my_checkin(uuid[], boolean) to authenticated;
+
+-- 10. 선수 결과 직접 보고: 게임으로 치른 경기의 두 선수가 각자 이겼는지 졌는지 남긴다. 둘이 같으면 싱글 엘리미네이션은 그 자리에서
+--     승자가 들어가고(set_normalized_single_bracket_winner, 배틀 결과와 같은 길), 그 밖의 대진(더블, 조별)은 운영진이 결과 입력에서
+--     한 번 눌러 넣는다. 다르면 운영진이 정한다. p_won 이 null 이면 읽기만 한다.
+--     돌려주는 것: { status: 'waiting'|'agreed'|'applied'|'disputed'|'decided'|'not_player', mine: true|false|null }
+create table if not exists ypl_schema_validation.match_reports (
+  event_id uuid not null references ypl_schema_validation.events (id) on delete cascade,
+  source_node_key text not null,
+  entry_id uuid not null references ypl_schema_validation.entries (id) on delete cascade,
+  winner_entry_id uuid not null,
+  auth_user_id uuid,
+  created_at timestamptz not null default now(),
+  primary key (event_id, source_node_key, entry_id)
+);
+alter table ypl_schema_validation.match_reports enable row level security;
+drop policy if exists match_reports_read on ypl_schema_validation.match_reports;
+create policy match_reports_read on ypl_schema_validation.match_reports for select to authenticated using (ypl_schema_validation.is_ypl_admin());
+grant select on ypl_schema_validation.match_reports to authenticated, service_role;
+
+create or replace function ypl_schema_validation.report_match_result(p_event_id uuid, p_source_node_key text, p_won boolean default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_match ypl_schema_validation.matches%rowtype;
+  v_mine uuid;
+  v_other uuid;
+  v_runtime ypl_schema_validation.bracket_runtimes%rowtype;
+  v_a uuid;
+  v_b uuid;
+begin
+  if auth.uid() is null then return jsonb_build_object('status', 'not_player'); end if;
+  perform 1 from ypl_schema_validation.events e where e.id = p_event_id and e.status = 'running' and e.record_applied_at is null and not e.is_team_event for update;
+  if not found then return jsonb_build_object('status', 'not_player'); end if;
+  select * into v_match from ypl_schema_validation.matches m
+   where m.event_id = p_event_id and m.source = 'normalized_bracket_runtime' and m.match_kind = 'bracket' and m.source_node_key = p_source_node_key;
+  if not found or v_match.entry_a_id is null or v_match.entry_b_id is null then return jsonb_build_object('status', 'not_player'); end if;
+  select ep.entry_id into v_mine from ypl_schema_validation.entry_participants ep
+    join public.player_accounts pa on pa.player_id = ep.player_id and pa.status = 'approved' and pa.auth_user_id = auth.uid()
+   where ep.event_id = p_event_id and ep.entry_id in (v_match.entry_a_id, v_match.entry_b_id) limit 1;
+  if v_mine is null then return jsonb_build_object('status', 'not_player'); end if;
+  v_other := case when v_mine = v_match.entry_a_id then v_match.entry_b_id else v_match.entry_a_id end;
+  if v_match.winner_entry_id is not null then return jsonb_build_object('status', 'decided', 'mine', v_match.winner_entry_id = v_mine); end if;
+
+  if p_won is not null then
+    insert into ypl_schema_validation.match_reports (event_id, source_node_key, entry_id, winner_entry_id, auth_user_id)
+    values (p_event_id, p_source_node_key, v_mine, case when p_won then v_mine else v_other end, auth.uid())
+    on conflict (event_id, source_node_key, entry_id) do update set winner_entry_id = excluded.winner_entry_id, auth_user_id = excluded.auth_user_id, created_at = now();
+  end if;
+
+  select r.winner_entry_id into v_a from ypl_schema_validation.match_reports r where r.event_id = p_event_id and r.source_node_key = p_source_node_key and r.entry_id = v_mine;
+  select r.winner_entry_id into v_b from ypl_schema_validation.match_reports r where r.event_id = p_event_id and r.source_node_key = p_source_node_key and r.entry_id = v_other;
+  if v_a is null or v_b is null then return jsonb_build_object('status', 'waiting', 'mine', case when v_a is null then null else v_a = v_mine end); end if;
+  if v_a <> v_b then return jsonb_build_object('status', 'disputed', 'mine', v_a = v_mine); end if;
+
+  select * into v_runtime from ypl_schema_validation.bracket_runtimes b where b.event_id = p_event_id;
+  if v_runtime.topology_kind = 'single_elimination' and p_source_node_key like 'single:%' then
+    begin
+      perform 1 from ypl_schema_validation.set_normalized_single_bracket_winner(v_runtime.id, p_event_id, p_source_node_key, v_a);
+      return jsonb_build_object('status', 'applied', 'mine', v_a = v_mine);
+    exception when others then
+      raise warning 'report_match_result: %', sqlerrm;
+    end;
+  end if;
+  return jsonb_build_object('status', 'agreed', 'mine', v_a = v_mine);
+end;
+$$;
+revoke all on function ypl_schema_validation.report_match_result(uuid, text, boolean) from public, anon;
+grant execute on function ypl_schema_validation.report_match_result(uuid, text, boolean) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

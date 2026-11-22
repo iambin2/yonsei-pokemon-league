@@ -1081,6 +1081,16 @@ export async function readEventCheckins(eventId) {
   return new Set(error ? [] : (data || []).map(row => row.registration_id));
 }
 
+// 선수 결과 보고(docs/db/handover_features.sql): 경기키 -> [{ entry_id, winner_entry_id }]. 운영진의 읽기, 그 SQL 전에는 null.
+export async function readMatchReports(eventId) {
+  if (!eventId) return null;
+  const { data, error } = await db().from("match_reports").select("source_node_key, entry_id, winner_entry_id").eq("event_id", eventId);
+  if (error) return null;
+  const out = new Map();
+  for (const row of data || []) { if (!out.has(row.source_node_key)) out.set(row.source_node_key, []); out.get(row.source_node_key).push(row); }
+  return out;
+}
+
 // 참가자 교체(docs/db/handover_features.sql): 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로. 검사는 RPC가 한다.
 export async function replaceBracketEntrant({ eventId, entryId, registrationId } = {}) {
   const { error } = await db().rpc("replace_bracket_entrant", { p_event_id: eventId, p_entry_id: entryId, p_registration_id: registrationId });

@@ -198,6 +198,30 @@ await check("a linked applicant checks in on the event's day, once; the day befo
   await q(`update public.uid_switch set u = null`);
 });
 
+await check("two players' matching reports put a single-elimination winner in; a disagreement or a stranger does not", async () => {
+  const E5 = "00000000-0000-0000-0000-0000000000e5", Y1 = "00000000-0000-0000-0000-0000000000d1", Y2 = "00000000-0000-0000-0000-0000000000d2";
+  const U2 = "00000000-0000-0000-0000-0000000000f2";
+  await q(`alter table ypl_schema_validation.bracket_runtimes add column if not exists id uuid default gen_random_uuid(), add column if not exists topology_kind text`);
+  await q(`alter table ypl_schema_validation.matches add column if not exists match_kind text`);
+  await pg.exec(`create function ypl_schema_validation.set_normalized_single_bracket_winner(p_runtime_id uuid, p_event_id uuid, p_key text, p_winner uuid)
+    returns void language sql as $f$ update ypl_schema_validation.matches set winner_entry_id = p_winner where event_id = p_event_id and source_node_key = p_key $f$`);
+  await q(`insert into ypl_schema_validation.events (id, name, status) values ($1, '5회', 'running')`, [E5]);
+  await q(`insert into ypl_schema_validation.bracket_runtimes (event_id, round_schedule, topology_kind) values ($1, '{}', 'single_elimination')`, [E5]);
+  await q(`insert into ypl_schema_validation.entries (id, event_id) values ($1, $3), ($2, $3)`, [Y1, Y2, E5]);
+  await q(`insert into ypl_schema_validation.entry_participants (event_id, entry_id, player_id) values ($1, $2, $3), ($1, $4, $5)`, [E5, Y1, P1, Y2, P3]);
+  await q(`insert into public.player_accounts values ($1, $2, 'approved')`, [P3, U2]);
+  await q(`insert into ypl_schema_validation.matches (event_id, match_kind, source, source_node_key, entry_a_id, entry_b_id) values ($1, 'bracket', 'normalized_bracket_runtime', 'single:r1:m1', $2, $3)`, [E5, Y1, Y2]);
+  const report = async (user, won) => { await q(`update public.uid_switch set u = $1`, [user]); return (await one(`select ypl_schema_validation.report_match_result($1, 'single:r1:m1', $2) as r`, [E5, won])).r; };
+  assert.deepEqual(await report(U1, true), { status: "waiting", mine: true });
+  assert.deepEqual(await report(U2, true), { status: "disputed", mine: true });
+  assert.equal((await one(`select winner_entry_id from ypl_schema_validation.matches where event_id = $1`, [E5])).winner_entry_id, null);
+  assert.deepEqual(await report(U2, false), { status: "applied", mine: false });
+  assert.equal((await one(`select winner_entry_id from ypl_schema_validation.matches where event_id = $1`, [E5])).winner_entry_id, Y1);
+  assert.deepEqual(await report(U1, null), { status: "decided", mine: true });
+  assert.deepEqual(await report("00000000-0000-0000-0000-0000000000f9", true), { status: "not_player" });
+  await q(`update public.uid_switch set u = null`);
+});
+
 await check("the site asks whether this file ran", async () => {
   assert.equal((await one(`select public.handover_features_ready() as r`)).r, true);
 });

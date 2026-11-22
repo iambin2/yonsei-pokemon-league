@@ -9,7 +9,7 @@ import { BackLink, Counter, Dock, Lead, Mon, Row, SectionHead, Status, Steps, Ta
 import { reduced } from "../components/common/motion.js";
 import { Busy } from "../components/common/Loader.jsx";
 import { dotDate } from "../services/dateFormat.js";
-import { addChampionshipQualifierManualRegistration, applyEventRecord, recommendChampionshipDirectEntrants, resetSubmissionPin, revertEventRecord, championsData, fetchPlayerChampionRosters, fetchRegistrationFinalRosters, buildChampionshipRecordApplyCompletionOptions, buildNormalizedRuntimeCreateAttempt, buildNormalizedSingleCreateAttempt, championshipEventPickerLabel, confirmEventTeamsForBracket, createChampionshipAdvancement, createNormalizedBracketRuntime, deleteNormalizedBracketRuntime, deleteNormalizedSingleBracketRuntime, ensureChampionshipHallOfFameEntry, listChampionshipManualParticipantCandidates, fetchNormalizedBracketRuntime, fetchNormalizedSingleBracketRuntime, readBracketMatchStamp, getEvent, sitePlayed, getEventRecordContext, getIndividualPlacementPointPolicy, inspectEventParticipantIdentities, lastPlacementPoints, isRecordApplyCompletionConfirmed, listChampionshipQualifierDirectSelectionIds, listEventRegistrationSubmissionStatuses, listEventRegistrations, listNormalizedBracketRuntimes, loadPrivateAnswers, listSubmissionEvents, preflightChampionshipFinalBracket, rollbackEventParticipantIdentityChanges, setChampionshipQualifierDirectSelections, setNormalizedSingleBracketWinner, readMatchOutcomes, readEntryDepartures, setEntryDeparture, readMatchPicks, setMatchPicks, fetchRegistrationLatestRosters, replaceBracketEntrant, readEventCheckins, matchOutcomeMoreReady, setNormalizedMatchOutcome, syncNormalizedBracketMatches, validateEventParticipantEntries, validateEventTeamEntries } from "../services/index.js";
+import { addChampionshipQualifierManualRegistration, applyEventRecord, recommendChampionshipDirectEntrants, resetSubmissionPin, revertEventRecord, championsData, fetchPlayerChampionRosters, fetchRegistrationFinalRosters, buildChampionshipRecordApplyCompletionOptions, buildNormalizedRuntimeCreateAttempt, buildNormalizedSingleCreateAttempt, championshipEventPickerLabel, confirmEventTeamsForBracket, createChampionshipAdvancement, createNormalizedBracketRuntime, deleteNormalizedBracketRuntime, deleteNormalizedSingleBracketRuntime, ensureChampionshipHallOfFameEntry, listChampionshipManualParticipantCandidates, fetchNormalizedBracketRuntime, fetchNormalizedSingleBracketRuntime, readBracketMatchStamp, getEvent, sitePlayed, getEventRecordContext, getIndividualPlacementPointPolicy, inspectEventParticipantIdentities, lastPlacementPoints, isRecordApplyCompletionConfirmed, listChampionshipQualifierDirectSelectionIds, listEventRegistrationSubmissionStatuses, listEventRegistrations, listNormalizedBracketRuntimes, loadPrivateAnswers, listSubmissionEvents, preflightChampionshipFinalBracket, rollbackEventParticipantIdentityChanges, setChampionshipQualifierDirectSelections, setNormalizedSingleBracketWinner, readMatchOutcomes, readEntryDepartures, setEntryDeparture, readMatchPicks, setMatchPicks, fetchRegistrationLatestRosters, replaceBracketEntrant, readEventCheckins, readMatchReports, matchOutcomeMoreReady, setNormalizedMatchOutcome, syncNormalizedBracketMatches, validateEventParticipantEntries, validateEventTeamEntries } from "../services/index.js";
 import { buildDefaultTeamMatchLineups, buildTeamMatchSeries, getTeamMatchLineupOptions, getTeamRegistrationAnswerEntries } from "../services/bracketTeamParticipants.js";
 import { getTeamPlacementPointPolicy } from "../services/bracketRankingAwardSnapshot.js";
 import { buildBracketSubmissionStatusModel, playerNameKey, spriteUrl } from "../services/teamBuilderCore.js";
@@ -37,7 +37,7 @@ import { leagueIntakeId, leagueIntakeOptions } from "../services/leagueIntake.js
 import { useItemTitle } from "../components/layout/title.js";
 import { viewHref } from "../services/appRouting.js";
 import { readBracketSchedule, roundKeyOf, roundStartIso, setMatchTable, setRoundSchedule, tableWord } from "../services/bracketSchedule.js";
-import { VISITOR_EVENT, accountsReady, myPlayerLink, visitorSignedIn } from "../services/visitorAuth.js";
+import { VISITOR_EVENT, accountsReady, myPlayerLink, reportMatch, visitorSignedIn } from "../services/visitorAuth.js";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -1068,7 +1068,25 @@ function useEventBattles(eventId, onApplied){
   return list;
 }
 /* a match's sheet: the round, the two sides at full length with the winner inverted and named 승자, the score; a team match adds its bouts */
-function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, battles=[], boutCount=0, start="", table="", me=null }){
+/* 결과 보고 (2026-11-22, the owner's draft 7 A): in a match played in the game, each of its two players says whether they won. The same
+   answer from both puts a single-elimination winner in at once; otherwise the operators press it in, and a disagreement is theirs to settle. */
+const REPORT_LINE={waiting:"두 선수가 같은 결과를 보고하면 들어갑니다.",agreed:"두 보고가 같습니다. 운영진이 확인하면 들어갑니다.",applied:"결과가 들어갔습니다.",disputed:"보고가 서로 달라 운영진이 정합니다."};
+function MatchReport({ eventId, m, onDone }){
+  const [state,setState]=useState(null);
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{ let on=true; reportMatch(eventId,m.id).then(r=>on&&setState(r)); return ()=>{ on=false; }; },[eventId,m.id]);
+  if(!state||state.status==="not_player"||state.status==="decided") return null;
+  const send=async won=>{ setBusy(true); try{ const r=await reportMatch(eventId,m.id,won); setState(r); if(r?.status==="applied") onDone?.(); }catch{ /* the buttons stay for another press */ } finally{ setBusy(false); } };
+  const line=state.status==="waiting"&&state.mine!=null?`${state.mine?"이겼다고":"졌다고"} 보고했습니다. 상대의 보고를 기다립니다.`:REPORT_LINE[state.status];
+  return <div className="stack mb-battle">
+    <Row title="결과 보고" line={line}/>
+    {state.status!=="applied"&&<div className="stack bk-entry-actions">
+      <Button variant={state.mine===true?"main":"second"} disabled={busy} onClick={()=>send(true)}>승리 보고</Button>
+      <Button variant={state.mine===false?"main":"second"} disabled={busy} onClick={()=>send(false)}>패배 보고</Button>
+    </div>}
+  </div>;
+}
+function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, battles=[], boutCount=0, start="", table="", me=null, reportOn=false, onReported }){
   const s=m.series, bouts=Array.isArray(s?.games)?s.games:[];
   const side=(key,pid)=>{
     const win=m.winner===key, lost=Boolean(m.winner)&&!win, score=sideScore(m,key);
@@ -1088,6 +1106,7 @@ function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, bat
     </div>}
     {boutCount?<TeamBouts m={m} ev={ev} battles={battles} boutCount={boutCount} startable={startable} eventId={eventId}/>
       :<MatchBattle m={m} ev={ev} battle={battle} startable={startable} eventId={eventId}/>}
+    {reportOn&&me&&!m.winner&&[ev.sp(m.a),ev.sp(m.b)].includes(me)&&<MatchReport eventId={eventId} m={m} onDone={onReported}/>}
     {bouts.length>0&&<div className="stack mb-bouts">
       {bouts.map((w,i)=>bout(`${i+1}경기`,s.lineupA?.[i],s.lineupB?.[i],w))}
       {s.ace&&bout("타이브레이커",s.ace.a,s.ace.b,s.ace.winner)}
@@ -1136,7 +1155,7 @@ const stageOf=(g,m)=>{
   if(li>=0) return lbRoundName(li);
   return m===g.reset?"리셋 결승":"그랜드 파이널";
 };
-function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam, busy, outcomeOn=false, teamForfeitOn=false, onOutcome, onDepart=null, picks=null, partyOf=()=>[], onPicks=null, pickMax=4, swapIn=null, onSwap=null, battles=[], startable=false, eventId=null, onBattleChanged, boutsOf=()=>0, stage=stageOf }){
+function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam, busy, outcomeOn=false, teamForfeitOn=false, onOutcome, onDepart=null, picks=null, partyOf=()=>[], onPicks=null, pickMax=4, swapIn=null, onSwap=null, reports=null, battles=[], startable=false, eventId=null, onBattleChanged, boutsOf=()=>0, stage=stageOf }){
   const ev=evalGraph(g);
   // the reset final exists only once the losers' side has won the grand final, as on the board
   const rows=collectGraphMatches(g).filter(m=>m!==g.reset||g.gf?.winner==="b").map(m=>({m,a:ev.sp(m.a),b:ev.sp(m.b)})).filter(x=>x.a&&x.b&&x.a!==BYE&&x.b!==BYE);
@@ -1193,6 +1212,13 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
         onClick={()=>onDepart(cur.m,cur.m.winner==="a"?cur.b:cur.a,cur.m.departed===kind?null:kind)}>
         {cur.m.departed===kind?`${word} 취소`:`${nameOf(cur.m.winner==="a"?cur.b:cur.a)} ${word} 처리`}</Button>)}
     </div>}
+    {/* 선수 보고 (the owner's draft 7 A): what the two players said; the same answer is one press away */}
+    {reports&&!teamMode&&!cur.m.winner&&(reports.get(cur.m.id)||[]).length>0&&(()=>{ const said=reports.get(cur.m.id);
+      const agreed=said.length===2&&said[0].winner_entry_id===said[1].winner_entry_id?said[0].winner_entry_id:null;
+      return <div className="stack bk-entry-actions">
+        <Row title={agreed?"선수 보고 일치":said.length===2?"선수 보고 다름":"선수 보고 하나"} line={said.map(r=>`${nameOf(r.entry_id)}: ${nameOf(r.winner_entry_id)} 승`).join(", ")} lamp={said.length===2&&!agreed}/>
+        {agreed&&[cur.a,cur.b].includes(agreed)&&<Button variant="main" icon="check" disabled={busy} onClick={()=>onPick(cur.m.id,agreed===cur.a?"a":"b")}>보고대로 {nameOf(agreed)} 승리</Button>}
+      </div>; })()}
     {/* 자리 교체 (2026-11-22, the owner's draft 3 A): a match not yet played can seat another applicant in either place */}
     {onSwap&&swapIn?.length>0&&!teamMode&&!cur.m.winner&&(()=>{ const played=new Set(rows.filter(x=>x.m.winner).flatMap(x=>[x.a,x.b])); const open=[cur.a,cur.b].filter(pid=>!played.has(pid)); return open.length>0&&<>
       <div className="stack bk-entry-actions">{open.map(pid=><Button key={pid} variant={swapping===pid?"main":"second"} disabled={busy}
@@ -1287,7 +1313,7 @@ function treeCenters(rounds,strip=0){
     for(let j=0;j<rounds[r].length;j++){ centers[r][j]= r===0 ? (j*pitch+strip+BK_MATCH_H/2) : (centers[r-1][2*j]+centers[r-1][2*j+1])/2; } }
   return { centers, totalH: Math.max(BK_MATCH_H+strip,(rounds[0]?.length||1)*pitch-20) };
 }
-function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=false, seedOf, battles=[], startable=false, eventId=null, boutsOf=()=>0, schedule=null, me=null, onSchedule=null }){
+function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=false, seedOf, battles=[], startable=false, eventId=null, boutsOf=()=>0, schedule=null, me=null, onSchedule=null, reportOn=false, onReported }){
   const ev=evalGraph(g);
   const finalRes=elimResult(g);
   const strip=schedule?.tables?.size?BK_STRIP_H:0;
@@ -1345,7 +1371,7 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   const seenRound=seen&&[...g.rounds,...(g.lb||[]),[g.gf],[g.reset]].find(r=>r?.includes(seen));
   return (<div className="bk-scroll" role="region" aria-label="대진표" tabIndex={0}>
   {seen&&<MatchSheet g={g} m={seen} ev={ev} nameOf={nameOf} onClose={()=>setSeen(null)} battle={battleForMatch(battles,seen.id,[ev.sp(seen.a),ev.sp(seen.b)])} startable={startable} eventId={eventId} battles={battles} boutCount={teamMode?boutsOf(seen,ev):0}
-    start={seenRound?startOf(seenRound):""} table={schedule?.tables?.get(seen.id)||""} me={me}/>}
+    start={seenRound?startOf(seenRound):""} table={schedule?.tables?.get(seen.id)||""} me={me} reportOn={reportOn&&!teamMode} onReported={onReported}/>}
   <div className="bk-tree" ref={treeRef}>
     {wires&&<svg className="bk-wires" width={wires.w} height={wires.h} aria-hidden="true"><path className="dim" d={wires.dim}/><path className="lit" d={wires.lit}/></svg>}
     {g.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
@@ -1562,6 +1588,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
   const [teamForfeitOn,setTeamForfeitOn]=useState(false);
   const [departures,setDepartures]=useState(null);
   const [picks,setPicks]=useState(null);
+  const [reports,setReports]=useState(null);
   const [parties,setParties]=useState(null);
   useEffect(()=>{
     let cancelled=false;
@@ -1569,6 +1596,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     readMatchOutcomes(b.eventId).then(map=>{ if(!cancelled) setOutcomes(map); }).catch(()=>{ if(!cancelled) setOutcomes(null); });
     readEntryDepartures(b.eventId).then(map=>{ if(!cancelled) setDepartures(map); }).catch(()=>{ if(!cancelled) setDepartures(null); });
     readMatchPicks(b.eventId).then(map=>{ if(!cancelled) setPicks(map); }).catch(()=>{ if(!cancelled) setPicks(null); });
+    if(admin) readMatchReports(b.eventId).then(map=>{ if(!cancelled) setReports(map); }).catch(()=>{ if(!cancelled) setReports(null); });
     return ()=>{ cancelled=true; };
   },[b.eventId,championshipRefreshKey,outcomeKey,b.graph,b.knockout,b.groups]);
   useEffect(()=>{
@@ -1635,6 +1663,10 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
   },[b.eventId,runtimeId,scheduleKey,b.graph,b.knockout]);
   const me=useMyEntry(b.participants);
   const [shape,setShape]=useState("tree");
+  // 결과 보고: a signed-in player of a running event played in the game (not on the site's battle), once handover_features.sql has run
+  const [reportReady,setReportReady]=useState(false);
+  useEffect(()=>{ let on=true; if(me&&!admin) handoverReady().then(ok=>on&&setReportReady(ok)); return ()=>{ on=false; }; },[me,admin]);
+  const reportOn=reportReady&&!admin&&!teamMode&&championshipEvent?.status==="running"&&!sitePlayed(championshipEvent);
   /* 내 경기로 (2026-11-22): a signed-in player's next match on a long bracket, one press away. The first undecided match they stand in. */
   const myMatch=me?[...[b.graph,b.knockout].filter(Boolean).flatMap(g=>{ const {sp}=evalGraph(g); return collectGraphMatches(g).map(m=>({m,a:sp(m.a),b:sp(m.b)})); }),
     ...(b.knockout?[]:(b.groups||[]).flatMap(g=>[...g.matches,...(g.playoffs||[])]).map(m=>({m,a:m.a?.pid,b:m.b?.pid})))]
@@ -1820,23 +1852,23 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     />}
     {admin&&championshipEvent?.championship_phase==="qualifier"&&<ChampionsBracketControls eventId={b.eventId} placement="qualifier" refreshKey={championshipRefreshKey} onChanged={()=>void refreshNormalized?.()}/>}
     {b.projection?.topology===GROUP_TOPOLOGY&&editAdmin&&groupGraph&&<ResultEntry g={groupGraph} stage={groupStage} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupStage}
-      outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps} battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
+      outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps} reports={reports} battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
     {b.projection?.topology===GROUP_TOPOLOGY&&<GroupStageBoard b={b} admin={admin&&!locked} busy={matchMutationBusy}
       run={runGroup} nameOf={nameOf} battles={battles} startable={battleStartable} refresh={()=>void refreshNormalized?.()}/>}
     {b.projection?.topology===GROUP_TOPOLOGY&&b.knockout&&<>
       <h2 className="t20">본선</h2>
-      {editAdmin&&!(res&&res.done)&&<ResultEntry g={b.knockout} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupFinal} outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps}
+      {editAdmin&&!(res&&res.done)&&<ResultEntry g={b.knockout} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupFinal} outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps} reports={reports}
         battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
       <TabsLine value={shape} onChange={setShape} options={[["tree","대진표"],["list","목록"]]} label="보기"/>
-      {shape==="list"?<BracketList g={b.knockout} nameOf={nameOf} me={me} battles={battles}/>:<ElimBoard g={b.knockout} nameOf={nameOf} admin={editAdmin} onPick={pickGroupFinal} battles={battles}
+      {shape==="list"?<BracketList g={b.knockout} nameOf={nameOf} me={me} battles={battles}/>:<ElimBoard g={b.knockout} nameOf={nameOf} admin={editAdmin} onPick={pickGroupFinal} battles={battles} reportOn={reportOn} onReported={()=>void refreshNormalized?.()}
         startable={battleStartable} eventId={b.eventId} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.knockout):null}/>}
     </>}
-    {admin&&!locked&&b.format==="elim"&&b.graph&&!(res&&res.done)&&<ResultEntry g={b.graph} nameOf={nameOf} busy={matchMutationBusy} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} outcomeOn={Boolean(outcomes)} teamForfeitOn={teamForfeitOn} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps}
+    {admin&&!locked&&b.format==="elim"&&b.graph&&!(res&&res.done)&&<ResultEntry g={b.graph} nameOf={nameOf} busy={matchMutationBusy} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} outcomeOn={Boolean(outcomes)} teamForfeitOn={teamForfeitOn} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps} reports={reports}
       battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()} boutsOf={boutsOf}
       seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}/>}
     {b.format==="elim"&&b.graph&&<TabsLine value={shape} onChange={setShape} options={[["tree","대진표"],["list","목록"]]} label="보기"/>}
     {b.format==="elim"&&shape==="list"&&<BracketList g={b.graph} nameOf={nameOf} me={me} battles={battles}/>}
-    {b.format==="elim"&&shape!=="list"&&<ElimBoard g={b.graph} nameOf={nameOf} admin={editAdmin} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} qualifier={championshipEvent?.championship_phase==="qualifier"} seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}
+    {b.format==="elim"&&shape!=="list"&&<ElimBoard g={b.graph} reportOn={reportOn} onReported={()=>void refreshNormalized?.()} nameOf={nameOf} admin={editAdmin} onPick={pick} teamMode={teamMode} onOpenTeam={openTeam} qualifier={championshipEvent?.championship_phase==="qualifier"} seedOf={(pid)=>{const i=(b.participants||[]).findIndex(x=>x.id===pid);return i>=0?i+1:null;}}
       battles={battles} startable={battleStartable} eventId={b.eventId} boutsOf={boutsOf} schedule={schedule} me={me} onSchedule={canSchedule?()=>setScheduling(b.graph):null}/>}
     {scheduling&&<ScheduleSheet g={scheduling} schedule={schedule} nameOf={nameOf} eventName={championshipEvent?.name||b.name||""} day={championshipEvent?.held_on||null} onClose={()=>setScheduling(null)} onSave={saveSchedule}/>}
     {series&&<TeamMatchModal teamA={series.A} teamB={series.B} init={series.m.series} onClose={()=>setSeries(null)} onSave={saveSeries}/>}
