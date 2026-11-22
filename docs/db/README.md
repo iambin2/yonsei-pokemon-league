@@ -66,6 +66,7 @@ node scripts/db-ledger.mjs > ledger.sql
 | battle_records.sql | 2026-11-22 | 열 4개, 트리거 2개, 정리 함수와 pg_cron 작업(매일 한국 04:10), 30일 한도, 난이도 열을 읽기 전용으로 확인. 지난 판 827개 중 끝난 824개에 끝 시각이 채워짐 |
 | match_outcome_more.sql | 2026-11-22 | set_normalized_match_outcome 본문에 팀전 처리, match_outcome_more_ready(authenticated 실행), 트리거 battle_applied_mark_forfeit를 읽기 전용으로 확인 |
 | handover_features.sql | 2026-11-22 | 함수 15개, 표 6개(entry_departures, client_errors, match_picks, event_checkins, match_reports, community_reports), 정책 5개, battles.paused_left, 새 battle_set_deadline(turnSeconds), pg_cron push-bracket-steps(10분마다), 저장소 버킷 board(공개, 512KB)를 확인. set_match_picks는 anon 실행 불가, report_community_item과 handover_features_ready는 anon 실행 가능(의도대로) |
+| third_place_best_of.sql | 2026-11-22 | bracket_runtimes의 열 3개, 함수 4개(set_bracket_rules, sync_third_place_match, set_third_place_winner, bracket_rules_ready), 싱글 승자 RPC의 3위전 맞추기, 삭제 두 함수와 조별 기록 반영 검사의 3위전 키, 점수 RPC의 선승 검사, 배틀 다전제 점수 트리거를 읽기 전용으로 확인 |
 
 ## 구조 스냅숏
 
