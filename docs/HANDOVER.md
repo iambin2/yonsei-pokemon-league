@@ -36,7 +36,7 @@
 |---|---|---|---|
 | `SUPABASE_SERVICE_ROLE_KEY` | GitHub 저장소 Secrets | 주간 백업, 컴퓨터 학습 | 대시보드 Settings, API에서 다시 복사 |
 | `BACKUP_PASSPHRASE` | GitHub 저장소 Secrets, 공용 비밀번호 도구 | 주간 백업 암호 | **이 값이 없으면 그동안의 백업을 열 수 없습니다.** 반드시 두 곳에 둡니다 |
-| `SUPABASE_ACCESS_TOKEN` | GitHub 저장소 Secrets | 함수 자동 배포 | 프로젝트 Owner가 supabase.com, Account, Access Tokens에서 새로 발급 |
+| `SUPABASE_ACCESS_TOKEN` | GitHub 저장소 Secrets | 함수 자동 배포 | 2026-11-22 발급, 이름 "ypl-site GitHub Actions", 만료 없음, 권한은 YPL_DB 프로젝트의 Edge Functions 읽기·쓰기와 Project Settings 읽기뿐. 인수인계 때 후임이 supabase.com, Account, Access Tokens에서 같은 권한으로 새로 발급해 바꿔 넣고, 이 토큰은 지운다 |
 | `VAPID_KEYS` | Supabase 함수 Secrets, 공용 비밀번호 도구 | 푸시 알림 서명 | 공개 절반은 `src/services/announcementPush.js`의 `VAPID_PUBLIC_KEY`. 쌍을 바꾸면 모든 기기의 알림 구독이 끊깁니다. 개인 절반은 소유자 PC의 `.env.local`에도 있으니 공용 도구로 옮깁니다 |
 | Google OAuth 클라이언트 비밀 | Supabase 대시보드 Authentication, Providers, Google | Google 로그인 | Google Cloud에서 다시 발급 |
 | 운영자 비밀번호 | Supabase Auth | 운영 화면 | 4절 |
