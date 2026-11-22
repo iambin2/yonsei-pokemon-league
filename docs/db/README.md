@@ -59,7 +59,7 @@ node scripts/db-ledger.mjs > ledger.sql
 
 | 파일 | 운영 실행일 | 확인 방법 |
 |---|---|---|
-| backup_grants.sql | (아직) | 파일 머리의 확인 질의가 0이면 됨. 그 뒤 Actions의 Weekly backup을 다시 돌림 |
+| backup_grants.sql | 2026-11-22 | service_role이 두 스키마의 표 41개를 모두 읽음(확인 질의 0). 이어서 돌린 주간 백업이 41개 표를 받아 성공(암호화 1.8MB, 2027-02-20까지 보관) |
 | account_self.sql | 2026-11-22 | 함수 3개, 실행 권한(authenticated만), 함수 주인 postgres의 auth.users 삭제 권한을 읽기 전용으로 확인. 방문자(anon) 호출은 거절됨 |
 | tower_history.sql | 2026-11-22 | streak_my_runs, streak_month_tops(방문자도 호출, 아직 지난달 기록 없음), tower_archive 표와 보존 트리거를 확인 |
 | change_log.sql | 2026-11-22 | ypl_audit 스키마, 20개 표의 log_change 트리거, admin_change_log(운영자만)를 확인. 방문자 호출은 거절됨 |
