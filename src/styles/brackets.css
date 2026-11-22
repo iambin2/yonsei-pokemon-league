@@ -154,3 +154,6 @@
 .bk-cols { display: flex; gap: var(--bk-gap); align-items: flex-start; width: max-content; }
 .bk-col { width: var(--bk-w); display: flex; flex-direction: column; gap: var(--s3); }
 .bk-col .bk-col-h { margin-bottom: 0; }
+/* QR: navy squares on white in both themes, as a camera reads them best (the raw palette, not the theme tokens) */
+.bk-qr { display: block; width: 100%; background: var(--white); }
+.bk-qr path { fill: var(--navy); }

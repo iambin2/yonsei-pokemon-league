@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { makeQr } from "../services/qrCode.js";
 import { flushSync } from "react-dom";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { formatDate } from "../services/dateFormat.js";
@@ -29,7 +30,7 @@ import { battleClock, battleForMatch, battleHref, battleWinnerEntry, handoverRea
 import { parseBoutKey, teamBouts } from "../services/teamBouts.js";
 import Seg from "../components/common/Seg.jsx";
 import { WORDMARK_PATH } from "../components/layout/SiteHeader.jsx";
-import { PRIVATE_BRACKETS_KEY, createCommunityItem, deleteCommunityItem, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
+import { PRIVATE_BRACKETS_KEY, communityUrl, createCommunityItem, deleteCommunityItem, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
 import { PIN_DENIED } from "../services/communityItems.js";
 import { PRIVATE_BRACKET_MAX, buildPrivateBracketPatch, buildPrivateGraph, createPrivateBracket, parseParticipantNames } from "../services/privateBracket.js";
 import { leagueIntakeId, leagueIntakeOptions } from "../services/leagueIntake.js";
@@ -1187,6 +1188,16 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
     {(next||dirty)&&<Button variant={dirty?"main":"second"} icon={dirty&&!next?"check":"arrow"} disabled={busy||Boolean(scoreError)} onClick={goNext}>
       {dirty?(next?`저장하고 다음 경기 M${rows.indexOf(next)+1}`:"점수 저장"):`다음 경기 M${rows.indexOf(next)+1}`}</Button>}
   </section>);
+}
+
+/* QR (2026-11-22, the owner's draft 9 A): the bracket's address for a screen at the venue, phones held up to it. Navy squares on white in
+   both themes, as a camera reads them best, with the four-module quiet zone the standard asks for. */
+function QrSheet({ name, url, onClose }){
+  const qr=makeQr(url), n=qr.size+8;
+  const d=qr.rows.flatMap((row,y)=>row.map((on,x)=>on?`M${x+4} ${y+4}h1v1h-1z`:"")).join("");
+  return <Modal title="QR" hint={name} onClose={onClose}>
+    <svg className="bk-qr" viewBox={`0 0 ${n} ${n}`} shapeRendering="crispEdges" role="img" aria-label={`${name} 대진표 주소 QR 코드`}><path d={d}/></svg>
+  </Modal>;
 }
 
 /* 목록 보기 (2026-11-22, the owner's draft A): the same matches as rows, a round a section, for a screen reader and a narrow phone.
@@ -2604,6 +2615,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
   const [openId,setOpenId]=useState(null);
   const [wizard,setWizard]=useState(false);
   const [apply,setApply]=useState(null);
+  const [qr,setQr]=useState(null);
   const [drawId,setDrawId]=useState(null);
   const [deletingId,setDeletingId]=useState(null);
   const deletingRef=useRef(false);
@@ -2883,19 +2895,21 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
           {/* 링크 공유 (2026-11-22): the home-screen app has no address bar, and a bracket is what players pass around on the day */}
           <div className="stack bk-tools">
             {open.eventId&&<Button variant="second" size="sm" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button>}
+            {open.eventId&&<Button variant="second" size="sm" onClick={()=>setQr({name:open.name,url:communityUrl({view:"bracket",eventId:open.eventId})})}>QR</Button>}
             {openRes?.done&&<Button variant="second" size="sm" onClick={()=>downloadChampionPng(open,openRes,openName)}>우승 이미지</Button>}
             {openRes?.done&&<Button variant="second" size="sm" onClick={()=>downloadBracketPng(open,openName)}>대진표 이미지</Button>}
           </div>
         </div>
         {statusTag(open)==="진행 중"&&<p className="pn bk-strip t12"><Status live>진행 중</Status>{liveProgress(open)&&<span className="dim">{liveProgress(open)}</span>}</p>}
         {/* a phone: the share key under the head, the desktop keeps it among the tools beside the title */}
-        {open.eventId&&<div className="stack bk-actions bk-share"><Button variant="second" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button></div>}
+        {open.eventId&&<div className="stack bk-actions bk-share"><Button variant="second" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button><Button variant="second" onClick={()=>setQr({name:open.name,url:communityUrl({view:"bracket",eventId:open.eventId})})}>QR</Button></div>}
       </header>
        {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res,opts)=>setApply({b,res,...opts})}/>}
       {/* a delete that cannot be undone stands last, after everything the bracket shows */}
       {!open.readOnly&&admin&&<div className="stack bk-actions bk-delete"><Button variant="second" disabled={!!open.applied} loading={deletingId===open.id} title={open.applied?"기록 반영 취소 후 삭제할 수 있습니다.":""} onClick={()=>del(open)}>삭제</Button></div>}
     </div>; })()}
     {wizard&&<BracketWizard data={data} onClose={()=>transition(()=>flushSync(()=>setWizard(false)),{dir:"back"})} onCreate={create}/>}
+     {qr&&<QrSheet name={qr.name} url={qr.url} onClose={()=>setQr(null)}/>}
      {apply&&<BracketApply b={apply.b} res={apply.res} titlesOnly={Boolean(apply.titlesOnly)} data={data} save={save} flash={flash} refresh={refresh} onNormalizedApplied={loadNormalized} onClose={()=>{setApply(null);void loadNormalized();}}/>}
   </section>);
 }

@@ -135,6 +135,12 @@ const EXCEPT = {
   },
   "colour: literals live only in tokens.css (Colour and light)": {
     "a video letterbox is black in both themes": ["src/styles/posts.css | .bd-yt | background: #000"],
+    "a QR code is navy on white in both themes: a phone camera reads dark squares on a light ground, and the light theme's inverted panel is the reverse":
+      ["src/styles/brackets.css | .bk-qr | background: var(--white)"],
+  },
+  "colour: components read semantic tokens, never primitives (Colour and light)": {
+    "a QR code is navy on white in both themes (see the colour rule above)":
+      ["src/styles/brackets.css | .bk-qr | background: var(--white)", "src/styles/brackets.css | .bk-qr path | fill: var(--navy)"],
   },
   "space: margin, padding and gap sit on the golden scale (Space)": {
     "a hairline: the screen-reader clip": [`${T} | .sr-only | margin: -1px`],
