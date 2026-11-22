@@ -167,6 +167,18 @@ export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
 export const joinTowerCup = (id, code = null) => rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
 export const closeTowerCup = id => rest("rpc/tower_cup_close", { method: "POST", body: { p_id: id } });
 
+/* 내 도전 (docs/db/tower_history.sql, 2026-11-22): the signed-in account's own runs, newest first. null when not signed in or before that
+   SQL has run (no such function), and the list stands aside. */
+export async function readMyStreakRuns() {
+  if (!visitorSignedIn() || !(await token())) return null;
+  try {
+    return await rest("rpc/streak_my_runs", { method: "POST", body: { p_limit: 30 } });
+  } catch (error) {
+    if (error.status === 404 || error.code === "PGRST202") return null;
+    throw error;
+  }
+}
+
 /* a month's board (streak_board): read as the account when signed in, so the viewer's own row is marked. month: "2026-11-01", or
    none for this month. Before docs/db/streak_runs.sql has run there is no such function, and the feature stands aside (null). */
 export async function readStreakBoard(month) {

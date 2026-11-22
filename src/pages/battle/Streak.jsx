@@ -18,7 +18,8 @@ import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
 import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, readBattleRow, readSeat, readStreakDraft, streakNextGame, viewBattle, warmBattle } from "../../services/battleService.js";
-import { pickStreakDraft, readDailyBoard, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
+import { pickStreakDraft, readDailyBoard, readMyStreakRuns, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
+import { formatDate } from "../../services/dateFormat.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
 import { nameOf } from "./Stage.jsx";
 import { DUR, EASE_IN, EASE_OUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
@@ -34,9 +35,17 @@ import { useMusic } from "./music.js";
 // the board's months are the run's months in KST, as the database counts them: "2026-11-01"
 const monthOf = back => {
   const kst = new Date(Date.now() + 9 * 3600e3);
-  let y = kst.getUTCFullYear(), m = kst.getUTCMonth() + 1 - back;
-  if (m < 1) { m += 12; y -= 1; }
-  return { key: `${y}-${String(m).padStart(2, "0")}-01`, label: `${m}월` };
+  const now = kst.getUTCFullYear();
+  let y = now, m = kst.getUTCMonth() + 1 - back;
+  while (m < 1) { m += 12; y -= 1; }
+  return { key: `${y}-${String(m).padStart(2, "0")}-01`, label: y === now ? `${m}월` : `${y}년 ${m}월` };
+};
+/* the boards kept (2026-11-22: only this month and the last could be seen, though every run stays): back through each month since the
+   tower's rules were reset (2026-11-11, docs/BATTLE_STREAK.md 14장), then round to this month again */
+const FIRST_MONTH = { y: 2026, m: 11 };
+const monthsKept = () => {
+  const kst = new Date(Date.now() + 9 * 3600e3);
+  return Math.max(1, (kst.getUTCFullYear() - FIRST_MONTH.y) * 12 + kst.getUTCMonth() + 1 - FIRST_MONTH.m);
 };
 // today in KST as the database writes a 오늘의 탑 run's day: "2026-11-13"
 const kstToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -390,7 +399,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const [making, setMaking] = useState(false);
   const [cupsAsked, setCupsAsked] = useState(0);
   const cups = useCups(`${cupsAsked}|${account?.status}`);
-  const month = monthOf(back), other = monthOf(back ? 0 : 1);
+  const month = monthOf(back), nextBack = back < monthsKept() ? back + 1 : 0, other = monthOf(nextBack);
   useEffect(() => { setDraft(readStreakDraft(daily)); setPicks([]); setDoor(0); setError(""); }, [daily]);
   useEffect(() => {
     const changed = e => { if (!e.key || e.key.startsWith("ypl-battle:")) setSeen(n => n + 1); };
@@ -536,16 +545,42 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           </div>
           {making && <CupMake onClose={() => setMaking(false)} onMade={id => { setMaking(false); openCup(id); }} />}
           <section aria-labelledby="streak-board">
-            <SectionHead id="streak-board" title={`${month.label} 순위`} link={`${other.label} 보기`} onLink={() => setBack(b => (b ? 0 : 1))} />
+            <SectionHead id="streak-board" title={`${month.label} 순위`} link={nextBack ? `${other.label} 보기` : "이번 달 보기"} onLink={() => setBack(nextBack)} />
             {board === undefined ? <StandTable rows={null} />
               : !rows ? <ErrorNote action="다시 불러오기" onRetry={() => setBoardAsked(n => n + 1)}>순위를 불러오지 못했습니다.</ErrorNote>
               : !rows.length ? <Row title="아직 기록이 없습니다." />
               : <StandTable rows={placed} placed open unit="연승" />}
           </section>
+          <MyRuns approved={approved} asked={round} />
         </div>
       </div>
     </div>
   );
+}
+
+/* 내 도전 (docs/db/tower_history.sql, 2026-11-22): the account's own runs, newest first, under the month's board, so a run is still
+   found after its month's board has moved on. Five, then all thirty with 더 보기. Not drawn for a signed-out viewer, an account with no
+   run yet, or before that SQL has run. */
+function MyRuns({ approved, asked }) {
+  const [runs, setRuns] = useState(null);
+  const [all, setAll] = useState(false);
+  useEffect(() => {
+    if (!approved) { setRuns(null); return undefined; }
+    let on = true;
+    readMyStreakRuns().then(rows => on && setRuns(rows), () => on && setRuns(null));
+    return () => { on = false; };
+  }, [approved, asked]);
+  if (!runs?.length) return null;
+  const shown = all ? runs : runs.slice(0, 5);
+  const label = r => {
+    const [y, m] = String(r.month).split("-").map(Number);
+    return r.daily ? `${formatDate(r.daily)} 오늘의 탑` : `${y}년 ${m}월`;
+  };
+  return <section aria-labelledby="streak-mine">
+    <SectionHead id="streak-mine" title="내 도전" link={runs.length > 5 && !all ? "더 보기" : undefined} onLink={() => setAll(true)} />
+    <div className="stack">{shown.map(r => <Row key={r.run_id} title={`${label(r)}, ${r.wins}연승`}
+      line={r.status === "active" ? "진행 중" : [formatDate(r.started_at, { time: true }), r.ended_at ? `${formatDate(r.ended_at, { time: true })} 끝` : ""].filter(Boolean).join(", ")} />)}</div>
+  </section>;
 }
 
 /* the swap after a won game (rebuilt 2026-11-09 second round, the user: "내 파티 상대 파티도 이거 텍스트가 붕 떠 있어서 직관적이지도

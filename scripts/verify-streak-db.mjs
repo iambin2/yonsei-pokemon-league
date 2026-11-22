@@ -75,6 +75,9 @@ await pg.exec(timer.slice(timer.indexOf("alter table public.battles add column i
 await pg.exec(readFileSync("docs/db/streak_runs.sql", "utf8"));
 // run twice: the file must be safe to run again
 await pg.exec(readFileSync("docs/db/streak_runs.sql", "utf8"));
+// tower_history.sql (2026-11-22) runs on top, twice
+await pg.exec(readFileSync("docs/db/tower_history.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_history.sql", "utf8"));
 
 const users = {};
 for (const [key, name, status] of [["a", "이제빈", "approved"], ["b", "김선수", "approved"], ["c", "대기중", "pending"], ["d", "아주아주긴트레이너이름입니다스물한글자가넘는", "approved"]]) {
@@ -327,6 +330,46 @@ try {
     await as("service_role");
     await assert.rejects(owned("insert into public.battles (id, regulation, format_id, engine, p1_name, kind) values ($1, 'm-c', 'f', 'e', 'x', 'streak')", [bid()]), /battles_run_kind/);
     await assert.rejects(owned("insert into public.battles (id, regulation, format_id, engine, p1_name, run_id) values ($1, 'm-c', 'f', 'e', 'x', (select id from public.streak_runs limit 1))", [bid()]), /battles_run_kind/);
+  });
+
+  await check("tower_history: each past month's top three, never this month's, by the board's own order", async () => {
+    await owned("delete from public.battles where kind = 'streak'");
+    await owned("delete from public.streak_runs");
+    await owned("delete from public.tower_archive");
+    const ins = (user, name, month, wins, at) => owned("insert into public.streak_runs (auth_user_id, trainer_name, format_id, month, wins, status, ended_at, last_win_at) values ($1, $2, 'f', $3, $4, 'ended', now(), $5) returning id", [user, name, month, wins, wins ? at : null]);
+    const lastMonth = (await one("select (date_trunc('month', now() at time zone 'Asia/Seoul') - interval '1 month')::date as m")).m;
+    const thisMonth = (await one("select (date_trunc('month', now() at time zone 'Asia/Seoul'))::date as m")).m;
+    const top = (await ins(users.a, "이제빈", lastMonth, 9, "2026-10-02"))[0].id;
+    await ins(users.a, "이제빈", lastMonth, 4, "2026-10-01");
+    await ins(users.b, "김선수", lastMonth, 9, "2026-10-03");
+    await ins(users.d, "셋째", lastMonth, 2, "2026-10-01");
+    await ins(users.b, "김선수", thisMonth, 30, new Date().toISOString());
+    await as("anon");
+    const tops = await q("select * from public.streak_month_tops()");
+    assert.deepEqual(tops.map(t => [t.place, t.trainer_name, t.wins]), [[1, "이제빈", 9], [2, "김선수", 9], [3, "셋째", 2]]);
+    assert.equal(tops[0].run_id, top);
+
+    // the month's best run's games are archived as the cleanup deletes them; another run's are not
+    const kept = bid(), gone = bid();
+    const other = (await owned("select id from public.streak_runs where trainer_name = '김선수' and wins = 9"))[0].id;
+    for (const [id, run] of [[kept, top], [gone, other]]) {
+      await owned("insert into public.battles (id, regulation, format_id, engine, p1_name, p2_name, kind, run_id, status, winner, ended_by, log, input_log, spectator_log, turn) values ($1, 'm-c', 'f', 'e', '이제빈', '컴퓨터', 'streak', $2, 'ended', 'p1', 'battle', 'log', 'input', '|turn|1', 7)", [id, run]);
+    }
+    await owned("delete from public.battles where id in ($1, $2)", [kept, gone]);
+    const archived = await owned("select battle_id, month, input_log, turn from public.tower_archive");
+    assert.deepEqual(archived.map(r => r.battle_id), [kept]);
+    assert.equal(archived[0].input_log, "input");
+    await as("anon");
+    assert.equal((await q("select count(*)::int as n from public.tower_archive")).at(0).n, 1, "visitors read the kept replays");
+  });
+
+  await check("tower_history: an account reads its own runs, newest first, and nobody else's", async () => {
+    await as("authenticated", users.a);
+    const mine = await q("select * from public.streak_my_runs()");
+    assert.equal(mine.length, 2);
+    assert.ok(mine.every(r => r.wins === 9 || r.wins === 4));
+    await as("anon");
+    await assert.rejects(q("select * from public.streak_my_runs()"), /permission denied/);
   });
 
   console.log(`${checks} checks passed`);
