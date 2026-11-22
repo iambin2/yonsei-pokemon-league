@@ -1,17 +1,25 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { REGULATIONS } from "../src/data/index.js";
 import { load, legalItems } from "../src/services/championsData.js";
 import {
+  abilitiesFor,
   dexRecord,
+  learnsetFor,
+  localizedPokemonName,
+  matchesPokemonSearch,
   fromTeamSnapshotV1,
   makeMember,
   memberFromSaved,
+  pokemonAllowedInRegulation,
   pokemonPoolForRegulation,
   resolveCanonicalPokemonIdentity,
   serializeMembers,
+  spriteUrl,
+  toTeamSnapshotV1,
+  validateTeam,
   validateSubmissionEligibility,
 } from "../src/services/teamBuilderCore.js";
 import { buildTeamSnapshotSubmission } from "../src/services/teamSubmission.js";
@@ -124,4 +132,63 @@ test("representative base, regional, Mega, alternate, and cosmetic forms retain 
     resolveCanonicalPokemonIdentity({ pokemon: { name: "Vivillon [Invented Pattern]" } }, { detailData }).resolved,
     false,
   );
+});
+
+test("M-C has all 231 species and 82 Mega selections, with usable details and sprites", async () => {
+  const detailData = await detailDataPromise;
+  const regulation = REGULATIONS["m-c"];
+  const items = legalItems(detailData, regulation.id);
+  const pool = pokemonPoolForRegulation(regulation, detailData, items);
+  assert.equal(new Set(pool.map(pokemon => dexRecord(detailData, pokemon).num)).size, 231);
+  assert.equal(pool.filter(pokemon => pokemon.isMegaForm).length, 82);
+  assert.equal(items.length, 166);
+  assert.equal(pool.filter(pokemon => pokemon.name.startsWith("Vivillon ")).length, 20);
+  assert.equal(pool.filter(pokemon => pokemon.name.startsWith("Furfrou")).length, 10);
+  for (const pokemon of pool) {
+    assert.ok(learnsetFor(detailData, pokemon).length, pokemon.name);
+    assert.ok(existsSync(new URL(`../public${spriteUrl(pokemon.name)}`, import.meta.url)), pokemon.name);
+  }
+});
+
+test("Eternal Flower Floette and both Mega Meowstic forms keep their pre-Mega sets and survive submission", async () => {
+  const detailData = await detailDataPromise;
+  const regulation = REGULATIONS["m-c"];
+  const items = legalItems(detailData, regulation.id);
+  const pool = pokemonPoolForRegulation(regulation, detailData, items);
+  const korean = new Map([["floette", "플라엣테"], ["meowstic", "냐오닉스"]]);
+  const cases = [
+    ["Floette-Mega", "Floette [Eternal Flower]", "floettemega", "floettite", "메가플라엣테"],
+    ["Meowstic-M-Mega", "Meowstic", "meowsticmmega", "meowsticite", "메가냐오닉스 (수컷)"],
+    ["Meowstic-F-Mega", "Meowstic [Female]", "meowsticfmega", "meowsticite", "메가냐오닉스 (암컷)"],
+  ];
+  for (const [name, baseName, id, stone, label] of cases) {
+    const pokemon = pool.find(entry => entry.name === name);
+    const base = pool.find(entry => entry.name === baseName);
+    assert.equal(localizedPokemonName(pokemon, korean), label);
+    assert.equal(matchesPokemonSearch(pokemon, label, label.split(" (")[0]), true);
+    const learnset = learnsetFor(detailData, pokemon);
+    assert.deepEqual(learnset, learnsetFor(detailData, base));
+    assert.deepEqual(abilitiesFor(detailData, pokemon), dexRecord(detailData, base).abilities);
+
+    const member = makeMember(pokemon, { detailData });
+    member.moves = learnset.slice(0, 4);
+    const validation = { team: [member], regulation, regulationId: regulation.id, cupRuleId: "none",
+      detailData, detailStatus: "ready", legalItems: items };
+    assert.deepEqual(validateTeam(validation).errors, []);
+    assert.equal(validateSubmissionEligibility(validation).eligible, true);
+    assert.equal(member.item, stone);
+    const result = toTeamSnapshotV1({ team: [member], regulationId: regulation.id, detailData });
+    assert.equal(result.ok, true);
+    assert.equal(result.members[0].pokemon_id, id);
+    assert.equal(result.members[0].item_id, stone);
+    const restored = fromTeamSnapshotV1({ ...result, regulation, detailData });
+    assert.equal(restored.team[0].pokemon.name, name);
+    assert.equal(restored.team[0].item, stone);
+
+    const otherBases = { ...regulation, pokemon: regulation.pokemon.filter(entry => entry.name !== baseName) };
+    assert.equal(pokemonAllowedInRegulation({ pokemon, regulation: otherBases, detailData, legalItems: items }), false);
+    assert.equal(pokemonPoolForRegulation(otherBases, detailData, items).some(entry => entry.name === name), false);
+  }
+  assert.equal(pool.some(entry => entry.name === "Floette"), false);
+  assert.equal(learnsetFor(detailData, pool.find(entry => entry.name === "Floette-Mega")).includes("lightofruin"), true);
 });

@@ -292,6 +292,33 @@ Sinistcha
 Sinistcha [Masterpiece Form]
 Archaludon
 Hydrapple
+Floette [Eternal Flower]
+Vivillon [Meadow Pattern]
+Vivillon [Icy Snow Pattern]
+Vivillon [Polar Pattern]
+Vivillon [Tundra Pattern]
+Vivillon [Continental Pattern]
+Vivillon [Garden Pattern]
+Vivillon [Elegant Pattern]
+Vivillon [Modern Pattern]
+Vivillon [Marine Pattern]
+Vivillon [Archipelago Pattern]
+Vivillon [Sandstorm Pattern]
+Vivillon [River Pattern]
+Vivillon [Monsoon Pattern]
+Vivillon [Savanna Pattern]
+Vivillon [Sun Pattern]
+Vivillon [Ocean Pattern]
+Vivillon [Jungle Pattern]
+Vivillon [Fancy Pattern]
+Vivillon [Poké Ball Pattern]
+Furfrou [Heart Trim]
+Furfrou [Star Trim]
+Furfrou [Diamond Trim]
+Furfrou [Debutante Trim]
+Furfrou [La Reine Trim]
+Furfrou [Kabuki Trim]
+Furfrou [Pharaoh Trim]
 `.trim().split('\n').map((name, index) => ({
   id: `mb-${index + 1}`,
   name: name.trim(),
