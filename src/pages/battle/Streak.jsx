@@ -30,7 +30,6 @@ import { MonCard } from "./Sets.jsx";
 import { centreInk } from "../../components/common/inkCentre.js";
 import { useAccount } from "../../components/common/useMe.js";
 import { CupBoard, CupList, CupMake, askedCup, showCupInAddress, useCups } from "./Cups.jsx";
-import { useMusic } from "./music.js";
 
 // the board's months are the run's months in KST, as the database counts them: "2026-11-01"
 const monthOf = back => {
@@ -432,8 +431,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const mine = back ? null : rows?.find(r => r.mine);
   // the draft waits only while no run of its kind is on (a run started on another device leaves this one's stale)
   const drafting = approved && run === null && draft?.draft?.length ? draft.draft : null;
-  // the tower's music while a run is chosen (the draft, the doors); the tab at rest is silent
-  useMusic(drafting || (run && !run.playing && run.doors) ? "tower" : null);
+  // the tab is silent: the draft and the doors have no music (2026-11-22, the owner: 너무 시끄러워); the tower's theme sounds in the break between games (BattlePage)
   const doneToday = daily && !run && !drafting && Boolean(mine);
   // going in, as the lobby does: the court goes dark while the game is made and read, then its screen lights
   const goInto = async (make, next, again = false) => {
