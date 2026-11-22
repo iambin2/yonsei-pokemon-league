@@ -1,6 +1,7 @@
 import React, { lazy, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { flushSync } from "react-dom";
 import { bracketRouteSearch, readInitialAppView } from "./services/appRouting.js";
+import { isPublished } from "./services/announcementTimes.js";
 import { loadSiteData, saveSiteData, seenSiteData, submitAnnouncementResponse } from "./services/siteDataService.js";
 import { WRITE_CONFLICT } from "./services/revisionedRow.js";
 import { listEventsAwaitingRecord } from "./services/normalizedCompetitionService.js";
@@ -280,7 +281,9 @@ export default function App() {
   // 무거운 조각은 시트가 다 올라온 뒤에 받는다: 여는 순간에 평가하면 시트가 굳는다.
   const toggleMore=el=>{ if(!more) setTimeout(()=>{ CalculatorPage.prefetch(); ChampionsPage.prefetch(); },DUR.light); setMore(m=>m?null:el); };
   // 오늘 열리는 대회: 바의 램프, 대진표 탭의 램프, 홈과 대진표 밖의 화면을 여는 진행 띠
-  const live=useMemo(()=>data?todayEvent(data.announcements):null,[data]);
+  /* 예약한 공지(publishAt)는 그 시각까지 방문자에게 보이지 않는다. 운영진은 모두 본다(저장도 전체를 쓴다). */
+  const shown=useMemo(()=>admin||!data?data:{...data,announcements:(data.announcements||[]).filter(a=>isPublished(a))},[data,admin]);
+  const live=useMemo(()=>shown?todayEvent(shown.announcements):null,[shown]);
   const moreItems=[
     ...MORE_ITEMS.map(([key,label])=>({key,label,current:view===key,onSelect:()=>go(key)})),
     {key:"sep",sep:true},
@@ -298,22 +301,22 @@ export default function App() {
         {!data ? <Loader/> : <LazyContent>
         <Arrived onArrive={firstLight}/>
         {live&&view!=="home"&&view!=="bracket"&&<LiveStrip name={live.name} onGo={()=>go("bracket")}/>}
-        {view==="home"&&<HomePage data={data} go={go} admin={admin}/>}
-        {view==="about"&&<AboutPage go={go} data={data} admin={admin}/>}
+        {view==="home"&&<HomePage data={shown} go={go} admin={admin}/>}
+        {view==="about"&&<AboutPage go={go} data={shown} admin={admin}/>}
         {view==="privacy"&&<PrivacyPage/>}
         {view==="alerts"&&<AlertsPage go={go}/>}
         {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
-        {view==="news"&&<NewsPage data={data} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
-        {view==="board"&&<BoardPage data={data} admin={admin} save={save} flash={flash} go={go}/>}
-        {view==="records"&&<RecordsPage data={data} admin={admin} setModal={setModal} save={save} go={go}/>}
-        {view==="bracket"&&<BracketsPage data={data} admin={admin} save={save} flash={flash} refresh={refresh}/>}
+        {view==="news"&&<NewsPage data={shown} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
+        {view==="board"&&<BoardPage data={shown} admin={admin} save={save} flash={flash} go={go}/>}
+        {view==="records"&&<RecordsPage data={shown} admin={admin} setModal={setModal} save={save} go={go}/>}
+        {view==="bracket"&&<BracketsPage data={shown} admin={admin} save={save} flash={flash} refresh={refresh}/>}
         {view==="builder"&&<TeamBuilderPage go={go} flash={flash} admin={admin}/>}
         {view==="calc"&&<CalculatorPage/>}
         {view==="battle"&&<BattlePage flash={flash} go={go}/>}
-        {view==="admin"&&<AdminPage data={data} admin={admin} go={go} onAdmin={onAdmin} save={save} flash={flash} onRequests={setLinkPending}/>}
+        {view==="admin"&&<AdminPage data={shown} admin={admin} go={go} onAdmin={onAdmin} save={save} flash={flash} onRequests={setLinkPending}/>}
         {view==="lab"&&BattleLabPage&&<BattleLabPage flash={flash} go={go}/>}
-        {view==="titles"&&<TitlesPage data={data} admin={admin} setModal={setModal} go={go}/>}
-        {view==="champions"&&<ChampionsPage data={data} admin={admin} setModal={setModal} go={go}/>}
+        {view==="titles"&&<TitlesPage data={shown} admin={admin} setModal={setModal} go={go}/>}
+        {view==="champions"&&<ChampionsPage data={shown} admin={admin} setModal={setModal} go={go}/>}
         </LazyContent>}
       </main>
       {going&&<div className="y-going" role="status" aria-label="불러오는 중"><Busy/></div>}

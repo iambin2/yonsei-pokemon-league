@@ -112,6 +112,17 @@ await check("a round about to start and a party not yet in reach the linked play
   assert.deepEqual((await q(`select title from public.push_outbox`)).map(r => r.title), ["경기 시작 30분 전"]);
 });
 
+await check("a scheduled notice goes out once its time has come, and an operator can send an edited one again", async () => {
+  await q(`delete from public.push_outbox`);
+  await q(`update public.site_data set value = $1`, [JSON.stringify({ announcements: [
+    { id: "a1", title: "예약 공지", publishAt: "2026-11-22T11:50" }, { id: "a2", title: "나중 공지", publishAt: "2026-11-22T13:00" }] })]);
+  await q(`select public.push_queue_bracket_steps($1)`, [new Date("2026-11-22T03:00:00Z")]); // 12:00 in Korea
+  assert.deepEqual((await q(`select dedup from public.push_outbox where kind = 'notice'`)).map(r => r.dedup), ["notice:a1"]);
+  await q(`select public.push_queue_notice_edit('a2')`);
+  assert.equal((await q(`select 1 from public.push_outbox where title = 'YPL 공지 수정'`)).length, 1);
+  await assert.rejects(q(`select public.push_queue_notice_edit('zz')`), /찾을 수 없습니다/);
+});
+
 await check("the site asks whether this file ran", async () => {
   assert.equal((await one(`select public.handover_features_ready() as r`)).r, true);
 });

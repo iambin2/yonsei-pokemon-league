@@ -286,6 +286,8 @@ export function AnnEditor({ item, onClose, onSave, onDelete, earlier = [] }) {
   const [date,setDate]=useState(item?.date||new Date().toISOString().slice(0,10)),[title,setTitle]=useState(item?.title||""),[body,setBody]=useState(item?.body||""),[pinned,setPinned]=useState(item?.pinned||false),[link,setLink]=useState(item?.link||""),[linkLabel,setLinkLabel]=useState(item?.linkLabel||""),[link2,setLink2]=useState(item?.link2||""),[link2Label,setLink2Label]=useState(item?.link2Label||"");
   const [form,setForm]=useState(item?.form||{enabled:false,buttonLabel:"참가 신청",fields:[],responses:[]});
   const [linkOpen,setLinkOpen]=useState(!!(item?.link||item?.link2)); // 이미 링크가 있으면 펼친 상태로 시작
+  /* 예약 게시와 수정 알림 (2026-11-22): 예약한 공지는 그 시각에 보이고 알림이 간다. 고친 공지는 원할 때만 다시 알린다. */
+  const [publishAt,setPublishAt]=useState(item?.publishAt||""),[renotify,setRenotify]=useState(false);
   const championsDraft=form?.eventDraft?.eventType==="champions";
   const normalizedEventDraft=form?.enabled?{...(form.eventDraft||{}),eventType:form?.eventDraft?.eventType||"pokecup",division:normalizedAnnouncementDivision(form),isTeamEvent:championsDraft?false:Boolean(form?.eventDraft?.isTeamEvent),battleFormat:form?.eventDraft?.battleFormat||null,competitionFormat:championsDraft?null:(form?.eventDraft?.competitionFormat||null),regulationId:form?.eventDraft?.regulationId||Object.keys(REGULATIONS)[0]||null,cupRuleId:form?.eventDraft?.cupRuleId||"none"}:form?.eventDraft;
   if(form?.enabled&&normalizedEventDraft) normalizedEventDraft.subtitle=normalizedEventDraft.subtitle??eventSubtitleOf(normalizedEventDraft.name,{eventType:normalizedEventDraft.eventType,division:normalizedEventDraft.division==="both"?null:normalizedEventDraft.division,isTeamEvent:normalizedEventDraft.isTeamEvent,battleFormat:normalizedEventDraft.battleFormat});
@@ -307,8 +309,10 @@ export function AnnEditor({ item, onClose, onSave, onDelete, earlier = [] }) {
         <Field label="링크 2 버튼 문구 (선택)" flush><input value={link2Label} onChange={e=>setLink2Label(e.target.value)} placeholder="랜덤 파트너 추첨"/></Field>
       </div>}
     </div>
+    <Field label="게시 예약 (선택)" hint="비워 두면 저장하는 즉시 올라갑니다."><input type="datetime-local" value={publishAt} onChange={e=>setPublishAt(e.target.value)}/></Field>
     <div className="field"><input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)} id="pin"/><label htmlFor="pin" style={{margin:0}}>상단 고정</label></div>
-    <div className="modal-actions">{onDelete&&<Button variant="second" onClick={onDelete}>삭제</Button>}<Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={()=>{ const missing=missingAnnouncementTimes(form); if(missing.length){ siteAlert(`${missing.join(", ")}을 입력해 주세요.`); return; } onSave({id:announcementId,date,title:title.trim()||"(제목 없음)",body,pinned,link:link.trim(),linkLabel:linkLabel.trim(),link2:link2.trim(),link2Label:link2Label.trim(),form:{...form,eventDraft:normalizedEventDraft}}); }}>저장</Button></div>
+    {item&&<div className="field"><input type="checkbox" checked={renotify} onChange={e=>setRenotify(e.target.checked)} id="renotify"/><label htmlFor="renotify" style={{margin:0}}>수정 알림 보내기</label></div>}
+    <div className="modal-actions">{onDelete&&<Button variant="second" onClick={onDelete}>삭제</Button>}<Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={()=>{ const missing=missingAnnouncementTimes(form); if(missing.length){ siteAlert(`${missing.join(", ")}을 입력해 주세요.`); return; } onSave({id:announcementId,date,title:title.trim()||"(제목 없음)",body,pinned,link:link.trim(),linkLabel:linkLabel.trim(),link2:link2.trim(),link2Label:link2Label.trim(),...(publishAt?{publishAt}:{}),form:{...form,eventDraft:normalizedEventDraft}},{renotify}); }}>저장</Button></div>
   </Modal>);
 }
 export function StandingsEditor({ title, rows, onClose, onSave }) {

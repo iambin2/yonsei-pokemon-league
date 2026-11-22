@@ -1,6 +1,7 @@
 import React from "react";
 import { siteConfirm } from "../components/index.js";
-import { announcementDeletionBlockedMessage, isEventLinked, isLeagueIntakeDraft, cancelApplicationEvent, deleteLeagueIntakeNotice, notifyAnnouncement, preflightAnnouncementDeletion, saveApplicationEvent, saveChampionshipApplicationEventPair } from "../services/index.js";
+import { isPublished } from "../services/announcementTimes.js";
+import { announcementDeletionBlockedMessage, isEventLinked, isLeagueIntakeDraft, cancelApplicationEvent, deleteLeagueIntakeNotice, notifyAnnouncement, notifyAnnouncementEdit, preflightAnnouncementDeletion, saveApplicationEvent, saveChampionshipApplicationEventPair } from "../services/index.js";
 import {
   AnnEditor,
   ChampionEditor,
@@ -87,7 +88,7 @@ export default function AdminModalHost({ modal, data, setModal, save, refresh, s
         item={modal.item}
         earlier={data.announcements || []}
         onClose={close}
-        onSave={async (announcement) => {
+        onSave={async (announcement, { renotify = false } = {}) => {
           let nextAnnouncement = announcement;
 
           if (announcement.form?.enabled && isEventLinked(announcement.form)) {
@@ -148,8 +149,9 @@ export default function AdminModalHost({ modal, data, setModal, save, refresh, s
           }
 
           close();
-          // 새 공지만 알린다. 알림이 실패해도 공지는 이미 저장됐다.
-          if (!modal.item) notifyAnnouncement(nextAnnouncement.id).catch(() => flash?.("공지는 올렸지만 알림을 보내지 못했습니다."));
+          // 새 공지만 알린다. 알림이 실패해도 공지는 이미 저장됐다. 예약한 공지는 그 시각에 서버가 알린다(handover_features.sql).
+          if (!modal.item && isPublished(nextAnnouncement)) notifyAnnouncement(nextAnnouncement.id).catch(() => flash?.("공지는 올렸지만 알림을 보내지 못했습니다."));
+          if (modal.item && renotify && isPublished(nextAnnouncement)) notifyAnnouncementEdit(nextAnnouncement.id).catch(() => flash?.("공지는 고쳤지만 수정 알림을 보내지 못했습니다."));
         }}
         onDelete={modal.item ? async () => {
           const eventId = modal.item.form?.eventId || null;

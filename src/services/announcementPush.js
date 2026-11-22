@@ -96,3 +96,10 @@ export const alertsSeenAt = () => { try { return localStorage.getItem(SEEN); } c
 export const markAlertsSeen = () => { try { localStorage.setItem(SEEN, new Date().toISOString()); } catch {} };
 
 export const notifyAnnouncement =id => invokeFunction("notify-announcement", { id });
+/* a notice edited and sent again (docs/db/handover_features.sql): the operators' RPC queues one line, the function sends what is queued */
+export async function notifyAnnouncementEdit(id) {
+  // the operators' session (storage.js), not the visitor's: the RPC checks is_ypl_admin
+  const { error } = await supa.rpc("push_queue_notice_edit", { p_id: id });
+  if (error) throw new Error(error.message || "수정 알림을 넣지 못했습니다.");
+  return invokeFunction("notify-announcement", {});
+}

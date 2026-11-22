@@ -12,6 +12,8 @@
 --   4. 라운드 시작과 파티 마감 알림: push_queue_bracket_steps() 가 10분마다(pg_cron) push_outbox 에 'match' 줄을 넣는다.
 --      라운드 시작 30분 전부터: 그 라운드의 경기에 선 선수의 이어진 계정에. 파티 마감(대회 시작) 하루 전부터: 아직 파티를 내지 않은
 --      신청자의 이어진 계정에. 보내기는 지금처럼 push_take(15분마다)가 한다. 대진표 공개는 push_take 가 이미 알린다.
+--      예약한 공지(announcements[].publishAt)도 같은 작업이 시각이 지나면 'notice' 줄로 넣는다. push_queue_notice_edit 은 고친 공지를
+--      운영진이 다시 알릴 때 쓴다.
 --   5. handover_features_ready(): 사이트가 이 파일이 실행되었는지 묻는다.
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
@@ -234,8 +236,48 @@ begin
   exception when others then
     raise warning 'push_queue_bracket_steps party: %', sqlerrm;
   end;
+  begin
+    -- 예약한 공지: publishAt 이 지난 공지를 한 번(바로 올린 공지와 같은 dedup 이라 두 번 가지 않는다). 하루가 지난 예약은 알리지 않는다.
+    insert into public.push_outbox (dedup, kind, title, body, url)
+    select 'notice:' || (a.item ->> 'id'), 'notice', 'YPL 공지', left(coalesce(nullif(btrim(a.item ->> 'title'), ''), '새 공지'), 120),
+           '?view=news&notice=' || (a.item ->> 'id')
+      from public.site_data s
+     cross join lateral jsonb_array_elements(s.value -> 'announcements') a(item)
+     cross join lateral (select public.push_closes_at(a.item ->> 'publishAt') as at) d
+     where s.key = 'ypl_data_v4' and jsonb_typeof(s.value -> 'announcements') = 'array' and a.item ? 'id'
+       and d.at <= p_now and d.at > p_now - interval '1 day'
+    on conflict (dedup) do nothing;
+  exception when others then
+    raise warning 'push_queue_bracket_steps notice: %', sqlerrm;
+  end;
 end;
 $$;
+
+-- 공지 수정 알림: 운영진이 고친 공지를 다시 알린다(수정마다 한 줄). 보내기는 사이트가 notify-announcement 를 빈 요청으로 불러 한다.
+create or replace function public.push_queue_notice_edit(p_id text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_title text;
+begin
+  if not ypl_schema_validation.is_ypl_admin() then
+    raise exception using errcode = 'P0001', message = '관리자 권한이 필요합니다.';
+  end if;
+  select a.item ->> 'title' into v_title
+    from public.site_data s cross join lateral jsonb_array_elements(s.value -> 'announcements') a(item)
+   where s.key = 'ypl_data_v4' and a.item ->> 'id' = p_id;
+  if not found then raise exception using errcode = 'P0001', message = '공지를 찾을 수 없습니다.'; end if;
+  insert into public.push_outbox (dedup, kind, title, body, url)
+  values ('notice-edit:' || p_id || ':' || extract(epoch from now())::bigint, 'notice', 'YPL 공지 수정',
+          left(coalesce(nullif(btrim(v_title), ''), '공지'), 120), '?view=news&notice=' || p_id)
+  on conflict (dedup) do nothing;
+end;
+$$;
+revoke all on function public.push_queue_notice_edit(text) from public, anon;
+grant execute on function public.push_queue_notice_edit(text) to authenticated;
 revoke all on function public.push_queue_bracket_steps(timestamptz) from public, anon, authenticated;
 
 do $$

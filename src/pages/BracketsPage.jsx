@@ -1673,7 +1673,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
         <Button variant="second" className="bk-img" onClick={()=>downloadBracketPng(b,nameOf)}>대진표 이미지</Button>
         {/* the one main action docks above the bars on a scrolling screen (DESIGN.md "Controls") */}
         {admin&&!readOnly&&!b.applied&&championshipEvent?.championship_phase!=="qualifier"&&<Dock><Button variant="main" icon="check" onClick={()=>onApply(b,res)}>기록에 반영</Button></Dock>}
-        {b.applied&&<>{admin&&<span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span>}{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}</>}
+        {b.applied&&<>{admin&&<span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span>}{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}{!readOnly&&admin&&championshipEvent?.championship_phase!=="qualifier"&&<Button variant="link" size="sm" onClick={()=>onApply(b,res,{titlesOnly:true})}>칭호 다시 판정</Button>}</>}
       </div>
     </section>}
     {b.eventId&&(admin||!(res&&res.done))&&<SubmissionStatusPanel
@@ -1709,7 +1709,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
 }
 
 /* ===== 기록 반영 모달 ===== */
-function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalizedApplied }){
+function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalizedApplied, titlesOnly=false }){
   const partOf=(pid)=>(b.participants||[]).find(x=>x.id===pid);
   const nameOf=(pid)=>{ const p=partOf(pid); return p?p.name:pid; };
   const team=b.mode==="team";
@@ -1901,7 +1901,7 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
   };
   const finishWithTitles=async(event)=>{
     const found=await findTitleAwards(event||linkedContext?.event).catch(()=>[]);
-    if(!found.length){ flash("기록에 반영했습니다."); onClose(); return; }
+    if(!found.length){ flash(titlesOnly?"새로 받을 칭호가 없습니다.":"기록에 반영했습니다."); onClose(); return; }
     setAwardPicks(new Set(found.map(a=>a.key)));
     setAwards(found);
   };
@@ -1910,10 +1910,14 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
     const chosen=awards.filter(a=>awardPicks.has(a.key)).map(a=>({...a,eventId:b.eventId}));
     const ok=await save({...data,titleGroups:applyTitleAwards(data.titleGroups||[],chosen)});
     setAwardBusy(false);
-    flash(ok?"기록과 칭호에 반영했습니다.":"기록은 반영했지만 칭호는 저장하지 못해 이 화면에만 반영됐습니다.");
+    flash(titlesOnly?(ok?"칭호에 반영했습니다.":"칭호를 저장하지 못했습니다."):ok?"기록과 칭호에 반영했습니다.":"기록은 반영했지만 칭호는 저장하지 못해 이 화면에만 반영됐습니다.");
     onClose();
   };
-  const skipTitles=()=>{ if(awardBusy) return; flash("기록에 반영했습니다."); onClose(); };
+  const skipTitles=()=>{ if(awardBusy) return; if(!titlesOnly) flash("기록에 반영했습니다."); onClose(); };
+  /* 칭호 다시 판정 (2026-11-22): a recorded event's titles judged again against today's title list, for a title added or a condition
+     fixed after the record went in. Only titles not yet held come up, in the same sheet as after the record. */
+  useEffect(()=>{ if(titlesOnly&&!linkedContextBusy&&!preview) setPreview(buildResult()); },[titlesOnly,linkedContextBusy]);
+  useEffect(()=>{ if(titlesOnly&&preview&&!awards) void finishWithTitles(linkedContext?.event); },[titlesOnly,preview]);
   const commit=async()=>{
     if(!preview||applying) return;
     setApplying(true);
@@ -1948,6 +1952,7 @@ function BracketApply({ b, res, data, save, onClose, flash, refresh, onNormalize
       flash(`기록을 반영하지 못했습니다. 바뀐 내용은 없습니다. ${error?.message||"원인을 확인하지 못했습니다."}`);
     }
   };
+  if(titlesOnly&&!awards) return <Modal title="칭호 다시 판정" onClose={onClose}><Loader/></Modal>;
   if(awards){
     const toggle=(key)=>setAwardPicks(cur=>{ const next=new Set(cur); next.has(key)?next.delete(key):next.add(key); return next; });
     return (<Modal title="칭호 획득" hint="이번 대회로 칭호 조건을 만족한 트레이너가 있습니다. 칭호에도 반영할까요?" onClose={skipTitles}>
@@ -2836,11 +2841,11 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
         {/* a phone: the share key under the head, the desktop keeps it among the tools beside the title */}
         {open.eventId&&<div className="stack bk-actions bk-share"><Button variant="second" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button></div>}
       </header>
-       {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res)=>setApply({b,res})}/>}
+       {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res,opts)=>setApply({b,res,...opts})}/>}
       {/* a delete that cannot be undone stands last, after everything the bracket shows */}
       {!open.readOnly&&admin&&<div className="stack bk-actions bk-delete"><Button variant="second" disabled={!!open.applied} loading={deletingId===open.id} title={open.applied?"기록 반영 취소 후 삭제할 수 있습니다.":""} onClick={()=>del(open)}>삭제</Button></div>}
     </div>; })()}
     {wizard&&<BracketWizard data={data} onClose={()=>transition(()=>flushSync(()=>setWizard(false)),{dir:"back"})} onCreate={create}/>}
-     {apply&&<BracketApply b={apply.b} res={apply.res} data={data} save={save} flash={flash} refresh={refresh} onNormalizedApplied={loadNormalized} onClose={()=>{setApply(null);void loadNormalized();}}/>}
+     {apply&&<BracketApply b={apply.b} res={apply.res} titlesOnly={Boolean(apply.titlesOnly)} data={data} save={save} flash={flash} refresh={refresh} onNormalizedApplied={loadNormalized} onClose={()=>{setApply(null);void loadNormalized();}}/>}
   </section>);
 }

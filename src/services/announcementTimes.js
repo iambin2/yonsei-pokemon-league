@@ -31,6 +31,14 @@ export function missingAnnouncementTimes(form, now = new Date()) {
    Korean wall time like closesAt, or null while the start time is not written. The champions series has one for each of its two days. */
 export const startAt = (day, time) => /^\d{4}-\d{2}-\d{2}/.test(String(day || "")) && /^\d{1,2}:\d{2}$/.test(String(time || ""))
   ? `${String(day).slice(0, 10)}T${String(time).padStart(5, "0")}` : null;
+/* 예약 게시 (2026-11-22): publishAt(한국 시각, closesAt 과 같은 꼴)이 아직 오지 않은 공지는 방문자에게 보이지 않는다.
+   시각이 되면 docs/db/handover_features.sql 의 10분 작업이 알림을 보낸다. */
+export function isPublished(notice, now = new Date()) {
+  if (!notice?.publishAt) return true;
+  const at = new Date(notice.publishAt);
+  return Number.isNaN(at.getTime()) || at <= now;
+}
+
 export function partyDeadlines(d = {}) {
   return d.eventType === "champions"
     ? [startAt(d.qualifierHeldOn ?? d.heldOn, d.qualifierStartTime), startAt(d.finalHeldOn, d.finalStartTime)]

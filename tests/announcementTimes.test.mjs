@@ -25,3 +25,11 @@ test("applications are open only before a stated closing time", () => {
   assert.equal(applicationsClosed({ enabled: true, closesAt: "2026-11-03T12:00" }, now), true);
   assert.equal(applicationsClosed({ enabled: true }, now), false);
 });
+
+test("a scheduled notice stays hidden until its time, and one without a time is out at once", async () => {
+  const { isPublished } = await import("../src/services/announcementTimes.js");
+  const now = new Date("2026-11-22T12:00");
+  assert.equal(isPublished({}, now), true);
+  assert.equal(isPublished({ publishAt: "2026-11-22T11:59" }, now), true);
+  assert.equal(isPublished({ publishAt: "2026-11-22T12:01" }, now), false);
+});
