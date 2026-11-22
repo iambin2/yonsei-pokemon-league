@@ -1,4 +1,5 @@
 import { supa as client } from "../storage.js";
+import { lowerPlacements } from "./bracketLowerPlacements.js";
 import {
   NORMALIZED_BRACKET_RUNTIME_SOURCE,
   buildBracketMatchSyncPlan,
@@ -1021,6 +1022,20 @@ export async function readMatchOutcomes(eventId) {
   return new Map((data || []).map(row => [row.source_node_key, row]));
 }
 
+// 대회 도중의 기권과 실격(docs/db/handover_features.sql): 출전 id -> 'withdrew' | 'disqualified'. 그 SQL 전에는 표가 없어 null.
+export async function readEntryDepartures(eventId) {
+  if (!eventId) return null;
+  const { data, error } = await db().from("entry_departures").select("entry_id, kind").eq("event_id", eventId);
+  if (error) return null;
+  return new Map((data || []).map(row => [row.entry_id, row.kind]));
+}
+
+// kind null 이면 지운다. 검사(운영진, 진행 중인 대회, 그 대회의 출전)는 RPC가 한다.
+export async function setEntryDeparture({ eventId, entryId, kind = null } = {}) {
+  const { error } = await db().rpc("set_entry_departure", { p_event_id: eventId, p_entry_id: entryId, p_kind: kind });
+  if (error) fail(error, "기권과 실격을 저장하지 못했습니다.");
+}
+
 // docs/db/match_outcome_more.sql 이 실행되었는가(팀전의 불참). 그 전에는 함수가 없어 false.
 let outcomeMoreReady = null;
 export function matchOutcomeMoreReady() {
@@ -1599,7 +1614,8 @@ async function buildEventRecordPlans(eventId, bracket, result) {
   if (!bracket || bracket.eventId !== eventId) {
     throw new Error("결과 대상 대회와 대진표 연결이 일치하지 않습니다.");
   }
-  const snapshot = buildEventBracketResultSnapshot(bracket, result);
+  // 5위 이하도 결과로 남긴다(bracketLowerPlacements.js, 포인트 없음)
+  const snapshot = buildEventBracketResultSnapshot(bracket, { ...result, lower: result?.lower ?? lowerPlacements(bracket) });
   if (snapshot.skipped) return { resultPlan: EMPTY_RECORD_PLAN, awardPlan: EMPTY_RECORD_PLAN };
 
   const event = await getEvent(eventId);

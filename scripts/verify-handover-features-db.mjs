@@ -1,0 +1,119 @@
+// Disposable PostgreSQL check of docs/db/handover_features.sql. Never connects to Supabase.
+//   node scripts/verify-handover-features-db.mjs
+// The tables the file reads are built with the columns it uses, is_ypl_admin answers from a switch, then every rule is tried.
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+
+const pg = new PGlite();
+const q = async (query, params = []) => (await pg.query(query, params)).rows;
+const one = async (query, params) => (await q(query, params))[0];
+let checks = 0;
+async function check(name, run) { await run(); checks++; console.log(`PASS ${name}`); }
+
+const E = "00000000-0000-0000-0000-0000000000e1", E2 = "00000000-0000-0000-0000-0000000000e2";
+const N1 = "00000000-0000-0000-0000-0000000000a1", N2 = "00000000-0000-0000-0000-0000000000b1";
+const P1 = "00000000-0000-0000-0000-000000000001", P2 = "00000000-0000-0000-0000-000000000002", P3 = "00000000-0000-0000-0000-000000000003";
+const U1 = "00000000-0000-0000-0000-0000000000f1";
+
+await pg.exec(`
+  create role anon; create role authenticated; create role service_role bypassrls;
+  create schema ypl_schema_validation;
+  create table public.admin_switch (on_ boolean); insert into public.admin_switch values (true);
+  create function ypl_schema_validation.is_ypl_admin() returns boolean language sql as $$ select on_ from public.admin_switch $$;
+  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz);
+  create table ypl_schema_validation.players (id uuid primary key, display_name text, status text default 'active', updated_at timestamptz);
+  create table ypl_schema_validation.entries (id uuid primary key, event_id uuid);
+  create table ypl_schema_validation.event_registrations (id uuid primary key default gen_random_uuid(), event_id uuid,
+    player_id uuid references ypl_schema_validation.players(id), unique (event_id, player_id));
+  create table ypl_schema_validation.entry_participants (id uuid primary key default gen_random_uuid(), event_id uuid, entry_id uuid,
+    player_id uuid references ypl_schema_validation.players(id));
+  create table ypl_schema_validation.matches (id uuid primary key default gen_random_uuid(), event_id uuid, source text, source_node_key text,
+    entry_a_id uuid, entry_b_id uuid, winner_entry_id uuid, winner_player_id uuid references ypl_schema_validation.players(id));
+  create table ypl_schema_validation.bracket_runtimes (event_id uuid, round_schedule jsonb);
+  create table ypl_schema_validation.registration_submissions (id uuid primary key default gen_random_uuid(), registration_id uuid);
+  create table public.player_accounts (player_id uuid references ypl_schema_validation.players(id), auth_user_id uuid, status text);
+  create table public.site_data (key text primary key, value jsonb);
+  create table public.push_outbox (id bigint generated always as identity, dedup text unique, kind text, auth_user_id uuid, title text, body text, url text);
+  create function public.push_closes_at(p_value text) returns timestamptz language plpgsql stable as $$
+  declare v text := btrim(coalesce(p_value, ''));
+  begin
+    if v = '' then return null; end if;
+    return case when v ~ '(Z|[+-]\\d\\d(:?\\d\\d)?)$' then v::timestamptz else v::timestamp at time zone 'Asia/Seoul' end;
+  exception when others then return null;
+  end $$;
+`);
+await q(`insert into ypl_schema_validation.events values ($1, '1회 파이컵', 'running', null), ($2, '2회 파이컵', 'open', null)`, [E, E2]);
+await q(`insert into ypl_schema_validation.players (id, display_name) values ($1, '가나'), ($2, '가 나2'), ($3, '다라')`, [P1, P2, P3]);
+await q(`insert into ypl_schema_validation.entries values ($1, $3), ($2, $3)`, [N1, N2, E]);
+
+const sql = readFileSync("docs/db/handover_features.sql", "utf8");
+await pg.exec(sql);
+await pg.exec(sql); // safe to run again
+
+await check("an operator marks a withdrawal and a disqualification, changes it and clears it; a visitor cannot", async () => {
+  await q(`select ypl_schema_validation.set_entry_departure($1, $2, 'withdrew', ' 몸이 아파서 ')`, [E, N1]);
+  assert.deepEqual(await one(`select kind, note from ypl_schema_validation.entry_departures where entry_id = $1`, [N1]), { kind: "withdrew", note: "몸이 아파서" });
+  await q(`select ypl_schema_validation.set_entry_departure($1, $2, 'disqualified')`, [E, N1]);
+  assert.equal((await one(`select kind from ypl_schema_validation.entry_departures where entry_id = $1`, [N1])).kind, "disqualified");
+  await q(`select ypl_schema_validation.set_entry_departure($1, $2, null)`, [E, N1]);
+  assert.equal((await q(`select 1 from ypl_schema_validation.entry_departures`)).length, 0);
+  await assert.rejects(q(`select ypl_schema_validation.set_entry_departure($1, $2, 'withdrew')`, [E2, N1]), /진행 중인 대회/);
+  await q(`update public.admin_switch set on_ = false`);
+  await assert.rejects(q(`select ypl_schema_validation.set_entry_departure($1, $2, 'withdrew')`, [E, N1]), /관리자/);
+  await q(`update public.admin_switch set on_ = true`);
+});
+
+await check("a visitor's error goes in once, trimmed, and only an operator reads it", async () => {
+  await q(`select public.report_client_error($1, 'stack', '/?view=home', 'b1', 'ua')`, ["x".repeat(3000)]);
+  await q(`select public.report_client_error($1, 'stack', '/?view=home', 'b1', 'ua')`, ["x".repeat(3000)]);
+  await q(`select public.report_client_error('  ')`);
+  const rows = await q(`select * from public.admin_client_errors(10)`);
+  assert.equal(rows.length, 1); assert.equal(rows[0].message.length, 2000);
+  await q(`update public.admin_switch set on_ = false`);
+  await assert.rejects(q(`select * from public.admin_client_errors(10)`), /관리자/);
+  await q(`update public.admin_switch set on_ = true`);
+});
+
+await check("renaming refuses a name another player already has, ignoring spaces and case", async () => {
+  await assert.rejects(q(`select ypl_schema_validation.admin_rename_player($1, '다 라')`, [P1]), /같은 이름/);
+  await q(`select ypl_schema_validation.admin_rename_player($1, '가나다')`, [P1]);
+  assert.equal((await one(`select display_name from ypl_schema_validation.players where id = $1`, [P1])).display_name, "가나다");
+});
+
+await check("merging moves every reference and deletes the duplicate; two players in one event stop it whole", async () => {
+  await q(`insert into ypl_schema_validation.event_registrations (event_id, player_id) values ($1, $2)`, [E2, P2]);
+  await q(`insert into ypl_schema_validation.matches (event_id, winner_player_id) values ($1, $2)`, [E, P2]);
+  await q(`insert into public.player_accounts values ($1, $2, 'approved')`, [P2, U1]);
+  assert.equal((await one(`select ypl_schema_validation.admin_merge_players($1, $2) as n`, [P1, P2])).n, 3);
+  assert.equal((await q(`select 1 from ypl_schema_validation.players where id = $1`, [P2])).length, 0);
+  assert.equal((await one(`select player_id from public.player_accounts`)).player_id, P1);
+  await q(`insert into ypl_schema_validation.event_registrations (event_id, player_id) values ($1, $2)`, [E2, P3]);
+  await assert.rejects(q(`select ypl_schema_validation.admin_merge_players($1, $2)`, [P1, P3]), /함께 있어/);
+  assert.equal((await q(`select 1 from ypl_schema_validation.players where id = $1`, [P3])).length, 1);
+});
+
+await check("a round about to start and a party not yet in reach the linked players once", async () => {
+  const now = new Date("2026-11-22T03:00:00Z");
+  await q(`insert into ypl_schema_validation.bracket_runtimes values ($1, $2)`, [E, JSON.stringify({ "single:r1": "2026-11-22T03:20:00Z", "single:r2": "2026-11-22T05:00:00Z" })]);
+  await q(`insert into ypl_schema_validation.matches (event_id, source, source_node_key, entry_a_id, entry_b_id) values ($1, 'normalized_bracket_runtime', 'single:r1:m1', $2, $3), ($1, 'normalized_bracket_runtime', 'single:r2:m1', $2, $3)`, [E, N1, N2]);
+  await q(`insert into ypl_schema_validation.entry_participants (event_id, entry_id, player_id) values ($1, $2, $3)`, [E, N1, P1]);
+  // the notice of 2회: it starts tomorrow 10:00 Korean time (01:00Z), within a day of now
+  await q(`insert into public.site_data values ('ypl_data_v4', $1)`, [JSON.stringify({ announcements: [{ id: "n1", form: { eventId: E2, eventDraft: { heldOn: "2026-11-23", startTime: "10:00" } } }] })]);
+  await q(`select public.push_queue_bracket_steps($1)`, [now]);
+  await q(`select public.push_queue_bracket_steps($1)`, [now]);
+  const rows = await q(`select dedup, title, auth_user_id from public.push_outbox order by dedup`);
+  assert.deepEqual(rows.map(r => r.title), ["파티 제출 마감 임박", "경기 시작 30분 전"]);
+  assert.ok(rows.every(r => r.auth_user_id === U1));
+  const reg = await one(`select id from ypl_schema_validation.event_registrations where player_id = $1`, [P1]);
+  await q(`insert into ypl_schema_validation.registration_submissions (registration_id) values ($1)`, [reg.id]);
+  await q(`delete from public.push_outbox`);
+  await q(`select public.push_queue_bracket_steps($1)`, [now]);
+  assert.deepEqual((await q(`select title from public.push_outbox`)).map(r => r.title), ["경기 시작 30분 전"]);
+});
+
+await check("the site asks whether this file ran", async () => {
+  assert.equal((await one(`select public.handover_features_ready() as r`)).r, true);
+});
+
+console.log(`${checks} checks passed`);

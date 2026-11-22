@@ -3,7 +3,9 @@
    주간 백업(.github/workflows/backup.yml)은 복구용이고, 이것은 운영자가 표 계산기로 열어 보는 사본이다. */
 import { readAll } from "./pagedRead.js";
 
-export const EXPORT_TABLES = ["seasons", "events", "players", "entries", "entry_participants", "event_registrations", "matches", "results", "ranking_awards", "ranking_baselines"];
+export const EXPORT_TABLES = ["seasons", "events", "players", "entries", "entry_participants", "event_registrations", "matches", "results", "ranking_awards", "ranking_baselines", "entry_departures"];
+// a table a later SQL file adds (entry_departures, handover_features.sql) is left out until that file has run
+const MISSING = new Set(["PGRST205", "42P01"]);
 
 export async function fetchExportTables() {
   // the connection is loaded here, so the CSV builders below stay pure (tests/recordsExport.test.mjs)
@@ -13,6 +15,7 @@ export async function fetchExportTables() {
   const out = {};
   for (const table of EXPORT_TABLES) {
     const { data, error } = await readAll(() => db.from(table).select("*"));
+    if (error && MISSING.has(error.code)) continue;
     if (error) throw new Error(`${table}을 읽지 못했습니다. ${error.message || ""}`.trim());
     out[table] = data || [];
   }

@@ -152,6 +152,8 @@ export function buildEventRankingAwardSnapshot(event, resultRows = [], entryPart
     }
 
     if (isTeamEvent && result.placement_code === "semifinalist") return [];
+    // 5위 이하는 순위만 남는다: 포인트 정책에 없는 자리다
+    if (result.placement_code === "placed") return [];
 
     const participants = participantsByEntryId.get(result.entry_id) || [];
     if (!isTeamEvent && participants.length !== 1) {

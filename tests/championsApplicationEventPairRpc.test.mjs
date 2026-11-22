@@ -103,6 +103,9 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
     if (/^grant execute on function public\.(streak_board|streak_daily_board|streak_run_public|streak_month_tops)\(/.test(statement)) continue;
     // 등반전's list and board (tower_cups.sql): the same kind of read, names and counts only; a code shown only to the cup's own players.
     if (/^grant execute on function public\.(tower_cups|tower_cup_board)\(/.test(statement)) continue;
+    // A visitor's screen error (handover_features.sql): an insert-only report, capped per hour and trimmed, that nobody but an operator
+    // reads back; and the yes the site asks before showing that file's features.
+    if (/^grant execute on function public\.(report_client_error|handover_features_ready)\(/.test(statement)) continue;
     const rpc = statement.match(/^grant execute on function ypl_schema_validation\.(\w+)\(/);
     if (rpc) { assert.ok(anonRpcs.has(rpc[1]), statement); continue; }
     assert.match(statement, /^grant insert \([^)]*\) on ypl_schema_validation\.event_registrations to anon$/);

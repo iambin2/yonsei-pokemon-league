@@ -69,6 +69,14 @@ export function buildEventBracketResultSnapshot(bracket, result) {
       rank_max: 4,
       placement_label: "4강",
     })),
+    // 5위 이하 (bracketLowerPlacements.js): 순위만 남고 포인트는 없다
+    ...(result.lower || []).map(row => ({
+      participantId: row.participantId,
+      placement_code: "placed",
+      rank_min: row.rank_min,
+      rank_max: row.rank_max,
+      placement_label: row.placement_label,
+    })),
   ];
 
   const entryIds = new Set();

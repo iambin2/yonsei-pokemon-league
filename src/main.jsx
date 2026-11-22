@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import StatusPage from "./pages/StatusPage.jsx";
 import { isUnknownPath, isUnknownView } from "./services/appRouting.js";
 import { captureVisitorSession } from "./services/visitorAuth.js";
+import { reportError, watchErrors } from "./services/errorReport.js";
 import "./styles/tokens.css";
 import "./styles/components.css";
 import "./styles/shell.css";
@@ -69,6 +70,10 @@ class AppBoundary extends Component {
     return { failed: true };
   }
 
+  componentDidCatch(error, info) {
+    reportError(error, String(info?.componentStack || "").trim().split("\n")[0]);
+  }
+
   render() {
     if (!this.state.failed) return this.props.children;
     return <StatusPage title="화면을 표시하지 못했습니다." desc="새로고침해 주세요. 계속되면 운영진에게 알려 주세요." onRetry={() => {
@@ -84,6 +89,7 @@ document.addEventListener("load", e => { if (e.target.matches?.('img[src*="/spri
 
 // a return from Google sign-in leaves its tokens after # in the address: kept on the device and cleared from the address first
 captureVisitorSession();
+watchErrors();
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {isUnknownPath(window.location.pathname, import.meta.env.BASE_URL) || isUnknownView(window.location.search)
