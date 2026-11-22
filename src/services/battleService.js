@@ -158,23 +158,43 @@ const LIST = "id, status, p1_name, p2_name, turn, winner, ended_by, kind, event_
 let roomsSupported = true;
 let rematchSupported = true;
 let clockSupported = true;
-const unreadable = error => ["42703", "42501"].includes(String(error?.code)) || /\b(room|rematch_id|deadline_at)\b/.test(error?.message || "");
+// paused_left (docs/db/handover_features.sql): the seconds an operator's pause holds; read the same way, gone until that SQL has run
+let pauseSupported = true;
+const unreadable = error => ["42703", "42501"].includes(String(error?.code)) || /\b(room|rematch_id|deadline_at|paused_left)\b/.test(error?.message || "");
 const selectRow = (id, cols) => supa.from("battles").select([PUBLIC, ...cols].join(", ")).eq("id", id).maybeSingle();
 export async function readBattleRow(id) {
   if (!supa) return null;
-  const extras = [roomsSupported && "room", rematchSupported && "rematch_id", clockSupported && "deadline_at"].filter(Boolean);
+  const extras = [roomsSupported && "room", rematchSupported && "rematch_id", clockSupported && "deadline_at", pauseSupported && "paused_left"].filter(Boolean);
   let { data, error } = await selectRow(id, extras);
   if (error && unreadable(error) && extras.length) {
     // find which one cannot be read, so the others still work
     for (const col of extras) {
       const rest = extras.filter(c => c !== col);
       ({ data, error } = await selectRow(id, rest));
-      if (!error) { if (col === "room") roomsSupported = false; else if (col === "rematch_id") rematchSupported = false; else clockSupported = false; break; }
+      if (!error) { if (col === "room") roomsSupported = false; else if (col === "rematch_id") rematchSupported = false; else if (col === "paused_left") pauseSupported = false; else clockSupported = false; break; }
     }
-    if (error && unreadable(error)) { roomsSupported = false; rematchSupported = false; clockSupported = false; ({ data, error } = await selectRow(id, [])); }
+    if (error && unreadable(error)) { roomsSupported = false; rematchSupported = false; clockSupported = false; pauseSupported = false; ({ data, error } = await selectRow(id, [])); }
   }
   if (error) throw new Error(error.message);
-  return data;
+  return data || readArchivedBattle(id);
+}
+/* a month's first run of 도전의 탑 keeps its games in tower_archive once battles drops them (docs/db/tower_history.sql): read as an
+   ended battle to watch, its replay from the spectator log. No run_id, so the screen does not follow a run long over. null if none. */
+async function readArchivedBattle(id) {
+  const { data, error } = await supa.from("tower_archive").select("battle_id, format_id, p1_name, p2_name, winner, ended_by, turn, spectator_log, created_at, archived_at")
+    .eq("battle_id", id).maybeSingle();
+  if (error || !data) return null;
+  return { id: data.battle_id, regulation: null, format_id: data.format_id, engine: null, status: "ended", p1_name: data.p1_name, p2_name: data.p2_name,
+    turn: data.turn, winner: data.winner, ended_by: data.ended_by, spectator_log: data.spectator_log, version: 0, created_at: data.created_at,
+    updated_at: data.archived_at, kind: "streak", event_id: null, source_node_key: null, run_id: null, archived: true };
+}
+/* a run's last game, to watch its replay: in battles for two months, in tower_archive after (a month's first run only) */
+export async function runLastGame(runId) {
+  if (!supa || !runId) return null;
+  const games = await runGames(runId);
+  if (games.length) return games[games.length - 1].id;
+  const { data, error } = await supa.from("tower_archive").select("battle_id").eq("run_id", runId).order("created_at", { ascending: false }).limit(1);
+  return error ? null : data?.[0]?.battle_id || null;
 }
 export const canRematch = () => rematchSupported;
 /* 중계 of a 연승 도전 run: its games in order (battles.run_id, granted by docs/db/streak_runs.sql), each { id, status, winner }. A run

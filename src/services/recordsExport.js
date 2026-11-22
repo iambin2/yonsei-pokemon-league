@@ -7,11 +7,8 @@ export const EXPORT_TABLES = ["seasons", "events", "players", "entries", "entry_
 // a table a later SQL file adds (entry_departures, handover_features.sql) is left out until that file has run
 const MISSING = new Set(["PGRST205", "42P01"]);
 
-export async function fetchExportTables() {
-  // the connection is loaded here, so the CSV builders below stay pure (tests/recordsExport.test.mjs)
-  const [{ supa }, { NORMALIZED_DATA_SCHEMA }] = await Promise.all([import("../storage.js"), import("./normalizedCompetitionService.js")]);
-  if (!supa) throw new Error("데이터베이스 연결이 설정되지 않았습니다.");
-  const db = supa.schema(NORMALIZED_DATA_SCHEMA);
+// db: the normalized schema client, passed in by the admin screen so this module stays pure (tests/recordsExport.test.mjs)
+export async function fetchExportTables(db) {
   const out = {};
   for (const table of EXPORT_TABLES) {
     const { data, error } = await readAll(() => db.from(table).select("*"));

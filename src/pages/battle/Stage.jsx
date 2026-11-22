@@ -641,13 +641,14 @@ export function Say({ said: box, ask, result = null, res = null }) {
 
 
 /* the clock on the stage (DESIGN.md "Battle", The clock): the seconds of a decision in segment cells, as the board announces a
-   number, and a bar under them emptying as the 90 run out; amber under 30, red for the last 10. mine: the decision owed is ours */
+   number, and a bar under them emptying as the 90 run out; amber under 30, red for the last 10. mine: the decision owed is ours.
+   held: an operator paused the clock; the seconds it holds stand dim and still, with no warning tone */
 const CLOCK = 90;
-function Clock({ left, mine }) {
+function Clock({ left, mine, held = false }) {
   if (left == null) return null;
   const share = Math.max(0, Math.min(1, left / CLOCK));
-  const tone = left <= 10 ? " hot" : left <= 30 ? " warm" : "";
-  return <div className={"bt-clock" + tone + (mine ? " mine" : "")} role="timer" aria-label={`${mine ? "내 선택" : "선택"}까지 ${left}초`}>
+  const tone = held ? " held" : left <= 10 ? " hot" : left <= 30 ? " warm" : "";
+  return <div className={"bt-clock" + tone + (mine ? " mine" : "")} role="timer" aria-label={held ? `시계 멈춤, ${left}초 남음` : `${mine ? "내 선택" : "선택"}까지 ${left}초`}>
     <Seg value={String(left)} h={24} cells={2} label="" />
     <i aria-hidden="true"><b style={{ "--f": share }} /></i>
   </div>;
@@ -655,7 +656,7 @@ function Clock({ left, mine }) {
 
 // dark: the stage stands with its lamps off from its first frame (a replay playing from its start, whose opening switches them on)
 // onFoeParty (a phone): the foe's strip is the key to the foe's party, as ours is to 내 파티 (DESIGN.md "Battle", The party)
-export function Stage({ scene, stageRef, perspective, doubles, res, names, said, ask, known, onParty, onFoeParty = null, clock = null, mine = false, dark = false, result = null }) {
+export function Stage({ scene, stageRef, perspective, doubles, res, names, said, ask, known, onParty, onFoeParty = null, clock = null, held = false, mine = false, dark = false, result = null }) {
   const foe = other(perspective);
   const [info, setInfo] = useState(null);
   /* before its first paint: a replay's arena drawn lit and dimmed a few frames later when its reading reached the start flashed as it
@@ -702,7 +703,7 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
           </div>
           <div className="bt-hud-own">{plates(perspective, scene, true, doubles, res, setInfo)}<Tags tags={sideTags(perspective)} /></div>
           <Say said={said} ask={ask} result={result} res={res} />
-          <Clock left={clock} mine={mine} />
+          <Clock left={clock} held={held} mine={mine} />
         </div>
       </div>
       <Strip side={perspective} scene={scene} name={names[perspective]} res={res} known={known} onParty={onParty} />

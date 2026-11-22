@@ -561,6 +561,9 @@
 .bt-clock.warm > i > b { background: var(--signal); }
 .bt-clock.hot .seg { color: #FF5A50; }
 .bt-clock.hot > i > b { background: #FF5A50; }
+/* paused by an operator: the held seconds and the bar stand dim and still */
+.bt-clock.held .seg { color: var(--dim); }
+.bt-clock.held > i > b { background: var(--mute); transition: none; }
 .bt-hud:has(.bt-clock) .bt-say { padding-right: calc(var(--say-h) + var(--s3)); }
 
 /* what the stage says over itself (stageFx.js): a turn or the winner across it, an ability's plate; nothing is written over a Pokémon */

@@ -25,8 +25,9 @@ import { popHandlers } from "../components/layout/history.js";
 import Seg from "../components/common/Seg.jsx";
 import { battleHref, endedByLine, handoverReady, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
 import { mergePlayers, renameInSiteData, renamePlayer } from "../services/playerRename.js";
+import { db as normalizedDb, listPublicMatchPicks } from "../services/normalizedCompetitionService.js";
 import Field from "../components/common/Field.jsx";
-import { battleUsage, toID as battleId } from "../services/battleLog.js";
+import { addPickUsage, battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
 import { useItemTitle } from "../components/layout/title.js";
@@ -34,9 +35,12 @@ import { useMe } from "../components/common/useMe.js";
 import AccountKeys from "../components/AccountKeys.jsx";
 
 /* 사이트 배틀로 치른 공식 경기(DESIGN.md "Battle"): 트레이너의 배틀 이력과 포켓몬의 실제 선출, 선봉, 승률.
-   끝난 공식 배틀의 로그는 한 번만 읽어 둔다. */
+   게임으로 치른 경기는 운영진이 남긴 선출(match_picks)로 선출과 승률에 더한다. 둘 다 한 번만 읽어 둔다. */
 let officialUsage = null;
-const loadOfficialUsage = () => (officialUsage ||= listOfficialBattleLogs().then(battleUsage, () => new Map()));
+const loadOfficialUsage = () => (officialUsage ||= Promise.all([
+  listOfficialBattleLogs().then(battleUsage, () => new Map()),
+  listPublicMatchPicks().catch(() => ({ picks: [], winners: new Map() })),
+]).then(([usage, { picks, winners }]) => addPickUsage(usage, picks, winners)));
 
 function TrainerBattles({ playerIds, go }) {
   const [rows, setRows] = useState(null);
@@ -419,14 +423,14 @@ function TrainerAdmin({ snapshot, profile, data, save, onDone }) {
   const rename = () => run(async () => {
     const next = name.trim();
     if (!next || next === profile.name) return;
-    await renamePlayer(profile.playerId, next);
+    await renamePlayer(normalizedDb(), profile.playerId, next);
     if (!(await save(renameInSiteData(data, profile.name, next), "이름을 바꿨습니다."))) setNote("공식 기록의 이름은 바꿨지만 옛 기록과 칭호의 이름은 저장하지 못했습니다. 다시 눌러 주세요.");
     onDone(next);
   });
   const merge = () => run(async () => {
     if (!drop) return;
     if (!(await siteConfirm({ title: "같은 사람 합치기", body: `${drop.name}의 기록을 모두 ${profile.name}에게 옮기고 ${drop.name}을 지웁니다. 되돌릴 수 없습니다.`, confirmLabel: "합치기", danger: true }))) return;
-    await mergePlayers(profile.playerId, drop.playerId);
+    await mergePlayers(normalizedDb(), profile.playerId, drop.playerId);
     if (!(await save(renameInSiteData(data, drop.name, profile.name), "합쳤습니다."))) setNote("공식 기록은 합쳤지만 옛 기록과 칭호의 이름은 저장하지 못했습니다.");
     setOther("");
     onDone(null);
@@ -1017,11 +1021,11 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, on
         </div>
         <p className="t12 dim reg rc-lead-note">
           채용률 {pokemon.entryRate.toFixed(1)}%는 저장된 파티 엔트리 {snapshot.rosters.length}개를 기준으로 계산합니다.
-          {battle ? " 아래의 선출, 선봉, 승률은 사이트 배틀로 치른 공식 경기만 셉니다." : " 실제 경기 선출은 사이트 배틀로 치른 공식 경기만 기록되며, 아직 이 포켓몬의 기록은 없습니다."}
+          {battle ? " 아래의 선출과 승률은 사이트 배틀과 운영진이 남긴 경기의 선출을, 선봉은 사이트 배틀만 셉니다." : " 이 포켓몬의 공식 경기 선출 기록은 아직 없습니다."}
         </p>
 
         {battle && <section className="rc-sec" aria-labelledby="rc-pk-bt-h">
-          <SectionHead id="rc-pk-bt-h" title="공식 배틀" />
+          <SectionHead id="rc-pk-bt-h" title="공식 경기" />
           <div className="stack rc-counts">
             <Counter label="선출" value={battle.picked} unit="판" cells={battle.picked >= 100 ? 3 : 2} after={<span className="t15">판</span>} />
             <Counter label="선봉" value={battle.leads} unit="판" cells={battle.leads >= 100 ? 3 : 2} after={<span className="t15">판</span>} />

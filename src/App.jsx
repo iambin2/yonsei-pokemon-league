@@ -5,7 +5,7 @@ import { isPublished } from "./services/announcementTimes.js";
 import { setPointTable } from "./services/bracketRankingAwardSnapshot.js";
 import { loadSiteData, saveSiteData, seenSiteData, submitAnnouncementResponse } from "./services/siteDataService.js";
 import { WRITE_CONFLICT } from "./services/revisionedRow.js";
-import { listEventsAwaitingRecord } from "./services/normalizedCompetitionService.js";
+import { listEventsAwaitingRecord, submitEventApplication } from "./services/normalizedCompetitionService.js";
 import { accountsReady as linkAccountsReady, listLinkRequests } from "./services/visitorAuth.js";
 import HomePage, { todayEvent } from "./pages/HomePage.jsx";
 import MorePage from "./pages/MorePage.jsx";
@@ -113,6 +113,11 @@ export default function App() {
   const [systemLight,setSystemLight]=useState(()=>Boolean(lightQuery?.matches));
   useEffect(()=>{ if(!lightQuery)return; const on=e=>setSystemLight(e.matches); lightQuery.addEventListener("change",on); return ()=>lightQuery.removeEventListener("change",on); },[lightQuery]);
   const dark=themePref==="system"?!systemLight:themePref!=="light";
+  // 기기 설정 also follows the device's own contrast setting (prefers-contrast: more), in either theme
+  const contrastQuery=useMemo(()=>typeof matchMedia==="function"?matchMedia("(prefers-contrast: more)"):null,[]);
+  const [systemContrast,setSystemContrast]=useState(()=>Boolean(contrastQuery?.matches));
+  useEffect(()=>{ if(!contrastQuery)return; const on=e=>setSystemContrast(e.matches); contrastQuery.addEventListener("change",on); return ()=>contrastQuery.removeEventListener("change",on); },[contrastQuery]);
+  const contrast=themePref==="contrast"||(themePref==="system"&&systemContrast);
   /* B6: 화면은 그 자리에 있고 색만 한 프레임에 바뀐다. 아무것도 움직이지 않는다. */
   const chooseTheme=useCallback((pref)=>{
     try{ localStorage.setItem("ypl-theme", pref); }catch(e){}
@@ -124,9 +129,9 @@ export default function App() {
     const root=document.documentElement;
     root.dataset.theme=dark?"dark":"light";
     root.style.colorScheme=dark?"dark":"light";
-    // 고대비(2026-11-22, the owner's draft 11 A): the dark board with its dim words and seams lit higher (tokens.css)
-    if(themePref==="contrast") root.dataset.contrast="more"; else delete root.dataset.contrast;
-  },[dark,themePref]);
+    // 고대비(2026-11-22, the owner's draft 11 A): the board with its dim words and seams a step stronger (tokens.css)
+    if(contrast) root.dataset.contrast="more"; else delete root.dataset.contrast;
+  },[dark,contrast]);
   /* 탭 제목 — 뒤로 가기 목록과 브라우저 탭에서 어디에 있었는지 구분되게 화면 이름을 붙인다. */
   useEffect(()=>{
     const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];
@@ -238,7 +243,6 @@ export default function App() {
 
     try{
       if(form.eventId){
-        const { submitEventApplication } = await import("./services/normalizedCompetitionService.js");
         await submitEventApplication({
           eventId:form.eventId,
           registrationName:payload?.registrationName||"",

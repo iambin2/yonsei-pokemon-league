@@ -17,8 +17,8 @@ import { Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/co
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
-import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, readBattleRow, readSeat, readStreakDraft, streakNextGame, viewBattle, warmBattle } from "../../services/battleService.js";
-import { pickStreakDraft, readDailyBoard, readMyStreakRuns, resumeStreakRun, readStreakBoard, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
+import { currentStreakGame, keepStreakDraft, keepStreakResume, keepStreakStart, readBattleRow, readSeat, readStreakDraft, runLastGame, streakNextGame, viewBattle, warmBattle } from "../../services/battleService.js";
+import { pickStreakDraft, readDailyBoard, readMyStreakRuns, resumeStreakRun, readStreakBoard, readTowerMonthTops, signInWithGoogle, startStreakRun } from "../../services/visitorAuth.js";
 import { formatDate } from "../../services/dateFormat.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
 import { nameOf } from "./Stage.jsx";
@@ -428,6 +428,12 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   useEffect(() => { setSynced(false); if (approved) sync(); }, [approved, daily]);
   const wins = run?.wins ?? 0;
   const rows = Array.isArray(board) ? board : null;
+  /* a past month's top three (tower_history.sql streak_month_tops) open their run's last game as a replay: in battles for two months,
+     the first's kept in tower_archive after. Read once a past month is shown; null before that SQL, and the rows stay plain */
+  const [tops, setTops] = useState(null);
+  useEffect(() => { if (!back || tops) return undefined; let on = true; readTowerMonthTops().then(t => on && setTops(t || []), () => {}); return () => { on = false; }; }, [back]);
+  const topRun = r => (back && tops || []).find(t => String(t.month).slice(0, 10) === month.key && t.place === r.place)?.run_id || null;
+  const openRun = async runId => { const id = await runLastGame(runId).catch(() => null); if (id) onOpen(id); };
   const mine = back ? null : rows?.find(r => r.mine);
   // the draft waits only while no run of its kind is on (a run started on another device leaves this one's stale)
   const drafting = approved && run === null && draft?.draft?.length ? draft.draft : null;
@@ -501,7 +507,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     </div>
   </Modal>;
   // the board as the home's and the records' ranking reads it; a live run opens its game to watch
-  const placed = rows?.map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live, open: r.live && r.battle_id ? () => onOpen(r.battle_id) : null }));
+  const placed = rows?.map(r => ({ rank: r.place, name: r.trainer_name, points: r.wins, live: r.live,
+    open: r.live && r.battle_id ? () => onOpen(r.battle_id) : topRun(r) ? () => openRun(topRun(r)) : null }));
   // the other climbers on the tower, all of them, counted by floor there: this board's but one's own (one's own run is the path)
   const climbers = !back && rows ? rows.filter(r => !r.mine).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
   const ready = run !== undefined && board !== undefined && account !== undefined && (!approved || synced);

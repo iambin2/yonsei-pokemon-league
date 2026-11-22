@@ -21,15 +21,14 @@ export function renameInSiteData(data, from, to) {
   return { ...data, ...Object.fromEntries(NAMED.filter(k => k in data).map(k => [k, swap(data[k], a, b)])) };
 }
 
-export async function renamePlayer(playerId, name) {
-  const [{ supa }, { NORMALIZED_DATA_SCHEMA }] = await Promise.all([import("../storage.js"), import("./normalizedCompetitionService.js")]);
-  const { error } = await supa.schema(NORMALIZED_DATA_SCHEMA).rpc("admin_rename_player", { p_player_id: playerId, p_name: name });
+// db: the normalized schema client (normalizedCompetitionService db()), passed in so this module stays pure for node tests
+export async function renamePlayer(db, playerId, name) {
+  const { error } = await db.rpc("admin_rename_player", { p_player_id: playerId, p_name: name });
   if (error) throw new Error(error.message || "이름을 바꾸지 못했습니다.");
 }
 
-export async function mergePlayers(keepId, dropId) {
-  const [{ supa }, { NORMALIZED_DATA_SCHEMA }] = await Promise.all([import("../storage.js"), import("./normalizedCompetitionService.js")]);
-  const { data, error } = await supa.schema(NORMALIZED_DATA_SCHEMA).rpc("admin_merge_players", { p_keep: keepId, p_drop: dropId });
+export async function mergePlayers(db, keepId, dropId) {
+  const { data, error } = await db.rpc("admin_merge_players", { p_keep: keepId, p_drop: dropId });
   if (error) throw new Error(error.message || "합치지 못했습니다.");
   return data;
 }

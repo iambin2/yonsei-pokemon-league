@@ -64,7 +64,8 @@ const db = {
     };
     return chain;
   },
-  auth: { async getUser(jwt) { return jwt === "anon-key" ? { data: { user: null }, error: { message: "no user" } } : { data: { user: { id: jwt } }, error: null }; } },
+  // the function reads the token's claims (getClaims); the test hands the user id as the token
+  auth: { async getClaims(jwt) { return jwt === "anon-key" ? { data: { claims: { role: "anon" } }, error: null } : { data: { claims: { role: "authenticated", sub: jwt } }, error: null }; } },
 };
 globalThis.__db = db;
 let handler;
@@ -75,6 +76,8 @@ globalThis.fetch = async () => new Response("{}"); // Realtime signals go nowher
 // ---- the function itself
 const source = readFileSync(file("supabase/functions/battle/index.ts"), "utf8")
   .replace('import { createClient } from "npm:@supabase/supabase-js@2";', "const createClient = () => globalThis.__db;")
+  // the direct connection needs SUPABASE_DB_URL, which the stand-in Deno.env never gives: every read goes through the stand-in client
+  .replace(/import postgres from "npm:postgres@[^"]+";/, "const postgres = Object.assign(() => null, { PostgresError: class extends Error {} });")
   .replace('from "./engine.bundle.mjs"', `from "${file("supabase/functions/battle/engine.bundle.mjs").href}"`);
 const { code } = await transform(source, { loader: "ts", format: "esm" });
 const built = join(tmpdir(), `battle-function-${process.pid}.mjs`);

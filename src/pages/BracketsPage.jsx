@@ -141,7 +141,9 @@ async function downloadChampionPng(b,res,nameOf){
   // 하단 준우승과 4강 (선 없이 간격으로 나눔)
   const subs=[];
   if(res.ru) subs.push("준우승 "+nameOf(res.ru));
-  if(res.sf&&res.sf.length) subs.push("4강 "+res.sf.map(nameOf).join(", "));
+  // 3위 결정전을 치렀으면 화면의 결과처럼 3위와 4위로 나눈다
+  if(res.third&&res.fourth) subs.push("3위 "+nameOf(res.third),"4위 "+nameOf(res.fourth));
+  else if(res.sf&&res.sf.length) subs.push("4강 "+res.sf.map(nameOf).join(", "));
   if(subs.length){
     ctx.fillStyle=BKC.t5; ctx.font=`400 20px ${BKF}`;
     ctx.fillText(bkClip(ctx,subs.join("      "),W-220),W/2,H-96);
@@ -195,6 +197,7 @@ async function downloadBracketPng(b,nameOf){
   let W=700,H=300;
   const estElim=(g)=>{ const wbW=padL+g.rounds.length*(boxW+gapX)-gapX+padL; let h=padT+g.rounds[0].length*pitch0+40;
     if(g.kind==="double"){ h+=70+ (g.lb.reduce((mx,r)=>Math.max(mx,r.length),0))*0+ g.lb.length? 0:0; h+= 60 + Math.max(...g.lb.map(r=>r.length))*(boxH+22)+60; }
+    if(g.third) h+=50+pitch0;
     return {w:Math.max(wbW, g.kind==="double"? padL+(g.lb.length+2)*(boxW+gapX):0), h}; };
   let gW=700,gH=0;
   if(b.format==="group"){
@@ -238,6 +241,12 @@ async function downloadBracketPng(b,nameOf){
         ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("리셋 결승",rx,lbY-12);
         bkDrawMatch(ctx,rx,gy-boxH/2,boxW,boxH, raPid?nameOf(raPid):"", rbPid?nameOf(rbPid):"", rwp&&rwp===raPid, rwp&&rwp===rbPid,false,false); }
       bottom=lbY+Math.max(...g.lb.map(r=>r.length))*pitch0;
+    }
+    if(g.third){ // 3위 결정전: 화면처럼 트리 아래 첫 열
+      const tx=padL, ty=bottom+50, m=g.third, aPid=ev.sp(m.a),bPid=ev.sp(m.b),wp=ev.win[m.id];
+      ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("3위 결정전",tx,ty-12);
+      bkDrawMatch(ctx,tx,ty,boxW,boxH, aPid?nameOf(aPid):"", bPid?nameOf(bPid):"", wp&&wp===aPid, wp&&wp===bPid,false,false);
+      bottom=ty+pitch0;
     }
     return bottom;
   };

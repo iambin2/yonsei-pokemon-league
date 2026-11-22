@@ -3,7 +3,7 @@ import { listLiveBoards } from "./battleWatch.js";
 import { listUnappliedBattles } from "./battleService.js";
 import { parseBoutKey } from "./teamBouts.js";
 import {
-  listEventApplications, listEventRegistrationSubmissionStatuses, listEventsAwaitingRecord, listNormalizedBracketRuntimes, listSubmissionEvents,
+  listEventApplications, listEventRegistrationSubmissionStatuses, readEventCheckins, listEventsAwaitingRecord, listNormalizedBracketRuntimes, listSubmissionEvents,
 } from "./normalizedCompetitionService.js";
 import { liveMatches } from "./recordsAnalytics.js";
 import { accountsReady, listLinkRequests } from "./visitorAuth.js";
@@ -27,7 +27,9 @@ export async function readAdminOverview(announcements = []) {
     const notice = announcements.find(a => a.form?.eventId === event.id) || null;
     const draft = notice?.form?.eventDraft || {};
     const bracket = brackets.find(b => b.eventId === event.id) || null;
-    const [applicants, statuses] = await Promise.all([safe(listEventApplications(event.id)), safe(listEventRegistrationSubmissionStatuses(event.id))]);
+    // check-ins (handover_features.sql) matter until the bracket is made from them; the table is missing before that SQL and reads empty
+    const [applicants, statuses, checkins] = await Promise.all([safe(listEventApplications(event.id)), safe(listEventRegistrationSubmissionStatuses(event.id)),
+      bracket ? null : safe(readEventCheckins(event.id))]);
     const play = bracket ? liveMatches(bracket) : null;
     const open = applicationsOpen(notice?.form);
     const left = play?.live.length || 0;
@@ -39,6 +41,7 @@ export async function readAdminOverview(announcements = []) {
       heldOn: draft.heldOn || draft.qualifierHeldOn || null, startTime: draft.startTime || draft.qualifierStartTime || null, closesAt: notice?.form?.closesAt || null,
       step: eventStep({ open, bracket, left, awaiting: awaitingRecord }),
       applicants: own ? own.length : null,
+      checkedIn: checkins?.size && own ? own.filter(row => checkins.has(row.id)).length : 0,
       submitted: statuses ? statuses.filter(s => s.hasSubmission).length : null, entrants: statuses ? statuses.length : null,
       late: statuses ? statuses.reduce((n, s) => n + s.lateSubmittedAt.length, 0) : null,
       stage: play?.stage || "", done: play?.done || 0, total: play?.total || 0, left,

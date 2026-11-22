@@ -1,4 +1,5 @@
 import { supa as client } from "../storage.js";
+import { applyWithAccount } from "./visitorAuth.js";
 import { lowerPlacements } from "./bracketLowerPlacements.js";
 import {
   NORMALIZED_BRACKET_RUNTIME_SOURCE,
@@ -57,7 +58,8 @@ const CHAMPIONS_EVENT_SELECT_FIELDS = DATA_SCHEMA === "ypl_schema_validation"
       qualification_slots`
   : "";
 
-function db() {
+// also handed to the pure modules (playerRename, recordsExport) by their screens, so node tests never load the connection
+export function db() {
   if (!client) throw new Error("데이터베이스 연결이 설정되지 않았습니다.");
   return client.schema(DATA_SCHEMA);
 }
@@ -880,7 +882,6 @@ export async function submitEventApplication({
   if (!eventId) throw new Error("이 신청서에 연결된 대회가 없습니다.");
   // 구글 계정으로 하는 신청 (docs/db/player_accounts.sql): 이름과 선수는 계정이 정한다
   if (account) {
-    const { applyWithAccount } = await import("./visitorAuth.js");
     return applyWithAccount(eventId, registrationData).catch(error => {
       if (error.code === "23505") throw Object.assign(new Error("이미 신청된 참가자입니다. 내용을 고치려면 공지의 신청 수정을 이용해 주세요."), { code: "YPL_ALREADY_REGISTERED" });
       throw error;
@@ -1045,6 +1046,16 @@ export async function readMatchPicks(eventId) {
   const { data, error } = await db().from("match_picks").select("source_node_key, entry_id, pokemon_ids").eq("event_id", eventId);
   if (error) return null;
   return new Map((data || []).map(row => [`${row.source_node_key}|${row.entry_id}`, row.pokemon_ids || []]));
+}
+
+// 기록 화면의 포켓몬 선출: 공개된 대회의 모든 선출과 그 경기의 승자. RLS 가 공개 전 대회의 선출을 가린다. 표가 없으면(SQL 전) 빈 값.
+export async function listPublicMatchPicks() {
+  if (!client) return { picks: [], winners: new Map() };
+  const { data: picks, error } = await readAll(() => db().from("match_picks").select("event_id, source_node_key, entry_id, pokemon_ids"), "event_id,source_node_key,entry_id");
+  if (error || !picks?.length) return { picks: [], winners: new Map() };
+  const events = [...new Set(picks.map(p => p.event_id))];
+  const { data: matches } = await readAll(() => db().from("matches").select("id, event_id, source_node_key, winner_entry_id").in("event_id", events).not("winner_entry_id", "is", null));
+  return { picks, winners: new Map((matches || []).map(m => [`${m.event_id}|${m.source_node_key}`, m.winner_entry_id])) };
 }
 
 // ids 가 비면 지운다. 검사(운영진, 그 경기의 출전)는 RPC가 한다.

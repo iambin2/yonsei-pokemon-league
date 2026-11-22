@@ -13,8 +13,17 @@ async function readReports(clear = null) {
   if (!supa) return null;
   const { data, error } = await supa.rpc("admin_community_reports", { p_clear: clear });
   if (error) { if (error.code === "PGRST202" || error.code === "42883") return null; throw new Error("신고를 불러오지 못했습니다."); }
-  return data || [];
+  // a sample or party post opens in its own tab and format: read the kind of each reported showcase post (a comment, of its post)
+  const roots = [...new Set((data || []).filter(r => r.board === "showcase").map(r => r.parent_id || r.item_id))];
+  const kinds = roots.length ? (await supa.from("community_items").select("id, kind:payload->>kind, format:payload->>format").in("id", roots)).data || [] : [];
+  const kindOf = new Map(kinds.map(k => [k.id, k]));
+  return (data || []).map(r => ({ ...r, post: kindOf.get(r.parent_id || r.item_id) || null }));
 }
+const where = r => {
+  const post = r.parent_id || r.item_id;
+  if (r.board === "free") return { post };
+  return { tab: r.post?.kind || "sample", ...(r.post?.format === "double" && { format: "double" }), post };
+};
 
 export default function CommunityReports({ go, id = "ad-reports-h" }) {
   const [rows, setRows] = useState(null);
@@ -28,7 +37,7 @@ export default function CommunityReports({ go, id = "ad-reports-h" }) {
       : <div className="stack">{rows.map(r => <React.Fragment key={r.item_id}>
         <Row title={r.title || (r.parent_id ? "(댓글)" : "(제목 없음)")} lamp
           line={[Object.entries(r.reasons || {}).map(([k, n]) => `${WORD[k] || k} ${n}`).join(", "), formatDate(r.last_at, { time: true })].filter(Boolean).join(", ")}
-          onClick={r.board === "free" ? () => go("board", { post: r.parent_id || r.item_id }) : () => go("board", { tab: "sample" })} />
+          onClick={() => go("board", where(r))} />
         <Button variant="link" size="sm" onClick={() => load(r.item_id)}>신고 지우기</Button>
       </React.Fragment>)}</div>}
   </section>;

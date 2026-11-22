@@ -440,6 +440,10 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
     else { const url=new URL(window.location.href); url.searchParams.delete("post"); window.history.replaceState(window.history.state,"",url); transition(()=>flushSync(()=>setArticle(null)),{shared:"s-"+id,dir:"back",scrollY:listScroll.current}); } };
 
   const [editing,setEditing]=useState(null);
+  // 신고: the free board's, under the same SQL (report_community_item takes free and showcase posts)
+  const [reporting,setReporting]=useState(null);
+  const [reportOn,setReportOn]=useState(false);
+  useEffect(()=>{ let on=true; if(!admin) handoverReady().then(ok=>on&&setReportOn(ok)); return ()=>{ on=false; }; },[admin]);
   const delPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(SHOWCASE_KEY,post.id,pin),"삭제했습니다.")) closePost(); };
   const addComment=async(post,{pin,byAccount,...c})=>{ await run(()=>createCommunityItem(SHOWCASE_KEY,newCommunityId(),c,{parentId:post.id,pin,byAccount}),"댓글을 등록했습니다."); };
   const delComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(SHOWCASE_KEY,c.id,pin)); };
@@ -464,7 +468,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         <header className="bd-art-head">
           <BackLink to={label} onClick={closePost}/>
           <h1 className="t32 bd-title-h" data-vt={"s-"+p.id}>{p.title}</h1>
-          <p className="t12 dim reg bd-date-line">{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></p>
+          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         </header>
         {!one&&<div className="bd-six">{(p.team?.members||[]).map((m,i)=>{ const name=(sheet[i]?.name)||m.pokemonName;
           return <button type="button" className="pn stand bd-cell" key={i} onClick={()=>toCase(i)} aria-label={`${name} 세팅 보기`}><Mon src={spriteUrl(m.pokemonName)}/><span className="floor bd-band"><b className="t15">{name}</b></span></button>; })}</div>}
@@ -487,6 +491,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         </section>
       </article>
       {editing&&<EditSheet {...editing} onClose={()=>setEditing(null)} onSave={saveEdit}/>}
+      {reporting&&<ReportSheet onClose={()=>setReporting(null)} onSend={async reason=>{ try{ await reportCommunityItem(reporting.id,reason); flash("신고했습니다. 운영진이 확인합니다."); setReporting(null); }catch(error){ flash(error.message); } }}/>}
     </section>);
   }
 

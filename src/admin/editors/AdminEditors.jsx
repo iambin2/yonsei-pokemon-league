@@ -15,6 +15,7 @@ import { copyEventRules, eventNameBase, eventSubtitleOf, formatEventName, isEven
 import { formatDate } from "../../services/dateFormat.js";
 import { missingAnnouncementTimes } from "../../services/announcementTimes.js";
 import { signInAdmin } from "../../storage.js";
+import { freshRead } from "../../services/readCache.js";
 import Button from "../../components/common/Button.jsx";
 import Field, { FormError } from "../../components/common/Field.jsx";
 import { Cell } from "../../components/common/Board.jsx";
@@ -118,7 +119,7 @@ export function TitleItemEditor({ groupKey, item, data, onClose, onSave, onDelet
     const more=list=>on&&setNames(cur=>[...new Set([...cur,...list.filter(Boolean)])]);
     if(partner){ loadRecordsPokemonDirectory().then(d=>more([...d.values()].map(r=>r.displayName)),()=>{}); return ()=>{ on=false; }; }
     (async()=>{ try{
-      const [{freshRead},normalized,projection]=await Promise.all([import("../../services/readCache.js"),import("../../services/normalizedRecordsService.js"),import("../../services/normalizedRecordsProjection.js")]);
+      const [normalized,projection]=await Promise.all([import("../../services/normalizedRecordsService.js"),import("../../services/normalizedRecordsProjection.js")]);
       if(!normalized.normalizedRecordsReadEnabled()) return;
       const raw=await freshRead("records",normalized.fetchNormalizedRecordsSnapshot,60*1000);
       more((projection.buildNormalizedRecordsProjection(data,raw,null).trainers||[]).map(t=>t.name));

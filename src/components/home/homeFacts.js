@@ -1,4 +1,10 @@
-/* 홈의 실제 기록. 무거운 조각이라 첫 그림 뒤에 불러온다(홈의 첫 번들에 넣지 않는다). */
+/* 홈의 실제 기록. 무거운 조각이라 첫 그림 뒤에 불러온다(홈의 첫 번들에 넣지 않는다).
+   이미 첫 번들에 있는 모듈(전당 그림, 시즌 이름, 읽기 캐시, 기록 집계, 순위 표)은 그대로 가져온다: 동적으로 불러도 따로 떨어지지 않는다. */
+import { loadHallOfFameArtworkLookup, mergeHallOfFame, resolveHallOfFameArtwork } from "../../services/hallOfFamePresentation.js";
+import { displaySeasonLabel, generationText } from "../../services/seasonLabel.js";
+import { freshRead } from "../../services/readCache.js";
+import { buildRecordsSnapshot } from "../../services/recordsAnalytics.js";
+import { rankRows } from "../common/StandTable.jsx";
 
 /* 명예의 전당과 같은 합침(mergeHallOfFame)과 같은 그림(resolveHallOfFameArtwork), 최신 챔피언이 앞.
    옛 파티 이미지 표(legacyPartyImages, 압축해도 248KB)는 받지 않는다: 이름만으로 스프라이트를 찾는다. */
@@ -18,27 +24,24 @@ export const CHAMPIONS_MAX_AGE_MS = 60 * 1000;
 let warm = null;
 export function warmChampions(maxAgeMs = CHAMPIONS_MAX_AGE_MS) {
   return warm ||= (async () => {
-    const [hall, service, labels, { freshRead }] = await Promise.all([
-      import("../../services/hallOfFamePresentation.js"), import("../../services/championsService.js"), import("../../services/seasonLabel.js"),
-      import("../../services/readCache.js"),
-    ]);
+    const service = await import("../../services/championsService.js");
     const [normalized, lookup] = await Promise.all([
       service.championsOperationsEnabled() ? freshRead("champions", service.fetchNormalizedChampionsHallOfFame, maxAgeMs).catch(() => []) : null,
-      hall.loadHallOfFameArtworkLookup().catch(() => new Map()),
+      loadHallOfFameArtworkLookup().catch(() => new Map()),
     ]);
-    return { hall, labels, normalized, lookup };
+    return { normalized, lookup };
   })();
 }
 export async function loadChampions(data, admin = false) {
   const reading = warmChampions(admin ? 0 : CHAMPIONS_MAX_AGE_MS);
   warm = null;
-  const { hall, labels, normalized, lookup } = await reading;
+  const { normalized, lookup } = await reading;
   const member = m => typeof m === "string" ? { name: m, img: "", pokemonId: "" } : { name: m?.name || "", img: m?.img || "", pokemonId: m?.pokemonId || "" };
-  const rows = hall.mergeHallOfFame(data.champions, normalized).reverse().map((c, i) => ({
-    key: `${c.gen}-${c.name}-${i}`, name: c.name, generation: c.generationNumber || 0, label: labels.generationText(c.gen),
-    line: `${labels.displaySeasonLabel(c.slabel) || "시즌 " + c.season} 우승`,
+  const rows = mergeHallOfFame(data.champions, normalized).reverse().map((c, i) => ({
+    key: `${c.gen}-${c.name}-${i}`, name: c.name, generation: c.generationNumber || 0, label: generationText(c.gen),
+    line: `${displaySeasonLabel(c.slabel) || "시즌 " + c.season} 우승`,
     party: (c.team || []).map(member).filter(m => m.name || m.img || m.pokemonId).slice(0, 6)
-      .map(m => ({ name: m.name, img: hall.resolveHallOfFameArtwork(m, lookup) || "" })),
+      .map(m => ({ name: m.name, img: resolveHallOfFameArtwork(m, lookup) || "" })),
     // 그날의 세부 값(챔피언 시트의 명판): 세부 값을 받은 뒤의 우승에만 있다
     sets: c.sets || [], regulationId: c.regulationId || "",
   }));
@@ -74,13 +77,12 @@ export async function loadFacts(data, admin = false) {
     const saved = seenFacts();
     if (saved) return saved;
   }
-  const [{ freshRead }, normalized, projection, analytics, { rankRows }] = await Promise.all([
-    import("../../services/readCache.js"), import("../../services/normalizedRecordsService.js"),
-    import("../../services/normalizedRecordsProjection.js"), import("../../services/recordsAnalytics.js"), import("../common/StandTable.jsx"),
+  const [normalized, projection] = await Promise.all([
+    import("../../services/normalizedRecordsService.js"), import("../../services/normalizedRecordsProjection.js"),
   ]);
   let raw = null;
   if (normalized.normalizedRecordsReadEnabled()) raw = await freshRead("records", normalized.fetchNormalizedRecordsSnapshot, admin ? 0 : RECORDS_MAX_AGE_MS).catch(() => null);
-  const snapshot = raw ? projection.buildNormalizedRecordsProjection(data, raw, null) : analytics.buildRecordsSnapshot(data);
+  const snapshot = raw ? projection.buildNormalizedRecordsProjection(data, raw, null) : buildRecordsSnapshot(data);
   // the home reads one fact from the records: the current season's line score (the league's counts went on 2026-11-19, Made by people)
   const facts = { season: currentSeason(snapshot, data, rankRows) };
   // 공식 기록을 읽었을 때만 기억한다. 대체 집계가 6시간 남아 있으면 안 된다.

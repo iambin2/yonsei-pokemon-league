@@ -94,6 +94,11 @@
   --gold: var(--gold-2);
   --veil: rgb(255 255 255 / .72);
 }
+/* the light board's 고대비 (기기 설정 on a device asking for more contrast): the same step the other way, dim words nearer navy,
+   muted ones to what dim was, the seams to the blue grey. Primitives already in the palette. */
+:root[data-theme="light"][data-contrast="more"] {
+  --dim: var(--navy-3); --mute: var(--slate); --rule: var(--haze);
+}
 
 /* ---------- the golden law: one ratio, phi ---------- */
 :root {

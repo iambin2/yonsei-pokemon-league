@@ -637,6 +637,22 @@ export function battleUsage(rows = []) {
   return usage;
 }
 
+/* 게임으로 치른 경기에서 운영진이 남긴 선출(match_picks, handover_features.sql)을 사이트 배틀의 사용 표에 더한다.
+   picks: { event_id, source_node_key, entry_id, pokemon_ids }, winners: "대회|경기키" -> 이긴 출전 id. 선봉은 남지 않아 세지 않는다.
+   pokemon_ids 는 쇼다운 id 라 배틀 기록과 같은 열쇠다. 새 Map 을 돌려주고 받은 표는 바꾸지 않는다. */
+export function addPickUsage(usage = new Map(), picks = [], winners = new Map()) {
+  const out = new Map([...usage].map(([id, u]) => [id, { ...u }]));
+  for (const row of picks) {
+    const won = winners.get(`${row.event_id}|${row.source_node_key}`) === row.entry_id;
+    for (const id of new Set((row.pokemon_ids || []).map(toID).filter(Boolean))) {
+      const u = out.get(id) || { picked: 0, leads: 0, wins: 0 };
+      u.picked += 1; if (won) u.wins += 1;
+      out.set(id, u);
+    }
+  }
+  return out;
+}
+
 /* 쌓인 기록 전체를 읽는다. 끝난 배틀과 리플레이가 쓴다. 턴마다 { turn, lines } 로 묶는다. */
 export function readWholeLog(log, options) {
   const reader = createBattleReader(options);

@@ -12,7 +12,7 @@ import ClientErrors from "../components/ClientErrors.jsx";
 import CommunityReports from "../components/CommunityReports.jsx";
 import { formatDate } from "../services/dateFormat.js";
 import { ADMIN_STEPS, adminTasks, readAdminOverview } from "../services/adminOverview.js";
-import { cancelEventWithoutBracket } from "../services/normalizedCompetitionService.js";
+import { cancelEventWithoutBracket, db as normalizedDb } from "../services/normalizedCompetitionService.js";
 import { siteAlert, siteConfirm } from "../components/common/SiteDialog.jsx";
 import { readTowerMonthTops } from "../services/visitorAuth.js";
 import { TOWER_TITLE, towerMonthLabel, towerTitlesDue } from "../services/towerTitles.js";
@@ -47,7 +47,7 @@ function Exports({ flash }) {
     if (busy) return;
     setBusy(key);
     try {
-      const t = tables || await fetchExportTables();
+      const t = tables || await fetchExportTables(normalizedDb());
       setTables(t);
       const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
       if (key === "json") downloadText(`ypl-records-${day}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tables: t }, null, 1), "application/json");
@@ -96,6 +96,7 @@ function EventPanel({ e, main, go, onClose, onCancel }) {
   const facts = [
     e.step === 1 && e.closesAt && ["신청 마감", `${formatDate(e.closesAt, { time: true })}까지`],
     e.applicants != null && ["신청", `${e.applicants}명`],
+    e.checkedIn ? ["체크인", `${e.checkedIn} / ${e.applicants}명`] : null,
     e.entrants ? ["파티 제출", `${e.submitted} / ${e.entrants}${e.late ? `, 마감 뒤 ${e.late}번` : ""}`] : null,
     e.total ? ["경기", `${e.stage} ${e.done} / ${e.total} 종료`] : null,
     e.battles ? ["배틀", `${e.battles}개 진행 중`] : null,

@@ -684,7 +684,7 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
       ? { n: ++order.current.n, view: viewBattle(id).catch(() => null) } : null;
     const next = await readBattleRow(id);
     // the clock of the decision it waits on (docs/db/battle_timer.sql), read with the row; none before that SQL runs, and none unless active
-    if (next) { if (next.status === "active") next.deadline_at ??= null; else delete next.deadline_at; }
+    if (next) { if (next.status === "active") next.deadline_at ??= null; else { delete next.deadline_at; delete next.paused_left; } }
     rowRef.current = next;
     setRow(next);
     if (next && readSeat(id) && next.status !== "waiting") {
@@ -1332,6 +1332,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const deadline = !ended ? row.deadline_at : null;
   const now = useNow(Boolean(deadline));
   const left = secondsLeft(deadline, now);
+  // an operator's pause (docs/db/handover_features.sql admin_battle_clock): no deadline, the seconds it holds stand still on the clock
+  const pausedLeft = !ended && left == null && row.paused_left != null ? row.paused_left : null;
   const claimed = useRef(0);
   // the clock's last ten seconds tick for the one who has to choose, sharper in the last three
   useEffect(() => { if (choosing && left > 0 && left <= 10) sfx("tick", { n: left }); }, [left, choosing]);
@@ -1693,7 +1695,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
           {/* a finished battle stands on its stage from the first moment, empty until the leads come out: its replay opens on the
               board saying who plays, never on the team preview (2026-11-07, the user: "처음에 선택 창이 미묘하게 보이는 문제") */}
           {started || ended
-            ? <Stage scene={scene} stageRef={tape.stageRef} perspective={perspective} doubles={doubles} res={res} names={names} clock={left} mine={Boolean(seat && !waiting)} dark={Boolean(opening?.play)}
+            ? <Stage scene={scene} stageRef={tape.stageRef} perspective={perspective} doubles={doubles} res={res} names={names} clock={left ?? pausedLeft} held={pausedLeft != null} mine={Boolean(seat && !waiting)} dark={Boolean(opening?.play)}
                 said={tape.said} ask={boxAsk} known={ownView ? known.current : []} onParty={cast && narrow && scene ? () => setFoeOpen(perspective) : openParty} onFoeParty={compact && scene ? () => setFoeOpen(foe) : null} result={endBand} />
             : seat && previewParty.current
             ? <TeamPick res={res} foe={preview[foe].preview} foeName={names[foe]} pokemon={previewParty.current} count={pickCount.current}

@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { battleUsage, createBattleReader, fourMoves, readWholeLog, josa, parseHP, slotPasses } from "../src/services/battleLog.js";
+import { addPickUsage, battleUsage, createBattleReader, fourMoves, readWholeLog, josa, parseHP, slotPasses } from "../src/services/battleLog.js";
 import { formatId, startBattle, choose, readout } from "../supabase/functions/battle/engine.mjs";
 
 const text = JSON.parse(readFileSync(new URL("../src/data/battle-text-ko.json", import.meta.url), "utf8"));
@@ -331,4 +331,16 @@ test("Perish Song's count is one effect that counts down, never 3 2 1 stacked (f
   for (const line of ["|player|p1|가|", "|player|p2|나|", "|gametype|singles", "|switch|p1a: Garchomp|Garchomp, L50, M|100/100", "|switch|p2a: Kingambit|Kingambit, L50, M|100/100", "|turn|1",
     "|-start|p1a: Garchomp|perish3|[silent]", "|-start|p1a: Garchomp|Stockpile1", "|turn|2", "|-start|p1a: Garchomp|perish2", "|-start|p1a: Garchomp|Stockpile2", "|turn|3", "|-start|p1a: Garchomp|perish1"]) reader.read(line);
   assert.deepEqual(reader.state.sides.p1.active[0].volatiles, ["stockpile2", "perish1"]);
+});
+
+test("picks left by the operators count as picked and, for the match winner, won; the battle table is not changed", () => {
+  const battles = new Map([["garchomp", { picked: 2, leads: 1, wins: 1 }]]);
+  const picks = [
+    { event_id: "e1", source_node_key: "single:r1:m0", entry_id: "a", pokemon_ids: ["garchomp", "Incineroar", "garchomp"] },
+    { event_id: "e1", source_node_key: "single:r1:m0", entry_id: "b", pokemon_ids: ["incineroar"] },
+  ];
+  const usage = addPickUsage(battles, picks, new Map([["e1|single:r1:m0", "a"]]));
+  assert.deepEqual(usage.get("garchomp"), { picked: 3, leads: 1, wins: 2 });
+  assert.deepEqual(usage.get("incineroar"), { picked: 2, leads: 0, wins: 1 });
+  assert.deepEqual(battles.get("garchomp"), { picked: 2, leads: 1, wins: 1 });
 });
