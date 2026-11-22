@@ -1074,6 +1074,13 @@ export async function fetchRegistrationLatestRosters(registrationIds = []) {
   return rosters;
 }
 
+// 셀프 체크인(docs/db/handover_features.sql): 그 대회에서 체크인한 신청 id. 그 SQL 전이나 읽지 못하면 빈 Set.
+export async function readEventCheckins(eventId) {
+  if (!eventId) return new Set();
+  const { data, error } = await db().from("event_checkins").select("registration_id").eq("event_id", eventId);
+  return new Set(error ? [] : (data || []).map(row => row.registration_id));
+}
+
 // 참가자 교체(docs/db/handover_features.sql): 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로. 검사는 RPC가 한다.
 export async function replaceBracketEntrant({ eventId, entryId, registrationId } = {}) {
   const { error } = await db().rpc("replace_bracket_entrant", { p_event_id: eventId, p_entry_id: entryId, p_registration_id: registrationId });

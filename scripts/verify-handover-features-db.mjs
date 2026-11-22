@@ -18,10 +18,12 @@ const U1 = "00000000-0000-0000-0000-0000000000f1";
 
 await pg.exec(`
   create role anon; create role authenticated; create role service_role bypassrls;
+  create schema auth; create table public.uid_switch (u uuid); insert into public.uid_switch values (null);
+  create function auth.uid() returns uuid language sql as $$ select u from public.uid_switch $$;
   create schema ypl_schema_validation;
   create table public.admin_switch (on_ boolean); insert into public.admin_switch values (true);
   create function ypl_schema_validation.is_ypl_admin() returns boolean language sql as $$ select on_ from public.admin_switch $$;
-  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz, team_revealed_at timestamptz, is_team_event boolean default false, event_type text default 'pokecup');
+  create table ypl_schema_validation.events (id uuid primary key, name text, status text, record_applied_at timestamptz, team_revealed_at timestamptz, held_on date, is_team_event boolean default false, event_type text default 'pokecup');
   create table ypl_schema_validation.players (id uuid primary key default gen_random_uuid(), display_name text, status text default 'active', updated_at timestamptz);
   create table ypl_schema_validation.entries (id uuid primary key, event_id uuid, display_name text, updated_at timestamptz);
   create table ypl_schema_validation.event_registrations (id uuid primary key default gen_random_uuid(), event_id uuid,
@@ -175,6 +177,25 @@ await check("an entrant with no result yet is replaced by another applicant, who
   await assert.rejects(q(`select ypl_schema_validation.replace_bracket_entrant($1, $2, $3)`, [E3, X2, newcomer]), /이미 대진표에 있는/);
   await q(`update ypl_schema_validation.matches set winner_entry_id = $1 where event_id = $2`, [X2, E3]);
   await assert.rejects(q(`select ypl_schema_validation.replace_bracket_entrant($1, $2, $3)`, [E3, X2, r1]), /결과가 있는/);
+});
+
+await check("a linked applicant checks in on the event's day, once; the day before, a stranger and the signed-out cannot", async () => {
+  const today = (await one(`select (now() at time zone 'Asia/Seoul')::date::text as d`)).d;
+  const E4 = "00000000-0000-0000-0000-0000000000e4";
+  await q(`insert into ypl_schema_validation.events (id, name, status, held_on) values ($1, '4회', 'open', $2)`, [E4, today]);
+  await q(`insert into ypl_schema_validation.event_registrations (event_id, player_id, registration_name) values ($1, $2, '가나다')`, [E4, P1]);
+  const mine = (ids, go = false) => one(`select ypl_schema_validation.my_checkin($1::uuid[], $2) as r`, [ids, go]).then(x => x.r);
+  assert.equal(await mine([E4]), "not_signed");
+  await q(`update public.uid_switch set u = $1`, [U1]);
+  assert.equal(await mine(["00000000-0000-0000-0000-0000000000ff"]), "not_registered");
+  assert.equal(await mine(["00000000-0000-0000-0000-0000000000ff", E4]), "open");
+  assert.equal(await mine([E4], true), "done");
+  assert.equal(await mine([E4], true), "done");
+  assert.equal((await q(`select 1 from ypl_schema_validation.event_checkins`)).length, 1);
+  await q(`update ypl_schema_validation.events set held_on = $2::date + 1 where id = $1`, [E4, today]);
+  await q(`delete from ypl_schema_validation.event_checkins`);
+  assert.equal(await mine([E4], true), "closed");
+  await q(`update public.uid_switch set u = null`);
 });
 
 await check("the site asks whether this file ran", async () => {

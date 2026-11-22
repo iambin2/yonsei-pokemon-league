@@ -14,6 +14,7 @@ import { getEvent, getLeagueIntakeEvents, listNormalizedBracketRuntimes } from "
 import { freshRead } from "../services/readCache.js";
 import { liveMatches, myNextMatch } from "../services/recordsAnalytics.js";
 import { useMe } from "../components/common/useMe.js";
+import { myCheckin } from "../services/visitorAuth.js";
 import { listEventBattles } from "../services/battleService.js";
 import { submissionDue } from "../services/submissionDue.js";
 import { applicationsOpen } from "../services/announcementTimes.js";
@@ -139,6 +140,18 @@ export default function HomePage({ data, go, admin }) {
      first, with its table and its round's start (docs/db/match_schedule.sql), read with the live matches every 15 seconds */
   const me = useMe();
   const [myNext, setMyNext] = useState(null);
+  /* 체크인 (2026-11-22, the owner's draft 6 A): on the event's day, before the signed-in player has a match to go to, the place of
+     내 다음 경기 holds their arrival: one press, then 체크인 완료. Until handover_features.sql has run it does not show. */
+  const [checkin, setCheckin] = useState(null);
+  const [checkinIds, setCheckinIds] = useState([]);
+  useEffect(() => {
+    if (!now?.today || !now.eventId || !me?.playerId) { setCheckin(null); return undefined; }
+    let on = true;
+    getEvent(now.eventId).then(event => (event ? getLeagueIntakeEvents(event) : [])).then(events => events.map(e => e.id)).catch(() => [now.eventId])
+      .then(ids => { if (!on) return; setCheckinIds(ids); return myCheckin(ids).then(state => on && setCheckin(state)); });
+    return () => { on = false; };
+  }, [now?.today, now?.eventId, me?.playerId]);
+  const checkIn = async () => { try { setCheckin(await myCheckin(checkinIds, true)); } catch { /* the button stays for another press */ } };
   const [myWhere, setMyWhere] = useState(null);
   const [liveBattles, setLiveBattles] = useState([]);
   /* the live match's table and its round's start, as its sheet shows them (docs/db/match_schedule.sql; nothing until it has run) */
@@ -260,6 +273,10 @@ export default function HomePage({ data, go, admin }) {
           {where.some(Boolean) && <p className="pn2 ho-live-head t12"><span className="dim">{where[0]}</span><span>{where[1]}</span></p>}
         </div>;
       })()}
+      {!myNext && (checkin === "open" || checkin === "done") && <div className="stack ho-live ho-mine" role="group" aria-label="체크인">
+        <p className="pn2 ho-live-head t12"><span>내 체크인</span>{checkin === "done" ? <span>체크인 완료</span> : <span className="dim">체크인 전</span>}</p>
+        {checkin === "open" && <Button variant="second" icon="check" onClick={checkIn}>체크인</Button>}
+      </div>}
       {live?.live.length > 0 && <div className="stack ho-live" role="group" aria-label="지금 경기">
         {/* the match is a door to its own bracket, as every panel that names a place is */}
         {liveMatch && <button type="button" className="stack" onClick={() => go("bracket", { eventId: live.eventId, m: liveMatch.id })} aria-label={`${liveMatch.stage}${liveWhere ? `, ${liveWhere}` : ""}, ${liveMatch.a} 대 ${liveMatch.b}, 진행 중, 경기 보기`}>

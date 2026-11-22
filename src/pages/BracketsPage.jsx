@@ -9,7 +9,7 @@ import { BackLink, Counter, Dock, Lead, Mon, Row, SectionHead, Status, Steps, Ta
 import { reduced } from "../components/common/motion.js";
 import { Busy } from "../components/common/Loader.jsx";
 import { dotDate } from "../services/dateFormat.js";
-import { addChampionshipQualifierManualRegistration, applyEventRecord, recommendChampionshipDirectEntrants, resetSubmissionPin, revertEventRecord, championsData, fetchPlayerChampionRosters, fetchRegistrationFinalRosters, buildChampionshipRecordApplyCompletionOptions, buildNormalizedRuntimeCreateAttempt, buildNormalizedSingleCreateAttempt, championshipEventPickerLabel, confirmEventTeamsForBracket, createChampionshipAdvancement, createNormalizedBracketRuntime, deleteNormalizedBracketRuntime, deleteNormalizedSingleBracketRuntime, ensureChampionshipHallOfFameEntry, listChampionshipManualParticipantCandidates, fetchNormalizedBracketRuntime, fetchNormalizedSingleBracketRuntime, readBracketMatchStamp, getEvent, sitePlayed, getEventRecordContext, getIndividualPlacementPointPolicy, inspectEventParticipantIdentities, lastPlacementPoints, isRecordApplyCompletionConfirmed, listChampionshipQualifierDirectSelectionIds, listEventRegistrationSubmissionStatuses, listEventRegistrations, listNormalizedBracketRuntimes, loadPrivateAnswers, listSubmissionEvents, preflightChampionshipFinalBracket, rollbackEventParticipantIdentityChanges, setChampionshipQualifierDirectSelections, setNormalizedSingleBracketWinner, readMatchOutcomes, readEntryDepartures, setEntryDeparture, readMatchPicks, setMatchPicks, fetchRegistrationLatestRosters, replaceBracketEntrant, matchOutcomeMoreReady, setNormalizedMatchOutcome, syncNormalizedBracketMatches, validateEventParticipantEntries, validateEventTeamEntries } from "../services/index.js";
+import { addChampionshipQualifierManualRegistration, applyEventRecord, recommendChampionshipDirectEntrants, resetSubmissionPin, revertEventRecord, championsData, fetchPlayerChampionRosters, fetchRegistrationFinalRosters, buildChampionshipRecordApplyCompletionOptions, buildNormalizedRuntimeCreateAttempt, buildNormalizedSingleCreateAttempt, championshipEventPickerLabel, confirmEventTeamsForBracket, createChampionshipAdvancement, createNormalizedBracketRuntime, deleteNormalizedBracketRuntime, deleteNormalizedSingleBracketRuntime, ensureChampionshipHallOfFameEntry, listChampionshipManualParticipantCandidates, fetchNormalizedBracketRuntime, fetchNormalizedSingleBracketRuntime, readBracketMatchStamp, getEvent, sitePlayed, getEventRecordContext, getIndividualPlacementPointPolicy, inspectEventParticipantIdentities, lastPlacementPoints, isRecordApplyCompletionConfirmed, listChampionshipQualifierDirectSelectionIds, listEventRegistrationSubmissionStatuses, listEventRegistrations, listNormalizedBracketRuntimes, loadPrivateAnswers, listSubmissionEvents, preflightChampionshipFinalBracket, rollbackEventParticipantIdentityChanges, setChampionshipQualifierDirectSelections, setNormalizedSingleBracketWinner, readMatchOutcomes, readEntryDepartures, setEntryDeparture, readMatchPicks, setMatchPicks, fetchRegistrationLatestRosters, replaceBracketEntrant, readEventCheckins, matchOutcomeMoreReady, setNormalizedMatchOutcome, syncNormalizedBracketMatches, validateEventParticipantEntries, validateEventTeamEntries } from "../services/index.js";
 import { buildDefaultTeamMatchLineups, buildTeamMatchSeries, getTeamMatchLineupOptions, getTeamRegistrationAnswerEntries } from "../services/bracketTeamParticipants.js";
 import { getTeamPlacementPointPolicy } from "../services/bracketRankingAwardSnapshot.js";
 import { buildBracketSubmissionStatusModel, playerNameKey, spriteUrl } from "../services/teamBuilderCore.js";
@@ -276,6 +276,7 @@ function BracketWizard({ data, onClose, onCreate }){
   const [submissionStatuses,setSubmissionStatuses]=useState([]);
   const [submissionStatusError,setSubmissionStatusError]=useState("");
   const [selectedRegistrationIds,setSelectedRegistrationIds]=useState([]);
+  const [checkedIn,setCheckedIn]=useState(()=>new Set());
   const [directRegistrationIds,setDirectRegistrationIds]=useState([]);
   const [addedParticipants,setAddedParticipants]=useState([]);
   const [championshipManualOpen,setChampionshipManualOpen]=useState(false);
@@ -489,6 +490,8 @@ function BracketWizard({ data, onClose, onCreate }){
     );
   };
   const linkedEvent=events.find(event=>event.id===eventId)||null;
+  // 체크인한 신청자(셀프 체크인): 대진표에 넣을 사람을 한 번에 고르는 단추
+  useEffect(()=>{ let on=true; readEventCheckins(eventId).then(set=>on&&setCheckedIn(set)).catch(()=>{}); return ()=>{ on=false; }; },[eventId]);
   const groupAvailable=Boolean(linkedEvent&&!linkedEvent.is_team_event&&!linkedEvent.championship_phase&&linkedEvent.event_type!=="champions");
   /* 직행 추천: 시즌 랭킹 상위 4명 가운데 신청한 사람(docs/db/champions_direct_recommendation.sql). 고르는 것은 운영자다 */
   const [directPicks,setDirectPicks]=useState([]);
@@ -723,6 +726,10 @@ function BracketWizard({ data, onClose, onCreate }){
             >
               전체 해제
             </Button>
+            {eventRegs.some(r=>checkedIn.has(r.id))&&<Button variant="second" type="button" size="sm"
+              onClick={()=>setSelectedRegistrationIds(eventRegs.filter(r=>checkedIn.has(r.id)).map(r=>r.id))}>
+              체크인한 {eventRegs.filter(r=>checkedIn.has(r.id)).length}명
+            </Button>}
           {linkedEvent?.championship_phase ? <Button variant="second"
             type="button"
             size="sm"

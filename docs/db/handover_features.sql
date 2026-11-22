@@ -20,6 +20,7 @@
 --      다시 켜고 1분 늘린다. battle_timer.sql 의 battle_set_deadline 을 대신한다(친선과 도전의 탑은 그대로 90초).
 --   7. match_picks: 게임으로 치른 경기의 선출(출전마다 낸 포켓몬). 운영진이 set_match_picks 로 남긴다.
 --   8. replace_bracket_entrant: 대진표가 만들어진 뒤, 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로 바꾼다.
+--   9. event_checkins 와 my_checkin: 대회 날 선수가 스스로 남기는 체크인. 운영진은 표를 읽어 대진표를 만들 때 쓴다.
 --
 -- 지키는 것: 승자, 대진, Result, RankingAward 는 이 파일이 쓰지 않는다(합치기는 선수만 옮긴다).
 
@@ -474,6 +475,50 @@ end;
 $$;
 revoke all on function ypl_schema_validation.replace_bracket_entrant(uuid, uuid, uuid) from public, anon;
 grant execute on function ypl_schema_validation.replace_bracket_entrant(uuid, uuid, uuid) to authenticated;
+
+-- 9. 셀프 체크인: 대회 날(한국 날짜가 held_on) 구글 계정이 선수와 이어진 신청자가 스스로 도착을 남긴다. 운영진은 누가 왔는지 읽고
+--    체크인한 사람으로 대진표를 만든다. p_event_ids: 한 공지가 받는 대회들(루키와 마스터 통합 접수는 둘), 그중 신청한 쪽에 남는다.
+create table if not exists ypl_schema_validation.event_checkins (
+  event_id uuid not null references ypl_schema_validation.events (id) on delete cascade,
+  registration_id uuid not null references ypl_schema_validation.event_registrations (id) on delete cascade,
+  auth_user_id uuid,
+  checked_in_at timestamptz not null default now(),
+  primary key (event_id, registration_id)
+);
+alter table ypl_schema_validation.event_checkins enable row level security;
+drop policy if exists event_checkins_read on ypl_schema_validation.event_checkins;
+create policy event_checkins_read on ypl_schema_validation.event_checkins for select to authenticated
+  using (ypl_schema_validation.is_ypl_admin() or auth_user_id = auth.uid());
+grant select on ypl_schema_validation.event_checkins to authenticated, service_role;
+
+-- 'not_signed' | 'not_registered' | 'closed'(그날이 아님) | 'open'(체크인 전) | 'done'
+create or replace function ypl_schema_validation.my_checkin(p_event_ids uuid[], p_check_in boolean default false)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_reg record;
+begin
+  if auth.uid() is null then return 'not_signed'; end if;
+  select g.id, g.event_id, e.held_on, e.status into v_reg
+    from ypl_schema_validation.event_registrations g
+    join ypl_schema_validation.events e on e.id = g.event_id
+    join public.player_accounts pa on pa.player_id = g.player_id and pa.status = 'approved' and pa.auth_user_id = auth.uid()
+   where g.event_id = any (coalesce(p_event_ids, '{}'))
+   limit 1;
+  if not found then return 'not_registered'; end if;
+  if exists (select 1 from ypl_schema_validation.event_checkins c where c.event_id = v_reg.event_id and c.registration_id = v_reg.id) then return 'done'; end if;
+  if v_reg.held_on is distinct from (now() at time zone 'Asia/Seoul')::date or v_reg.status in ('cancelled', 'completed') then return 'closed'; end if;
+  if not p_check_in then return 'open'; end if;
+  insert into ypl_schema_validation.event_checkins (event_id, registration_id, auth_user_id) values (v_reg.event_id, v_reg.id, auth.uid())
+  on conflict do nothing;
+  return 'done';
+end;
+$$;
+revoke all on function ypl_schema_validation.my_checkin(uuid[], boolean) from public, anon;
+grant execute on function ypl_schema_validation.my_checkin(uuid[], boolean) to authenticated;
 
 -- 5. 실행 여부
 create or replace function public.handover_features_ready()

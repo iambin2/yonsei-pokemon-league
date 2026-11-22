@@ -74,11 +74,11 @@ async function token() {
 export const visitorToken = () => (visitorSignedIn() ? token() : Promise.resolve(null));
 setAccountToken(visitorToken);
 
-async function rest(path, { method = "GET", body, auth = true } = {}) {
+async function rest(path, { method = "GET", body, auth = true, profile = null } = {}) {
   const bearer = auth ? await token() : null;
   if (auth && !bearer) throw Object.assign(new Error("로그인이 만료되었습니다. 다시 로그인해 주세요."), { signedOut: true });
   const response = await fetch(`${URL_BASE}rest/v1/${path}`, {
-    method, headers: { apikey: KEY, Authorization: `Bearer ${bearer || KEY}`, "Content-Type": "application/json" },
+    method, headers: { apikey: KEY, Authorization: `Bearer ${bearer || KEY}`, "Content-Type": "application/json", ...(profile ? { "Content-Profile": profile, "Accept-Profile": profile } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await response.json().catch(() => null);
@@ -101,6 +101,14 @@ export function accountsReady() {
 export const accountsKnown = () => enabled() && read(READY) === 1;
 
 // this visitor's own account: { requested_name, status, player_id, email } or null. approved: the name is theirs alone
+/* 셀프 체크인 (docs/db/handover_features.sql, 2026-11-22, the owner's draft 6 A): the account's state for the day's events, and with
+   checkIn the arrival itself. 'not_registered' | 'closed' | 'open' | 'done'; null before that SQL has run or when signed out. */
+export async function myCheckin(eventIds, checkIn = false) {
+  if (!visitorSignedIn() || !eventIds?.length) return null;
+  try { return await rest("rpc/my_checkin", { method: "POST", body: { p_event_ids: eventIds, p_check_in: checkIn }, profile: "ypl_schema_validation" }); }
+  catch (error) { if (checkIn) throw error; return null; }
+}
+
 export async function myPlayerLink() {
   const rows = await rest("player_accounts?select=requested_name,status,player_id,email");
   return rows?.[0] || null;
