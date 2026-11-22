@@ -907,8 +907,14 @@ export function myMatchRecord(profile, nameOf = () => "") {
   for (const m of rows) {
     const name = m.opponent || nameOf(m.opponentPlayerId) || "";
     if (!name) continue;
-    const cur = rivals.get(name) || { name, games: 0, wins: 0, losses: 0 };
+    const cur = rivals.get(name) || { name, games: 0, wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, scored: false };
     cur.games += 1; if (m.won) cur.wins += 1; else cur.losses += 1;
+    // game scores where the operator entered them (docs/db/match_outcome.sql)
+    if (Number.isInteger(m.winnerScore) && Number.isInteger(m.loserScore)) {
+      cur.scored = true;
+      cur.gamesWon += m.won ? m.winnerScore : m.loserScore;
+      cur.gamesLost += m.won ? m.loserScore : m.winnerScore;
+    }
     rivals.set(name, cur);
   }
   return {

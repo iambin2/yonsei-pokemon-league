@@ -368,7 +368,7 @@ function MyRecord({ snapshot, profile }) {
         <Counter label="패" value={rec.losses} unit="패" />
         <Counter label="승률" value={rec.rate} unit="%" cells={rec.rate >= 100 ? 3 : 2} after={<span className="t15">%</span>} />
       </div>
-      {rec.rivals.length > 0 && <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line="자주 만난 상대" value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>}
+      {rec.rivals.length > 0 && <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line={r.scored ? `자주 만난 상대, 게임 ${r.gamesWon}:${r.gamesLost}` : "자주 만난 상대"} value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>}
     </section>
   );
 }

@@ -1021,6 +1021,13 @@ export async function readMatchOutcomes(eventId) {
   return new Map((data || []).map(row => [row.source_node_key, row]));
 }
 
+// docs/db/match_outcome_more.sql 이 실행되었는가(팀전의 불참). 그 전에는 함수가 없어 false.
+let outcomeMoreReady = null;
+export function matchOutcomeMoreReady() {
+  outcomeMoreReady ||= db().rpc("match_outcome_more_ready").then(({ data, error }) => !error && data === true, () => false);
+  return outcomeMoreReady;
+}
+
 // 승자가 정해진 경기에 점수 또는 불참만 남긴다. 승자와 대진은 그대로이고, 검사는 RPC가 한다.
 export async function setNormalizedMatchOutcome({ eventId, sourceNodeKey, scoreA = null, scoreB = null, forfeit = false } = {}) {
   const { data, error } = await db().rpc("set_normalized_match_outcome", {

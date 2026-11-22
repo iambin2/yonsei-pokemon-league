@@ -208,6 +208,9 @@ function normalizedModels(data, raw) {
     const winner = participantsByEntryId.get(match.winner_entry_id)?.[0];
     if (!a || !b || !winner) return [];
     const loser = winner.entry_id === a.entry_id ? b : a;
+    // game score (docs/db/match_outcome.sql), told as the winner's and the loser's; none when not entered or a no-show
+    const scored = match.resolution !== "forfeit" && Number.isInteger(match.score_a) && Number.isInteger(match.score_b);
+    const aWon = winner.entry_id === a.entry_id;
     return [{
       id: match.id,
       ...eventMeta(event),
@@ -219,6 +222,8 @@ function normalizedModels(data, raw) {
       winner: cleanName(playerById.get(winner.player_id)?.display_name),
       loser: cleanName(playerById.get(loser.player_id)?.display_name),
       resolution: match.resolution,
+      winnerScore: scored ? (aWon ? match.score_a : match.score_b) : null,
+      loserScore: scored ? (aWon ? match.score_b : match.score_a) : null,
       sourceNodeKey: match.source_node_key || null,
     }];
   });

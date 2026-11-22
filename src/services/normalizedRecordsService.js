@@ -89,7 +89,7 @@ export async function fetchNormalizedRecordsSnapshot() {
         id, event_id, parent_match_id, match_kind, round_number, stage_label,
         sequence_no, entry_a_id, entry_b_id, player_a_id, player_b_id,
         winner_entry_id, winner_player_id, resolution, source,
-        source_node_key, played_at
+        source_node_key, played_at, score_a, score_b
       `,
       eventIds
     ),
