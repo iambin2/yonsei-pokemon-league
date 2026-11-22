@@ -47,3 +47,10 @@ test("a Single qualifier cannot play past its survivor target and does not form 
   assert.deepEqual(guardQualifierRows(event,participants,[won,future],[]),[won]);
   assert.throws(()=>guardQualifierRows(event,participants,[won,{...future,winner_entry_id:"A"}],[won]),/더 진행/);
 });
+
+test("랭킹 시드: seeds 1 and 2 meet only in the final, 1 to 4 only in the semis, and the BYEs fall to the best seeds", async () => {
+  const { seededPlan } = await import("../src/services/bracketProjection.js");
+  assert.deepEqual(seededPlan(["a", "b", "c", "d", "e", "f", "g", "h"]), [["a", "h"], ["d", "e"], ["b", "g"], ["c", "f"]]);
+  assert.deepEqual(seededPlan(["a", "b", "c", "d", "e", "f"]), [["a", null], ["d", "e"], ["b", null], ["c", "f"]]);
+  assert.deepEqual(seededPlan(["a", "b", "c"]), [["a", null], ["b", "c"]]);
+});

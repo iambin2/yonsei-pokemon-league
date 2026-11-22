@@ -18,7 +18,9 @@ import { ChampionsBracketControls } from "../components/ChampionsBracketControls
 import { applyTitleAwards, evaluateTitleAwards, revertTitleAwards } from "../services/titleAwards.js";
 import { loadRecordsPokemonDirectory } from "../services/recordsPokemon.js";
 import { freshRead, peekRead } from "../services/readCache.js";
-import { drawPlan } from "../services/bracketProjection.js";
+import { drawPlan, seededPlan } from "../services/bracketProjection.js";
+import { fetchNormalizedRecordsSnapshot } from "../services/normalizedRecordsService.js";
+import { buildNormalizedRecordsProjection } from "../services/normalizedRecordsProjection.js";
 import { GROUP_TOPOLOGY, groupDraw, validateGroupConfig } from "../services/groupBracketCore.js";
 import { createGroupFinal, createGroupPlayoff, createIndividualBracketDraw, listSameRoundRookieChampions, reopenGroupStage, setGroupFinalWinner, setGroupStageWinner } from "../services/normalizedCompetitionService.js";
 import { BYE, clearedByPick, collectGraphMatches, evalGraph, withPick, withSeries } from "../services/bracketWinnerPlan.js";
@@ -549,6 +551,22 @@ function BracketWizard({ data, onClose, onCreate }){
     setStep(3);
   };
   const redraw=()=>{ setHeld(null); setPlacement(p=>p&&{...p,plan:format==="group"?groupDraw(p.parts.map(x=>x.id),gN):drawPlan(p.parts.map(x=>x.id))}); };
+  /* 랭킹 시드: the participants by this season's ranking points (records, the newest season), the unranked after them in draw order */
+  const [seeding,setSeeding]=useState(false);
+  const seedByRanking=async()=>{
+    setSeeding(true);
+    try{
+      const raw=await freshRead("records",fetchNormalizedRecordsSnapshot,60000);
+      const season=buildNormalizedRecordsProjection(data,raw,null).ranking?.seasons?.[0];
+      const points=new Map((season?.rows||[]).flatMap(row=>[[row.playerId,row.points],[`name:${playerNameKey(row.name||"")}`,row.points]]));
+      const pointsOf=part=>points.get(part.playerId)??points.get(`name:${playerNameKey(part.name)}`)??-1;
+      setHeld(null);
+      setPlacement(p=>{ if(!p)return p; const drawn=drawPlan(p.parts.map(x=>x.id)).flat().filter(Boolean); const byId=new Map(p.parts.map(x=>[x.id,x]));
+        return {...p,plan:seededPlan([...drawn].sort((x,y)=>pointsOf(byId.get(y))-pointsOf(byId.get(x))))}; });
+      setEventError(season?.rows?.length?"":"이번 시즌 랭킹이 아직 없어 추첨 순서 그대로 놓았습니다.");
+    }catch(error){ setEventError(`랭킹을 읽지 못했습니다. ${error?.message||""}`.trim()); }
+    finally{ setSeeding(false); }
+  };
   const swapPlaces=(x,y)=>{ if(!x||!y||x===y)return; setPlacement(p=>({...p,plan:p.plan.map(pair=>pair.map(k=>k===x?y:k===y?x:k))})); };
   const placeName=key=>placement?.parts.find(p=>p.id===key)?.name||"";
   const tapPlace=key=>{ if(dragFrom.current?.moved){ dragFrom.current=null; return; } if(held==null) setHeld(key); else { swapPlaces(held,key); setHeld(null); } };
@@ -793,7 +811,8 @@ function BracketWizard({ data, onClose, onCreate }){
     </>}
 
     {step===3&&placement&&<>
-      <div className="stack bk-place-tools"><Button variant="second" onClick={redraw}>다시 추첨</Button></div>
+      <div className="stack bk-place-tools"><Button variant="second" onClick={redraw}>다시 추첨</Button>
+        {format!=="group"&&<Button variant="second" onClick={seedByRanking} loading={seeding} disabled={seeding}>랭킹 시드</Button>}</div>
       <p className="t12 reg dim">이름을 끌어 다른 이름에 놓거나, 두 이름을 차례로 누르면 자리가 바뀝니다.</p>
       <div className="stack bk-place" onPointerMove={dragPlace} onPointerUp={dropPlace} onPointerLeave={()=>{ if(dragFrom.current&&!dragFrom.current.moved) dragFrom.current=null; }}>
         {format==="group"?placement.plan.map((pool,i)=><section className="stack" key={i}>

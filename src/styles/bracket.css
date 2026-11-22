@@ -183,6 +183,7 @@
 
 /* ---------- 3 대진 배치: each first-round match a row, the two names as cells; the held name inverted ---------- */
 .bk-place-tools { grid-template-columns: minmax(0, 1fr); }
+.bk-place-tools:has(> :nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .bk-place-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0 var(--s2) 0 var(--pad); }
 .bk-place-name { min-height: var(--h-control); padding: 0 var(--s3); text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; transition: scale var(--move-press), background-color var(--move-tone); }
 .bk-place-name.inv { color: var(--ground); }

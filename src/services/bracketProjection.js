@@ -117,6 +117,17 @@ export function drawPlan(keys = []) {
   return Array.from({ length: size / 2 }, (_, match) => byeMatches.has(match) ? [shuffled[cursor++], null] : [shuffled[cursor++], shuffled[cursor++]]);
 }
 
+/* 랭킹 시드 (2026-11-22): the keys in their seed order (the best first) placed as seeded brackets place them, so the first two can meet
+   only in the final and the first four only in the semifinals; the BYEs fall to the best seeds. The same plan shape as drawPlan, so
+   the admin may still swap players before the bracket is made. */
+export function seededPlan(keys = []) {
+  const size = nextPowerOfTwo(keys.length);
+  let order = [1];
+  while (order.length < size) order = order.flatMap(seed => [seed, order.length * 2 + 1 - seed]);
+  const at = seed => (seed <= keys.length ? keys[seed - 1] : null);
+  return Array.from({ length: size / 2 }, (_, match) => [at(order[match * 2]), at(order[match * 2 + 1])]);
+}
+
 /* A plan must hold every participant once, as many pairs as the first round has matches, and a player first in
    every pair; anything else fails closed. */
 export function slotsFromPlan(plan, entryOf) {
