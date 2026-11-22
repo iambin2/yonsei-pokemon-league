@@ -59,6 +59,7 @@ node scripts/db-ledger.mjs > ledger.sql
 
 | 파일 | 운영 실행일 | 확인 방법 |
 |---|---|---|
+| account_self.sql | (아직) | 실행 전에는 계정의 연결 해제와 삭제가 "아직 준비되지 않은 기능"이라고 답함. 운영 DB에서 security definer 함수가 auth.users를 지울 수 있는지 실행 뒤 시험 계정으로 한 번 확인 |
 | tower_history.sql | (아직) | 파일 머리의 확인 질의. 실행 전에는 "내 도전" 목록이 보이지 않음 |
 | change_log.sql | (아직) | 실행 뒤 운영 화면에 "최근 변경"이 보임 |
 | battle_records.sql | (아직) | 파일 머리의 확인 질의. 실행 전에는 시작, 끝 시각과 제출본 칸이 비어 있고 컴퓨터전 난이도는 옛 함수로 저장됨 |

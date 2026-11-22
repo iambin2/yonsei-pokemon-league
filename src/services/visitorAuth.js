@@ -111,11 +111,26 @@ export const requestPlayerLink = name => rest("rpc/request_player_link", { metho
 export const applyWithAccount = (eventId, registrationData) =>
   rest("rpc/apply_with_account", { method: "POST", body: { p_event_id: eventId, p_registration_data: registrationData || {} } });
 
+/* the account's own rights (docs/db/account_self.sql, 2026-11-22, the privacy policy's 제8조): 연결 해제 drops the record link and keeps the
+   account; 계정 삭제 deletes the Google account with what hangs on it (teams, tower runs) and signs out. The league's records stay. */
+const SQL_MISSING = "아직 준비되지 않은 기능입니다. 운영진에게 요청해 주세요.";
+async function selfRpc(name) {
+  try { return await rest(`rpc/${name}`, { method: "POST", body: {} }); }
+  catch (error) { if (error.status === 404 || error.code === "PGRST202") throw new Error(SQL_MISSING); throw error; }
+}
+export const unlinkMyAccount = () => selfRpc("account_unlink").then(out => { announce(); return out; });
+export const deleteMyAccount = () => selfRpc("account_delete").then(out => { signOutVisitor(); return out; });
+
 /* ---------- the operators' side, on the admin session (storage.js) ---------- */
 export async function listLinkRequests() {
   const { data, error } = await supa.from("player_accounts").select("auth_user_id,email,account_name,requested_name,player_id,status,requested_at").order("requested_at", { ascending: false });
   if (error) throw new Error("연결 요청을 불러오지 못했습니다.");
   return data || [];
+}
+// an approved link undone (account_self.sql): a wrong approval no longer needs SQL
+export async function unlinkPlayerAccount(user) {
+  const { error } = await supa.rpc("admin_unlink_player", { p_user: user });
+  if (error) throw new Error(error.code === "PGRST202" ? "docs/db/account_self.sql을 먼저 실행해야 합니다." : error.message || "연결을 풀지 못했습니다.");
 }
 export async function decideLinkRequest(user, approve) {
   const { error } = await supa.rpc("decide_player_link", { p_user: user, p_approve: approve });

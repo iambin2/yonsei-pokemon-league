@@ -25,7 +25,7 @@ import Seg from "../components/common/Seg.jsx";
 import { battleHref, endedByLine, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
 import { battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
-import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
+import { VISITOR_EVENT, accountsKnown, accountsReady, deleteMyAccount, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, unlinkMyAccount, visitorSignedIn } from "../services/visitorAuth.js";
 import { useItemTitle } from "../components/layout/title.js";
 import { useMe } from "../components/common/useMe.js";
 
@@ -545,6 +545,23 @@ function TrainerLink({ profile, lead = false }) {
   );
 }
 
+/* the account's own keys at the place the account is (2026-11-22, the privacy policy's 제8조 in the visitor's hands): 로그아웃, then
+   연결 해제 while a link stands and 계정 삭제, each asked once since neither is undone */
+function AccountKeys({ link }) {
+  const [note, setNote] = useState("");
+  const run = async (ask, act) => {
+    if (!(await siteConfirm(ask))) return;
+    setNote("");
+    try { await act(); } catch (error) { setNote(error?.message || "잠시 뒤 다시 시도해 주세요."); }
+  };
+  return <div className="stack rc-more">
+    <Button variant="second" onClick={signOutVisitor}>로그아웃</Button>
+    {link && <Button variant="link" onClick={() => run({ title: "기록 연결 해제", body: `${link.requested_name} 기록과 이 구글 계정의 연결을 풉니다. 대회 기록은 그대로 남고, 계정으로 다시 요청할 수 있습니다.`, confirmLabel: "연결 해제", danger: true }, unlinkMyAccount)}>기록 연결 해제</Button>}
+    <Button variant="link" onClick={() => run({ title: "계정 삭제", body: "이 구글 계정과 계정에 저장한 팀, 도전의 탑 기록을 지우고 로그아웃합니다. 대회 기록은 리그 기록으로 남습니다. 되돌릴 수 없습니다.", confirmLabel: "계정 삭제", danger: true }, deleteMyAccount)}>계정 삭제</Button>
+    {note && <FormError>{note}</FormError>}
+  </div>;
+}
+
 /* 내 기록 찾기 (?view=records&tab=trainer&me=1): where the top bar's account key leads, instead of straight to Google. The visitor
    looks for their own name in the list they already know, and tapping it opens their sheet with the link right under its numbers:
    what an account is for is seen on their own record, not read in a dialog. A name the records do not have yet starts as the
@@ -580,7 +597,7 @@ function FindMe({ query, exact, onOpen, part = "head" }) {
       </div>
       {holds && link.player_id && <Row title="내 기록 보기" onClick={() => onOpen(link.requested_name)} value={<Icon n="chevr" size={20} />} />}
       {note && <FormError>{note}</FormError>}
-      {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
+      {signedIn && <AccountKeys link={link || null} />}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Button from "./common/Button.jsx";
-import { SectionHead } from "./common/Board.jsx";
+import { Row, SectionHead } from "./common/Board.jsx";
 import { siteConfirm } from "./common/SiteDialog.jsx";
 import { formatDate } from "../services/dateFormat.js";
-import { accountsReady, decideLinkRequest, listLinkRequests } from "../services/visitorAuth.js";
+import { accountsReady, decideLinkRequest, listLinkRequests, unlinkPlayerAccount } from "../services/visitorAuth.js";
 
 /* 기록 연결 요청 (DESIGN.md "Admin", Google accounts): a Google account asks for a trainer's name; an operator approves or refuses it,
    once each, since it is a decision about someone else (Composing a screen 18). One block wherever it stands: the 운영 page, at its
@@ -17,7 +17,22 @@ export default function LinkRequests({ hint = null, onCount = null, id = "linkre
   const load = () => accountsReady().then((ok) => (ok ? listLinkRequests() : [])).then((all) => { setRows(all); onCount?.(all.filter((row) => row.status === "pending").length); }, (error) => setNote(error.message));
   useEffect(() => { load(); }, []);
   const pending = rows.filter((row) => row.status === "pending");
-  if (!pending.length && !note) return null;
+  // approved links, shown on demand (2026-11-22: a wrong approval could be undone only in SQL)
+  const linked = rows.filter((row) => row.status === "approved");
+  const [showLinked, setShowLinked] = useState(false);
+  const unlink = async (row) => {
+    if (!(await siteConfirm({ title: "기록 연결 해제", body: `${row.requested_name} 기록과 ${row.email || "이 구글 계정"}의 연결을 풉니다. 대회 기록은 그대로 남습니다.`, confirmLabel: "연결 해제", danger: true }))) return;
+    setBusy(row.auth_user_id); setNote("");
+    try { await unlinkPlayerAccount(row.auth_user_id); await load(); } catch (error) { setNote(error.message); }
+    setBusy("");
+  };
+  if (!pending.length && !note && !linked.length) return null;
+  const linkedBlock = linked.length > 0 && <section className="rc-linkreq" aria-labelledby={`${id}-linked`}>
+    <SectionHead id={`${id}-linked`} title={`연결된 계정 ${linked.length}`} link={showLinked ? "접기" : "보기"} onLink={() => setShowLinked((v) => !v)} />
+    {showLinked && <div className="stack">{linked.map((row) => <Row key={row.auth_user_id} title={row.requested_name} line={row.email || row.account_name || ""}
+      value={<Button variant="link" disabled={Boolean(busy)} onClick={() => unlink(row)}>연결 해제</Button>} />)}</div>}
+  </section>;
+  if (!pending.length && !note) return linkedBlock;
   const decide = async (row, approve) => {
     const who = row.email || row.account_name || "이 구글 계정";
     const ok = await siteConfirm(approve
@@ -28,7 +43,7 @@ export default function LinkRequests({ hint = null, onCount = null, id = "linkre
     try { await decideLinkRequest(row.auth_user_id, approve); await load(); } catch (error) { setNote(error.message); }
     setBusy("");
   };
-  return (
+  return (<>
     <section className="rc-linkreq" aria-labelledby={id}>
       <SectionHead id={id} title={`기록 연결 요청 ${pending.length}`} />
       <div className="rc-reqs">
@@ -55,5 +70,6 @@ export default function LinkRequests({ hint = null, onCount = null, id = "linkre
       </div>
       {note && <p className="t12 dim rc-req-note">{note}</p>}
     </section>
-  );
+    {linkedBlock}
+  </>);
 }
