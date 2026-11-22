@@ -23,7 +23,9 @@ import Button from "../components/common/Button.jsx";
 import LinkRequests from "../components/LinkRequests.jsx";
 import { popHandlers } from "../components/layout/history.js";
 import Seg from "../components/common/Seg.jsx";
-import { battleHref, endedByLine, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
+import { battleHref, endedByLine, handoverReady, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
+import { mergePlayers, renameInSiteData, renamePlayer } from "../services/playerRename.js";
+import Field from "../components/common/Field.jsx";
 import { battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
@@ -254,6 +256,8 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
           <Modal title={profile.name} hint={trainerHint(profile)} className="rc-sheet wide" onClose={closeTrainer}>
             <TrainerProfile snapshot={snapshot} profile={profile} onParty={setParty} onPokemon={openPokemon} go={go} finding={finding} />
             <ShareHere title={profile.name} className="rc-more" />
+            {admin && <TrainerAdmin snapshot={snapshot} profile={profile} data={data} save={save}
+              onDone={(name) => { setReloadKey(v => v + 1); if (name) openTrainer(name); }} />}
           </Modal>
         ) : null;
       })()}
@@ -396,6 +400,48 @@ function MyRecord({ snapshot, profile }) {
       {rec.rivals.length > 0 && <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line={r.scored ? `자주 만난 상대, 게임 ${r.gamesWon}:${r.gamesLost}` : "자주 만난 상대"} value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>}
     </section>
   );
+}
+
+/* 운영 (2026-11-22, the owner's draft 2 A): at the foot of a trainer's sheet, for operators only. 이름 바꾸기 renames the player and the
+   same name in the older records, titles and rankings; 같은 사람 합치기 moves another trainer's records onto this one (handover_features.sql
+   moves every reference, then deletes the other) and its name in the older records with them. Until that SQL has run, nothing shows. */
+function TrainerAdmin({ snapshot, profile, data, save, onDone }) {
+  const [ready, setReady] = useState(false);
+  const [name, setName] = useState(profile.name);
+  const [other, setOther] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  useEffect(() => { let on = true; handoverReady().then(ok => on && setReady(ok)); return () => { on = false; }; }, []);
+  if (!ready || !profile.playerId) return null;
+  const others = Object.values(snapshot.profiles || {}).filter(p => p.playerId && p.playerId !== profile.playerId).sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  const drop = others.find(p => p.playerId === other) || null;
+  const run = async (fn) => { setBusy(true); setNote(""); try { await fn(); } catch (e) { setNote(e?.message || "잠시 뒤 다시 시도해 주세요."); } finally { setBusy(false); } };
+  const rename = () => run(async () => {
+    const next = name.trim();
+    if (!next || next === profile.name) return;
+    await renamePlayer(profile.playerId, next);
+    if (!(await save(renameInSiteData(data, profile.name, next), "이름을 바꿨습니다."))) setNote("공식 기록의 이름은 바꿨지만 옛 기록과 칭호의 이름은 저장하지 못했습니다. 다시 눌러 주세요.");
+    onDone(next);
+  });
+  const merge = () => run(async () => {
+    if (!drop) return;
+    if (!(await siteConfirm({ title: "같은 사람 합치기", body: `${drop.name}의 기록을 모두 ${profile.name}에게 옮기고 ${drop.name}을 지웁니다. 되돌릴 수 없습니다.`, confirmLabel: "합치기", danger: true }))) return;
+    await mergePlayers(profile.playerId, drop.playerId);
+    if (!(await save(renameInSiteData(data, drop.name, profile.name), "합쳤습니다."))) setNote("공식 기록은 합쳤지만 옛 기록과 칭호의 이름은 저장하지 못했습니다.");
+    setOther("");
+    onDone(null);
+  });
+  return <section className="rc-sec ad-block" aria-labelledby="rc-admin-h">
+    <SectionHead id="rc-admin-h" title="운영" />
+    <Field label="이름 바꾸기"><input value={name} onChange={e => setName(e.target.value)} maxLength={30} /></Field>
+    <Button variant="second" disabled={busy || !name.trim() || name.trim() === profile.name} onClick={rename}>이름 저장</Button>
+    <Field label="같은 사람 합치기"><Dropdown value={other} onChange={setOther} placeholder="합칠 트레이너" ariaLabel="합칠 트레이너"
+      options={others.map(p => ({ value: p.playerId, label: p.name }))} /></Field>
+    {drop && <div className="stack"><Row title={`${drop.name}의 기록이 옮겨집니다.`}
+      line={`대회 ${(drop.participations || []).length}개, 경기 ${(drop.matches || []).length}개, 칭호 ${(drop.titles || []).length}개`} /></div>}
+    <Button variant="second" disabled={busy || !drop} onClick={merge}>합치기</Button>
+    {note && <FormError>{note}</FormError>}
+  </section>;
 }
 
 function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = false }) {
