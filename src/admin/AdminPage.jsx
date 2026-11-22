@@ -12,6 +12,7 @@ import { siteAlert, siteConfirm } from "../components/common/SiteDialog.jsx";
 import { readTowerMonthTops } from "../services/visitorAuth.js";
 import { TOWER_TITLE, towerMonthLabel, towerTitlesDue } from "../services/towerTitles.js";
 import { applyTitleAwards } from "../services/titleAwards.js";
+import { buildExportCsvs, downloadText, fetchExportTables } from "../services/recordsExport.js";
 
 /* 운영 (DESIGN.md "Admin", 2026-11-08): the operators' one place. Their work had stood scattered inside the public pages (a notice's
    responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counters,
@@ -25,6 +26,35 @@ const DOORS = [
   ["명예의 전당", "champions", "역대 챔피언"],
   ["게시판", "board", "글과 댓글 정리"],
 ];
+/* 내보내기 (2026-11-22): every official record as files an operator keeps or opens in a spreadsheet. The tables are read once, on the
+   first press; each row is one file, so the browser never asks to allow several downloads at once. */
+const EXPORTS = [
+  ["전체 기록", "모든 표, JSON", "json"],
+  ["결과", "대회별 순위, CSV", "results"],
+  ["경기", "승자, 점수, 불참, CSV", "matches"],
+  ["랭킹", "시즌별 포인트, CSV", "ranking"],
+  ["명단", "대회별 신청, CSV", "roster"],
+];
+function Exports({ flash }) {
+  const [busy, setBusy] = useState("");
+  const [tables, setTables] = useState(null);
+  const take = async key => {
+    if (busy) return;
+    setBusy(key);
+    try {
+      const t = tables || await fetchExportTables();
+      setTables(t);
+      const day = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+      if (key === "json") downloadText(`ypl-records-${day}.json`, JSON.stringify({ exportedAt: new Date().toISOString(), tables: t }, null, 1), "application/json");
+      else downloadText(`ypl-${key}-${day}.csv`, buildExportCsvs(t)[key], "text/csv;charset=utf-8");
+    } catch (error) { flash(`받지 못했습니다. ${error?.message || "잠시 뒤 다시 시도해 주세요."}`); }
+    finally { setBusy(""); }
+  };
+  return <section className="ad-block" aria-labelledby="ad-export-h">
+    <SectionHead id="ad-export-h" title="내보내기" />
+    <div className="stack ad-doors">{EXPORTS.map(([title, line, key]) => <Row key={key} title={title} line={busy === key ? "받는 중" : line} onClick={() => void take(key)} label={`${title} 받기, ${line}`} />)}</div>
+  </section>;
+}
 const STEP_ACTION = { 1: null, 2: "대진표 만들기", 3: "결과 입력", 4: "기록에 반영" };
 const when = e => (e.heldOn ? formatDate(e.startTime ? `${String(e.heldOn).slice(0, 10)}T${e.startTime}` : e.heldOn, { time: Boolean(e.startTime) }) : "");
 
@@ -134,6 +164,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
             <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}</div>
           </section>
           <ChangeLog />
+          <Exports flash={flash} />
         </div>
         <aside className="ad-side" aria-labelledby="ad-events-h">
           <SectionHead id="ad-events-h" title="대회 진행" />
