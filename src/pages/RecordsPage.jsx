@@ -524,7 +524,7 @@ function TrainerLink({ profile, lead = false }) {
           ? <Button variant="main" icon="check" loading={busy} onClick={go}>{moving ? `${link.requested_name} 대신 이 기록으로 요청` : "내 기록으로 연결"}</Button>
           : <Button variant="main" onClick={() => signInWithGoogle(profile.name, findBack(profile.name))}><GoogleMark />구글로 내 기록 연결</Button>)}
         {note && <FormError>{note}</FormError>}
-        {signedIn && <div className="rc-more"><Button variant="link" onClick={signOutVisitor}>로그아웃</Button></div>}
+        {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
       </section>
     );
   }
@@ -540,7 +540,7 @@ function TrainerLink({ profile, lead = false }) {
               value={<Button variant="second" size="sm" loading={busy} onClick={go}>요청</Button>} />}
       </div>
       {note && <FormError>{note}</FormError>}
-      {signedIn && <div className="rc-more"><Button variant="link" onClick={signOutVisitor}>로그아웃</Button></div>}
+      {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
     </section>
   );
 }
@@ -580,7 +580,7 @@ function FindMe({ query, exact, onOpen, part = "head" }) {
       </div>
       {holds && link.player_id && <Row title="내 기록 보기" onClick={() => onOpen(link.requested_name)} value={<Icon n="chevr" size={20} />} />}
       {note && <FormError>{note}</FormError>}
-      {signedIn && <div className="rc-more"><Button variant="link" onClick={signOutVisitor}>로그아웃</Button></div>}
+      {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
     </div>
   );
 }

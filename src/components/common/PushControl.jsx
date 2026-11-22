@@ -57,7 +57,7 @@ export function usePush(title) {
     <div className="push-ask">
       {say && <p className="pn2 push-note t12 reg dim" role={mode === "install" ? undefined : "alert"}><Icon n="info" size={20} /><span>{say}</span></p>}
       {mode === "ready" && !blocked && <Button variant="main" icon="check" disabled={busy} onClick={flip}>알림 받기</Button>}
-      <Button variant="link" className="push-later" onClick={() => setAsk(false)}>나중에</Button>
+      <Button variant="second" className="push-later" onClick={() => setAsk(false)}>나중에</Button>
     </div>
   </Modal>;
   return { mode, on, busy, checked, press, sheet, kinds, pressKind };

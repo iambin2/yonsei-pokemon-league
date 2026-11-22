@@ -15,7 +15,6 @@
 /* the party's questions (규정, the rule's parties, 저장한 팀) stand apart as the 상대 sheet's do, in the sheet and beside the court */
 .bt-partypick { gap: var(--s5); }
 .bt-lobby-main > .dock { margin-top: 0; }
-.bt-cancel { justify-self: center; }
 @media (max-width: 859px) {
   .bt-lobby-main { display: contents; }
   .bt-lobby-main > .dock { order: 1; }

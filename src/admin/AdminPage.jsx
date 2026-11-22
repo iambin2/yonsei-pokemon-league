@@ -51,7 +51,7 @@ function EventPanel({ e, main, go, onClose, onCancel }) {
         <Button variant="second" onClick={() => go("news", { notice: e.noticeId })}>신청 현황</Button>
       </div>}
     {/* an event that will not be held (2026-11-22: two stood open for weeks, the notice undeletable for its applications) */}
-    {e.step <= 2 && <Button variant="link" onClick={() => onCancel(e)}>대회 취소</Button>}
+    {e.step <= 2 && <Button variant="second" onClick={() => onCancel(e)}>대회 취소</Button>}
   </section>;
 }
 

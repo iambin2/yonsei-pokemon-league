@@ -274,7 +274,6 @@
 /* ---------- alerts (PushControl.jsx): a switch row, the kinds board, and the sheet that says why first ---------- */
 .push-ask { display: grid; gap: var(--s5); }
 .push-note { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--pad); }
-.push-later { justify-self: center; }
 /* a switch: 52 by 32; off is a muted square in panel-2, on is inverted with the square at the right */
 .switch-row { justify-content: space-between; padding-right: var(--pad); }
 .sw { display: flex; width: var(--s13); height: var(--h-strip); padding: var(--s1); flex: none; background: var(--panel-2); transition: scale var(--move-press), background-color var(--move-tone); }

@@ -832,7 +832,7 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
             <LobbyStage leads={leads} doubles={doubles} awaiting random={Boolean(team?.random)} label={`경기장, ${leads.length ? leads.map(s => nameOf(res, s)).join(", ") : "우리 쪽"}, 상대 쪽은 비어 있음`} />
           </LobbyArena>}
           <Dock><Button variant="main" onClick={onShare}>링크 공유</Button></Dock>
-          <Button variant="link" className="bt-cancel" onClick={onCancel}>대기 취소</Button>
+          <Button variant="second" className="bt-cancel" onClick={onCancel}>대기 취소</Button>
         </div>
         <div className="bt-lobby-set">
           {/* 참가 대기 with its lamp stands once, on the foe's strip over the court where the one coming in will stand (2026-11-18: it
@@ -929,7 +929,7 @@ function OfficialSeat({ eventId, nodeKey, res, onOpen }) {
             <Button variant="main" onClick={submit} loading={busy} disabled={!ready}>{open ? "경기 들어가기" : "경기 시작"}</Button>
           </Dock>
         </>}
-      {open && <Button variant="link" href={battleHref(open.id)}>관전</Button>}
+      {open && <Button variant="second" href={battleHref(open.id)}>관전</Button>}
     </div>
   );
 }

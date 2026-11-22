@@ -921,7 +921,7 @@ function MatchBattle({ m, ev, battle, startable, eventId, admin=false, onChanged
   if(battle&&battle.status!=="ended") return <div className="stack mb-battle">
     <Row title="사이트 배틀" line={battle.status==="waiting"?"한 선수가 들어와 상대를 기다리는 중입니다.":"지금 배틀로 치르는 중입니다."} lamp={battle.status==="waiting"?"대기":"진행 중"} sig={battle.status!=="waiting"}/>
     <Button variant="second" href={battleHref(battle.id)}>{battle.status==="waiting"?"경기 들어가기":"관전"}</Button>
-    {admin&&<Button variant="link" disabled={busy} onClick={async()=>{
+    {admin&&<Button variant="second" disabled={busy} onClick={async()=>{
       if(await siteConfirm({title:"배틀 무효",body:"이 배틀을 닫습니다. 진행 중이던 배틀은 무효로 끝나 리플레이로 남고, 대진표에는 아무것도 넣지 않습니다. 승자는 결과 입력에서 정합니다.",confirmLabel:"무효",danger:true})) await run(()=>voidBattle(battle.id));
     }}>배틀 무효</Button>}
     {error}
@@ -940,7 +940,7 @@ function MatchBattle({ m, ev, battle, startable, eventId, admin=false, onChanged
       <Row title="사이트 배틀" line={line}/>
       {canStart&&unsettled&&<Button variant="main" href={officialBattleHref(eventId,m.id)}>배틀로 다시 경기</Button>}
       <Button variant="second" href={battleHref(battle.id)}>리플레이</Button>
-      {admin&&!m.winner&&winner&&!battle.applied_at&&battle.ended_by!=="void"&&<Button variant="link" disabled={busy} onClick={()=>run(()=>retryBattleApply(battle.id))}>다시 넣기</Button>}
+      {admin&&!m.winner&&winner&&!battle.applied_at&&battle.ended_by!=="void"&&<Button variant="second" disabled={busy} onClick={()=>run(()=>retryBattleApply(battle.id))}>다시 넣기</Button>}
       {error}
     </div>;
   }
@@ -1364,7 +1364,7 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
         {cutoff&&<Row title="순위 결정전" line={ready?"진출자가 확정되었습니다.":`동률 선수 ${cutoff.ids.length}명 중 ${cutoff.places}명이 진출합니다.`}/>}
         {group.playoffs.map((match,i)=>renderMatch(match,admin&&!b.knockout&&i===group.playoffs.length-1?true:admin?false:undefined))}
         {admin&&!b.knockout&&next&&<Button variant="second" disabled={busy} onClick={()=>run(()=>createGroupPlayoff(b,group.id))}>단판 결정전 추첨</Button>}
-        {admin&&group.playoffs.length>0&&!b.knockout&&<Button variant="link" disabled={busy} onClick={async()=>{
+        {admin&&group.playoffs.length>0&&!b.knockout&&<Button variant="second" disabled={busy} onClick={async()=>{
           if(await siteConfirm({title:"순위 결정전 초기화",body:"이 조의 결정전과 결과를 지우고 조별 결과 수정을 엽니다.",confirmLabel:"초기화",danger:true})){
             await run(()=>reopenGroupStage(b,group.id));
           }
@@ -1372,7 +1372,7 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
       </section>;
     })}
     {admin&&!b.knockout&&b.groupCfg.ready&&<Button variant="main" disabled={busy} onClick={()=>run(()=>createGroupFinal(b))}>본선 추첨 및 확정</Button>}
-    {admin&&b.knockout&&<Button variant="link" disabled={busy} onClick={async()=>{
+    {admin&&b.knockout&&<Button variant="second" disabled={busy} onClick={async()=>{
       if(await siteConfirm({title:"본선 배치 취소",body:"아직 결과가 없는 본선 배치를 지우고 조별 단계로 돌아갑니다.",confirmLabel:"배치 취소",danger:true})){
         await run(()=>reopenGroupStage(b));
       }
