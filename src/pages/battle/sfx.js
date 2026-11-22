@@ -1,8 +1,9 @@
 /* 배틀의 효과음 (DESIGN.md "Battle", Sound). 자리마다 하나씩: 누르는 키, 공을 던지고 여는 소리, 돌아오는 빛, 기술이 모이고 날아가고
    맞는 소리(타입마다, 베기와 물기와 주먹마다), 효과가 굉장함과 별로와 급소, 빗나감, 능력이 오르고 내리는 소리, 상태 이상마다의 소리,
    회복, 쓰러짐, 방어, 특성과 도구, 대타, 날씨와 필드와 벽과 함정, 메가진화, 턴, 시계, 승패.
-   소리는 배경음악(오케스트라 록)과 같은 결의 녹음된 효과음이다(2026-11-20, 운영자: "AI 스테레오 타입 같은 느낌"이던 합성음을
-   바꿈): Kenney와 Lentikula의 CC0 팩에서 고른 것을 scripts/build-sfx.py가 public/sfx/sprite.m4a 하나에 이어 두고(sfxSprite.js가 자리),
+   소리는 녹음된 효과음이다(2026-11-20, 운영자: "AI 스테레오 타입 같은 느낌"이던 합성음을 바꿈). 코드로 지은 배경음악(2026-11-22,
+   scripts/compose-music.py)과는 세 가지로 묶인다: 음높이가 있는 조각은 음악의 조에 맞춰 틀고(TUNED), 울림은 음악과 같은 방이고(room),
+   승패는 음악의 팡파르로 지은 마디가 알린다(J). Kenney와 Lentikula의 CC0 팩에서 고른 것을 scripts/build-sfx.py가 public/sfx/sprite.m4a 하나에 이어 두고(sfxSprite.js가 자리),
    여기서 그 조각을 무대의 그림과 같은 시각에 튼다(at: 무대의 ms). 연출 속도를 따르고, 건너뛰기는 조용하고, 소리 시트의 채널(기술 효과음,
    알림음)을 따른다. 왼쪽은 우리, 오른쪽은 상대: 소리가 나는 자리를 따라 좌우로 놓이고, 경기장의 울림(짧은 잔향)이 뒤에 깔린다. */
 import { channel, duck, heard, madeAudio, primeAudio } from "./cries.js";
@@ -17,11 +18,12 @@ export const setMoveType = t => { moveType = String(t || "normal").toLowerCase()
 let bus = null, wetIn = null, buses = null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// a stadium's air: two seconds of noise that falls away, a little different in each ear
+/* the air behind a sound: the music's own room (compose-music.py room(): noise falling as exp(-t / 0.25 s), 1.2 s), a little different
+   in each ear, so the effects and the music stand in one place (2026-11-22; it was a stadium of 1.6 s while the music moved to a small room) */
 function room(ctx) {
-  const len = Math.round(ctx.sampleRate * 1.6), buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  const len = Math.round(ctx.sampleRate * 1.2), buf = ctx.createBuffer(2, len, ctx.sampleRate), tau = ctx.sampleRate * .25;
   // the fall-off taken every 256 samples and drawn straight between (a power for each sample was 60 ms of a phone's frame, 2026-11-18)
-  const fall = i => Math.pow(1 - Math.min(len, i) / len, 3.4);
+  const fall = i => Math.exp(-Math.min(len, i) / tau);
   for (let ch = 0; ch < 2; ch++) {
     const d = buf.getChannelData(ch);
     for (let i0 = 0; i0 < len; i0 += 256) {
@@ -31,6 +33,8 @@ function room(ctx) {
   }
   return buf;
 }
+// how much of each sound's own send reaches the room: the music's went from .9 to .35 of its send, and the effects follow it
+const WET = .4;
 // the keys and the clock are not effects: they sound under 건너뛰기 too
 const ALWAYS = new Set(["select", "tick"]);
 // the big moments the music steps back for (cries.js duck): how long, in seconds of the stage
@@ -57,6 +61,8 @@ function wire(ctx) {
    none (as the music, music.js). A sound asked before it is decoded is let go, as one before the first touch is */
 const OAC = typeof window !== "undefined" && (window.OfflineAudioContext || window.webkitOfflineAudioContext);
 let sprite = null, lead = 0, loading = null;
+// the result's bars, composed from the music's fanfare (compose-music.py cadences()): one small file each
+const bars = new Map();
 function loadSprite() {
   if (!OAC || loading) return;
   loading = fetch(`${import.meta.env?.BASE_URL ?? "/"}sfx/sprite.m4a`)
@@ -64,6 +70,13 @@ function loadSprite() {
     .then(data => data && new Promise(resolve => new OAC(2, 1, SPRITE.rate).decodeAudioData(data, resolve, () => resolve(null))))
     .then(buffer => { if (buffer) { sprite = buffer; lead = Math.max(0, buffer.length - SPRITE.length); } })
     .catch(() => {});
+  for (const id of ["win", "lose", "draw"]) {
+    fetch(`${import.meta.env?.BASE_URL ?? "/"}sfx/${id}.m4a`)
+      .then(res => (res.ok ? res.arrayBuffer() : null))
+      .then(data => data && new Promise(resolve => new OAC(2, 1, SPRITE.rate).decodeAudioData(data, resolve, () => resolve(null))))
+      .then(buffer => { if (buffer) bars.set(id, buffer); })
+      .catch(() => {});
+  }
 }
 
 function ready(always) {
@@ -84,8 +97,29 @@ function outlet(ctx, pan, wet) {
   let head = g;
   if (pan && ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); g.connect(p); head = p; }
   head.connect(bus);
-  if (wet) { const s = ctx.createGain(); s.gain.value = wet; head.connect(s).connect(wetIn); }
+  if (wet) { const s = ctx.createGain(); s.gain.value = wet * WET; head.connect(s).connect(wetIn); }
   return g;
+}
+/* The clips that sound a note, and the note each sounds (MIDI, measured 2026-11-22; a take with no clear note is null). The music is in
+   E minor and A minor, and these were C#, A# and a quarter-tone off: each is played at the nearest of E G A B D, the notes both keys
+   share, whatever rate its sound asks for, and is not wavered as the others are. */
+const TUNED = { field: [49.27], field2: [57.81], field3: [55.16], bell: [57.47], wind: [67.68, null], hum: [41.97] };
+const SHARED = [4, 7, 9, 11, 2];
+export function tunedRate(id, take, rate) {
+  const own = TUNED[id]?.[take];
+  if (own == null) return null;
+  const m = own + 12 * Math.log2(rate), near = Math.round(m);
+  for (const n of [near, near - 1, near + 1, near - 2, near + 2]) if (SHARED.includes(((n % 12) + 12) % 12)) return rate * 2 ** ((n - m) / 12);
+  return rate;
+}
+export const TUNED_CLIPS = TUNED;
+// one of the result's bars, whole
+function J(ctx, t, id, g) {
+  const buffer = bars.get(id);
+  if (!buffer) return;
+  const src = ctx.createBufferSource(), out = outlet(ctx, 0, 0);
+  src.buffer = buffer; out.gain.value = g;
+  src.connect(out); src.start(t);
 }
 const lastTake = new Map();
 /* one clip of the sprite. g: its level, rate: played faster and higher (or slower and lower), at: seconds after t, dur: how long it
@@ -93,11 +127,11 @@ const lastTake = new Map();
 function S(ctx, t0, id, { g = 1, rate = 1, pan = 0, wet = .15, at = 0, dur = 0, lp = null, hp = null } = {}) {
   const takes = SPRITE.clips[id];
   if (!takes || !sprite) return;
-  // one of the clip's takes, never the one just played when there are more, a few cents higher or lower each time
+  // one of the clip's takes, never the one just played when there are more, a few cents higher or lower each time (a note stays in tune)
   const pick = takes.length > 1 ? (lastTake.get(id) + 1 + Math.floor(Math.random() * (takes.length - 1))) % takes.length || 0 : 0;
   lastTake.set(id, pick);
   const c = takes[pick];
-  rate *= 1 + (Math.random() - .5) * .06;
+  rate = tunedRate(id, pick, rate) ?? rate * (1 + (Math.random() - .5) * .06);
   const t = t0 + at, own = c[1] / SPRITE.rate / rate, len = dur ? Math.min(dur, own) : own, fade = Math.min(.08, len / 3);
   const src = ctx.createBufferSource(), out = outlet(ctx, pan, wet);
   src.buffer = sprite; src.playbackRate.value = rate;
@@ -170,11 +204,12 @@ const LIB = {
   // Mega Evolution as the newest games sound it (Legends Z-A, shapes measured): a rising charge, then the burst over a low blow
   megaStart: (c, t, o) => S(c, t, "megaA", { g: .8, pan: o.pan, wet: .5 }),
   megaEnd: (c, t) => { S(c, t, "megaB", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .6, wet: .4 }); },
-  /* the result (2026-11-20, the owner: the music's jingles are let go, the effects say it): a win rises and rings bright twice over a
-     thump, a loss falls away onto a heavy body, a draw is one chime; the music fades under them (BattlePage) */
-  win: (c, t) => { S(c, t, "lamp", { g: .7, wet: .4 }); S(c, t, "rise", { g: .8, wet: .5, rate: 1.1 }); S(c, t, "bright", { g: .75, wet: .6, at: .18 }); S(c, t, "chime", { g: .5, wet: .6, rate: 1.25, at: .34 }); },
-  lose: (c, t) => { S(c, t, "fall", { g: .8, wet: .5, rate: .7 }); S(c, t, "softH", { g: .65, wet: .4, at: .5 }); S(c, t, "dream", { g: .35, wet: .6, rate: .55, at: .55 }); },
-  draw: (c, t) => S(c, t, "chime", { g: .55, wet: .5 }),
+  /* the result: a bar of the music's own fanfare (J, compose-music.py cadences(), 2026-11-22: the effects alone had nothing of the music
+     in them), over the gesture the effects made before, now quieter: a win rises and rings over a thump, a loss falls away onto a
+     heavy body, a draw hangs on one chord; the music fades under them (BattlePage) */
+  win: (c, t) => { J(c, t, "win", .9); S(c, t, "lamp", { g: .5, wet: .4 }); S(c, t, "rise", { g: .35, wet: .5, rate: 1.1 }); S(c, t, "bright", { g: .3, wet: .6, at: .18 }); },
+  lose: (c, t) => { J(c, t, "lose", .9); S(c, t, "fall", { g: .4, wet: .5, rate: .7 }); S(c, t, "softH", { g: .5, wet: .4, at: .5 }); },
+  draw: (c, t) => J(c, t, "draw", .85),
 
   /* ---------- a move ---------- */
   // light gathering at the user, at the type's pitch

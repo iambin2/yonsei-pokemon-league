@@ -38,3 +38,14 @@ test("every clip a sound plays is in the sprite, and the sprite holds no clip no
   for (const id of used) assert.ok(CLIPS[id], `no clip "${id}"`);
   for (const id of Object.keys(CLIPS)) assert.ok(used.has(id), `clip "${id}" is never played (scripts/build-sfx.py)`);
 });
+
+test("a clip that sounds a note is played on a note the music's keys share", async () => {
+  const { tunedRate, TUNED_CLIPS } = await import("../src/pages/battle/sfx.js");
+  for (const [id, takes] of Object.entries(TUNED_CLIPS)) for (const [take, own] of takes.entries()) for (const rate of [.5, .6, .7, .85, 1, 1.1, 1.25, 1.3, 1.45]) {
+    if (own == null) { assert.equal(tunedRate(id, take, rate), null); continue; }
+    const m = own + 12 * Math.log2(tunedRate(id, take, rate));
+    assert.ok(Math.abs(m - Math.round(m)) < .01 && [4, 7, 9, 11, 2].includes(Math.round(m) % 12), `${id} at ${rate} sounds ${m.toFixed(2)}`);
+    assert.ok(Math.abs(12 * Math.log2(tunedRate(id, take, rate) / rate)) <= 2, `${id} at ${rate} is moved more than a tone`);
+  }
+  assert.equal(tunedRate("punch", 0, 1), null);
+});

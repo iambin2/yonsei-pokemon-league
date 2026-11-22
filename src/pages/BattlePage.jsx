@@ -1396,10 +1396,18 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const foe = other(perspective);
   // before the leads are sent out the stage is empty: the team preview stands in its place
   const started = Boolean(scene && [...scene.p1.active, ...scene.p2.active].some(Boolean));
+  const pickCount = useRef(0);
+  if (request?.teamPreview) pickCount.current = Math.min(request.maxChosenTeamSize || request.side.pokemon.length, request.side.pokemon.length);
   /* the music (music.js): the team preview's, then the battle's; at the end it fades (the result's sound is the effects', sfx.js win
      and lose) and a run of 도전의 탑 goes back to the tower's. The end first: a finished game opened again stands with its stage empty,
      not yet started (2026-11-20, it played the lobby's track) */
-  useMusic(shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : !started ? "lobby" : "battle");
+  /* how hot the battle runs (music.js LAYER): all of the hot layer once either side is down to its last Pokémon, most of it through a
+     도전의 탑 gatekeeper's game. The number brought is a player's own (the request); a watcher's music stays as it is */
+  const brought = useRef(0);
+  if (request?.side?.pokemon) brought.current = request.teamPreview ? pickCount.current : request.side.pokemon.length;
+  const leftOf = side => brought.current - (scene?.[side]?.roster || []).filter(m => m.fainted).length;
+  const heat = !started || shownEnded ? 0 : brought.current > 1 && Math.min(leftOf("p1"), leftOf("p2")) <= 1 ? 1 : row.kind === "streak" && seat && streakMaster(seat.wins ?? 0) ? .6 : 0;
+  useMusic(shownEnded ? (row.kind === "streak" && seat ? "tower" : null) : !started ? "lobby" : "battle", heat);
   const nameAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m ? `${side === perspective ? "" : "상대 "}${nameOf(res, m.species)}` : "빈 자리"; };
   // the typing as it stands now (a Soak, a Roost, a Trick-or-Treat), not the species' own
   const typesAt = (side, slot) => { const m = scene?.[side]?.active?.[slot]; return m && !m.fainted ? currentTypes(res, m) : null; };
@@ -1414,8 +1422,6 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   // a player's own party as the engine brought it (moves, item, ability, stats): kept from the last request, so it stays open while the other player chooses
   const party = useRef(null);
   if (request?.side?.pokemon) party.current = request.side.pokemon;
-  const pickCount = useRef(0);
-  if (request?.teamPreview) pickCount.current = Math.min(request.maxChosenTeamSize || request.side.pokemon.length, request.side.pokemon.length);
   /* the six the team preview offered: the picks are places in it. The request after 선출 확정 holds only the ones brought, so the
      preview read against it found no Pokémon at a place past the third (2026-11-06: picking a fourth, fifth or sixth threw, the room
      guard drew the battle again, and a battle drawn again catches up without its opening, so the owner never saw it) */

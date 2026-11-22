@@ -21,7 +21,8 @@ node scripts/build-ranker-teams.mjs  # rebuild src/data/ranker-teams.json, then 
 node scripts/check-sets.mjs  # list the sample sets that make no sense (Light Clay without a screen); tests/sampleSets.test.mjs holds m-c to it
 npm run data:cpu-learn  # blend players' parties into src/data/random-sets.json (what learn-cpu-sets.yml runs weekly)
 npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own Korean text for each move, ability and item
-python scripts/compose-music.py  # compose public/music/*.m4a in code (style c, the owner's pick; --draft <dir> --style a|b|c to listen), then music.js LENGTH
+python scripts/compose-music.py  # compose public/music/*.m4a (the three loops and the battle's hot layer) and public/sfx/{win,lose,draw}.m4a in code
+                        # (--draft <dir> to listen), then music.js LENGTH and INTRO; its docstring holds what was measured from the praised Pokémon themes
 python scripts/build-sfx.py <dir>  # rebuild public/sfx/sprite.m4a and src/pages/battle/sfxSprite.js from the unpacked CC0 packs (its docstring lists them)
 python scripts/build-cry-levels.py  # rebuild src/pages/battle/cryLevels.js, each cry's gain to -22 LUFS (rerun after build-cries.py)
 node scripts/build-sprite-ink.cjs  # rebuild src/data/sprite-ink.json, every Pokémon picture's ink read ahead (rerun after build-sprites.py)
