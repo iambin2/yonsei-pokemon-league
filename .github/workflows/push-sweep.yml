@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   actions: write
+  issues: write
 
 concurrency:
   group: push-sweep
@@ -31,3 +32,7 @@ jobs:
       - run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/push-sweep.yml/enable"
         env:
           GH_TOKEN: ${{ github.token }}
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}

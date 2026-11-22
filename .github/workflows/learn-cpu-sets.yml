@@ -2,8 +2,8 @@ name: Teach the computer
 
 # Blends the sets players bring against the computer (public.cpu_battles) into what it believes a Pokémon carries
 # (src/data/random-sets.json) with scripts/learn-cpu-sets.mjs, and opens a pull request only when that changed. Under 30 players
-# (parties that look alike count as one) the script writes nothing. Nothing is merged without review; merging deploys the site, and the battle function needs
-# npm run build:battle and its own deploy to pick the sets up for random parties.
+# (parties that look alike count as one) the script writes nothing. Nothing is merged without review; merging deploys the site, and functions.yml redeploys the battle function so random
+# parties pick the sets up too.
 #
 # Runs every Monday, an hour after the Champions data refresh, so the computer keeps learning whoever runs the site
 # (docs/BATTLE_COMPUTER.md, chapter 6). Needs the repository secret SUPABASE_SERVICE_ROLE_KEY (the address comes from
@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 concurrency:
   group: learn-cpu-sets
@@ -30,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Blend the players' parties in
@@ -69,5 +70,9 @@ jobs:
           if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" = "0" ]; then
             gh pr create --base main --head "$BRANCH" \
               --title "chore(data): teach the computer from YPL battles" \
-              --body "scripts/learn-cpu-sets.mjs blended the parties players brought against the computer into its set beliefs, and npm test passed. Merging deploys the site; run npm run build:battle and deploy the battle function for random parties to use the sets too."
+              --body "scripts/learn-cpu-sets.mjs blended the parties players brought against the computer into its set beliefs, and npm test passed. Merging deploys the site and the battle function (functions.yml)."
           fi
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}

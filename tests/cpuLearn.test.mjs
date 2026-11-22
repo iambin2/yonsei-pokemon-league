@@ -6,7 +6,15 @@ import { Teams } from "@pkmn/sim";
 import { learn, MIN_PLAYERS, MIN_SEEN, RATE } from "../scripts/learn-cpu-sets.mjs";
 import { ADDED, curateKind, MAJOR_RANK } from "../scripts/curate-sets.mjs";
 
-const SETS = JSON.parse(readFileSync(new URL("../src/data/random-sets.json", import.meta.url), "utf8"));
+// the file as the ladder made it: a week the workflow has already learned from players adds YPL sets and blended weights, and the
+// tests below must read the same whichever week they run in (two weekly runs failed on that, 2026-11-09 and 11-16)
+const unlearn = sets => JSON.parse(JSON.stringify(sets, (key, value) => {
+  if (Array.isArray(value) && value.some(s => s?.ypl)) return value.filter(s => !s.ypl);
+  if (value && typeof value === "object" && "baseWeight" in value) { const { baseWeight, ...rest } = value; return { ...rest, weight: baseWeight }; }
+  return value;
+}));
+const SETS = unlearn(JSON.parse(readFileSync(new URL("../src/data/random-sets.json", import.meta.url), "utf8")));
+delete SETS.learned;
 const FORMAT = "gen9championsbssregmc";
 const pool = SETS["m-c"].singles;
 const venusaur = () => pool.find(e => e.species === "Venusaur");

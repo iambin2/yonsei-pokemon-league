@@ -1,0 +1,58 @@
+name: Deploy functions
+
+# Deploys the two Edge Functions when what they are built from reaches main, so the site and the battle function no longer drift
+# apart (they deployed by hand until 2026-11-22). The battle bundle carries src/services and src/data, so a merged learning or data
+# pull request reaches random parties too. This run's history is the record of which commit each function runs.
+# Order still holds (CLAUDE.md, Deployment): a change that needs new SQL has its SQL run by the owner before it is pushed.
+# Needs the repository secret SUPABASE_ACCESS_TOKEN (a Supabase personal access token of an owner of the project, docs/HANDOVER.md);
+# without it the run fails and opens an issue.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "src/services/**"
+      - "src/data/**"
+      - "scripts/build-battle-engine.mjs"
+      - "scripts/oldLearnsets.mjs"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: functions
+  cancel-in-progress: false
+
+env:
+  PROJECT_REF: rqffrogcverfjqzjasax
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Check the secret
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: '[ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::SUPABASE_ACCESS_TOKEN is not set (docs/HANDOVER.md)"; exit 1; }'
+      - run: npm test
+      - run: npm run build:battle
+      - name: Deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx --yes supabase@2 functions deploy battle --use-api --no-verify-jwt --project-ref "$PROJECT_REF"
+          npx --yes supabase@2 functions deploy notify-announcement --use-api --no-verify-jwt --project-ref "$PROJECT_REF"
+          echo "Deployed ${GITHUB_SHA} to battle and notify-announcement."
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}

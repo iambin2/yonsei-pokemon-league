@@ -1,0 +1,43 @@
+name: Uptime check
+
+# Every hour: the site answers with its build (version.json), the battle function answers a warm call, and the database answers a
+# read. A failure opens an issue through failure-alert.yml, and the next good hour closes it.
+# The database read also keeps the free-tier project from pausing after 7 days without activity (this was supabase-keepalive.yml).
+# GitHub disables schedules in a public repo after 60 days without commits, so each run re-enables itself.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Site
+        run: curl --fail --silent --show-error --retry 2 --retry-delay 20 "https://league.pokeyonsei.com/version.json"
+      - name: Database
+        run: |
+          set -a; . ./.env.production; set +a
+          curl --fail --silent --show-error --retry 2 --retry-delay 20 \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+            "$VITE_SUPABASE_URL/rest/v1/site_data?select=key&limit=1"
+      - name: Battle function
+        run: |
+          set -a; . ./.env.production; set +a
+          curl --fail --silent --show-error --retry 2 --retry-delay 20 -X POST \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+            -d '{"action":"warm"}' "$VITE_SUPABASE_URL/functions/v1/battle"
+      - if: always()
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/uptime.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}

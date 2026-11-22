@@ -6,11 +6,13 @@ React 18 + Vite로 만든 정적 SPA이며, GitHub Pages에 자동 배포됩니�
 - 배포 주소: https://league.pokeyonsei.com/
 - 데이터: Supabase (정규화 스키마 + 레거시 key-value 테이블)
 
+처음 맡았다면 이 순서로 읽습니다: [`docs/HANDOVER.md`](docs/HANDOVER.md) (계정, 비밀, 정기 작업), [`docs/OPERATOR.md`](docs/OPERATOR.md) (대회 하나를 화면 순서대로), [`docs/RUNBOOK.md`](docs/RUNBOOK.md) (문제가 생겼을 때, 백업과 복구).
+
 ---
 
 ## 0. 준비물
 
-- **Node.js 20 이상** (https://nodejs.org — LTS). CI도 Node 20으로 빌드합니다.
+- **Node.js 24 이상** (https://nodejs.org). 저장소의 `.nvmrc`가 버전을 정하고, CI도 그 파일을 읽습니다.
 - 터미널에서 `node -v` 가 버전을 출력하면 OK
 
 ---
@@ -58,7 +60,7 @@ node tests/championsCore.test.mjs
 
 ## 3. 배포 — GitHub Pages
 
-`main` 에 push하면 `.github/workflows/deploy.yml` 이 빌드해서 자동 배포합니다. 수동 작업은 없습니다.
+`main` 에 push하면 `.github/workflows/deploy.yml` 이 테스트, SQL 검사, 빌드를 거쳐 사이트를 배포하고, 함수 쪽 코드가 바뀌었으면 `functions.yml` 이 두 Edge Function을 배포합니다(저장소 비밀 `SUPABASE_ACCESS_TOKEN` 필요). 새 SQL은 소유자가 먼저 SQL 편집기에서 실행합니다(`docs/db/README.md`). 다른 브랜치에 push하면 `ci.yml` 이 같은 검사만 돌립니다.
 
 두 가지만 주의하세요.
 
@@ -78,7 +80,7 @@ node tests/championsCore.test.mjs
 
 ### 새 환경을 세팅한다면
 
-`supabase_setup.sql` 은 **레거시 `site_data` 키-값 테이블만** 만듭니다. 정규화 스키마는 이 파일에 포함돼 있지 않으며, 운영 DB로의 마이그레이션·컷오버는 이미 완료된 상태입니다(`docs/ARCHITECTURE.md` §9). 새 환경을 처음부터 구축해야 한다면 그 문서의 마이그레이션 절차를 따르세요.
+`docs/db/README.md` 가 SQL 파일의 적용 장부와 순서, 운영 스키마를 덤프하는 방법을 적어 둡니다. 예전의 루트 `supabase_setup.sql` 은 방문자에게 쓰기를 열어 주는 옛 설정이라 2026-11-22에 지웠습니다.
 
 ### 보안 상태 (알고 계셔야 할 것)
 
@@ -103,12 +105,11 @@ node tests/championsCore.test.mjs
 ypl-site/
 ├─ index.html                 # 진입 HTML
 ├─ vite.config.js             # base 경로 + 버전 자동 새로고침 플러그인
-├─ supabase_setup.sql         # 레거시 site_data 테이블 생성 SQL
-├─ .github/workflows/        # 배포, Champions 데이터 주간 갱신, Supabase 유지
+├─ .github/workflows/        # 배포, 검사, 함수 배포, 주간 백업, 가동 감시, 알림 정리, 데이터 갱신 (실패하면 이슈가 열림)
 ├─ docs/
 │  ├─ ARCHITECTURE.md         # 데이터 구조와 불변식 (정본)
 │  ├─ brand/                  # 앱 아이콘과 링크 미리보기 원본, Wing Y 기록
-│  └─ db/                     # Supabase SQL (정규화 스키마, RPC, 권한)
+│  └─ db/                     # Supabase SQL과 적용 장부 (README.md)
 ├─ scripts/                   # 운영 스크립트 (아래 7절)
 ├─ tests/                     # node:test 회귀 테스트
 ├─ public/
@@ -137,11 +138,13 @@ ypl-site/
 ## 7. 운영 스크립트
 
 ```bash
-node scripts/backup-data.mjs [출력폴더]   # Supabase 전체 읽기 전용 스냅샷
+npm run backup -- [출력폴더]               # Supabase 읽기 전용 스냅샷 (표마다 JSON 하나)
+npm run verify:db                         # docs/db의 SQL을 일회용 PostgreSQL(PGlite)에서 검사, Supabase에 접속하지 않음
+node scripts/db-ledger.mjs > ledger.sql   # 어느 SQL이 운영에 들어갔는지 확인하는 읽기 전용 질의
 node scripts/class-coverage.mjs           # 스타일 규칙이 없는 className 찾기
 ```
 
-`backup-data.mjs` 는 `.env.production` 의 anon 키를 사용하며, RLS로 가려진 테이블은 조용히 건너뛰지 않고 보고합니다. 복구는 의도적인 수동 작업입니다.
+`backup` 은 환경변수 `SUPABASE_SERVICE_ROLE_KEY` 가 있으면 모든 행을, 없으면 `.env.production` 의 공개 키로 RLS가 보여 주는 것만 받고 가려진 표는 보고합니다. 매주 일요일에는 `backup.yml` 이 서비스 키로 전부 받아 암호화해 90일 보관합니다. 복구는 [`docs/RUNBOOK.md`](docs/RUNBOOK.md) "복구"를 따릅니다.
 
 `class-coverage.mjs` 의 미매칭 결과에는 동적 클래스와 JavaScript 전용 클래스도 포함됩니다. 중요한 건 **내 변경이 새로 늘렸는지** 여부입니다.
 

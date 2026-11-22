@@ -1,0 +1,27 @@
+name: Check
+
+# The checks deploy.yml runs before it publishes, on every other branch and pull request, so a working branch learns of a broken test
+# before it reaches main: the tests, the SQL files on a throwaway PostgreSQL (npm run verify:db, never Supabase), the battle function's
+# bundle (npm run build:battle checks that it loads), and the site build.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run verify:db
+      - run: npm run build:battle
+      - run: npm run build

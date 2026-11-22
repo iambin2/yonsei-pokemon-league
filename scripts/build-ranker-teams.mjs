@@ -15,8 +15,9 @@ import { formatId, setPool } from "../supabase/functions/battle/engine.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-// the regulation's seasons (M-C: M-6 to M-8; M-8 ends 2026-12-02, add 8 when its file is out)
-const SEASONS = [6, 7];
+// the regulation's seasons (M-C: M-6 to M-8); a season whose file is not out yet is skipped, so rerunning this after a season ends
+// (M-8 ends 2026-12-02) takes it in without editing anything. A new regulation changes this range and FORMAT (docs/RUNBOOK.md).
+const SEASON_RANGE = [6, 8];
 const FORMAT = formatId("m-c", "singles");
 const dex = Dex.mod("champions", champions);
 
@@ -25,6 +26,7 @@ async function season(n) {
   const file = CACHE && `${CACHE}/pokedb_s${n}_single.json`;
   if (file && existsSync(file)) return JSON.parse(readFileSync(file, "utf8").replace(/^﻿/, ""));
   const res = await fetch(`https://champs.pokedb.tokyo/opendata/s${n}_single_ranked_teams.json`);
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error(`no open data for season ${n} (${res.status})`);
   const text = (await res.text()).replace(/^﻿/, "");
   if (file) { mkdirSync(CACHE, { recursive: true }); writeFileSync(file, text); }
@@ -95,8 +97,11 @@ const missing = { species: new Map(), item: new Map() };
 const count = (map, key) => map.set(key, (map.get(key) || 0) + 1);
 const teams = [];
 let dropped = 0;
-for (const n of SEASONS) {
+const SEASONS = [];
+for (let n = SEASON_RANGE[0]; n <= SEASON_RANGE[1]; n++) {
   const data = await season(n);
+  if (!data) { console.log(`season M-${n}: no file yet, skipped`); continue; }
+  SEASONS.push(n);
   for (const t of data.teams) {
     const team = [];
     for (const p of t.team) {

@@ -1,0 +1,26 @@
+name: Alert on failure
+description: >
+  The last step of every workflow here (with if: always()). A scheduled job that fails tells no one but whoever last edited its
+  schedule, so two weeks of failed learning went unseen (2026-11-09 and 11-16). A failure opens one issue named for the workflow
+  (repository watchers get the mail); while it is open later failures add nothing, and the next success closes it.
+  The calling job needs permissions issues: write.
+inputs:
+  status:
+    description: job.status of the calling job
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        STATUS: ${{ inputs.status }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        TITLE="자동 작업 실패: $GITHUB_WORKFLOW"
+        OPEN="$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title $GITHUB_WORKFLOW" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+        if [ "$STATUS" = "failure" ] && [ -z "$OPEN" ]; then
+          gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --body "$(printf '%s 작업이 실패했습니다.\n\n실행 기록: %s\n\n대응 순서는 docs/RUNBOOK.md에 있습니다. 다음 실행이 성공하면 이 이슈는 저절로 닫힙니다.' "$GITHUB_WORKFLOW" "$RUN_URL")"
+        elif [ "$STATUS" = "success" ] && [ -n "$OPEN" ]; then
+          gh issue close -R "$GITHUB_REPOSITORY" "$OPEN" --comment "다시 성공했습니다: $RUN_URL"
+        fi

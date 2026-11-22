@@ -1,3 +1,4 @@
+-- 한 번만 실행하는 파일입니다. 운영에는 이미 실행됐습니다(docs/db/README.md 장부). 다시 실행하지 않습니다.
 -- 공지 문구를 DESIGN.md "Voice and tone"에 맞춘다 (2026-11-06 전수조사).
 --
 -- 바꾸는 것 (공지는 public.site_data 의 ypl_data_v4 안 announcements 에만 있다):

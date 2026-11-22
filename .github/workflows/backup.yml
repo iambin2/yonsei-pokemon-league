@@ -1,0 +1,63 @@
+name: Weekly backup
+
+# Every row of every table (scripts/backup-data.mjs with the service key), packed and encrypted with BACKUP_PASSPHRASE, kept as a run
+# artifact for 90 days, GitHub's longest. The repository is public and the rows hold private answers, PIN hashes and account links,
+# so the passphrase is what keeps them private: it lives in the repository secrets and in the club's own password store, nowhere else.
+# Without either secret the run fails, and failure-alert.yml opens an issue, so a missing backup is never silent.
+# Restoring: docs/RUNBOOK.md, "복구".
+on:
+  schedule:
+    - cron: "0 18 * * 6" # Sunday 03:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Check the secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] || { echo "::error::SUPABASE_SERVICE_ROLE_KEY is not set (docs/HANDOVER.md)"; exit 1; }
+          [ -n "$BACKUP_PASSPHRASE" ] || { echo "::error::BACKUP_PASSPHRASE is not set (docs/HANDOVER.md)"; exit 1; }
+      - name: Read every table
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/backup-data.mjs backup
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          tar -czf backup.tar.gz backup
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 \
+            -o "ypl-backup-$(date -u +%Y%m%d).tar.gz.gpg" backup.tar.gz <<< "$BACKUP_PASSPHRASE"
+          rm -rf backup backup.tar.gz
+          cat > HOW-TO-OPEN.txt <<'EOF'
+          gpg --decrypt ypl-backup-YYYYMMDD.tar.gz.gpg > backup.tar.gz   (asks for BACKUP_PASSPHRASE)
+          tar -xzf backup.tar.gz   ->  backup/<schema>.<table>.json, backup/README.txt
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ypl-backup
+          path: |
+            ypl-backup-*.tar.gz.gpg
+            HOW-TO-OPEN.txt
+          retention-days: 90
+          if-no-files-found: error
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}
