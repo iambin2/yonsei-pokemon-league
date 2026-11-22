@@ -34,7 +34,29 @@ export async function readCommunity(key) {
   else if (!error) accountColumn = true;
   if (error) throw new Error(error.message);
   if (accountColumn === null) accountColumn = false;
-  return assembleCommunityItems(data || []);
+  return assembleCommunityItems(key === FREE_BOARD_KEY ? await withMySecrets(data || []) : data || []);
+}
+
+/* 익명으로 쓴 관리자 전용 글은 이 브라우저가 글과 비밀번호를 기억했다가 community_secret_read 로 다시 읽는다
+   (docs/db/community_secret_read.sql; 실행 전이면 조용히 빠진다). 지워졌거나 비밀번호가 안 맞으면 잊는다. */
+const MY_SECRETS_KEY = "ypl-board-secrets";
+const mySecrets = () => { try { return JSON.parse(localStorage.getItem(MY_SECRETS_KEY) || "{}") || {}; } catch { return {}; } };
+const keepMySecrets = map => { try { localStorage.setItem(MY_SECRETS_KEY, JSON.stringify(map)); } catch { /* 기억 못 해도 된다 */ } };
+export const rememberSecret = (id, pin) => keepMySecrets({ ...mySecrets(), [id]: pin });
+async function withMySecrets(rows) {
+  const mine = mySecrets();
+  const missing = Object.keys(mine).filter(id => !rows.some(r => r.id === id));
+  if (!missing.length) return rows;
+  const seen = new Set(rows.map(r => r.id));
+  const out = [...rows];
+  for (const id of missing) {
+    const { data, error } = await supa.rpc("community_secret_read", { p_id: id, p_pin: mine[id] });
+    if (error) continue;
+    if (!data?.length) { delete mine[id]; continue; }
+    for (const r of data) if (!seen.has(r.id)) { seen.add(r.id); out.push(r); }
+  }
+  keepMySecrets(mine);
+  return out;
 }
 
 async function write(key, action, { id, parentId = null, payload = null, secret = null, pin = "" }) {

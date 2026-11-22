@@ -97,6 +97,8 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
     // The board's read policy asks whether a post is the caller's own (community_accounts.sql): a yes or no for auth.uid() only,
     // so a visitor's select runs it; the table of who wrote what stays closed.
     if (/^grant execute on function public\.community_mine\(/.test(statement)) continue;
+    // An anonymous 관리자 전용 post read back by its own pin (community_secret_read.sql): checked by visitor_pin_check, locked after five misses.
+    if (/^grant execute on function public\.community_secret_read\(/.test(statement)) continue;
     // The 연승 도전 board: a stable read of names and counts that shows no account id (streak_runs.sql); the runs table stays closed.
     // The day's board and a run's lamps for whoever watches its game (2026-11-11): the same kind of read, names, counts and states only.
     // Each past month's top three (tower_history.sql, 2026-11-22): the same names and counts the month's board already showed.

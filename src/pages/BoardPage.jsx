@@ -8,7 +8,7 @@ import { CUP_RULES, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
 import { formatDate } from "../services/dateFormat.js";
 import { freshRead, peekRead } from "../services/readCache.js";
 import { REPORT_REASONS, reportCommunityItem } from "../services/communityReports.js";
-import { FREE_BOARD_KEY, SHOWCASE_KEY, accountWriting, uploadBoardImage, createCommunityItem, deleteCommunityItem, newCommunityId, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
+import { FREE_BOARD_KEY, SHOWCASE_KEY, accountWriting, uploadBoardImage, createCommunityItem, deleteCommunityItem, newCommunityId, rememberSecret, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
 import { PIN_DENIED, threadComments } from "../services/communityItems.js";
 import { DRAFT_STORAGE_KEY, INCOMING_TEAM_KEY, TEAM_STORAGE_KEY, normalizeDraft, normalizeSavedTeam, onSpriteError, spriteUrl } from "../services/teamBuilderCore.js";
 import { handoverReady, takeBoardDraft } from "../services/battleService.js";
@@ -25,6 +25,8 @@ import { visitorSignedIn } from "../services/visitorAuth.js";
 import { useAccount } from "../components/common/useMe.js";
 
 const PAGE_SIZE = 8;
+/* 글 본문의 한도. 서버는 한 글을 32KB로 받으므로(visitor_gates.sql) 한글 8000자와 파티 여섯 마리가 함께 들어간다 */
+const BODY_MAX = 8000;
 /* 닉네임은 한 번 쓰면 이 브라우저가 기억한다: 글, 댓글, 소개글, 사설 대진표가 같은 이름을 쓴다 */
 const NICK_KEY="ypl-board-nick";
 const savedNick=()=>{ try{return localStorage.getItem(NICK_KEY)||"";}catch{return "";} };
@@ -65,9 +67,10 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
   const [tried,setTried]=useState(false);
   const as=useWriteAs();
   const pinShort=!as.on&&pin.length>0&&pin.length<4;
+  const secretNoPin=secret&&!as.on&&pin.length===0;
   const [photoOn,setPhotoOn]=useState(false); const [photo,setPhoto]=useState(""); const fileRef=useRef(null);
   useEffect(()=>{ let on=true; handoverReady().then(ok=>on&&setPhotoOn(ok)); return ()=>{ on=false; }; },[]);
-  const submit=()=>{ if((!as.on&&!nick.trim())||!title.trim()||pinShort){ setTried(true); return; }
+  const submit=()=>{ if((!as.on&&!nick.trim())||!title.trim()||pinShort||secretNoPin){ setTried(true); return; }
     if(!as.on) keepNick(nick.trim().slice(0,20));
     onSubmit({nick:as.on?as.name:nick.trim().slice(0,20),title:title.trim().slice(0,60),body:body.trim(),pin:as.on?"":pin.trim(),link:link.trim(),secret,byAccount:as.on}); };
   return (<Modal title="새 글 작성" onClose={onClose}>
@@ -75,10 +78,10 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
       <AsAccount as={as}/>
       {!as.on&&<div className="bk-grow2">
         <Field label="닉네임" error={tried&&!nick.trim()&&"닉네임을 입력해 주세요."}><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20}/></Field>
-        <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
+        <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&(pinShort?"비밀번호는 숫자 4자리로 입력해 주세요.":secretNoPin&&"관리자 전용 글은 비밀번호가 있어야 다시 볼 수 있습니다.")}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
       </div>}
       <Field label="제목" error={tried&&!title.trim()&&"제목을 입력해 주세요."}><input value={title} onChange={e=>setTitle(e.target.value)} maxLength={60}/></Field>
-      <Field label="내용"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6}/></Field>
+      <Field label="내용"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} maxLength={BODY_MAX}/></Field>
       <div className="field"><label htmlFor="bd-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-link" value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/>
         {link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={link}/></div>}
       </div>
@@ -88,7 +91,7 @@ function BoardCompose({ onClose, onSubmit, initial=null }){
         <Button variant="second" icon="plus" disabled={photo==="busy"} onClick={()=>fileRef.current?.click()}>{photo==="busy"?"올리는 중":"사진 올리기"}</Button>
         {photo&&photo!=="busy"&&<FormError>{photo}</FormError>}</div>}
       <label className="bk-check"><input type="checkbox" checked={secret} onChange={e=>setSecret(e.target.checked)}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>
-      {secret&&<div className="bk-hint">이 글은 관리자만 볼 수 있습니다.</div>}
+      {secret&&<div className="bk-hint">{as.on?"이 글은 관리자와 내 계정만 볼 수 있습니다.":"이 글은 관리자와 이 브라우저만 볼 수 있습니다."}</div>}
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>등록</Button></div>
     </div>
   </Modal>);
@@ -159,7 +162,7 @@ function EditSheet({ heading, initial, onClose, onSave }){
   return (<Modal title={heading} onClose={onClose}>
     <div className="swap" key="edit">
       {has("title")&&<Field label="제목" error={tried&&noTitle&&"제목을 입력해 주세요."}><input value={v.title} onChange={set("title")} maxLength={60}/></Field>}
-      {has("body")&&<Field label="내용" error={tried&&noBody&&"내용이나 링크를 입력해 주세요."}><textarea value={v.body} onChange={set("body")} rows={has("title")?6:3}/></Field>}
+      {has("body")&&<Field label="내용" error={tried&&noBody&&"내용이나 링크를 입력해 주세요."}><textarea value={v.body} onChange={set("body")} rows={has("title")?6:3} maxLength={BODY_MAX}/></Field>}
       {has("link")&&<div className="field"><label htmlFor="bd-edit-link">이미지 또는 유튜브 링크 (선택)</label><input id="bd-edit-link" value={v.link} onChange={set("link")} placeholder="https://"/>
         {v.link.trim()&&<div className="bd-preview"><div className="bd-preview-h">미리보기</div><MediaEmbed url={v.link}/></div>}</div>}
       {has("secret")&&<label className="bk-check"><input type="checkbox" checked={v.secret} onChange={set("secret")}/><span><Icon n="lock" size={16}/> 관리자에게만 보이기 <i>(건의, 비공개)</i></span></label>}
@@ -244,7 +247,7 @@ function FreeBoard({ admin, flash, tabs }){
   const [reporting,setReporting]=useState(null);
   const [reportOn,setReportOn]=useState(false);
   useEffect(()=>{ let on=true; if(!admin) handoverReady().then(ok=>on&&setReportOn(ok)); return ()=>{ on=false; }; },[admin]);
-  const addPost=async({pin,secret,byAccount,...post})=>{ if(await run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),post,{pin,secret,byAccount}),"글을 등록했습니다.")) setCompose(false); };
+  const addPost=async({pin,secret,byAccount,...post})=>{ const id=newCommunityId(); if(await run(async()=>{ await createCommunityItem(FREE_BOARD_KEY,id,post,{pin,secret,byAccount}); if(secret&&!byAccount&&pin) rememberSecret(id,pin); },"글을 등록했습니다.")) setCompose(false); };
   const delPost=async(p)=>{ const pin=await authorize(FREE_BOARD_KEY,p,"글","삭제",admin); if(pin===null)return; if(await run(()=>deleteCommunityItem(FREE_BOARD_KEY,p.id,pin),"삭제했습니다.")) closePost(); };
   const addComment=({pin,byAccount,...c},p)=>run(()=>createCommunityItem(FREE_BOARD_KEY,newCommunityId(),c,{parentId:p.id,pin,byAccount}),"댓글을 등록했습니다.");
   const delComment=async(p,c)=>{ const pin=await authorize(FREE_BOARD_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(FREE_BOARD_KEY,c.id,pin)); };
@@ -375,7 +378,7 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
       const id=newCommunityId();
       const picked=kind==="sample"?[members[index]]:members;
       const names=(kind==="sample"?[sheet[index]]:sheet).map(r=>r?.name).filter(Boolean);
-      const post={ id, kind, format, nick:as.on?as.name:nick.trim().slice(0,20), title:(title.trim()||autoTitle).slice(0,60), body:body.trim().slice(0,4000),
+      const post={ id, kind, format, nick:as.on?as.name:nick.trim().slice(0,20), title:(title.trim()||autoTitle).slice(0,60), body:body.trim().slice(0,BODY_MAX),
         createdAt:new Date().toISOString(), names,
         team:{ name:team?.working?"":String(team?.name||"").slice(0,40), regulationId:team?.regulationId, cupRuleId:team?.cupRuleId||"none", cupRuleSettings:team?.cupRuleSettings||{assignedType:""}, members:picked },
         comments:[] };
@@ -401,7 +404,7 @@ export function ShowcaseCompose({ team, kind:initialKind="party", format:initial
         <Field label="수정, 삭제 비밀번호 (선택, 숫자 4자리)" error={tried&&pinShort&&"비밀번호는 숫자 4자리로 입력해 주세요."}><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="예: 1234" inputMode="numeric"/></Field>
       </div>}
       <Field label="제목"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder={autoTitle} maxLength={60}/></Field>
-      <Field label="소개"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} /></Field>
+      <Field label="소개"><textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} maxLength={BODY_MAX}/></Field>
       {failed&&<FormError>{failed}</FormError>}
       <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" disabled={busy||!display} onClick={submit} loading={busy}>올리기</Button></div>
     </div>
@@ -449,7 +452,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
   const delComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","삭제",admin); if(pin===null)return; await run(()=>deleteCommunityItem(SHOWCASE_KEY,c.id,pin)); };
   const editPost=async(post)=>{ const pin=await authorize(SHOWCASE_KEY,post,"글","수정",admin); if(pin!==null) setEditing({heading:"글 수정",id:post.id,pin,cap:true,initial:{title:post.title||"",body:post.body||""}}); };
   const editComment=async(post,c)=>{ const pin=await authorize(SHOWCASE_KEY,c,"댓글","수정",admin); if(pin!==null) setEditing({heading:"댓글 수정",id:c.id,pin,initial:{body:c.body||"",link:c.link||""}}); };
-  const saveEdit=async v=>{ const next=editing.cap?{...v,body:v.body.slice(0,4000)}:v; if(await run(()=>patchCommunityItem(SHOWCASE_KEY,editing.id,{...next,editedAt:new Date().toISOString()},{pin:editing.pin}),"수정했습니다.")) setEditing(null); };
+  const saveEdit=async v=>{ const next=editing.cap?{...v,body:v.body.slice(0,BODY_MAX)}:v; if(await run(()=>patchCommunityItem(SHOWCASE_KEY,editing.id,{...next,editedAt:new Date().toISOString()},{pin:editing.pin}),"수정했습니다.")) setEditing(null); };
   const [imageBusy,setImageBusy]=useState(false);
   const saveImage=async(post,sheet)=>{ if(imageBusy)return; setImageBusy(true);
     try{ const r=await saveTeamSheetImage(sheet,{title:post.title,meta:[FORMAT_LABEL[formatOf(post)],ruleSummary(post.team),`${sheet.length}마리`].join(", "),author:post.nick,date:new Date(post.createdAt)}); if(r==="downloaded")flash("이미지를 저장했습니다."); }

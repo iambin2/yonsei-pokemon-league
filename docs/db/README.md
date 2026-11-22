@@ -67,6 +67,8 @@ node scripts/db-ledger.mjs > ledger.sql
 | match_outcome_more.sql | 2026-11-22 | set_normalized_match_outcome 본문에 팀전 처리, match_outcome_more_ready(authenticated 실행), 트리거 battle_applied_mark_forfeit를 읽기 전용으로 확인 |
 | handover_features.sql | 2026-11-22 | 함수 15개, 표 6개(entry_departures, client_errors, match_picks, event_checkins, match_reports, community_reports), 정책 5개, battles.paused_left, 새 battle_set_deadline(turnSeconds), pg_cron push-bracket-steps(10분마다), 저장소 버킷 board(공개, 512KB)를 확인. set_match_picks는 anon 실행 불가, report_community_item과 handover_features_ready는 anon 실행 가능(의도대로) |
 | third_place_best_of.sql | 2026-11-22 | bracket_runtimes의 열 3개, 함수 4개(set_bracket_rules, sync_third_place_match, set_third_place_winner, bracket_rules_ready), 싱글 승자 RPC의 3위전 맞추기, 삭제 두 함수와 조별 기록 반영 검사의 3위전 키, 점수 RPC의 선승 검사, 배틀 다전제 점수 트리거를 읽기 전용으로 확인 |
+| community_secret_read.sql | 2026-11-22 | community_secret_read(security definer)와 anon 실행 권한을 읽기 전용으로 확인 |
+| push_all_default.sql | 2026-11-22 | push_subscriptions.kinds 기본값이 일곱 종류, 공지만 받던 7대가 전부로 올라 10대가 전부, 직접 끈 1대는 빈 목록 그대로 |
 
 ## 구조 스냅숏
 

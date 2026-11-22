@@ -56,7 +56,7 @@ test("private brackets seat every participant once for 2 to 64 players in either
 test("private bracket and showcase never reach official data", () => {
   for (const file of ["src/services/privateBracket.js", "src/services/communityStore.js"]) {
     const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /normalizedCompetitionService|recordSync|RankingAward|saveSiteData|ypl_data_v4|SITE_DATA_KEY|\.rpc\((?!"community_write")/, file);
+    assert.doesNotMatch(source, /normalizedCompetitionService|recordSync|RankingAward|saveSiteData|ypl_data_v4|SITE_DATA_KEY|\.rpc\((?!"community_write"|"community_secret_read")/, file);
   }
   const store = readFileSync("src/services/communityStore.js", "utf8");
   assert.match(store, /SHOWCASE_KEY = "ypl_showcase_v1"/);

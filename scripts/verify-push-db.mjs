@@ -422,6 +422,40 @@ try {
     assert.deepEqual(await inbox(null), []);
   });
 
+  // docs/db/community_secret_read.sql: the visitor who wrote a 관리자 전용 post with a pin reads it and its replies back by that pin
+  const secretSql = readFileSync("docs/db/community_secret_read.sql", "utf8");
+  await pg.exec(secretSql); await pg.exec(secretSql);
+  await check("an anonymous secret post is read back with its pin, with its comments, and by no one else", async () => {
+    const make = (id, parent, pin, secret = true) => as("anon").then(() => one("select public.community_write('create', 'free', $1, $2, $3, $4, $5) as r", [id, parent, { nick: "익명", title: "건의", body: "본문" }, secret, pin])).then(r => r.r);
+    assert.equal(await make("sec1", null, "1357"), "ok");
+    assert.equal(await make("sec1c", "sec1", ""), "ok");
+    assert.equal(await make("pub1", null, "1357", false), "ok");
+    const read = (id, pin) => as("anon").then(() => q("select id, parent_id, secret from public.community_secret_read($1, $2) order by id", [id, pin]));
+    assert.deepEqual((await as("anon"), await q("select id from public.community_items where id like 'sec1%'")), []);
+    assert.deepEqual(await read("sec1", "1357"), [{ id: "sec1", parent_id: null, secret: true }, { id: "sec1c", parent_id: "sec1", secret: true }]);
+    assert.deepEqual(await read("sec1", "0000"), []);
+    assert.deepEqual(await read("sec1", ""), []);
+    assert.deepEqual(await read("pub1", "1357"), []);
+    assert.deepEqual(await read("sec1c", ""), []);
+    assert.deepEqual(await read("acct1", ""), []);
+    for (let i = 0; i < 5; i++) await read("sec1", "9999");
+    assert.deepEqual(await read("sec1", "1357"), [], "five wrong pins lock it, as every pin does");
+  });
+
+  // docs/db/push_all_default.sql: every kind on for a new device and for one that never chose; a device that chose keeps its choice
+  const allSql = readFileSync("docs/db/push_all_default.sql", "utf8");
+  await pg.exec("reset role");
+  await pg.exec("update public.push_subscriptions set kinds = '{notice}' where endpoint = $$" + EP("old") + "$$");
+  await save("none"); await setKinds("none", []); await pg.exec("reset role");
+  await pg.exec(allSql); await pg.exec(allSql);
+  await check("every kind is on by default; a device that chose its kinds keeps them", async () => {
+    const all = ["board", "match", "notice", "record", "reply", "schedule", "tower"];
+    assert.deepEqual([...(await settings("old")).kinds].sort(), all);
+    assert.deepEqual((await settings("none")).kinds, []);
+    await save("fresh");
+    assert.deepEqual([...(await settings("fresh")).kinds].sort(), all);
+  });
+
   console.log(`\n${checks} checks passed`);
 } catch (error) {
   console.error(`FAIL: ${error.message}`);
