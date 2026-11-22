@@ -146,10 +146,9 @@ export function normalizedBracketRuntimeEnabled() {
   return normalizedSingleBracketRuntimeEnabled();
 }
 
-const NORMALIZED_SINGLE_RUNTIME_SELECT = `
-  id, event_id, topology_kind, projection_version, previous_event_status,
-  created_at, updated_at, group_advance, group_final_format
-`;
+// every column: the bracket's rules (third_place, wins_to, final_wins_to, docs/db/third_place_best_of.sql) come with the row once that SQL
+// has run, and a list naming them would fail the whole read before it
+const NORMALIZED_SINGLE_RUNTIME_SELECT = "*";
 const NORMALIZED_SINGLE_SLOT_SELECT = `
   bracket_runtime_id, event_id, stage_kind, stage_no, pool_no, slot_no, entry_id,
   created_at
@@ -1089,6 +1088,17 @@ export async function readMatchReports(eventId) {
   const out = new Map();
   for (const row of data || []) { if (!out.has(row.source_node_key)) out.set(row.source_node_key, []); out.get(row.source_node_key).push(row); }
   return out;
+}
+
+// 대진 규칙(docs/db/third_place_best_of.sql): 대진표를 만든 직후, 결과가 없을 때. 검사는 RPC가 한다.
+export async function setBracketRules({ runtimeId, eventId, thirdPlace = false, winsTo = 1, finalWinsTo = 1 } = {}) {
+  const { error } = await db().rpc("set_bracket_rules", { p_runtime_id: runtimeId, p_event_id: eventId, p_third_place: Boolean(thirdPlace), p_wins_to: winsTo, p_final_wins_to: finalWinsTo });
+  if (error) fail(error, "대진 규칙을 저장하지 못했습니다.");
+}
+let rulesReady = null;
+export function bracketRulesReady() {
+  rulesReady ||= client ? client.rpc("bracket_rules_ready").then(({ data, error }) => !error && data === true, () => false) : Promise.resolve(false);
+  return rulesReady;
 }
 
 // 참가자 교체(docs/db/handover_features.sql): 결과가 없는 출전의 사람을 같은 대회의 다른 신청자로. 검사는 RPC가 한다.

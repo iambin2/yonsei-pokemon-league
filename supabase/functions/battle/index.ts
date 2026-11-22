@@ -11,7 +11,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import postgres from "npm:postgres@3.4.5";
 import {
   ENGINE, formatId, validateTeam, randomTeam, startBattle, loadBattle, choose, forfeit, readout, readCpuRecord, replay, CPU_NAME,
-  planMatchWinner, planTeamSeries, projectRuntimeFacts, parseBoutKey, seriesFromBouts, teamBouts, STREAK_FORMAT, STREAK_REGULATION, computerTurns, streakGame,
+  planMatchWinner, planTeamSeries, projectRuntimeFacts, seriesWins, winsNeeded, parseBoutKey, seriesFromBouts, teamBouts, STREAK_FORMAT, STREAK_REGULATION, computerTurns, streakGame,
   sideTeam, swapParty, streakMaster, streakReach, streakRelights, streakDoors, shownDoors, seenWith, draftOffer, draftParty, seeded, STREAK_BAN, STREAK_DRAFT,
 } from "./engine.bundle.mjs";
 
@@ -215,6 +215,14 @@ async function applyResult(battleId: string) {
       });
       const loserEntryId = battle.winner === "p1" ? battle.p2_entry_id : battle.p1_entry_id;
       if (!loserEntryId) throw new Error("배틀의 선수 정보가 비어 있습니다.");
+      // 다전제 (docs/db/third_place_best_of.sql): a battle short of the wins this match asks for stays out of the bracket; the next
+      // battle is played in the same match and the one that reaches them goes in (the database then keeps the battles' score)
+      const need = winsNeeded(projected.bracket, battle.source_node_key);
+      if (need > 1) {
+        const { data: games } = await db.from("battles").select("source_node_key, status, ended_by, winner, p1_entry_id, p2_entry_id")
+          .eq("kind", "official").eq("event_id", battle.event_id).eq("source_node_key", battle.source_node_key);
+        if (seriesWins(games || [], battle.source_node_key, [winnerEntryId, loserEntryId])[0] < need) { signal(battleId, null); return; }
+      }
       const plan = planMatchWinner(projected, battle.source_node_key, winnerEntryId, new Date().toISOString(), loserEntryId);
       const result = await rpc("battle_apply_result", {
         p_battle_id: battleId, p_expected_stamp: facts.stamp, p_mode: plan.mode, p_runtime_id: plan.runtimeId,

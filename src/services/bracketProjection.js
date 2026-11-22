@@ -662,7 +662,28 @@ function attachTeamSeries(graph, matches, participants) {
   }
 }
 
-function projectNormalizedEliminationBracket({ event, runtimeId, entries, entryParticipants, entrySlots, matches, competitionFormat, isTeamEvent, projectionVersion }) {
+/* 3위 결정전 (2026-11-22, docs/db/third_place_best_of.sql): a single elimination of four or more whose runtime asks for it gets one more
+   node, single:third, between the two semifinal losers. Its sides are { lose } references, so a semifinal changed clears it as a later
+   round is cleared; its persisted row must stand between exactly those two losers. */
+export const THIRD_PLACE_KEY = "single:third";
+function attachThirdPlace(graph, matchByNodeKey) {
+  if (graph.rounds.length < 2) return;
+  const semis = graph.rounds[graph.rounds.length - 2];
+  const { loserByNodeKey } = graphWinnerState(graph);
+  const persisted = matchByNodeKey.get(THIRD_PLACE_KEY) || null;
+  const third = { id: THIRD_PLACE_KEY, a: { lose: semis[0].id }, b: { lose: semis[1].id }, winner: null,
+    normalizedMatchId: persisted?.id || null, resolution: persisted?.resolution || null, playedAt: persisted?.played_at || null };
+  const entryA = loserByNodeKey.get(semis[0].id), entryB = loserByNodeKey.get(semis[1].id);
+  if (persisted) {
+    if (!entryA || !entryB || entryA === BYE || entryB === BYE || persisted.entry_a_id !== entryA || persisted.entry_b_id !== entryB) {
+      fail(`3위 결정전 '${persisted.id}'의 양쪽이 준결승의 두 패자와 다릅니다.`);
+    }
+    third.winner = persisted.winner_entry_id ? (persisted.winner_entry_id === entryA ? "a" : "b") : null;
+  }
+  graph.third = third;
+}
+
+function projectNormalizedEliminationBracket({ event, runtimeId, entries, entryParticipants, entrySlots, matches, competitionFormat, isTeamEvent, projectionVersion, thirdPlace = false }) {
   const normalizedEvent = normalizeEvent(event, { isTeamEvent, competitionFormat });
   const normalizedRuntimeId = requireText(runtimeId, "대진표 ID");
   const entryType = isTeamEvent ? "team" : "individual";
@@ -679,8 +700,11 @@ function projectNormalizedEliminationBracket({ event, runtimeId, entries, entryP
     for (let roundSize = size / 2, roundNumber = 1; roundSize >= 1; roundSize /= 2, roundNumber += 1) {
       for (let matchNumber = 1; matchNumber <= roundSize; matchNumber += 1) generatedNodeKeys.push(nodeKey(roundNumber, matchNumber));
     }
+    const third = Boolean(thirdPlace) && !isTeamEvent && size >= 4;
+    if (third) generatedNodeKeys.push(THIRD_PLACE_KEY);
     const matchByNodeKey = normalizeMatches(normalizedEvent.id, generatedNodeKeys, parentMatches, normalizedEntries.map(entry => entry.id), "싱글 토너먼트");
     const graph = buildGraph(normalizedEntries, matchByNodeKey, firstRoundSlots);
+    if (third) attachThirdPlace(graph, matchByNodeKey);
     if (isTeamEvent) attachTeamSeries(graph, matches || [], participants);
     return {
       id: `normalized:event:${normalizedEvent.id}:single`, name: normalizedEvent.name, eventId: normalizedEvent.id,
@@ -710,7 +734,7 @@ function projectNormalizedEliminationBracket({ event, runtimeId, entries, entryP
  * consumed by the existing bracket UI. The function never reads a legacy
  * Bracket object and never mutates its input.
  */
-export function projectNormalizedGroupBracket({event, runtimeId, entries, entryParticipants, entrySlots, matches, advance, finalFormat}) {
+export function projectNormalizedGroupBracket({event, runtimeId, entries, entryParticipants, entrySlots, matches, advance, finalFormat, thirdPlace = false}) {
   const normalizedEvent = normalizeEvent(event, {competitionFormat: GROUP_TOPOLOGY});
   const normalizedEntries = normalizeEntries(event.id, entries, "individual");
   normalizeEntryParticipants(event.id, normalizedEntries, entryParticipants, "individual");
@@ -769,7 +793,7 @@ export function projectNormalizedGroupBracket({event, runtimeId, entries, entryP
     knockout = project({
       event:{...event,competition_format:finalFormat}, runtimeId,
       entries:entries.filter(e=>ids.has(e.id)),entryParticipants:entryParticipants.filter(ep=>ids.has(ep.entry_id)),
-      entrySlots:finalSlots,matches:finalMatches,
+      entrySlots:finalSlots,matches:finalMatches,thirdPlace:finalFormat==="single_elimination"&&thirdPlace,
     }).graph;
   } else if (finalMatches.length) fail("본선 배치 없이 저장된 경기가 있습니다.");
   return {
@@ -787,9 +811,10 @@ export function projectNormalizedSingleEliminationBracket({
   entryParticipants = [],
   entrySlots,
   matches = [],
+  thirdPlace = false,
 } = {}) {
   return projectNormalizedEliminationBracket({
-    event, runtimeId, entries, entryParticipants, entrySlots, matches,
+    event, runtimeId, entries, entryParticipants, entrySlots, matches, thirdPlace,
     competitionFormat: "single_elimination", isTeamEvent: Boolean(event?.is_team_event),
     projectionVersion: SINGLE_BRACKET_PROJECTION_VERSION,
   });

@@ -24,6 +24,7 @@ export function evalGraph(g) {
   if (g.lb) g.lb.forEach(r => r.forEach(m => all.push(m)));
   if (g.gf) all.push(g.gf);
   if (g.reset) all.push(g.reset);
+  if (g.third) all.push(g.third);
   const sp = s => { if (!s) return null; if (s.bye) return BYE; if (s.pid) return s.pid; if (s.win) return win[s.win] ?? null; if (s.lose) return lose[s.lose] ?? null; return null; };
   for (const m of all) {
     const pa = sp(m.a), pb = sp(m.b); let w = null, l = null;
@@ -35,7 +36,33 @@ export function evalGraph(g) {
   return { win, lose, sp };
 }
 
-export function collectGraphMatches(g) { const a = []; if (!g) return a; g.rounds.forEach(r => r.forEach(m => a.push(m))); if (g.lb) g.lb.forEach(r => r.forEach(m => a.push(m))); if (g.gf) a.push(g.gf); if (g.reset) a.push(g.reset); return a; }
+export function collectGraphMatches(g) { const a = []; if (!g) return a; g.rounds.forEach(r => r.forEach(m => a.push(m))); if (g.lb) g.lb.forEach(r => r.forEach(m => a.push(m))); if (g.gf) a.push(g.gf); if (g.reset) a.push(g.reset); if (g.third) a.push(g.third); return a; }
+
+/* 대진 규칙 (docs/db/third_place_best_of.sql): 3위 결정전과 N선승. 그 SQL 전의 런타임 행에는 열이 없어 단판, 3위전 없음이다. */
+export function bracketRules(runtime) {
+  const n = v => ([1, 2, 3].includes(Number(v)) ? Number(v) : 1);
+  return { thirdPlace: runtime?.third_place === true, winsTo: n(runtime?.wins_to), finalWinsTo: n(runtime?.final_wins_to) };
+}
+/* 다전제(docs/db/third_place_best_of.sql): 한 경기에서 이 두 출전이 배틀로 이긴 판 수(무효, 무승부, 다른 두 출전의 배틀은 빼고).
+   entries: [a, b] 출전 id. 돌려주는 것 [a의 승수, b의 승수]. 배틀 함수(supabase/functions/battle)와 같은 셈이다. */
+export function seriesWins(battles = [], nodeKey, entries = []) {
+  const [a, b] = entries, wins = [0, 0];
+  for (const row of battles) {
+    if (row.source_node_key !== nodeKey || row.status !== "ended" || row.ended_by === "void" || !["p1", "p2"].includes(row.winner)) continue;
+    if (![row.p1_entry_id, row.p2_entry_id].every(id => id === a || id === b)) continue;
+    const w = row.winner === "p1" ? row.p1_entry_id : row.p2_entry_id;
+    if (w === a) wins[0] += 1; else if (w === b) wins[1] += 1;
+  }
+  return wins;
+}
+
+// 이 경기의 선승 수: 결승(싱글의 마지막 라운드, 더블의 그랜드 파이널과 리셋)은 finalWinsTo, 나머지(3위전, 조별 경기 포함)는 winsTo
+export function winsNeeded(bracket, matchId) {
+  const rules = bracket?.rules || { winsTo: 1, finalWinsTo: 1 };
+  const g = bracket?.knockout || bracket?.graph;
+  const finals = !g ? [] : g.kind === "double" ? [g.gf?.id, g.reset?.id] : [g.rounds?.[g.rounds.length - 1]?.[0]?.id];
+  return finals.includes(matchId) ? rules.finalWinsTo : rules.winsTo;
+}
 
 // 승자가 바뀐 경기 아래로 이어지는 경기의 승자를 모두 지운다
 export function cascadeClear(all, id) {
@@ -109,7 +136,7 @@ export function projectRuntimeFacts(runtime, event, {
     ? projectNormalizedGroupBracket({
         event,runtimeId:runtime.id,entries:entriesResult.data||[],entryParticipants,
         entrySlots:slotsResult.data||[],matches:matchesResult.data||[],
-        advance:runtime.group_advance,finalFormat:runtime.group_final_format,
+        advance:runtime.group_advance,finalFormat:runtime.group_final_format,thirdPlace:runtime.third_place===true,
       })
     : runtime.topology_kind === "double_elimination"
     ? projectNormalizedDoubleEliminationBracket({
@@ -127,7 +154,9 @@ export function projectRuntimeFacts(runtime, event, {
     entryParticipants,
     entrySlots: slotsResult.data || [],
     matches: matchesResult.data || [],
+    thirdPlace: runtime.third_place === true,
   });
+  bracket.rules = bracketRules(runtime);
   bracket.applied = event.record_applied_at
     ? { normalized: true, recordAppliedAt: event.record_applied_at, recordMeta: { eventId } }
     : null;

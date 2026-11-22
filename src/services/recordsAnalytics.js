@@ -59,6 +59,7 @@ function collectGraphMatches(graph) {
   );
   if (graph.gf) all.push({ match: graph.gf, stage: "Grand Final" });
   if (graph.reset) all.push({ match: graph.reset, stage: "Reset Final", reset: true });
+  if (graph.third) all.push({ match: graph.third, stage: "Third Place" });
   return all;
 }
 
@@ -104,7 +105,7 @@ function evalGraph(graph) {
 
 /* 지금 경기 (홈의 대회 당일): 두 선수가 정해졌고 아직 승자가 없는 경기를 대진 순서대로,
    그리고 그 첫 경기가 속한 라운드에서 끝난 경기 수. 읽기만 한다. */
-const STAGE_KO = { "Grand Final": "결승", "Reset Final": "리셋 결승" };
+const STAGE_KO = { "Grand Final": "결승", "Reset Final": "리셋 결승", "Third Place": "3위 결정전" };
 function stageLabel(graph, stage) {
   if (STAGE_KO[stage]) return STAGE_KO[stage];
   const [, side, round] = stage.match(/^(?:(WB|LB) )?R(\d+)$/) || [];

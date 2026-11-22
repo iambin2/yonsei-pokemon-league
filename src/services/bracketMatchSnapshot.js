@@ -201,6 +201,16 @@ function graphNodes(graph, startSequence) {
     });
   }
 
+  // 3위 결정전: after the final, between the semifinal losers (third_place_best_of.sql)
+  if (graph?.third) {
+    nodes.push({
+      match: graph.third,
+      roundNumber: graph.rounds?.length || null,
+      stageLabel: "3위 결정전",
+      sequenceNo: sequenceNo++,
+    });
+  }
+
   return { nodes, nextSequence: sequenceNo };
 }
 

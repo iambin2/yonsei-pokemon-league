@@ -440,3 +440,37 @@ test("projects Team Entry participants without creating per-player bracket entri
   assert.equal(result.participants[0].memberIdentities[0].role, "captain");
   assert.equal(result.graph.rounds[0][0].a.pid, "team-entry-a");
 });
+
+test("a single elimination with a 3위 결정전 seats the semifinal losers, takes its winner, and refuses other sides", async () => {
+  const { collectGraphMatches, evalGraph, winsNeeded, bracketRules, seriesWins } = await import("../src/services/bracketWinnerPlan.js");
+  const { buildEventBracketMatchSnapshot } = await import("../src/services/bracketMatchSnapshot.js");
+  const { buildEventBracketResultSnapshot } = await import("../src/services/bracketResultSnapshot.js");
+  const { entries, entryParticipants, entrySlots } = inputs(4);
+  const [a, b, c, d] = entries.map(e => e.id);
+  const semis = [match("single:r1:m1", a, b, a), match("single:r1:m2", c, d, c)];
+  const view = rows => projectNormalizedSingleEliminationBracket({ event: event(), runtimeId: RUNTIME_ID, entries, entryParticipants, entrySlots, matches: rows, thirdPlace: true });
+  const open = view(semis);
+  assert.equal(open.graph.third.id, "single:third");
+  const { sp } = evalGraph(open.graph);
+  assert.deepEqual([sp(open.graph.third.a), sp(open.graph.third.b)], [b, d]);
+  assert.ok(collectGraphMatches(open.graph).includes(open.graph.third));
+  // the snapshot the group final's plan writes carries the third-place row
+  const row = buildEventBracketMatchSnapshot(open).find(r => r.source_node_key === "single:third");
+  assert.deepEqual([row.entry_a_id, row.entry_b_id, row.stage_label], [b, d, "3위 결정전"]);
+  const decided = view([...semis, match("single:r2:m1", a, c, a), match("single:third", b, d, d)]);
+  assert.equal(decided.graph.third.winner, "b");
+  assert.throws(() => view([...semis, match("single:third", a, d)]), /준결승의 두 패자/);
+  assert.throws(() => projectNormalizedSingleEliminationBracket({ event: event(), runtimeId: RUNTIME_ID, entries, entryParticipants, entrySlots, matches: [...semis, match("single:third", b, d)] }), /알 수 없는/);
+  // 3위와 4위: two semifinalist rows of their own rank
+  const bracket = { ...decided, participants: decided.participants };
+  const pid = id => decided.participants.find(p => p.entryId === id)?.id;
+  const result = buildEventBracketResultSnapshot(bracket, { champ: pid(a), ru: pid(c), sf: [pid(d), pid(b)], third: pid(d), fourth: pid(b) });
+  assert.deepEqual(result.rows.filter(r => r.placement_code === "semifinalist").map(r => [r.entry_id, r.rank_min, r.placement_label]), [[d, 3, "3위"], [b, 4, "4위"]]);
+  // N선승: the final asks for its own, everything else for the match's; battles count only between the two
+  const ruled = { ...decided, rules: bracketRules({ third_place: true, wins_to: 2, final_wins_to: 3 }) };
+  assert.deepEqual([winsNeeded(ruled, "single:r2:m1"), winsNeeded(ruled, "single:r1:m1"), winsNeeded(ruled, "single:third")], [3, 2, 2]);
+  assert.deepEqual(bracketRules({}), { thirdPlace: false, winsTo: 1, finalWinsTo: 1 });
+  const games = [{ source_node_key: "k", status: "ended", winner: "p1", p1_entry_id: a, p2_entry_id: b }, { source_node_key: "k", status: "ended", winner: "p2", p1_entry_id: a, p2_entry_id: b },
+    { source_node_key: "k", status: "ended", winner: "p1", ended_by: "void", p1_entry_id: a, p2_entry_id: b }, { source_node_key: "k", status: "ended", winner: "p1", p1_entry_id: a, p2_entry_id: c }];
+  assert.deepEqual(seriesWins(games, "k", [a, b]), [1, 1]);
+});

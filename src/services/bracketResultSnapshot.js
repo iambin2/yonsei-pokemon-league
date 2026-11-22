@@ -62,13 +62,18 @@ export function buildEventBracketResultSnapshot(bracket, result) {
       rank_max: 2,
       placement_label: "준우승",
     }] : []),
-    ...(result.sf || []).filter(Boolean).map(participantId => ({
-      participantId,
-      placement_code: "semifinalist",
-      rank_min: 3,
-      rank_max: 4,
-      placement_label: "4강",
-    })),
+    // 3위 결정전이 있으면 3위와 4위로 나뉜다. code 는 둘 다 semifinalist 라 포인트와 4강 횟수는 그대로다(third_place_best_of.sql)
+    ...(result.third && result.fourth
+      ? [[result.third, 3, "3위"], [result.fourth, 4, "4위"]].map(([participantId, rank, label]) => ({
+        participantId, placement_code: "semifinalist", rank_min: rank, rank_max: rank, placement_label: label,
+      }))
+      : (result.sf || []).filter(Boolean).map(participantId => ({
+        participantId,
+        placement_code: "semifinalist",
+        rank_min: 3,
+        rank_max: 4,
+        placement_label: "4강",
+      }))),
     // 5위 이하 (bracketLowerPlacements.js): 순위만 남고 포인트는 없다
     ...(result.lower || []).map(row => ({
       participantId: row.participantId,

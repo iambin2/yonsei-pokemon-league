@@ -94,6 +94,8 @@
      board's edge in a scroller with no bar, so a finished double named no champion in view) */
   .bk-lb > .bk-cols { width: auto; min-width: 100%; }
   .bk-cols > .bk-col { flex: 1 1 0; width: auto; min-width: calc(var(--s21) + var(--s8)); }
+  /* the 3위 결정전 keeps the width of one of the tree's columns above it (--bk-n: the tree's columns) */
+  .bk-third > .bk-col { flex: 0 0 calc((100% - (var(--bk-n) - 1) * var(--bk-gap)) / var(--bk-n)); }
 }
 
 /* a match box: two rows of 36 with the seam between; the winner inverts, the loser mutes, a waiting slot is muted words */
