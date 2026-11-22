@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ShareHere from "../components/ShareHere.jsx";
 import { Dropdown, Empty, ErrorNote, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
 import { Bar, Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
 import TeamSheet, { rosterSheet, useTeamDisplay } from "../components/common/TeamSheet.jsx";
@@ -252,6 +253,7 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
         return profile ? (
           <Modal title={profile.name} hint={trainerHint(profile)} className="rc-sheet wide" onClose={closeTrainer}>
             <TrainerProfile snapshot={snapshot} profile={profile} onParty={setParty} onPokemon={openPokemon} go={go} finding={finding} />
+            <ShareHere title={profile.name} className="rc-more" />
           </Modal>
         ) : null;
       })()}
@@ -1016,6 +1018,7 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, on
             </div>
           </section>
         )}
+        <ShareHere title={pokemon.name} className="rc-more" />
       </div>
     </Modal>
   );

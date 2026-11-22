@@ -73,7 +73,13 @@ function groupStandings(group){
 
 /* ===== 마법사 ===== */
 /* ===== PNG 다운로드 (우승 이미지 + 대진표 이미지) ===== */
-function bkDownload(canvas,filename){ canvas.toBlob(blob=>{ if(!blob)return; const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); },"image/png"); }
+/* 이미지 공유 (2026-11-22): a phone that can share files opens its share sheet (단톡방, 인스타그램); elsewhere, or if it is refused, the file downloads */
+function bkDownload(canvas,filename){ canvas.toBlob(async blob=>{ if(!blob)return;
+  const file=typeof File==="function"?new File([blob],filename,{type:"image/png"}):null;
+  if(file&&matchMedia("(pointer: coarse)").matches&&navigator.canShare?.({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }catch(error){ if(error?.name==="AbortError") return; }
+  }
+  const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); },"image/png"); }
 function bkRR(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function bkSpaced(ctx,text,cx,y,sp){ ctx.save(); ctx.textAlign="left"; const ws=[...text].map(ch=>ctx.measureText(ch).width+sp); const tot=ws.reduce((a,c)=>a+c,0)-sp; let x=cx-tot/2; for(let i=0;i<text.length;i++){ ctx.fillText(text[i],x,y); x+=ws[i]; } ctx.restore(); }
 
@@ -920,7 +926,7 @@ function MatchCard({ m, ev, nameOf, admin, onPick, teamMode, onOpenTeam, seedOf,
   /* a visitor presses the whole box (DESIGN.md "Open": the whole match box is the target): on a phone the names end in an ellipsis,
      so the sheet says them in full with the result */
   if(!admin&&onOpen&&[pa,pb].some(pid=>pid&&pid!==BYE))
-    return <button type="button" className={"mb can-open"} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
+    return <button type="button" className={"mb can-open"} data-match={m.id} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
   if(teamMode){
     const clickable=admin&&(bothReal||decided);
     const Box=clickable?"button":"div";
@@ -928,7 +934,7 @@ function MatchCard({ m, ev, nameOf, admin, onPick, teamMode, onOpenTeam, seedOf,
   }
   const canPick=admin&&bothReal;
   const pickProps=side=>({type:"button",disabled:!canPick,onClick:()=>canPick&&onPick(m.id,side),title:canPick?(decided?"다른 쪽을 누르면 승자 변경, 같은 쪽을 다시 누르면 취소":"눌러서 승자 선택"):""});
-  return <div className={"mb"+(canPick?" can-pick":"")}>{line("a",pa,"button",pickProps("a"))}{line("b",pb,"button",pickProps("b"))}{live}</div>;
+  return <div className={"mb"+(canPick?" can-pick":"")} data-match={m.id}>{line("a",pa,"button",pickProps("a"))}{line("b",pb,"button",pickProps("b"))}{live}</div>;
 }
 /* a match's battle in its sheet: watching it while it runs, its replay once it ended, or starting one for an open official match.
    A battle that cannot give the match a winner (a tie, a void one, one that could not go in) leaves the match open to be played again.
@@ -1380,7 +1386,7 @@ function SubmissionStatusPanel({ model, busy, error, expanded, onToggle, onRefre
 
 function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
   const roundRobin = {sp:slot=>slot?.pid};
-  const renderMatch=(match,editable)=><div className="stack pn" key={match.id}>
+  const renderMatch=(match,editable)=><div className="stack pn" key={match.id} data-match={match.id}>
     <Row title={`${nameOf(match.a.pid)} vs ${nameOf(match.b.pid)}`} line={!match.winner?"경기 전":[`승자 ${nameOf(match[match.winner].pid)}`,
       match.forfeit?`${nameOf(match[match.winner==="a"?"b":"a"].pid)} ${lossWord(battleForMatch(battles,match.id,[match.a.pid,match.b.pid]),match)}`:match.scoreA!=null?`${match.scoreA}:${match.scoreB}`:null].filter(Boolean).join(", ")}/>
     {editable&&<div className="stack bk-pick">
@@ -1521,6 +1527,10 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     return ()=>{ cancelled=true; };
   },[b.eventId,runtimeId,scheduleKey,b.graph,b.knockout]);
   const me=useMyEntry(b.participants);
+  /* 내 경기로 (2026-11-22): a signed-in player's next match on a long bracket, one press away. The first undecided match they stand in. */
+  const myMatch=me?[...[b.graph,b.knockout].filter(Boolean).flatMap(g=>{ const {sp}=evalGraph(g); return collectGraphMatches(g).map(m=>({m,a:sp(m.a),b:sp(m.b)})); }),
+    ...(b.knockout?[]:(b.groups||[]).flatMap(g=>[...g.matches,...(g.playoffs||[])]).map(m=>({m,a:m.a?.pid,b:m.b?.pid})))]
+    .find(x=>!x.m.winner&&(x.a===me||x.b===me)&&x.a!==BYE&&x.b!==BYE)?.m.id||null:null;
   const [scheduling,setScheduling]=useState(null);
   const canSchedule=Boolean(editAdmin&&schedule&&runtimeId);
   /* 저장은 한 번에: 바뀐 라운드 일정, 바뀐 테이블. 되돌릴 수 있으므로 묻지 않고 저장한 뒤 되돌리기를 준다 (DESIGN.md "Sheets") */
@@ -1689,6 +1699,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
         {b.applied&&<>{admin&&<span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span>}{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}{!readOnly&&admin&&championshipEvent?.championship_phase!=="qualifier"&&<Button variant="link" size="sm" onClick={()=>onApply(b,res,{titlesOnly:true})}>칭호 다시 판정</Button>}</>}
       </div>
     </section>}
+    {myMatch&&<Button variant="second" icon="arrow" onClick={()=>document.querySelector(`[data-match="${CSS.escape(myMatch)}"]`)?.scrollIntoView({block:"center"})}>내 경기로</Button>}
     {b.eventId&&(admin||!(res&&res.done))&&<SubmissionStatusPanel
       model={submissionStatusModel}
       busy={submissionStatusBusy}

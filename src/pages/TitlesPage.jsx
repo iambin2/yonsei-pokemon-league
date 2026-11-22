@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import ShareHere from "../components/ShareHere.jsx";
 import { Row, TabsLine } from "../components/common/Board.jsx";
 import Empty from "../components/common/Empty.jsx";
 import Button from "../components/common/Button.jsx";
@@ -72,6 +73,7 @@ function TitleSheet({ group, item, spec, partner, go, onClose }) {
             onClick={record(name)} label={`${i + 1}호 ${name}, 기록 보기`} />)}
       </div> : <Empty title="아직 주인이 없습니다." />}
     </section>
+    <ShareHere title={title} className="tl-sheet-sec" />
   </Modal>;
 }
 
