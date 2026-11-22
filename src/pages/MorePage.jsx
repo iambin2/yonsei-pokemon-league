@@ -20,7 +20,7 @@ const GROUPS = [
   ["리그", [["about", "소개"], ["privacy", "개인정보처리방침"]]],
 ];
 
-const THEMES = [["dark", "어둡게"], ["light", "밝게"], ["system", "기기 설정"]];
+const THEMES = [["dark", "어둡게"], ["light", "밝게"], ["contrast", "고대비"], ["system", "기기 설정"]];
 /* 알림 줄의 새 알림: 이 기기가 받는 종류(꺼진 기기는 모든 종류)에서 지난번 알림 화면을 본 뒤에 온 것이 있는가. 읽지 못하면 램프는 꺼진 채다. */
 function useNewAlerts() {
   const [fresh, setFresh] = useState(false);

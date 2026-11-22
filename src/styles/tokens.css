@@ -82,6 +82,11 @@
   --gold: var(--gold-1);
   --veil: rgb(8 28 61 / .72);
 }
+/* 고대비 (2026-11-22, DESIGN.md "Colour and light"): the dark board with what is dim and muted lit nearer white and the seams a step up.
+   Primitives already in the palette, no new colour. */
+:root[data-contrast="more"] {
+  --dim: var(--paper-1); --mute: var(--mist); --rule: var(--haze);
+}
 :root[data-theme="light"] {
   color-scheme: light;
   --ground: var(--white); --panel: var(--paper-1); --panel-2: var(--paper-2); --rule: var(--paper-3);

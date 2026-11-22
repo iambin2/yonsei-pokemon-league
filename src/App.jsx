@@ -107,7 +107,7 @@ export default function App() {
   // 다크가 첫 방문이다(스코어보드). 고른 기록이 라이트면 라이트, "system"이면 기기의 설정을 따른다.
   // 예전 키는 열 때마다 저장돼 고른 기록이 아니라서 쓰지 않는다.
   const [themePref,setThemePref]=useState(()=>{
-    try{ const t=localStorage.getItem("ypl-theme"); return t==="light"||t==="system"?t:"dark"; }catch(e){ return "dark"; }
+    try{ const t=localStorage.getItem("ypl-theme"); return t==="light"||t==="system"||t==="contrast"?t:"dark"; }catch(e){ return "dark"; }
   });
   const lightQuery=useMemo(()=>typeof matchMedia==="function"?matchMedia("(prefers-color-scheme: light)"):null,[]);
   const [systemLight,setSystemLight]=useState(()=>Boolean(lightQuery?.matches));
@@ -124,7 +124,9 @@ export default function App() {
     const root=document.documentElement;
     root.dataset.theme=dark?"dark":"light";
     root.style.colorScheme=dark?"dark":"light";
-  },[dark]);
+    // 고대비(2026-11-22, the owner's draft 11 A): the dark board with its dim words and seams lit higher (tokens.css)
+    if(themePref==="contrast") root.dataset.contrast="more"; else delete root.dataset.contrast;
+  },[dark,themePref]);
   /* 탭 제목 — 뒤로 가기 목록과 브라우저 탭에서 어디에 있었는지 구분되게 화면 이름을 붙인다. */
   useEffect(()=>{
     const label=view==="more"?"더보기":view==="privacy"?"개인정보처리방침":view==="admin"?"운영":(NAV_ITEMS.find(([key])=>key===view)||[])[1];

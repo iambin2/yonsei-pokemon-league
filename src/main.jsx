@@ -41,6 +41,7 @@ function bootTheme() {
 }
 const bootDark = bootTheme();
 document.documentElement.dataset.theme = bootDark ? "dark" : "light";
+try { if (localStorage.getItem("ypl-theme") === "contrast") document.documentElement.dataset.contrast = "more"; } catch (e) { /* the default contrast */ }
 document.documentElement.style.colorScheme = bootDark ? "dark" : "light";
 
 /* 막대(Bar)의 굵기를 기기 화소에 맞추는 단위: 한 기기 화소의 CSS 길이. 125%, 150% 배율에서 2px는 반 화소에 걸려 행마다 2와 3으로 달리
