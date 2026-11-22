@@ -194,7 +194,7 @@ begin
       'participant_key',p.participant_key,'display_name',canonical_name,'player_id',pid,'registration_id',rid,
       'entry_id',p.entry_id,'entry_participant_id',p.entry_participant_id,'entry_type','individual','member_order',1,
       'player_was_created',was_new_player,'registration_was_created',was_new_registration,
-      'registration_player_was_changed',was_linked,'previous_registration_player_id',r.player_id,
+      'registration_player_was_changed',was_linked,'previous_registration_player_id',case when was_linked then r.player_id end,
       'entry_was_created',true,'entry_participant_was_created',true));
   end loop;
   if (select count(distinct t.player_id) from jsonb_to_recordset(canonical) t(player_id uuid))<>n then
