@@ -157,7 +157,7 @@ export function TeamPick({ res, foe, foeName, pokemon, count, doubles = false, l
         </span>
       </div>
       <div className="bt-pv-room">
-        <LobbyStage ball leads={leads} doubles={doubles} label={leads.length ? `경기장, 선두 ${leads.map(sp => nameOf(res, sp)).join(", ")}` : "경기장"} />
+        <LobbyStage ball res={res} leads={leads} doubles={doubles} label={leads.length ? `경기장, 선두 ${leads.map(sp => nameOf(res, sp)).join(", ")}` : "경기장"} />
       </div>
       <div className="bt-pv-strip own">
         <ol className="bt-pv-order" aria-label={`선출 순서, ${picks.length} / ${n}`}>

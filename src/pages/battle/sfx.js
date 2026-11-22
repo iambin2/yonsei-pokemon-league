@@ -192,18 +192,19 @@ const LIB = {
   // the stadium's lamps, bank by bank: three heavy switches and the hum of the power coming up
   lamps: (c, t) => { [0, .26, .52].forEach((at, i) => S(c, t, "lamp", { g: .8, rate: 1 - i * .06, wet: .45, at })); S(c, t, "hum", { g: .25, dur: 1.4, lp: 800, wet: .4 }); },
   throw: (c, t, o) => S(c, t, "whoosh", { g: .55, pan: o.pan, dur: o.sec || .72, rate: 1.1 }),
-  // the game's send-out (its shape measured from 포켓몬 챔피언스, scripts/data/sfx-shapes.json): a bright band rising to the top fast
-  /* only its burst, the first 0.22 s: the footage the shape was measured from has the Pokémon's cry right after the ball opens, and that
-     part read as a monster's growl (earshot, forced choice: 96% for the whole clip, 1% for its first 0.2 s, which reads as a burst of
-     light), heard at every send-out even with 울음소리 off (2026-11-21, the owner: "이상한 괴물 울음소리가 나던데? 아예 소리 안 나는 걸로") */
-  ballOpen: (c, t, o) => S(c, t, "open", { g: .8, pan: o.pan, wet: .35, dur: .22 }),
+  /* the ball opening: a recording, a bright burst over a short hum. Not the game's own shape: that was measured from a send-out, where
+     the Pokémon cries as the ball opens, so the sound carried a stranger's cry into every send-out and every pick of the team preview,
+     where no real cry sounded at all (2026-11-21 its tail was cut; 2026-11-22 the owner again: "선출 화면에서는 여전히 괴물 울음소리가
+     들리는데. 원본 울음소리가 완전히 없어"). No sound is shaped from a moment a Pokémon's voice sounds in the game: a send-out, a Mega
+     Evolution's end (tests/battleSfx.test.mjs). The cry itself is the Pokémon's own (cries.js), on the preview's court too (Stage.jsx) */
+  ballOpen: (c, t, o) => { S(c, t, "shine", { g: .75, pan: o.pan, wet: .35 }); S(c, t, "field3", { g: .35, pan: o.pan, rate: 1.4, wet: .3 }); },
   // the red light flying home: a power falling away, then a short rise as it reaches the ball
   recall: (c, t, o) => S(c, t, "recallS", { g: .8, pan: o.pan, wet: .35, rate: 1 / Math.max(.6, Math.min(1.6, o.k || 1)) }),
   drag: (c, t, o) => { S(c, t, "breeze", { g: .6, pan: o.pan, dur: .6 }); heavy(c, t, 0, .4, o.pan); },
   faint: (c, t, o) => { const k = o.k || 1; S(c, t, "faintS", { g: .75, pan: o.pan, wet: .4, rate: 1 / Math.max(.6, Math.min(1.6, k)) }); heavy(c, t, .55 * k, .5, o.pan); },
-  // Mega Evolution as the newest games sound it (Legends Z-A, shapes measured): a rising charge, then the burst over a low blow
-  megaStart: (c, t, o) => S(c, t, "megaA", { g: .8, pan: o.pan, wet: .5 }),
-  megaEnd: (c, t) => { S(c, t, "megaB", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .6, wet: .4 }); },
+  // Mega Evolution: a charge gathering under a held note, then a bright burst; the burst over a low blow as the new form stands
+  megaStart: (c, t, o) => { S(c, t, "gather", { g: .6, pan: o.pan, wet: .4, rate: .8 }); S(c, t, "field", { g: .45, pan: o.pan, rate: .7 }); S(c, t, "bright", { g: .8, wet: .6, at: .6 }); S(c, t, "sparkle", { g: .5, wet: .6, at: .75 }); },
+  megaEnd: (c, t) => { S(c, t, "boom", { g: .9, wet: .45 }); S(c, t, "lowBoom", { g: .8, wet: .4 }); S(c, t, "shine", { g: .5, wet: .6, at: .05 }); },
   /* the result: a bar of the music's own fanfare (J, compose-music.py cadences(), 2026-11-22: the effects alone had nothing of the music
      in them), over the gesture the effects made before, now quieter: a win rises and rings over a thump, a loss falls away onto a
      heavy body, a draw hangs on one chord; the music fades under them (BattlePage) */

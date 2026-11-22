@@ -65,3 +65,14 @@ test("no take of the sprite is heard as a creature's voice (scripts/check-sfx-vo
   }
   assert.equal(takes, Object.keys(voice.takes).length);
 });
+
+test("no sound is shaped from a moment a Pokémon's voice sounds in the game", () => {
+  // a send-out and a Mega Evolution's end have the Pokémon's cry in them: the shape carried a stranger's cry (the ball opening, 2026-11-22)
+  const shapes = Object.keys(JSON.parse(readFileSync(new URL("../scripts/data/sfx-shapes.json", import.meta.url), "utf8")).shapes);
+  assert.deepEqual(shapes.filter(s => /sendout|mega|faint|cry/i.test(s)), []);
+  assert.ok(!/["']open["']/.test(read("sfx.js").split("const LIB = {")[1]));
+});
+test("a lead cries its own cry on the team preview's court", () => {
+  assert.match(read("Stage.jsx"), /fx\.enter\(ref\.current, slotKey\("p1", slot\), \{ ball, cry: ball && res \? \(\) => cry\(cryKey\(res, sp\)\) : null \}\)/);
+  assert.match(read("Sets.jsx"), /<LobbyStage ball res=\{res\}/);
+});

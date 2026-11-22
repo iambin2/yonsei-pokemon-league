@@ -717,9 +717,10 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
 // random: our party is drawn when the battle opens, so the same light breathes on our near floor where our leads will come out
 // (2026-11-06: the random party showed six switched-off panels while a saved team showed the court; both are the court now)
 // foeLead: the opponent known before the battle (the computer, as its 난이도's Pokémon) stands on the far side, out of the same light
-/* ball: the team preview's court (2026-11-18, the user: "그냥 정보 없이 배틀 무대로 하자. 몬스터볼 등장 연출 그대로 활용해서"): each lead
+/* res: the dex, so a lead cries as it comes out (ball only).
+   ball: the team preview's court (2026-11-18, the user: "그냥 정보 없이 배틀 무대로 하자. 몬스터볼 등장 연출 그대로 활용해서"): each lead
    chosen is thrown from its ball as in a battle, every time, and one that gives its place up is called back first */
-export function LobbyStage({ leads: asked, doubles, label, awaiting = false, random = false, foeLead = null, ball = false }) {
+export function LobbyStage({ leads: asked, doubles, label, awaiting = false, random = false, foeLead = null, ball = false, res = null }) {
   const ref = useRef(null);
   const [held, setHeld] = useState(asked);
   const leads = ball ? held : asked;
@@ -748,7 +749,9 @@ export function LobbyStage({ leads: asked, doubles, label, awaiting = false, ran
     if (!painted) return;
     fx.sync(ref.current);
     // in the team preview only the lead that is new to its place is thrown; the one that kept its place stands
-    leads.forEach((sp, slot) => { if (sp && (!ball || before.current[slot] !== sp)) fx.enter(ref.current, slotKey("p1", slot), { ball }); });
+    // and it cries as it comes out of its ball, its own cry, as in a battle (res: the dex its number is read from). 2026-11-22, the owner:
+    // "원본 울음소리가 완전히 없어": the court had only the ball's sound
+    leads.forEach((sp, slot) => { if (sp && (!ball || before.current[slot] !== sp)) fx.enter(ref.current, slotKey("p1", slot), { ball, cry: ball && res ? () => cry(cryKey(res, sp)) : null }); });
     before.current = leads;
   }, [painted, leads.join("|"), doubles]);
   useLayoutEffect(() => { if (!painted) return; fx.sync(ref.current); if (foeLead) fx.enter(ref.current, slotKey("p2", 0), { ball: false }); }, [painted, foeLead, doubles]);

@@ -20,7 +20,8 @@ Since 2026-11-20 every place was chosen by earshot (match to a description of th
 the slot's meaning; most places hold two or three takes the battle plays in turn.
 
 A sound must never be heard as a Pokémon crying: the game's shape carried the voice of what sounded in the footage into the stat
-sounds, poison, the weathers and a screen (2026-11-22), which are plain recordings again, and three takes that creaked or crackled like a
+sounds, poison, the weathers and a screen (2026-11-22), which are plain recordings again; and no sound is shaped from a moment a
+Pokémon's voice sounds in the game (a send-out, a Mega Evolution): the ball opening and the Mega sounds are recordings too, and three takes that creaked or crackled like a
 voice are gone. After every build run scripts/check-sfx-voice.py (earshot): it listens to every take and writes
 scripts/data/sfx-voice.json, and tests/battleSfx.test.mjs fails on a sprite it has not passed.
 
@@ -139,7 +140,6 @@ CLIPS = {
     "wish": (lk("heal", 2), 1.2, {}),
     "beam": ("lk-scifi/Laser Beam 1.wav", 3, {"gain": -2}),
     # the game's own shapes (shaped above) on real recordings' grain: the sounds of every turn
-    "open": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 0.8, {"shape": "sendout"}),
     "recallS": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 1.3, {"shape": "recall"}),
     # the footage's faints are under the music; the game's faint is the recall's falling band sweeping back (measured 2026-11-07)
     "faintS": (["rec/bsb/1289.ogg@35.3", "rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "recall"}),
@@ -151,8 +151,6 @@ CLIPS = {
     # 2026-11-21: clean rips of the 3D games' stat, healing, Reflect and Legends Z-A's Mega Evolution, and the newest part of each
     # weather move's comparison with its music taken out
     "healS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2.2, {"shape": "heal"}),
-    "megaA": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2, {"shape": "megaStart"}),
-    "megaB": (["rec/bsb/0153.ogg@11.6"], 1.8, {"shape": "megaEnd"}),
     # 2026-11-21: the status conditions as the 3D games sound them (a Gen 6 effects-only rip, read from its messages) and confusion
     # (a Gen 6-9 clip); sleep's three falling chirps are notes, so a short blip played three times
     "burnS": (["lk-basic/Fire Spell Impacts/Fire Spell Impact 5.wav"], 0.9, {"shape": "burn"}),

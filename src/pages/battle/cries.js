@@ -85,7 +85,8 @@ export function duck(hold = .6, db = -7, at = 0) {
 /* the effects step back under a cry too (2026-11-21, the owner: "울음소리 전부가 원본이랑 완전히 다른데"): the send-out measured from
    포켓몬 챔피언스 (sfx.js ballOpen) starts with the cry and stood 5 to 10 dB over it for its first 0.7 s (recorded through this mix:
    -15 against -25 to -20 dB), so every cry was heard through a burst of noise. In the game the cry is over everything; the effects
-   channel is held 12 dB down while one sounds, as the music is */
+   channel is held 12 dB down while one sounds, as the music is. (That send-out sound is a plain recording since 2026-11-22: its shape
+   carried the footage's cry. The step back stays) */
 function under(hold) {
   const u = gains.get("under");
   if (!u) return;
