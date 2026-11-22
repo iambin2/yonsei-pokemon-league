@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import Button from "../components/common/Button.jsx";
 import Empty from "../components/common/Empty.jsx";
 import Loader from "../components/common/Loader.jsx";
-import { Counter, Row, SectionHead, Steps } from "../components/common/Board.jsx";
+import { Counter, Row, SectionHead, Steps, TabsLine } from "../components/common/Board.jsx";
+import Field from "../components/common/Field.jsx";
+import Modal from "../components/common/Modal.jsx";
+import { DEFAULT_POINT_TABLE } from "../services/bracketRankingAwardSnapshot.js";
 import LinkRequests from "../components/LinkRequests.jsx";
 import ChangeLog from "../components/ChangeLog.jsx";
 import ClientErrors from "../components/ClientErrors.jsx";
@@ -56,6 +59,32 @@ function Exports({ flash }) {
     <div className="stack ad-doors">{EXPORTS.map(([title, line, key]) => <Row key={key} title={title} line={busy === key ? "받는 중" : line} onClick={() => void take(key)} label={`${title} 받기, ${line}`} />)}</div>
   </section>;
 }
+/* 포인트 (2026-11-22, the owner's draft 4 A): the points a place gives, per kind and league, for events recorded from now on. Kept in
+   site_data (pointPolicy); the record sheet and the awards read it through setPointTable. A blank cell keeps the default. */
+const LEAGUES = [["master", "마스터"], ["light", "라이트"]];
+function PointSheet({ data, save, onClose }) {
+  const [kind, setKind] = useState("individual");
+  const [table, setTable] = useState(() => JSON.parse(JSON.stringify({ ...DEFAULT_POINT_TABLE, ...(data.pointPolicy || {}),
+    individual: { ...DEFAULT_POINT_TABLE.individual, ...(data.pointPolicy?.individual || {}) }, team: { ...DEFAULT_POINT_TABLE.team, ...(data.pointPolicy?.team || {}) } })));
+  const places = kind === "team" ? [["win", "우승"], ["ru", "준우승"]] : [["win", "우승"], ["ru", "준우승"], ["sf", "4강"]];
+  const put = (league, key, value) => setTable(t => ({ ...t, [kind]: { ...t[kind], [league]: { ...t[kind][league], [key]: value.replace(/[^0-9]/g, "").slice(0, 4) } } }));
+  const store = async () => {
+    const clean = Object.fromEntries(["individual", "team"].map(k => [k, Object.fromEntries(LEAGUES.map(([l]) => [l,
+      Object.fromEntries(Object.entries(table[k][l] || {}).filter(([, v]) => v !== "" && v != null).map(([p, v]) => [p, Math.min(1000, Number(v))]))]))]));
+    if (await save({ ...data, pointPolicy: clean }, "포인트를 저장했습니다.")) onClose();
+  };
+  return <Modal title="포인트" hint="다음에 기록에 반영하는 대회부터 씁니다. 이미 반영한 대회는 그대로입니다." onClose={onClose}>
+    <TabsLine value={kind} onChange={setKind} options={[["individual", "개인전"], ["team", "팀전"]]} label="종류" />
+    {LEAGUES.map(([league, label]) => <section className="ad-points" key={league}>
+      <SectionHead title={label} />
+      {places.map(([key, name]) => <Field key={key} label={name} flush={key === places[places.length - 1][0]}>
+        <input inputMode="numeric" aria-label={`${label} ${name} 포인트`} value={String(table[kind][league]?.[key] ?? "")} onChange={e => put(league, key, e.target.value)} /></Field>)}
+    </section>)}
+    <p className="t12 dim">루키 리그와 챔피언스는 포인트가 없습니다.</p>
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={store}>저장</Button></div>
+  </Modal>;
+}
+
 const STEP_ACTION = { 1: null, 2: "대진표 만들기", 3: "결과 입력", 4: "기록에 반영" };
 const when = e => (e.heldOn ? formatDate(e.startTime ? `${String(e.heldOn).slice(0, 10)}T${e.startTime}` : e.heldOn, { time: Boolean(e.startTime) }) : "");
 
@@ -95,6 +124,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
   const counted = n => { setPending(n); onRequests?.(n); };
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
+  const [points, setPoints] = useState(false);
   /* 탑의 정상 (2026-11-22): a past month's first of 도전의 탑 waits here as a task until it is given; one press gives it, the toast undoes it */
   const [towerTops, setTowerTops] = useState(null);
   useEffect(() => { if (!admin) return undefined; let on = true; readTowerMonthTops().then(rows => on && setTowerTops(rows), () => {}); return () => { on = false; }; }, [admin]);
@@ -162,12 +192,14 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
           </section>
           <section className="ad-block" aria-labelledby="ad-doors-h">
             <SectionHead id="ad-doors-h" title="편집" />
-            <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}</div>
+            <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}
+              <Row title="포인트" line="순위마다 주는 랭킹 포인트" onClick={() => setPoints(true)} /></div>
           </section>
           <ChangeLog />
           <ClientErrors />
           <Exports flash={flash} />
         </div>
+        {points && <PointSheet data={data} save={save} onClose={() => setPoints(false)} />}
         <aside className="ad-side" aria-labelledby="ad-events-h">
           <SectionHead id="ad-events-h" title="대회 진행" />
           {events.length ? events.map((e, i) => <EventPanel key={e.id} e={e} main={i === 0} go={go} onClose={closeNow} onCancel={cancelEvent} />)

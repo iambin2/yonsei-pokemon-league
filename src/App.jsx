@@ -2,6 +2,7 @@ import React, { lazy, useState, useEffect, useLayoutEffect, useCallback, useMemo
 import { flushSync } from "react-dom";
 import { bracketRouteSearch, readInitialAppView } from "./services/appRouting.js";
 import { isPublished } from "./services/announcementTimes.js";
+import { setPointTable } from "./services/bracketRankingAwardSnapshot.js";
 import { loadSiteData, saveSiteData, seenSiteData, submitAnnouncementResponse } from "./services/siteDataService.js";
 import { WRITE_CONFLICT } from "./services/revisionedRow.js";
 import { listEventsAwaitingRecord } from "./services/normalizedCompetitionService.js";
@@ -282,6 +283,8 @@ export default function App() {
   const toggleMore=el=>{ if(!more) setTimeout(()=>{ CalculatorPage.prefetch(); ChampionsPage.prefetch(); },DUR.light); setMore(m=>m?null:el); };
   // 오늘 열리는 대회: 바의 램프, 대진표 탭의 램프, 홈과 대진표 밖의 화면을 여는 진행 띠
   /* 예약한 공지(publishAt)는 그 시각까지 방문자에게 보이지 않는다. 운영진은 모두 본다(저장도 전체를 쓴다). */
+  // the operators' point table (운영, 포인트) is what the record sheet reads when an event goes into the records
+  useMemo(()=>setPointTable(data?.pointPolicy),[data?.pointPolicy]);
   const shown=useMemo(()=>admin||!data?data:{...data,announcements:(data.announcements||[]).filter(a=>isPublished(a))},[data,admin]);
   const live=useMemo(()=>shown?todayEvent(shown.announcements):null,[shown]);
   const moreItems=[

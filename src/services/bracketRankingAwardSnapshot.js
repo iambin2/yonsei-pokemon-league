@@ -26,6 +26,26 @@ const TEAM_RANKING_AWARD_POLICY = {
   },
 };
 
+/* 포인트 정책 (2026-11-22, the owner's draft 4 A): the operators may change the points per place from the 운영 page. The table lives in
+   site_data (pointPolicy: { individual|team: { master|light: { win, ru, sf } } }); App hands it here once it loads, so the record sheet's
+   preview and the awards written read the same numbers. Events already recorded keep the points they were given. */
+let customTable = null;
+export function setPointTable(table) { customTable = table && typeof table === "object" ? table : null; }
+const POINT_KEY = { champion: "win", runner_up: "ru", semifinalist: "sf" };
+export const DEFAULT_POINT_TABLE = {
+  individual: Object.fromEntries(Object.entries(PLACEMENT_POLICY).map(([d, p]) => [d, Object.fromEntries(Object.entries(p).map(([k, v]) => [POINT_KEY[k], v.points_delta]))])),
+  team: Object.fromEntries(Object.entries(TEAM_RANKING_AWARD_POLICY).map(([d, p]) => [d, Object.fromEntries(Object.entries(p).map(([k, v]) => [POINT_KEY[k], v.points_delta]))])),
+};
+function placementsFor(isTeamEvent, division) {
+  const base = (isTeamEvent ? TEAM_RANKING_AWARD_POLICY : PLACEMENT_POLICY)[division];
+  const custom = customTable?.[isTeamEvent ? "team" : "individual"]?.[division];
+  if (!base || !custom) return base;
+  return Object.fromEntries(Object.entries(base).map(([k, v]) => {
+    const n = Number(custom[POINT_KEY[k]]);
+    return [k, { ...v, points_delta: Number.isFinite(n) && n >= 0 && n <= 1000 ? n : v.points_delta }];
+  }));
+}
+
 const AWARD_FIELDS = [
   "result_id",
   "player_id",
@@ -86,9 +106,7 @@ function getPlacementPointPolicy(event, isTeamEvent) {
   if (division === "rookie") {
     return { enabled: false, division, reason: "rookie", points: { win: 0, ru: 0, sf: 0 } };
   }
-  const placements = isTeamEvent
-    ? TEAM_RANKING_AWARD_POLICY[division]
-    : PLACEMENT_POLICY[division];
+  const placements = placementsFor(isTeamEvent, division);
   const points = {
     win: placements.champion.points_delta,
     ru: placements.runner_up.points_delta,

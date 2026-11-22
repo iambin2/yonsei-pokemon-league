@@ -374,3 +374,18 @@ test("Champions Qualifier and Final are ranking-disabled even with stale enabled
     is_team_event: true,
   }).enabled, false);
 });
+
+test("the operators' point table changes the points a recorded place gives, and nothing else", async () => {
+  const { setPointTable, DEFAULT_POINT_TABLE } = await import("../src/services/bracketRankingAwardSnapshot.js");
+  assert.deepEqual(DEFAULT_POINT_TABLE.individual.master, { win: 60, ru: 40, sf: 20 });
+  setPointTable({ individual: { master: { win: 100, ru: "60", sf: -5 } } });
+  try {
+    const policy = getIndividualPlacementPointPolicy(event("master"));
+    assert.deepEqual(policy.points, { win: 100, ru: 60, sf: 20 }); // a negative number falls back to the default
+    assert.equal(policy.placements.champion.win_delta, 1);
+    assert.deepEqual(getTeamPlacementPointPolicy(teamEvent("master")).points, { win: 30, ru: 20, sf: 0 });
+  } finally {
+    setPointTable(null);
+  }
+  assert.deepEqual(getIndividualPlacementPointPolicy(event("master")).points, { win: 60, ru: 40, sf: 20 });
+});

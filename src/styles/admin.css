@@ -137,6 +137,8 @@
 .ad-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ad-cols, .ad-main, .ad-side { display: grid; gap: var(--s8); align-content: start; min-width: 0; }
 .ad-block { display: grid; gap: var(--s3); }
+/* 포인트 sheet: a league a section, its places as cells */
+.ad-points { display: grid; gap: var(--s3); margin-top: var(--s5); }
 .ad-side { gap: var(--s3); }
 .ad-side > .ad-event + .ad-event { margin-top: var(--s5); }
 .ad-event { display: grid; gap: var(--seam); }
