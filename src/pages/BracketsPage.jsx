@@ -2761,12 +2761,16 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
             <p className="t12 dim reg bk-open-line">{open.mode==="team"?"팀전":"개인전"}, {bracketFormat(open)}, {(open.participants||[]).length}{open.mode==="team"?"팀":"명"}{open.createdAt?`, ${formatDate(open.createdAt)}`:""}{admin&&statusTag(open)!=="진행 중"?`, ${statusTag(open)}`:""}</p>
           </div>
           {/* desktop: the images stand beside the title; a phone keeps them under the result */}
-          {openRes?.done&&<div className="stack bk-tools">
-            <Button variant="second" size="sm" onClick={()=>downloadChampionPng(open,openRes,openName)}>우승 이미지</Button>
-            <Button variant="second" size="sm" onClick={()=>downloadBracketPng(open,openName)}>대진표 이미지</Button>
-          </div>}
+          {/* 링크 공유 (2026-11-22): the home-screen app has no address bar, and a bracket is what players pass around on the day */}
+          <div className="stack bk-tools">
+            {open.eventId&&<Button variant="second" size="sm" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button>}
+            {openRes?.done&&<Button variant="second" size="sm" onClick={()=>downloadChampionPng(open,openRes,openName)}>우승 이미지</Button>}
+            {openRes?.done&&<Button variant="second" size="sm" onClick={()=>downloadBracketPng(open,openName)}>대진표 이미지</Button>}
+          </div>
         </div>
         {statusTag(open)==="진행 중"&&<p className="pn bk-strip t12"><Status live>진행 중</Status>{liveProgress(open)&&<span className="dim">{liveProgress(open)}</span>}</p>}
+        {/* a phone: the share key under the head, the desktop keeps it among the tools beside the title */}
+        {open.eventId&&<div className="stack bk-actions bk-share"><Button variant="second" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button></div>}
       </header>
        {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res)=>setApply({b,res})}/>}
       {/* a delete that cannot be undone stands last, after everything the bracket shows */}

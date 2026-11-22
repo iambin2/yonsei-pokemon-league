@@ -48,6 +48,7 @@
   .bk-tools { display: grid; grid-auto-flow: column; flex: none; }
   .bk-tools .btn { height: var(--h-control); padding: 0 var(--s5); }
   .bk-cb-actions > .bk-img { display: none; }
+  .bk-share { display: none; }
 }
 
 /* the decided result: 우승 inverted, the places as spec rows, the images */

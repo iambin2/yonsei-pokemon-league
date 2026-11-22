@@ -10,6 +10,8 @@ import { Dropdown, Empty, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAle
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
+import { calendarFile, noticeDays } from "../services/calendarFile.js";
+import { shareLink } from "../services/communityStore.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
 import { VISITOR_EVENT, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingForm, visitorSignedIn } from "../services/visitorAuth.js";
 import { builderRouteSearch, editEventApplication, findApplicantNameRecord, listEventApplications, openEventApplication, playerNameKey, tidyApplicantName, listEventRegistrationSubmissionStatuses, loadPrivateAnswers, resetSubmissionPin, deleteEventRegistration, resolveChampionshipSubmissionEvents } from "../services/index.js";
@@ -53,7 +55,7 @@ function eventFacts(a){
 /* 공지 목록의 한 줄: 제목, 그 아래 회색 줄의 날짜(고정이면 고정이 켜진다), 줄 끝의 램프 칸. 새 글이면 램프가 켜진다(seenNotices.js) */
 /* 공지: 목록에서 제목을 누르면 본문 화면으로 넘어간다. 신청은 공지 위에 서는 한 장이고, 파티 제출은 팀 빌더로 간다.
    연 공지는 주소(?notice=)와 기록 한 칸에 남는다. */
-export default function NewsPage({ data, admin, setModal, save, submitForm, refresh, go }) {
+export default function NewsPage({ data, admin, setModal, save, submitForm, refresh, go, flash }) {
   const [q,setQ]=useState(""); const [page,setPage]=useState(1);
   const [fill,setFill]=useState(null); const [editing,setEditing]=useState(false); const [respId,setRespId]=useState(null);
   const [eventResponses,setEventResponses]=useState({});
@@ -189,6 +191,16 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
     const main=open?[a.form.buttonLabel||"참가 신청",()=>openForm(a.id,false)]:submits[0]?[submits[0][0],()=>openBuilder(submits[0][1])]:hasForm?["신청 마감",null]:null;
     const seconds=open?submits:submits.slice(1);
     const others=all.filter(x=>x.id!==a.id).slice(0,5);
+    /* 링크 공유 and 캘린더에 추가 (2026-11-22): the home-screen app has no address bar to copy, and a player kept the day by hand */
+    const shareNotice=async()=>{ const how=await shareLink({view:"news",notice:a.id},a.title); if(how==="copied") (flash||siteAlert)("주소를 복사했습니다."); };
+    const days=noticeDays(a).filter(d=>d.day);
+    const addToCalendar=()=>{
+      const text=calendarFile({id:a.id,title:a.form?.eventDraft?.name||a.title,days,url:`${window.location.origin}/?view=news&notice=${encodeURIComponent(a.id)}`});
+      if(!text) return;
+      const url=URL.createObjectURL(new Blob([text],{type:"text/calendar;charset=utf-8"}));
+      const link=document.createElement("a"); link.href=url; link.download=`${String(a.form?.eventDraft?.name||a.title||"YPL").replace(/[\\/:*?"<>|]/g,"_")}.ics`;
+      document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
+    };
     // 데스크톱은 709와 439 두 단: 왼쪽은 본문, 오른쪽은 대회의 사실과 행동, 그 아래 다른 공지. 폰은 지금 순서 그대로 한 단.
     return (<section className="nw nw-art">
       <header className="nw-art-head">
@@ -206,12 +218,14 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
         {facts?.rows.length>0&&<div className={"stack nw-spec"+(next||counting?" joined":"")}>
           {facts.rows.map(([k,v])=><div className="pn spec-row" key={k}><span className="t12 dim">{k}</span><span className="t15">{v}</span></div>)}
         </div>}
-        {(editable||seconds.length>0||a.link||a.link2)&&<div className="stack nw-more">
+        <div className="stack nw-more">
           {editable&&<Button variant="second" onClick={()=>openForm(a.id,true)}>신청 수정</Button>}
           {seconds.map(([label,id])=><Button variant="second" key={label} onClick={()=>openBuilder(id)}>{label}</Button>)}
           {a.link&&<Button variant="second" href={href(a.link)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.linkLabel||"링크 바로가기"}</Button>}
           {a.link2&&<Button variant="second" href={href(a.link2)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.link2Label||"링크 바로가기"}</Button>}
-        </div>}
+          {days.length>0&&next&&<Button variant="second" onClick={addToCalendar}>캘린더에 추가</Button>}
+          <Button variant="second" onClick={shareNotice}>링크 공유</Button>
+        </div>
         {admin&&<div className="stack nw-admin">
           {(hasForm||a.form?.eventId)&&<Button variant="second" onClick={()=>setRespId(a.id)}>응답 보기 {a.form.eventId?(eventResponses[a.id]||[]).length:(a.form.responses||[]).length}</Button>}
           <Button variant="second" onClick={()=>setModal({type:"ann",item:a})}>수정</Button>

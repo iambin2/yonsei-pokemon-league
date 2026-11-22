@@ -205,6 +205,19 @@ export default function App() {
     }).catch(()=>{});
   },[admin]);
   const refresh=useCallback(async()=>{ const fresh=await loadSiteData(); if(fresh) setData(normalizeData(fresh)); },[]);
+  /* 탭으로 돌아온 방문자는 5분 넘게 떠나 있었으면 공지와 사이트 데이터를 다시 읽는다(2026-11-22: 앱을 띄워 둔 채로는 새 공지를
+     다시 열 때까지 보지 못했다). 운영자는 편집 중인 내용을 덮지 않도록 자기 저장과 충돌 확인으로만 다시 읽는다. */
+  useEffect(()=>{
+    if(admin) return undefined;
+    let hiddenAt=0;
+    const seen=()=>{
+      if(document.visibilityState==="hidden"){ hiddenAt=Date.now(); return; }
+      if(hiddenAt&&Date.now()-hiddenAt>5*60*1000) refresh().catch(()=>{});
+      hiddenAt=0;
+    };
+    document.addEventListener("visibilitychange",seen);
+    return ()=>document.removeEventListener("visibilitychange",seen);
+  },[admin,refresh]);
   const save=useCallback(async(next,doneMessage="저장했습니다.")=>{
     const sanitized={...next,brackets:Array.isArray(next?.brackets)?next.brackets.filter(b=>b?.projection?.source!=="normalized"):next?.brackets};
     setData(sanitized);
@@ -290,7 +303,7 @@ export default function App() {
         {view==="privacy"&&<PrivacyPage/>}
         {view==="alerts"&&<AlertsPage go={go}/>}
         {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
-        {view==="news"&&<NewsPage data={data} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go}/>}
+        {view==="news"&&<NewsPage data={data} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
         {view==="board"&&<BoardPage data={data} admin={admin} save={save} flash={flash} go={go}/>}
         {view==="records"&&<RecordsPage data={data} admin={admin} setModal={setModal} save={save} go={go}/>}
         {view==="bracket"&&<BracketsPage data={data} admin={admin} save={save} flash={flash} refresh={refresh}/>}

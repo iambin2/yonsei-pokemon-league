@@ -51,7 +51,7 @@ export function usePush(title) {
   };
   // notifications already refused in the browser: the key could only fail, so the sheet says what to do instead of offering it
   const blocked = mode === "ready" && typeof Notification !== "undefined" && Notification.permission === "denied";
-  const say = mode === "install" ? "아이폰과 아이패드는 Safari의 공유 버튼에서 홈 화면에 추가한 뒤, 그 앱의 공지 화면에서 알림을 켤 수 있습니다."
+  const say = mode === "install" ? "아이폰과 아이패드는 Safari의 공유 버튼에서 홈 화면에 추가한 뒤, 그 앱의 알림 화면에서 알림을 켤 수 있습니다."
     : blocked ? "브라우저 설정에서 이 사이트의 알림을 허용해 주세요." : fail;
   const sheet = ask && <Modal title={title} onClose={() => setAsk(false)}>
     <div className="push-ask">
