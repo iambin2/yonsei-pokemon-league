@@ -19,6 +19,11 @@ with the music taken out and from clean rips of the 3D games' hits: numbers only
 Since 2026-11-20 every place was chosen by earshot (match to a description of the sound, realness) over 834 candidates and then by
 the slot's meaning; most places hold two or three takes the battle plays in turn.
 
+A sound must never be heard as a Pokémon crying: the game's shape carried the voice of what sounded in the footage into the stat
+sounds, poison, the weathers and a screen (2026-11-22), which are plain recordings again, and three takes that creaked or crackled like a
+voice are gone. After every build run scripts/check-sfx-voice.py (earshot): it listens to every take and writes
+scripts/data/sfx-voice.json, and tests/battleSfx.test.mjs fails on a sprite it has not passed.
+
     python scripts/build-sfx.py <dir>
 """
 import json
@@ -102,10 +107,13 @@ CLIPS = {
     "flame": (K_SCI + "thrusterFire_003.ogg", 3, {"gain": -3}),
     # the spells: each type's matter, the field's weather, healing
     "fire": (['rec/bsb/1340.ogg@0.0', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 3.wav', 'lk-basic/Fire Spell Impacts/Fire Spell Impact 4.wav'], 1.2, {}),
-    "ice": (['lk-basic/Ice Spell Impacts/Ice Spell Impact 1.wav', 'rec/oga/sfx_breaking_and_falling/bfh1_glass_breaking_01.ogg', 'lk-basic/Ice Spell Impacts/Ice Spell Impact 5.wav'], 1, {}),
-    "iceL": (['rec/bsb/2205.ogg', 'rec/bsb/2206.ogg', 'rec/bsb/2208.ogg'], 2, {}),
+    "ice": (['lk-basic/Ice Spell Impacts/Ice Spell Impact 1.wav', 'rec/oga/sfx_breaking_and_falling/bfh1_glass_breaking_01.ogg'], 1, {}),
+    "iceL": (['rec/bsb/2205.ogg'], 2, {}),  # 2206 and 2208 creak like a creature's voice (check-sfx-voice.py)
+    "ooze": (['rec/oga/water-splash-slime-sfx/loop_bubbles_02.ogg@0.0', 'rec/oga/water-splash-slime-sfx/loop_bubbles_02.ogg@2.5'], 1.2, {}),
+    "fireL": (['rec/bsb/1340.ogg@0.0', 'rec/bsb/3322.ogg@13.2'], 2, {}),
+    "sand": (['rec/bsb/1635.ogg@51.3', 'rec/bsb/2889.ogg@21.6'], 1.6, {}),
     "frost": (['rec/oga/IceShatters_0/IceShatters/LedasLuzta33.ogg', 'rec/bsb/2205.ogg'], 1, {}),
-    "bolt": (['lk-basic/Lightning Spell Impacts/Lightning Spell Impact 1.wav', 'lk-basic/Lightning Spell Impacts/Lightning Spell Impact 4.wav'], 1.4, {}),
+    "bolt": (['lk-basic/Lightning Spell Impacts/Lightning Spell Impact 1.wav'], 1.4, {}),
     "boltL": (lk("bolt", 3), 2.4, {}),
     "spark": (['rec/bsb/0952.ogg@2.3', 'rec/oga/spark.wav'], 0.7, {}),
     "water": (['rec/bsb/1531.ogg', 'rec/bsb/1529.ogg', 'rec/bsb/1532.ogg'], 1.3, {}),
@@ -142,20 +150,13 @@ CLIPS = {
     "knockS": (["kenney-rpg-audio/Audio/doorClose_3.ogg", "rec/bsb/1022.ogg@1.1"], 0.6, {"shape": "knock"}),
     # 2026-11-21: clean rips of the 3D games' stat, healing, Reflect and Legends Z-A's Mega Evolution, and the newest part of each
     # weather move's comparison with its music taken out
-    "upS": (["rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "statUp"}),
-    "downS": (["rec/bsb/0153.ogg@11.6"], 1.4, {"shape": "statDown"}),
     "healS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2.2, {"shape": "heal"}),
-    "screenS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2.8, {"shape": "screen"}),
     "megaA": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 2, {"shape": "megaStart"}),
     "megaB": (["rec/bsb/0153.ogg@11.6"], 1.8, {"shape": "megaEnd"}),
-    "rainS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "rain"}),
-    "sunS": (["lk-heal/Impacts/Healing Spell Impact 5.wav"], 1.7, {"shape": "sun"}),
-    "sandS": (["rec/bsb/0153.ogg@11.6"], 1.7, {"shape": "sand"}),
     # 2026-11-21: the status conditions as the 3D games sound them (a Gen 6 effects-only rip, read from its messages) and confusion
     # (a Gen 6-9 clip); sleep's three falling chirps are notes, so a short blip played three times
     "burnS": (["lk-basic/Fire Spell Impacts/Fire Spell Impact 5.wav"], 0.9, {"shape": "burn"}),
     "parS": (["rec/bsb/0952.ogg@2.3"], 1.4, {"shape": "paralysis"}),
-    "psnS": (["rec/oga/water-splash-slime-sfx/slime_06.ogg"], 1.4, {"shape": "poison"}),
     "confS": (["rec/oga/sfx_breaking_and_falling/bfh1_glass_hit_01.ogg"], 1.5, {"shape": "confused"}),
     "zzz": ("kenney-interface-sounds/Audio/select_005.ogg", 0.25, {"gain": -3}),
     "pistol": ("lk-scifi/Laser Pistol 1.wav", .5, {}),

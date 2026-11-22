@@ -1000,7 +1000,11 @@ function SoundSheet() {
     return <div key={k} className={"pn bt-mix" + (lit ? "" : " off")}>
       <b className="t15">{label}</b>
       <span className="t15 bt-mix-n">{on ? pct : "끔"}</span>
-      <button type="button" className={"sw" + (on ? " on" : "")} role="switch" aria-checked={on} aria-label={label} onClick={() => setMix(k, { mute: on })}><i /></button>
+      {/* the site's one switch (board.css .sw, 52 by 32) inside its key, as on 알림: the switch itself as the button took a phone's 44
+          minimum and stood 52 by 44 with its square at the top (2026-11-22, the owner: "토글들 이거 통일성이 다른 것들과 안 맞는") */}
+      <button type="button" className="bt-mix-sw" role="switch" aria-checked={on} aria-label={label} onClick={() => setMix(k, { mute: on })}>
+        <span className={"sw" + (on ? " on" : "")} aria-hidden="true"><i /></span>
+      </button>
       <Bar thick value={m[k].v}><input type="range" min="0" max="100" step="5" value={pct} aria-label={`${label} 음량`}
         onChange={e => setMix(k, { v: Number(e.target.value) / 100, mute: false })} /></Bar>
     </div>;

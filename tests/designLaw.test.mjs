@@ -405,3 +405,9 @@ test("saved images stand on the type scale (Type)", () => {
     assert.deepEqual(fonts.filter(x => !sizes.has((/ (\d+(?:\.\d+)?)px/.exec(x) || [])[1])).filter(x => / \d/.test(x)), [], "a size on the scale");
   }
 });
+test("a switch is the one .sw, a span inside its key (Components)", () => {
+  // the switch itself as a button takes a phone's 44 minimum and stands 52 by 44 with its square at the top (the sound sheet, 2026-11-22)
+  const hits = SRC.flatMap(f => [...read(f).matchAll(/<(\w+)[^<>]*className=\{"sw"/g)].filter(m => m[1] !== "span").map(() => rel(f)));
+  assert.deepEqual(hits, []);
+  assert.ok(SRC.some(f => /<span className=\{"sw"/.test(read(f))));
+});

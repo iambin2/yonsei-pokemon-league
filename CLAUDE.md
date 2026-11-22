@@ -24,6 +24,7 @@ npm run data:battle-info  # rebuild src/data/battle-info-ko.json, the games' own
 python scripts/compose-music.py  # compose public/music/*.m4a (the three loops and the battle's hot layer) and public/sfx/{win,lose,draw}.m4a in code
                         # (--draft <dir> to listen), then music.js LENGTH and INTRO; its docstring holds what was measured from the praised Pokémon themes
 python scripts/build-sfx.py <dir>  # rebuild public/sfx/sprite.m4a and src/pages/battle/sfxSprite.js from the unpacked CC0 packs (its docstring lists them)
+<earshot's python> scripts/check-sfx-voice.py  # after build-sfx.py: listen to every take of the sprite, none may read as a creature's voice (writes scripts/data/sfx-voice.json)
 python scripts/build-cry-levels.py  # rebuild src/pages/battle/cryLevels.js, each cry's gain to -22 LUFS (rerun after build-cries.py)
 node scripts/build-sprite-ink.cjs  # rebuild src/data/sprite-ink.json, every Pokémon picture's ink read ahead (rerun after build-sprites.py)
 python scripts/build-albert-sans.py <AlbertSans[wght].ttf>  # rebuild the Latin font with tabular digits (Albert Sans has no tnum; DESIGN.md "Typesetting")

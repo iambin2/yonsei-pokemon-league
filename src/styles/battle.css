@@ -198,7 +198,8 @@
 .bt-mix { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--s3) var(--s5); padding: var(--s3) var(--pad) var(--s5); }
 .bt-mix > .bar { grid-column: 1 / -1; }
 .bt-mix-n { min-width: var(--s8); text-align: right; font-variant-numeric: tabular-nums; }
-.bt-mix.off > :not(.sw) { opacity: .382; }
+.bt-mix.off > :not(.bt-mix-sw) { opacity: .382; }
+.bt-mix-sw { display: grid; place-items: center; }
 /* what a thing is (Information at hand): its name and tags, its figures as cells, then what it does in the games' words */
 .bt-tip { display: grid; gap: var(--s3); min-width: 0; }
 .bt-tip-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }

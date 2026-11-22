@@ -69,6 +69,9 @@ export function music(name, heat = 0) {
     gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(.15, t + FADE_IN * .42); gain.gain.linearRampToValueAtTime(1, t + FADE_IN);
     gain.connect(channel(c, "music"));
     now = { name, srcs, gain, over };
+    // the battle's two loops are fetched and decoded while the lobby plays, not as the leads come out: decoding them then stood in the
+    // way of the first cries, which are let go when not ready in a moment (cries.js cry)
+    if (name === "lobby") { load("battle"); load(LAYER.battle); }
   });
 }
 // a scene's track while it is on screen, and how hot it runs

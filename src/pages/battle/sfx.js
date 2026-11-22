@@ -263,14 +263,15 @@ const LIB = {
   flinch: (c, t, o) => { S(c, t, "woodL", { g: .55, pan: o.pan }); S(c, t, "soft", { g: .3, pan: o.pan, rate: 1.2 }); },
 
   /* ---------- the Pokémon's state ---------- */
-  // a stat rising: a bright rise for each stage; falling, the same played backwards and lower
-  // a stat rising and falling in the game's own shapes (scripts/data/sfx-shapes.json); each further stage again, a little higher or lower
-  statUp: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "upS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 + i * .08, at: i * .35 }); },
-  statDown: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "downS", { g: .75 - i * .1, pan: o.pan, wet: .4, rate: 1 - i * .07, at: i * .35 }); },
-  // the status conditions in the 3D games' shapes (scripts/data/sfx-shapes.json); sleep is their three falling chirps
+  /* a stat rising: a bright rise for each stage; falling, the same played backwards and lower. Plain recordings again (2026-11-22):
+     given the game's shape they were heard as a creature crying, more than a real cry is (scripts/check-sfx-voice.py: z 3.1, a cry 2.8
+     to 3.5), at every stat change, and so were poison, the sun and the sand below. The owner: "원본 울음소리가 안 나오고 이상한 울음소리가" */
+  statUp: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "rise", { g: .7, pan: o.pan, wet: .4, rate: 1 + i * .12, at: i * .26 }); },
+  statDown: (c, t, o) => { const n = clamp(o.n || 1, 1, 3); for (let i = 0; i < n; i++) S(c, t, "fall", { g: .7, pan: o.pan, wet: .4, rate: .85 - i * .08, at: i * .3 }); },
+  // the status conditions in the 3D games' shapes (scripts/data/sfx-shapes.json), poison a recording (see statUp); sleep is their three falling chirps
   st_brn: (c, t, o) => S(c, t, "burnS", { g: .7 * (o.n || 1), pan: o.pan, wet: .3 }),
   st_par: (c, t, o) => S(c, t, "parS", { g: .65 * (o.n || 1), pan: o.pan, wet: .2 }),
-  st_psn: (c, t, o) => S(c, t, "psnS", { g: .7 * (o.n || 1), pan: o.pan, wet: .3 }),
+  st_psn: (c, t, o) => S(c, t, "ooze", { g: .6 * (o.n || 1), pan: o.pan, rate: 1.2, dur: .6, wet: .3 }),
   st_slp: (c, t, o) => [0, .3, .6].forEach((at, i) => S(c, t, "zzz", { g: .5, pan: o.pan, rate: 1 - i * .1, wet: .5, at })),
   st_frz: (c, t, o) => S(c, t, "frost", { g: .65, pan: o.pan, wet: .45 }),
   confused: (c, t, o) => S(c, t, "confS", { g: .6, pan: o.pan, wet: .4 }),
@@ -286,14 +287,14 @@ const LIB = {
   glass: (c, t, o) => { S(c, t, "glassH", { g: .75, pan: o.pan, wet: .4 }); S(c, t, "glassM", { g: .5, pan: o.pan, at: .04, wet: .4 }); },
 
   /* ---------- the field ---------- */
-  // the weathers in the newest games' shapes (measured from their moves with the music taken out)
-  rain: (c, t) => S(c, t, "rainS", { g: .75, wet: .4 }),
-  sun: (c, t) => S(c, t, "sunS", { g: .7, wet: .5 }),
-  sand: (c, t) => S(c, t, "sandS", { g: .75, wet: .4 }),
+  // the weathers and a screen are recordings: in the games' shapes they were heard as a voice, or stood close to it (see statUp)
+  rain: (c, t) => S(c, t, "rain", { g: .75, wet: .4 }),
+  sun: (c, t) => { S(c, t, "fireL", { g: .5, wet: .5, rate: .8 }); S(c, t, "sparkle", { g: .45, wet: .6 }); },
+  sand: (c, t) => { S(c, t, "sand", { g: .7, wet: .4 }); S(c, t, "wind", { g: .4, dur: 1.4, wet: .4 }); },
   snow: (c, t) => { S(c, t, "iceL", { g: .55, wet: .5, rate: .85 }); S(c, t, "breeze", { g: .35, wet: .5 }); },
   terrain: (c, t, o) => { S(c, t, "sparkle", { g: .55, rate: rateOf(o.type), wet: .55 }); if (o.type === "electric") S(c, t, "spark", { g: .4, dur: .6 }); else if (o.type === "grass") S(c, t, "plant", { g: .35, wet: .4 }); },
   room: (c, t) => { S(c, t, "field", { g: .55, rate: .6, wet: .6 }); S(c, t, "field2", { g: .45, rate: .8, wet: .6, at: .1 }); },
-  screen: (c, t, o) => S(c, t, "screenS", { g: .65, pan: o.pan, rate: clamp((o.f || 1175) / 1175, .85, 1.25), wet: .5 }),
+  screen: (c, t, o) => { const r = clamp((o.f || 1175) / 1175, .8, 1.4); S(c, t, "bright", { g: .6, pan: o.pan, rate: r, wet: .6 }); S(c, t, "field", { g: .4, pan: o.pan, rate: r, wet: .5 }); },
   rocks: (c, t, o) => [0, .14, .28].forEach((at, i) => S(c, t, "mining2", { g: .6, pan: o.pan, rate: 1 + i * .1, at })),
   spikes: (c, t, o) => [0, .12, .24].forEach((at, i) => S(c, t, "metalL2", { g: .5, pan: o.pan, rate: 1.1 + i * .15, at })),
   web: (c, t, o) => S(c, t, "slime", { g: .55, pan: o.pan, rate: .7, wet: .3 }),

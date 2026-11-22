@@ -49,3 +49,19 @@ test("a clip that sounds a note is played on a note the music's keys share", asy
   }
   assert.equal(tunedRate("punch", 0, 1), null);
 });
+
+test("no take of the sprite is heard as a creature's voice (scripts/check-sfx-voice.py)", async () => {
+  const { CLIPS } = await import("../src/pages/battle/sfx.js");
+  const voice = JSON.parse(readFileSync(new URL("../scripts/data/sfx-voice.json", import.meta.url), "utf8"));
+  // the check proves something only if it hears a real cry as a voice
+  for (const c of Object.values(voice.cries)) assert.ok(c.z >= voice.z && c.p >= voice.p);
+  let takes = 0;
+  for (const [id, cuts] of Object.entries(CLIPS)) for (const [i, [at, n]] of cuts.entries()) {
+    const v = voice.takes[`${id}[${i}]`];
+    // a sprite built again has to be listened to again: its takes stand where the check heard them
+    assert.ok(v && v.at === at && v.n === n, `${id}[${i}] was not listened to: run scripts/check-sfx-voice.py`);
+    assert.ok(v.z < voice.z || v.p < voice.p, `${id}[${i}] is heard as a creature's voice (z ${v.z}, p ${v.p})`);
+    takes += 1;
+  }
+  assert.equal(takes, Object.keys(voice.takes).length);
+});
