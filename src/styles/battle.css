@@ -160,7 +160,9 @@
   .bt-deck .bt-moves { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .bt-deck .bt-move { min-height: var(--h-counter); }
 }
-@media (min-width: 1200px) {
+/* two columns from 860 (2026-11-23 audit, E-02): from 860 to 1199 the stage stood over a column that pushed the deck and the bench
+   below the window; the column beside the stage is 336 there, 400 from 1200 */
+@media (min-width: 860px) {
   /* the match is one window and nothing under it: no footer, so the page cannot scroll and nothing jumps when the deck changes
      (2026-11-09 second round, the user: "배틀이 끝나면 화면이 살짝 위로 스크롤되는 오류", "기본 배틀 화면이 살짝 아래로 스크롤된 상태") */
   .ypl:has(.bt-match) :is(.site-foot, .live-strip) { display: none; }
@@ -170,6 +172,7 @@
      deck (moves and bench) in the window: the bar and 20 over it, 20 under it. It narrowed with the window before, the whole match
      centred in a smaller box (1065 of 1200 at 1440 by 790) */
   .bt-match { grid-template-columns: minmax(0, 1fr) 400px; align-items: start; column-gap: var(--s8); }
+  @media (max-width: 1199px) { .bt-match { grid-template-columns: minmax(0, 1fr) calc(var(--s21) * 4); } }
   /* the width is set, so the ratio gives way to the height cap instead of narrowing the stage to keep 16 to 9 */
   .bt-match .bs-stage.hud {
     width: 100%; max-height: max(220px, 100svh - var(--nav-height) - var(--s5) * 2 - var(--h-row2) * 2 - var(--s3) - (var(--h-counter) + var(--s5) + var(--h-row)));
@@ -333,7 +336,6 @@
 .bt-log { max-height: 439px; overflow-y: auto; align-content: start; scrollbar-width: none; }
 /* on desktop the log stands open at its full height as its own layout, so a line added to it never lays out the page */
 @media (min-width: 860px) { .bt-log { height: 439px; contain: strict; } }
-@media (min-width: 860px) and (max-width: 1199px) { .bt-match { max-width: 980px; } }
 .bt-log::-webkit-scrollbar { display: none; }
 .bt-line { padding: var(--s2) var(--pad); font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
 .bt-turn { display: flex; align-items: center; min-height: var(--h-strip); padding: 0 var(--pad); color: var(--dim); }
@@ -449,7 +451,9 @@
 .bt-hud.two :is(.bt-hud-plates, .bt-hud-own) > .bt-plate { width: 28%; min-width: 108px; max-width: 230px; }
 /* on a phone in doubles ours stand one over the other in their corner, the left Pokémon's first: side by side they reached under our
    pair and it had to stand on them, up in the far pair (2026-11-10) */
-@media (max-width: 859px) { .bt-hud.two .bt-hud-own { flex-direction: column; align-items: flex-end; } }
+/* in doubles ours stand one over the other in their corner, the left Pokémon's first, on every width: side by side they reached under
+   our pair (2026-11-10, a phone; 2026-11-23 audit E-08, a desktop) */
+.bt-hud.two .bt-hud-own { flex-direction: column; align-items: flex-end; }
 @media (min-width: 860px) {
   .bt-hud-plates > .bt-plate { width: 26%; }
   .bt-hud-own > .bt-plate { width: 27%; }
@@ -841,6 +845,8 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 
 @media (max-width: 379px) {
   button.bt-card > .bt-card-head { grid-template-rows: auto auto; grid-template-areas: "pic name end" "types types types"; }
+  /* the third row of cards above the dock at 375 by 667 (2026-11-23 audit, E-09) */
+  .bt-card.short { padding-block: var(--s2); }
 }
 
 /* 선출 확정: docked on a phone, in the column on a desktop; the order stands on our strip */

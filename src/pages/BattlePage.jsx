@@ -49,8 +49,8 @@ const NAME_KEY = "ypl-battle:name";
 const HINT_KEY = "ypl-battle:hold-hint";
 // a phone (under 860): the battle takes the window and the deck stands at its foot (DESIGN.md "Battle", The play screen)
 const NARROW = "(max-width: 859px)";
-// from 1200 the column beside the stage holds the pick; under it the pick stands right under the cards
-const WIDE = "(min-width: 1200px)";
+// from 860 the column beside the stage holds the pick; under it the pick stands right under the cards
+const WIDE = "(min-width: 860px)";
 function useNarrow(query = NARROW) {
   const [on, setOn] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
@@ -110,7 +110,8 @@ export default function BattlePage({ flash: say, go }) {
     const signs = [600, 700].map(weight => {
       const el = Object.assign(document.createElement("span"), { textContent: String.fromCodePoint(0x25B2, 0x25BC, 0x2640, 0x2642, 0x2190, 0x2192) });
       el.setAttribute("aria-hidden", "true");
-      Object.assign(el.style, { position: "absolute", visibility: "hidden", fontWeight: weight });
+      // pinned at the top-left corner: left to the flow it stood under the page and made a desktop battle 24 taller than its window
+      Object.assign(el.style, { position: "absolute", top: "0", left: "0", visibility: "hidden", pointerEvents: "none", fontWeight: weight });
       return document.body.appendChild(el);
     });
     return () => signs.forEach(el => el.remove());
@@ -1487,6 +1488,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   // counted on the moves' choices only: the team preview is a choice too, and it spent the one turn the hint had
   useEffect(() => { if (choosing && started && hint && ++hintTurns.current > 1) setHint(false); }, [choosing]);
   useEffect(() => { if (!hint) try { localStorage.setItem(HINT_KEY, "1"); } catch { /* the hint shows again next time */ } }, [hint]);
+  // and it goes after a toast's life, 4.66 s (Toaster.jsx LIFE), so it does not stand over the strip while the turn is thought over
+  useEffect(() => { if (!(hint && choosing && started)) return undefined; const t = setTimeout(() => setHint(false), 4660); return () => clearTimeout(t); }, [hint, choosing, started]);
   // the stage's box: a run's break between games stands in it once a game is over (Streak.jsx StreakEnd)
   const [stageBox, setStageBox] = useState(null);
   const pressing = useRef(null);
@@ -1760,10 +1763,12 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {/* a 도전의 탑 game's stake on its team preview stands under the head on a desktop, so the pick stays in one window */}
         {!started && !ended && row.kind === "streak" && seat && <StreakBand wins={seat.wins ?? 0} lives={seat.lives} />}
         {wide && pickDock}
+        {/* the menu (연출, 소리, 기권) right under the head in play, so 기권 is in the window on a desktop (2026-11-23 audit, E-05);
+            on the team preview the pick stays first, over it */}
+        {menu}
         {/* the party right under the head, where the eye already is (it took the information bay's place, 2026-11-09). A finished
             battle has it from the start: mounted with the first lead, it landed under the opening's board as a stop of its own (2026-11-07) */}
         {(started || (ended && scene)) && <TeamInfo key={ownView ? "seat" : `watch${perspective}`} res={res} sides={infoSides} />}
-        {menu}
         {/* the other battles being played, so a watcher goes from one to the next without the lobby: the same event's first */}
         {othersBox}
         {logBox}
