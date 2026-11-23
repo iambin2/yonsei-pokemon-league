@@ -104,7 +104,7 @@
 
 /* ---------- the main action: an inverted 52 panel, its mark (→, ✓, +) before the word, the two together in the centre ---------- */
 .btn.btn--main {
-  --btn-bg: var(--lit); --btn-bg-hover: var(--lit); --btn-fg: var(--ground);
+  --btn-bg: var(--lit); --btn-bg-hover: var(--dim); --btn-fg: var(--ground);
   justify-content: center; gap: var(--s3); width: 100%; min-width: 0; height: var(--h-row); padding: 0 var(--s5);
   font-size: var(--t15); line-height: var(--l15); font-weight: 700;
 }
@@ -217,6 +217,8 @@
 .search-in input:focus-visible { outline: none; box-shadow: none; }
 .search-clear { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); margin-right: calc(var(--pad) * -1); color: var(--dim); }
 .search-count { flex: none; }
+/* a field answers a pointer as a panel does (Controls: desktop hover lifts a panel to --panel-2) */
+@media (hover: hover) { .pn.search-in:hover { background: var(--panel-2); } }
 
 /* ---------- a spec: key and value rows of 44 inside a stack ---------- */
 .spec-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; min-height: var(--h-control); padding: var(--s3) var(--pad); }
@@ -334,7 +336,7 @@
    A Pokémon in a door steps up 4 off its floor; an arrow leans 4 toward where it goes; a word brightens. Nothing grows. ---------- */
 .mon { transition: transform var(--move-tone), opacity var(--move-tone); }
 :is(.btn, .champion-more, .ab-go, .back, .sh-link, .site-foot-dc) .ic { transition: transform var(--move-tone); }
-.sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: color var(--move-tone); }
+.sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) {
   :is(button, a):hover:not(:disabled) .mon { transform: translateY(calc(var(--s1) * -1)); }
   /* only an arrow leans, toward where it goes (DESIGN.md "Motion", the pointer); a check or a + stays still */

@@ -99,7 +99,8 @@
 @keyframes y-busy { 0% { opacity: 1; } 50% { opacity: var(--off); } 100% { opacity: var(--off); } }
 @media (prefers-reduced-motion: reduce) { .y-bar { animation: none; } .y-bar.n1 { opacity: 1; } }
 /* going to a page that takes a moment (its code, its data): the page dims at once and the busy cell stands over it until the next lights */
-.page.is-going { opacity: var(--opacity-disabled); transition: opacity var(--move-tone); pointer-events: none; }
+/* the page being left goes as everything that leaves does: 260, ease-in (motion.js dimAway) */
+.page.is-going { opacity: var(--opacity-disabled); transition: opacity var(--move-leave); pointer-events: none; }
 .y-going { position: fixed; z-index: var(--z-sticky); left: 50%; top: calc(var(--nav-height) + var(--s21) * 2); translate: -50% 0; pointer-events: none; animation: y-fade var(--move-tone) backwards; animation-delay: var(--t-leave); }
 
 /* ---------- admin mode: a 40 inverted strip directly above the tab bar on every screen ---------- */

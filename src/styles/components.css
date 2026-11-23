@@ -52,7 +52,7 @@
 .seg-track > button {
   position: relative; display: inline-flex; align-items: center; justify-content: center; height: var(--h-control); padding: 0 var(--s3);
   background: var(--field-bg, var(--panel)); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); white-space: nowrap;
-  transition: scale var(--move-press), color var(--move-tone);
+  transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 .seg-track > button[aria-selected="true"] { background: var(--lit); color: var(--ground); font-weight: 700; }
 @media (hover: hover) { .seg-track > button:not([aria-selected="true"]):hover { background: var(--panel-2); color: var(--lit); } }
@@ -112,6 +112,11 @@
 .dd.open .dd-btn { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .dd-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dd-btn.ph > span { color: var(--mute); }
+/* a select answers a pointer as a panel does, one step up (a sheet's on --rule); in a cell the cell answers (board.css) */
+@media (hover: hover) {
+  .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--panel-2); }
+  .sheet .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--rule); }
+}
 .dd-chev { color: var(--mute); transition: transform var(--move-light); }
 .dd.open .dd-chev { transform: rotate(180deg); }
 .dd-menu {

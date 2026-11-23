@@ -474,7 +474,7 @@ Drawn for this site on a 24 grid: 1.5 stroke, square caps, mitred corners, no cu
 | press | a finger comes down: scale .976 | 100 | ease-out |
 | tone | a state changes: a panel's tone, a lamp, inversion, a cell flashing once | 160 | ease-out |
 | leave | a sheet or toast goes, a page's old content goes | 260 | ease-in |
-| light | things arrive by lighting: panels, then bars and words, then pictures | 420 in all | ease-out |
+| light | things arrive by lighting: panels, then bars and words, then pictures | 420 a panel, about 680 until the last has lit | ease-out |
 
 - **First open:** the ground, the bars and every unlit segment are in the HTML's first paint, so there is no loading screen and no white frame. Panels, page titles and section heads come on top to bottom, 38 apart (the stagger stops growing at 260), each rising 12 into place over 420; then segment bars light, 62 apart per display; pictures come last. On a return nothing replays. A returning visitor's board opens on the facts it last read (the last `site_data` kept in the browser) and lights as on first open; when the new read differs, the changed facts switch at once, as a score does, and nothing replays. A first visit, or one whose kept copy is gone, waits for the read as before; on the home the reign (the champion panel and its six) and the league's counters are one block and light together, the champion waiting at most a second for the counters while its picture is fetched.
 - **Below the first screen:** everything is already drawn and lit. Nothing waits dark for the scroll to reach it (2026-11-18: sections that appear only as they scroll into view are a tell of a machine-made site, Made by people); the first screen's lighting on open is the site's one entrance.
