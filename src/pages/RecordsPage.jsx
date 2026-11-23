@@ -29,7 +29,7 @@ import { db as normalizedDb, listPublicMatchPicks } from "../services/normalized
 import Field from "../components/common/Field.jsx";
 import { addPickUsage, battleUsage, toID as battleId } from "../services/battleLog.js";
 import { GoogleMark } from "../components/layout/SiteHeader.jsx";
-import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, signOutVisitor, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
+import { VISITOR_EVENT, accountsKnown, accountsReady, myPlayerLink, requestPlayerLink, signInWithGoogle, takePendingLink, visitorSignedIn } from "../services/visitorAuth.js";
 import { useItemTitle } from "../components/layout/title.js";
 import { useMe } from "../components/common/useMe.js";
 import AccountKeys from "../components/AccountKeys.jsx";
@@ -395,13 +395,17 @@ function MyRecord({ snapshot, profile }) {
   return (
     <section className="rc-sec" aria-labelledby="rc-mine-h">
       <SectionHead id="rc-mine-h" title="내 전적" />
-      <div className="stack"><Row title="나에게만 보입니다." line="다른 사람의 시트에는 전적이 서지 않습니다." /></div>
+      {/* one grey line under the title says it (Composing a screen 22; 2026-11-23 audit, H-03) */}
+      <p className="t12 dim reg rc-mine-note">나에게만 보입니다.</p>
       <div className="stack rc-counts rc-mine-counts">
-        <Counter label="승" value={rec.wins} unit="승" />
-        <Counter label="패" value={rec.losses} unit="패" />
+        <Counter label="승" value={rec.wins} unit="판" />
+        <Counter label="패" value={rec.losses} unit="판" />
         <Counter label="승률" value={rec.rate} unit="%" cells={rec.rate >= 100 ? 3 : 2} after={<span className="t15">%</span>} />
       </div>
-      {rec.rivals.length > 0 && <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line={r.scored ? `자주 만난 상대, 게임 ${r.gamesWon}:${r.gamesLost}` : "자주 만난 상대"} value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>}
+      {rec.rivals.length > 0 && <>
+        <p className="t12 dim rc-mine-label">자주 만난 상대</p>
+        <div className="stack rc-mine-rivals">{rec.rivals.map(r => <Row key={r.name} title={r.name} line={r.scored ? `게임 ${r.gamesWon}:${r.gamesLost}` : undefined} value={<span className="t15">{r.wins}승 {r.losses}패</span>} />)}</div>
+      </>}
     </section>
   );
 }
@@ -555,7 +559,7 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
         )}
       </section>
       {/* the account's link to this record is used once: it stands last, over the share key (Composing a screen 28) */}
-      {!finding && <TrainerLink profile={profile} />}
+      {!finding ? <TrainerLink profile={profile} /> : <TrainerLink profile={profile} linkedOnly />}
     </div>
   );
 }
@@ -602,7 +606,7 @@ function useAccount(take) {
 
 /* the link on a trainer's sheet. lead: the sheet was opened from 내 기록 찾기, so the link stands right under the record's numbers as
    the sheet's main action; otherwise it is a section near the sheet's foot */
-function TrainerLink({ profile, lead = false }) {
+function TrainerLink({ profile, lead = false, linkedOnly = false }) {
   const [busy, setBusy] = useState(false);
   const { ready, signedIn, link, note, ask } = useAccount(() => (takePendingLink() === profile.name ? profile.name : ""));
   if (!ready || !profile.playerId) return null;
@@ -612,6 +616,10 @@ function TrainerLink({ profile, lead = false }) {
   if (signedIn && link?.status === "approved" && !mine && !askedHere) return null;
   // a pending request can be moved to this record; a rejected or a new one simply asks
   const moving = link?.status === "pending" && !askedHere;
+  // the visitor's own sheet, already theirs, opens on its record: the link's state stands at the sheet's foot (2026-11-23 audit, H-02)
+  const linkedMine = signedIn && mine && link?.status === "approved";
+  if (lead && linkedMine) return null;
+  if (linkedOnly && !linkedMine) return null;
   if (lead) {
     const known = signedIn && link && (mine || askedHere);
     const asking = !signedIn || link === null || (link && !known);
@@ -625,7 +633,7 @@ function TrainerLink({ profile, lead = false }) {
           ? <Button variant="main" icon="check" loading={busy} onClick={go}>{moving ? `${link.requested_name} 대신 이 기록으로 요청` : "내 기록으로 연결"}</Button>
           : <Button variant="main" onClick={() => signInWithGoogle(profile.name, findBack(profile.name))}><GoogleMark />구글로 내 기록 연결</Button>)}
         {note && <FormError>{note}</FormError>}
-        {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
+        {signedIn && <AccountKeys link={link || null} />}
       </section>
     );
   }
@@ -636,12 +644,12 @@ function TrainerLink({ profile, lead = false }) {
         {!signedIn
           ? <Row title="구글 계정으로 연결" value={<Button variant="second" size="sm" onClick={() => signInWithGoogle(profile.name, findBack(profile.name))}><GoogleMark />구글 로그인</Button>} />
           : link === undefined ? <Row title="연결 상태를 확인하는 중입니다." />
-          : mine ? <Row title={LINK_STATE[link.status] || ""} line={link.email || undefined} />
+          : mine ? <Row title={link.status === "approved" ? "기록 연결됨" : LINK_STATE[link.status] || ""} line={link.email || undefined} />
           : <Row title="내 기록으로 연결 요청" line={moving ? `지금은 ${link.requested_name} 기록에 요청되어 있습니다.` : "운영진이 확인한 뒤 연결됩니다."}
               value={<Button variant="second" size="sm" loading={busy} onClick={go}>요청</Button>} />}
       </div>
       {note && <FormError>{note}</FormError>}
-      {signedIn && <div className="rc-more"><Button variant="second" onClick={signOutVisitor}>로그아웃</Button></div>}
+      {signedIn && <AccountKeys link={link || null} />}
     </section>
   );
 }

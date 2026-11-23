@@ -187,6 +187,9 @@ label:has(input) { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--mute); }
+/* the page's scrollbar-color is inherited, and Chrome (121 on) then draws the system's bar with arrow keys in every scroller of a sheet
+   or a menu instead of the 8 above (2026-11-23 audit, H-05): Chromium and Safari take the 8; Firefox keeps scrollbar-color */
+@supports selector(::-webkit-scrollbar) { body { scrollbar-color: auto; } }
 
 .tnum, .num { font-variant-numeric: tabular-nums; }
 .ic { flex: none; display: block; }

@@ -36,8 +36,7 @@ function useNewAlerts() {
 /* 내 계정 (2026-11-22, the owner's draft A): at the top of 더보기, where the phone's tab bar already leads, what the Google account holds
    (its record link, saved teams, battles, the tower, alerts on this device) a row each, each a door to its place, and the account's keys
    under them. Signed out, one row to sign in. Each line is read as the block opens; one that cannot be read stays a plain door. */
-function MyAccount({ go }) {
-  const account = useAccount();
+function MyAccount({ go, account, fresh }) {
   const [lines, setLines] = useState({});
   useEffect(() => {
     if (!account) return undefined;
@@ -65,7 +64,8 @@ function MyAccount({ go }) {
       <Row title="저장한 팀" line={lines.teams} value={chev} onClick={() => go("builder")} />
       <Row title="내 배틀" line={lines.battles} value={chev} onClick={() => go("battle", { tab: "mine" })} />
       {linked && <Row title="도전의 탑" line={lines.tower} value={chev} onClick={() => go("battle", { tab: "streak" })} />}
-      <Row title="알림" line={lines.alerts} value={chev} onClick={() => go("alerts")} />
+      {/* signed in, 알림 stands here only, with its 새 알림 lamp (2026-11-23 audit, H-04: it stood twice) */}
+      <Row title="알림" line={lines.alerts} value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}{chev}</>} onClick={() => go("alerts")} />
     </div>
     <AccountKeys link={account.requested_name ? account : null} />
   </div>;
@@ -73,15 +73,17 @@ function MyAccount({ go }) {
 
 export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
   const fresh = useNewAlerts();
+  const account = useAccount();
+  const own = accountsEnabled() && Boolean(account);
   return (
     <section className="more">
       <h1 className="t32">더보기</h1>
-      <MyAccount go={go} />
+      <MyAccount go={go} account={account} fresh={fresh} />
       {GROUPS.map(([label, items]) => (
         <div className="more-group" key={label}>
           <p className="t12 dim more-label">{label}</p>
           <div className="stack">
-            {items.map(([key, text]) => <Row key={key} title={text} value={<>{key === "alerts" && fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go(key)} href={viewHref(key)} />)}
+            {items.filter(([key]) => !(own && key === "alerts")).map(([key, text]) => <Row key={key} title={text} value={<>{key === "alerts" && fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go(key)} href={viewHref(key)} />)}
             {label === "리그" && <a className="pn row" href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
               <span className="row-main"><b className="t15">디스코드 참여</b></span><span className="row-value"><Icon n="ext" size={20} /></span>
             </a>}
