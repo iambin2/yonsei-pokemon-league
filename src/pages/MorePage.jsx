@@ -36,20 +36,25 @@ function useNewAlerts() {
 /* 내 계정 (2026-11-22, the owner's draft A): at the top of 더보기, where the phone's tab bar already leads, what the Google account holds
    (its record link, saved teams, battles, the tower, alerts on this device) a row each, each a door to its place, and the account's keys
    under them. Signed out, one row to sign in. Each line is read as the block opens; one that cannot be read stays a plain door. */
+const READING = "\u00a0";
 function MyAccount({ go, account, fresh }) {
   const [lines, setLines] = useState({});
   useEffect(() => {
     if (!account) return undefined;
     let on = true;
     const set = (key, value) => on && setLines(l => ({ ...l, [key]: value }));
-    readAccountTeams().then(t => t && set("teams", `${t.length}팀, 이 계정의 모든 기기에서`), () => {});
-    readMyBattles().then(b => b && set("battles", b.length ? `${b.length}판, 마지막 ${formatDate(b[0].updated_at)}` : "아직 한 배틀이 없습니다."), () => {});
-    readStreakBoard().then(rows => { const mine = rows?.find(r => r.mine); set("tower", mine ? `이번 달 최고 ${mine.wins}연승, ${mine.place}위` : "이번 달 기록이 없습니다."); }, () => {});
-    pushOnHere().then(on => set("alerts", on ? "이 기기에서 켬" : "이 기기에서 꺼짐"), () => {});
+    /* a line not read yet holds its place (READING), one that failed says so; null (the feature not set up) leaves a plain door
+       (2026-11-23 audit, R-09: rows grew 52 to 64 as their lines came, and stayed 52 when a read failed) */
+    const failed = key => () => set(key, "불러오지 못했습니다.");
+    readAccountTeams().then(t => set("teams", t ? `${t.length}팀, 이 계정의 모든 기기에서` : null), failed("teams"));
+    readMyBattles().then(b => set("battles", b ? (b.length ? `${b.length}판, 마지막 ${formatDate(b[0].updated_at)}` : "아직 한 배틀이 없습니다.") : null), failed("battles"));
+    readStreakBoard().then(rows => { const mine = rows?.find(r => r.mine); set("tower", mine ? `이번 달 최고 ${mine.wins}연승, ${mine.place}위` : "이번 달 기록이 없습니다."); }, failed("tower"));
+    pushOnHere().then(on => set("alerts", on ? "이 기기에서 켬" : "이 기기에서 꺼짐"), failed("alerts"));
     return () => { on = false; };
   }, [account?.status]);
   if (!accountsEnabled() || account === undefined) return null;
   const chev = <Icon n="chevr" size={20} />;
+  const line = key => (key in lines ? lines[key] || undefined : READING);
   if (!account) return <div className="more-group more-account">
     <p className="t12 dim more-label">내 계정</p>
     <div className="stack"><Row title="구글 계정으로 로그인" line="내 기록, 저장한 팀, 배틀을 계정에 둡니다." value={chev} onClick={() => signInWithGoogle("", `${window.location.origin}${window.location.pathname}?view=more`)} /></div>
@@ -61,13 +66,13 @@ function MyAccount({ go, account, fresh }) {
     <div className="stack">
       <Row className={linked ? "inv" : ""} title={account.requested_name || "이름 연결 전"} line={`Google 계정${account.email ? ` ${account.email}` : ""}, ${state}`} value={chev} onClick={() => go("records", { tab: "trainer", me: "1" })} />
       {linked && <Row title="내 기록" line="우승, 준우승, 4강과 지난 대회" value={chev} onClick={() => go("records", { trainer: account.requested_name })} />}
-      <Row title="저장한 팀" line={lines.teams} value={chev} onClick={() => go("builder")} />
-      <Row title="내 배틀" line={lines.battles} value={chev} onClick={() => go("battle", { tab: "mine" })} />
-      {linked && <Row title="도전의 탑" line={lines.tower} value={chev} onClick={() => go("battle", { tab: "streak" })} />}
+      <Row title="저장한 팀" line={line("teams")} value={chev} onClick={() => go("builder")} />
+      <Row title="내 배틀" line={line("battles")} value={chev} onClick={() => go("battle", { tab: "mine" })} />
+      {linked && <Row title="도전의 탑" line={line("tower")} value={chev} onClick={() => go("battle", { tab: "streak" })} />}
       {/* signed in, 알림 stands here only, with its 새 알림 lamp (2026-11-23 audit, H-04: it stood twice) */}
-      <Row title="알림" line={lines.alerts} value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}{chev}</>} onClick={() => go("alerts")} />
+      <Row title="알림" line={line("alerts")} value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}{chev}</>} onClick={() => go("alerts")} />
     </div>
-    <AccountKeys link={account.requested_name ? account : null} />
+    <AccountKeys link={account.requested_name && account.status !== "rejected" ? account : null} />
   </div>;
 }
 

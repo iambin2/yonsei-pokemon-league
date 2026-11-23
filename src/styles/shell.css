@@ -35,6 +35,8 @@
 /* a long trainer name gives way by an ellipsis; it never pushes the theme key off a phone's bar */
 .acct > .g-mark { flex: none; }
 .acct-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* on a phone's bar the name stops at 116, so the wordmark keeps 20 or more (2026-11-23 audit, R-10: a 16-letter name ran into it; 168 still touched it) */
+@media (max-width: 859px) { .acct-name { max-width: calc(var(--s21) + var(--s8)); } }
 /* Google's own G before every Google sign-in word, never recoloured */
 .g-mark { display: block; width: var(--s5); height: var(--s5); flex: none; }
 .btn .g-mark { margin-right: var(--s2); }

@@ -150,12 +150,15 @@ export function liveMatches(bracket) {
   const live = real.filter(row => !row.match.winner);
   if (!live.length) return { live: [], stage: "", done: 0, total: 0 };
   const stage = live[0].stage;
-  const sameStage = collectGraphMatches(graph).filter(row => row.stage === stage);
+  const countOf = key => { const same = collectGraphMatches(graph).filter(row => row.stage === key);
+    return { done: same.filter(({ match }) => match.winner || [slotPlayer(match.a), slotPlayer(match.b)].includes(BYE)).length, total: same.length }; };
+  // every stage a live match stands in, by its label: the home's card names its own match's stage (2026-11-23 audit, Q-13)
+  const counts = Object.fromEntries([...new Set(live.map(row => row.stage))].map(key => [stageLabel(graph, key), countOf(key)]));
   return {
     live: live.map(row => ({ id: row.match.id, stage: stageLabel(graph, row.stage), a: nameOf(row.a), b: nameOf(row.b) })),
     stage: stageLabel(graph, stage),
-    done: sameStage.filter(({ match }) => match.winner || [slotPlayer(match.a), slotPlayer(match.b)].includes(BYE)).length,
-    total: sameStage.length,
+    ...countOf(stage),
+    counts,
   };
 }
 

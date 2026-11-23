@@ -499,11 +499,11 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   /* the key is always the challenge (2026-11-18): what the account still needs is asked once it is pressed, in a sheet: the Google
      sign-in, the trainer's name, or the name the operators are still checking */
   const gateSheet = gate && <Modal title={account === null ? "구글 로그인" : account?.status === "pending" ? "이름 확인 중" : "트레이너 이름 정하기"}
-    hint={account?.status === "pending" ? "운영진이 트레이너 이름을 확인하면 도전할 수 있습니다." : undefined} onClose={() => setGate(false)}>
+    hint={account?.status === "pending" ? "운영진이 트레이너 이름을 확인하면 도전할 수 있습니다." : account?.status === "rejected" ? "연결 요청이 거절되었습니다." : undefined} onClose={() => setGate(false)}>
     <div className="modal-actions">
       {account === null ? <Button variant="main" onClick={() => signInWithGoogle("", window.location.href.split("#")[0])}><GoogleMark />구글 로그인</Button>
         : account?.status === "pending" ? <Button variant="main" onClick={() => setGate(false)}>닫기</Button>
-        : <Button variant="main" onClick={() => go?.("records", { tab: "trainer", me: "1" })}>트레이너 이름 정하기</Button>}
+        : <Button variant="main" onClick={() => go?.("records", { tab: "trainer", me: "1" })}>내 기록 찾기</Button>}
     </div>
   </Modal>;
   // the board as the home's and the records' ranking reads it; a live run opens its game to watch

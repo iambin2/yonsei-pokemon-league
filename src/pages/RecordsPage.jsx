@@ -633,7 +633,7 @@ function TrainerLink({ profile, lead = false, linkedOnly = false }) {
           ? <Button variant="main" icon="check" loading={busy} onClick={go}>{moving ? `${link.requested_name} 대신 이 기록으로 요청` : "내 기록으로 연결"}</Button>
           : <Button variant="main" onClick={() => signInWithGoogle(profile.name, findBack(profile.name))}><GoogleMark />구글로 내 기록 연결</Button>)}
         {note && <FormError>{note}</FormError>}
-        {signedIn && <AccountKeys link={link || null} />}
+        {signedIn && <AccountKeys link={link && link.status !== "rejected" ? link : null} />}
       </section>
     );
   }
@@ -649,7 +649,7 @@ function TrainerLink({ profile, lead = false, linkedOnly = false }) {
               value={<Button variant="second" size="sm" loading={busy} onClick={go}>요청</Button>} />}
       </div>
       {note && <FormError>{note}</FormError>}
-      {signedIn && <AccountKeys link={link || null} />}
+      {signedIn && <AccountKeys link={link && link.status !== "rejected" ? link : null} />}
     </section>
   );
 }
@@ -688,8 +688,11 @@ function FindMe({ query, exact, onOpen, part = "head" }) {
         <span className="t12">{line}</span>
       </div>
       {holds && link.player_id && <Row title="내 기록 보기" onClick={() => onOpen(link.requested_name)} value={<Icon n="chevr" size={20} />} />}
+      {/* while the account is read, its row's place stands switched off, so the list under it does not move when it answers (R-08) */}
+      {signedIn && link === undefined && <div className="pn row" aria-hidden="true" />}
       {note && <FormError>{note}</FormError>}
-      {signedIn && <AccountKeys link={link || null} />}
+      {/* a refused request holds no link to undo (R-15) */}
+      {signedIn && <AccountKeys link={link && link.status !== "rejected" ? link : null} />}
     </div>
   );
 }

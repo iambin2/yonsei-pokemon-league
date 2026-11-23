@@ -214,7 +214,7 @@ export default function HomePage({ data, go, admin, siteFailed = false, onRetryS
     return () => { on = false; };
   }, [!now, data]);
   const lastWait = !now && last === undefined;
-  const primary = !now ? (last || lastWait ? ["대진표 보기", "bracket", { eventId: last?.eventId }] : ["공지 보기", "news"]) : now.today ? (myNext ? ["내 경기 보기", "bracket", { eventId: myNext.eventId, m: myNext.id }] : ["대진표 보기", "bracket"]) : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
+  const primary = !now ? (last || lastWait ? ["대진표 보기", "bracket", { eventId: last?.eventId }] : ["공지 보기", "news"]) : now.today ? (myNext ? ["대진표 보기", "bracket", { eventId: myNext.eventId }] : ["대진표 보기", "bracket"]) : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
   const notices = useMemo(() => [...data.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.date < b.date ? 1 : -1)).slice(0, 3), [data.announcements]);
   const reigning = (facts || waited) ? champions?.[0] || null : null;
   const season = facts?.season;
@@ -292,7 +292,9 @@ export default function HomePage({ data, go, admin, siteFailed = false, onRetryS
           <span className="pn2 ho-live-row t15">{liveMatch.a}</span>
           <span className="pn2 ho-live-row t15">{liveMatch.b}</span>
         </button>}
-        <p className="pn2 ho-live-head t12"><span className="dim">{live.stage} 진행</span><span>{live.done} / {live.total} 종료</span></p>
+        {/* the progress is the shown match's stage, not the bracket's first (Q-13: the card said 승자조 3라운드 over 패자조 progress) */}
+        {(() => { const at = liveMatch && live.counts?.[liveMatch.stage] ? { stage: liveMatch.stage, ...live.counts[liveMatch.stage] } : live;
+          return <p className="pn2 ho-live-head t12"><span className="dim">{at.stage} 진행</span><span>{at.done} / {at.total} 종료</span></p>; })()}
         {/* every match of the day being played as a site battle, one strip each, opening it to watch */}
         {liveBattles.map(b => <button key={b.id} type="button" className="pn2 ho-live-head t12" onClick={() => go("battle", { battle: b.id })}>
           <span className="ho-lamp"><i className="lamp sig" aria-hidden="true" />{`${b.p1_name} 대 ${b.p2_name} 배틀 진행 중`}</span><span>관전</span>
@@ -324,8 +326,9 @@ export default function HomePage({ data, go, admin, siteFailed = false, onRetryS
     {/* the wall: the past champions standing side by side on one floor, the generation at 20 in type */}
     {champions?.length > 1 && <section className="ho-sec ho-hall" aria-labelledby="ho-hall">
       <SectionHead id="ho-hall" title="역대 챔피언" link="명예의 전당" onLink={() => go("champions")} />
-      <div className="stack ho-line" style={{ "--n": champions.length - 1 }}>
-        {champions.slice(1).map(c => <button type="button" className="pn stand ho-col" key={c.key} onClick={() => setPop(c)} aria-label={`${c.label} 챔피언 ${c.name}, ${c.line}`}>
+      {/* the latest five stand on the home; the rest are the hall's (명예의 전당, the link above), so no column grows thin (R-04) */}
+      <div className="stack ho-line" style={{ "--n": Math.min(champions.length - 1, 5) }}>
+        {champions.slice(1, 6).map(c => <button type="button" className="pn stand ho-col" key={c.key} onClick={() => setPop(c)} aria-label={`${c.label} 챔피언 ${c.name}, ${c.line}`}>
           <span className="floor ho-col-who"><b className="t20">{c.generation > 0 ? `${c.generation}대` : c.label}</b><b className="t15">{c.name}</b><span className="t12 dim reg">{c.line.replace(/ 우승$/, "")}</span></span>
           <Mon src={c.party[0]?.img} loading="lazy" />
         </button>)}

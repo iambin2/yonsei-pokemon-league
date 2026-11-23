@@ -19,7 +19,7 @@
 .hof-crown-tag { padding: var(--s1) var(--s2); }
 .hof-gen { display: inline-flex; align-items: flex-end; gap: var(--s2); }
 .hof-crown .hof-gen { margin-top: var(--s3); }
-.hof-crown-name { margin-top: var(--s2); }
+.hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }
 .hof-crown-act { display: flex; flex-wrap: wrap; gap: var(--s5); margin-top: var(--s3); }
 .hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .hof-crown-mon { --floor: var(--h-strip); aspect-ratio: 1; }
