@@ -168,7 +168,8 @@ function flatRolls(damage) {
 }
 
 export function koLabel(ko, hp, max) {
-  if (ko?.n > 0) return ko.chance >= 1 ? `확정 ${ko.n}타` : `난수 ${ko.n}타 (${Math.round(ko.chance * 1000) / 10}%)`;
+  // a chance the engine could not put a number on is left out, never written as NaN% (2026-11-23 audit, BUG-1)
+  if (ko?.n > 0) return ko.chance >= 1 ? `확정 ${ko.n}타` : Number.isFinite(ko.chance) ? `난수 ${ko.n}타 (${Math.round(ko.chance * 1000) / 10}%)` : `난수 ${ko.n}타`;
   if (max > 0 && hp > 0) return `${Math.ceil(hp / max)}타 이상`;
   return "";
 }

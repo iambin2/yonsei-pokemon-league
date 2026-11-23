@@ -68,6 +68,9 @@ test("Multiscale at full HP halves damage, and HP percent turns it off", () => {
 test("KO labels are Korean", () => {
   assert.equal(koLabel({ n: 2, chance: 1 }), "확정 2타");
   assert.equal(koLabel({ n: 1, chance: 0.4375 }), "난수 1타 (43.8%)");
+  // a chance the engine gave no number for (the calculator once wrote 난수 5타 (NaN%))
+  assert.equal(koLabel({ n: 5, chance: NaN }), "난수 5타");
+  assert.equal(koLabel({ n: 5 }), "난수 5타");
   assert.equal(koLabel({ n: 0, chance: 0 }, 200, 30), "7타 이상");
   assert.equal(percentOf(216, 166), 130.1);
 });
