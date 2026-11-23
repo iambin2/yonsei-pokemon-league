@@ -1,0 +1,15 @@
+// Shell states: SHELL-07 first load, SHELL-08 slow navigation, SHELL-09 lazy chunk failing, SHELL-11 the 500 page. node shell.cjs
+const {open,go,shot,BASE}=require("./lib.cjs");const fs=require("fs");
+const box=s=>`(()=>{const e=document.querySelector(${JSON.stringify(s)});if(!e)return null;const r=e.getBoundingClientRect(),c=getComputedStyle(e);return {x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),op:c.opacity,t:e.innerText.slice(0,120)}})()`;
+(async()=>{const out={};
+ for(const [w,h,theme] of [[390,844,"dark"],[390,844,"light"],[1440,900,"dark"],[1440,900,"light"]]){const tag=`${w}x${h}-${theme}`;
+  {const {b,p}=await open({w,h,theme,opts:{hold:[{match:/site_data/,ms:4000}]}});await p.goto(BASE+"/",{waitUntil:"commit"});await p.waitForTimeout(700);await shot(p,"SHELL-07",tag);out["07/"+tag]={main:await p.evaluate(box("main")),loader:await p.evaluate(box("main > *")),footer:await p.evaluate(box("footer"))};await b.close();}
+  {const {b,p}=await open({w,h,theme});await go(p,"/",1500);await p.route(/\/src\/pages\/RecordsPage\.jsx/,async r=>{await new Promise(x=>setTimeout(x,3000));r.continue();});
+   await p.evaluate(()=>{const e=[...document.querySelectorAll("nav a,nav button,header a,header button")].find(x=>x.textContent.trim()==="기록");e&&e.click();});
+   await p.waitForTimeout(150);await shot(p,"SHELL-08","t150-"+tag);out["08a/"+tag]={main:await p.evaluate(box("main")),going:await p.evaluate(box(".y-going"))};
+   await p.waitForTimeout(650);await shot(p,"SHELL-08","t800-"+tag);out["08b/"+tag]={main:await p.evaluate(box("main")),going:await p.evaluate(box(".y-going")),cell:await p.evaluate(box(".y-going > *"))};await b.close();}
+  {const {b,p}=await open({w,h,theme});await p.route(/\/src\/pages\/RecordsPage\.jsx/,r=>r.abort());await go(p,"/?view=records",2500);await shot(p,"SHELL-09",tag);out["09/"+tag]={main:await p.evaluate(box("main")),kids:await p.evaluate(`[...document.querySelectorAll("main *")].filter(e=>e.children.length===0&&e.textContent.trim()).map(e=>{const r=e.getBoundingClientRect();return [e.tagName,e.className.toString().slice(0,30),e.textContent.trim().slice(0,40),Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]}).slice(0,10)`),url:p.url()};await b.close();}
+  {const {b,p}=await open({w,h,theme});await p.route(/\/src\/components\/layout\/SiteFooter\.jsx/,r=>r.fulfill({contentType:"text/javascript",body:"export default function SiteFooter(){throw new Error('audit test crash')}"}));await go(p,"/",2500);await shot(p,"SHELL-11",tag);out["11/"+tag]={kids:await p.evaluate(`[...document.querySelectorAll("body *")].filter(e=>e.children.length===0&&e.textContent.trim()&&e.getBoundingClientRect().width).map(e=>{const r=e.getBoundingClientRect();return [e.tagName,e.className.toString().slice(0,30),e.textContent.trim().slice(0,40),Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]}).slice(0,12)`)};await b.close();}
+ }
+ fs.writeFileSync(__dirname+"/shell-out.json",JSON.stringify(out,null,1));
+})();

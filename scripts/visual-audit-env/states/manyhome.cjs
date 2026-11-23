@@ -1,0 +1,6 @@
+// EXT-04 on home: the 역대 챔피언 strip with 20 champions, measured. node manyhome.cjs
+const {open,go,shot}=require("./lib.cjs");
+const times=(a,n,f)=>{const out=[];for(let i=0;out.length<n;i++)out.push(f(JSON.parse(JSON.stringify(a[i%a.length])),i));return out;};
+(async()=>{for(const [w,h] of [[390,844],[1440,900]]){const {b,p}=await open({w,h,opts:{patch:[{match:/hall_of_fame_entries/,fn:j=>Array.isArray(j)&&j.length?times(j,20,(x,i)=>{if(i>=j.length){x.id=x.id.slice(0,-6)+String(100000+i);x.generation_number=i+1;x.generation_label=(i+1)+"대";}return x;}):j}]}});
+ await go(p,"/",2500);const r=await p.evaluate(()=>{const s=document.querySelector(".ho-hall");if(!s)return null;s.scrollIntoView({block:"center"});const kids=[...s.querySelectorAll("button,a,li")].filter(e=>/대/.test(e.textContent)&&e.querySelector("b,span,p"));const g=kids[0]&&kids[0].parentElement;const c=g&&getComputedStyle(g);return {n:kids.length,tileW:kids.slice(0,3).map(e=>Math.round(e.getBoundingClientRect().width)),tileH:kids[0]&&Math.round(kids[0].getBoundingClientRect().height),grid:c&&c.gridTemplateColumns.slice(0,120),ox:c&&c.overflowX,cls:g&&g.className,sw:g&&g.scrollWidth,cw:g&&g.clientWidth}});
+ console.log(w,JSON.stringify(r));await p.waitForTimeout(600);await shot(p,"EXT-many-home","hall-"+w+"x"+h+"-dark");await b.close();}})();

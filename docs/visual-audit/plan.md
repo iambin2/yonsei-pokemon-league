@@ -748,6 +748,160 @@ node scripts/record-transition.cjs <out dir> "http://localhost:5183/?view=news" 
 - 더보기 오른쪽 단의 관리자 로그인이 로그인 상태에서도 중간(y 1160, 왼쪽 단 끝은 1436)에 뜬다: T-20으로 풀리는지 확인한다.
 - 배틀의 기록 탭과 도전의 탑 탭의 연동 화면은 이번 캡처에서 `battle` 함수 요청이 막혀(읽기도 POST) 제대로 뜨지 않았다. 판정하지 않았다.
 
+### 묶음 20. 테스트 환경으로 찾은 것 (2026-11-23 추가, report.md 12장)
+
+첫 검수가 못 본 상태를 `scripts/visual-audit-env/` 의 테스트 환경(README)으로 띄워 찾은 것이다. 묶음 1~19 뒤에 확인했을 때 아래는 아직 그대로였다(배틀 화면이 24 길던 P-01만 다른 수정에 함께 풀렸다). 줄 번호는 적지 않는다: 선택자와 문자열로 찾는다. 확인은 같은 환경으로 한다(5193 운영 읽기, 5194 + 54321 가짜 백엔드). 운영 서버로는 GET만 나가게 하는 것은 그 스크립트들이 이미 한다. 묶음을 넷으로 나눠 커밋한다(20a 로딩과 오류, 20b 계정과 홈, 20c 대진표와 운영, 20d 배틀과 도전의 탑).
+
+판단이 갈리는 항목은 사용자가 맡긴 대로(questions.md 맨 위) 아래에 하나로 정해 두었다.
+
+#### 20a. 로딩, 오류, 빈 상태
+
+**T-109 홈: 사이트 데이터를 못 읽으면 알린다** (R-01)
+- 파일: `src/pages/HomePage.jsx`, `{factsFailed && <ErrorNote … >리그 기록을 불러오지 못했습니다.</ErrorNote>}`
+- 바꿈: 사이트 데이터(`site_data`) 읽기도 실패해 내장 자료(`siteSeed`)로 그리고 있을 때 같은 ErrorNote를 세운다. `App.jsx` 가 내장 자료로 떨어졌는지를 알 수 있게 하는 값(예: 데이터 객체의 출처 표시)을 홈에 넘긴다. 내장 자료로 챔피언과 순위를 그리는 동작 자체는 바꾸지 않는다(데이터 동작).
+- 확인: `scripts/visual-audit-env/states/states.cjs` 의 fail 모드(모든 REST 500)로 홈 390과 1440에 `.error-note` 가 하나 선다.
+
+**T-110 공지와 알림: 읽기 실패는 "없음"이 아니다** (R-02)
+- 파일: `src/pages/NewsPage.jsx` 의 `<Empty title="등록된 공지가 없습니다."/>`, `src/pages/AlertsPage.jsx` 의 `최근 7일의 알림이 없습니다.`
+- 바꿈: 목록 읽기가 실패한 경우를 구별해(서비스가 오류를 돌려주는 값 또는 예외), 실패면 게시판·대진표와 같은 `<ErrorNote action="다시 불러오기" onRetry=…>공지를 불러오지 못했습니다.</ErrorNote>` / `알림을 불러오지 못했습니다.` 를 세운다. 빈 상태는 성공했는데 0건일 때만.
+- 확인: fail 모드에서 공지와 알림에 `.error-note` 가 서고 빈 상태 문장이 없다. 정상 모드에서는 전과 같다.
+
+**T-111 대진표: 오류와 빈 상태를 함께 세우지 않는다** (R-03)
+- 파일: `src/pages/BracketsPage.jsx`, `: list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다.">`
+- 바꿈: 조건을 `list.length===0&&!normalizedLoadError&&` 로.
+- 확인: fail 모드에서 오류 판 하나만.
+
+**T-112 ErrorNote의 다시 시도 키** (R-07)
+- 파일: `src/styles/board.css`, `.error-note { display: grid; gap: var(--s3); padding: var(--pad); }`
+- 바꿈: 다음 줄에 `.error-note > .btn { justify-self: start; }` 그리고 `h1 + .error-note, .page-head + .error-note { margin-top: var(--s5); }` (h1 바로 아래 붙지 않게. 실제 앞 요소는 지연 화면 실패(`LazyContent`)와 각 페이지에서 확인하고 맞는 선택자를 쓴다).
+- 확인: 1440에서 "다시 불러오기", "새로고침" 키의 폭이 낱말 + 좌우 20 (200 이하). h1 아래 끝과 판 위 사이 20.
+
+**T-113 홈 순위 뼈대의 첫 줄을 끈다** (R-06)
+- 파일: `src/components/common/StandTable.jsx`, 뼈대의 `<div className="inv ls-row ls-first" />`
+- 바꿈: `className="pn ls-row ls-first"` (높이는 그대로, 반전만 뺀다. DESIGN.md "Loading": 켜진 것 없이 제 크기로).
+- 확인: `states.cjs` hold 모드 1500ms 샷에서 순위 자리에 흰 줄이 없다.
+
+**T-114 팀 빌더 데이터 상태 줄이 사라질 때 아래가 올라가지 않게** (R-13)
+- 파일: `src/pages/TeamBuilderPage.jsx` 의 `dataStatusText` 를 그리는 줄
+- 바꿈: 줄이 사라질 때도 그 자리를 남긴다(같은 요소를 비운 채 `min-height: var(--l12)` 로 둔다). 문구의 말줄임표 "…"는 빼고 "배틀 데이터 불러오는 중"으로(사이트는 "…"을 쓰지 않는다: DESIGN.md Voice).
+- 확인: hold 모드로 도착 전후 `.tb-search-row` 의 top이 같다(390).
+
+**T-115 홈 빈 상태에서 주 키** (R-19)
+- 파일: `src/pages/HomePage.jsx`, `primary` 가 `["공지 보기", "news"]` 가 되는 경우
+- 바꿈: 공지도 0건이면 주 키를 그리지 않는다.
+- 확인: zero 모드(`extremes.cjs zero`)의 홈에 흰 키가 없다.
+
+#### 20b. 계정과 홈
+
+**T-116 내 기록 찾기와 더보기: 계정 답이 와도 아래가 밀리지 않게** (R-08, R-09)
+- 파일: `src/pages/RecordsPage.jsx` 의 FindMe, `src/pages/MorePage.jsx` 의 내 계정 묶음
+- 바꿈: 계정을 확인하는 동안(`account === undefined`) FindMe의 계정 키 묶음과 "내 기록 보기" 행의 자리를 확인된 상태와 같은 높이로 잡는다(꺼진 패널). 더보기의 "저장한 팀", "내 배틀" 행은 줄을 읽는 동안에도 두 줄 행 높이(`--h-row2`)를 지킨다: Row에 `line` 이 아직 없으면 빈 줄 자리를 두고, 읽기에 실패하면 "불러오지 못했습니다."
+- 확인: `states/account.cjs checking pending approved` 로 390에서 "72명 전체 보기"의 y가 세 상태에서 같다(±2). `account.cjs linesfail` 로 더보기 행 높이가 모두 64.
+
+**T-117 거절 상태에는 연결 해제가 없다** (R-15)
+- 파일: `src/pages/RecordsPage.jsx`, `src/pages/MorePage.jsx` 에서 `AccountKeys` 에 `link` 를 넘기는 곳
+- 바꿈: `link?.status === "rejected"` 이면 `link={null}` 로 넘긴다.
+- 확인: `account.cjs rejected` 에서 "기록 연결 해제"가 없다.
+
+**T-118 상단 바 계정 키가 로고에 붙지 않게** (R-10)
+- 파일: `src/styles/shell.css`, `.acct { … }`
+- 바꿈: 859 이하에서 계정 이름에 `max-width: calc(var(--s21) * 2)` (168, 말줄임). 이름 요소의 클래스는 `SiteHeader.jsx` 에서 확인한다.
+- 확인: `account.cjs long` 390에서 워드마크 오른쪽 끝과 계정 키 왼쪽 사이 ≥ 20.
+
+**T-119 도전의 탑 문 시트** (R-11)
+- 파일: `src/pages/battle/Streak.jsx` 의 `gateSheet`
+- 바꿈: 이름이 없는 상태의 키 낱말을 "내 기록 찾기"로(가는 곳의 이름). 거절 상태(`account?.status === "rejected"`)에는 힌트 한 줄 "연결 요청이 거절되었습니다." (`RecordsPage.jsx` 의 `LINK_STATE.rejected` 와 같은 문장).
+- 확인: `account.cjs none rejected` 로 시트 제목과 키 낱말이 다르고, 거절에 힌트가 선다.
+
+**T-120 명예의 전당 현 챔피언의 긴 이름** (R-05)
+- 파일: `src/styles/hall.css`, `.hof-crown-name { margin-top: var(--s2); }`
+- 바꿈: `.hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }`
+- 확인: `extremes.cjs long 390 844 dark` 의 명예의 전당에서 이름의 오른쪽 끝 ≤ 패널 안쪽 오른쪽. 한글 이름은 전과 같다.
+
+**T-121 홈 역대 챔피언 줄** (R-04)
+- 파일: `src/pages/HomePage.jsx` 의 역대 챔피언 벽, `src/styles/home.css` 의 `.ho-line`
+- 바꿈: 홈에는 최근 다섯 대만 세운다(그 위는 "명예의 전당" 링크가 이미 있다). `--n` 은 `min(챔피언 수, 5)`. CSS는 그대로.
+- 확인: `node scripts/visual-audit-env/states/manyhome.cjs` (20명)에서 칸이 5개, 각 폭 ≥ 200(1440).
+
+**T-122 대회 당일 홈** (Q-11, Q-12, Q-13)
+- `src/styles/home.css` 860 이상 `.ho-screen { … align-items: stretch; }` → `align-items: start;` 그리고 챔피언 패널이 왼쪽보다 짧을 때 아래가 비지 않는지 본다(빈 띠 40 이하가 기준. 넘으면 이 줄은 되돌리고 보고).
+- `src/pages/HomePage.jsx` `primary`: 오늘 대회이고 `myNext` 가 있으면 주 키를 "대진표 보기"로(바로 아래 "내 다음 경기" 카드가 내 경기로 간다).
+- 지금 경기 카드의 진행 줄: 카드가 보이는 경기(`liveMatch`)의 단계 이름을 쓴다. 지금은 다른 경기(`live.stage`)의 단계가 나온다(표시 오류).
+- 확인: `scripts/visual-audit-env/admin/flow.cjs live HOME-08 1440x900 light visitor "/" wait:3000 full:mynext` 에서 두 패널 높이 차이로 생긴 빈 면이 없고, 진행 줄의 단계가 카드 머리와 같다.
+
+#### 20c. 대진표와 운영
+
+**T-123 결과 입력** (Q-01)
+- 파일: `src/styles/bracket.css` 의 `.bk-entry-row`, `.bk-entry-actions { grid-template-columns: minmax(0, 1fr); }`
+- 바꿈: 860 이상에서 결과 입력 묶음(`.bk-entry`)의 폭을 709로. `.bk-entry-actions` 는 860 이상에서 `display: flex; flex-wrap: wrap; gap: var(--seam);` 키는 낱말 폭(`flex: 0 0 auto`), 높이 44.
+- 확인: `admin/flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided` 에서 이름과 점수 스텝퍼 사이 ≤ 500, 불참·기권·실격 키 각 폭 ≤ 160.
+
+**T-124 "테이블 미정"은 아직 안 한 경기에만** (Q-03)
+- 파일: `src/pages/BracketsPage.jsx`, `const stripOf=m=>{ … "테이블 미정" … }`
+- 바꿈: 경기에 승자가 있거나 한쪽이 부전승이면, 테이블이 정해지지 않았을 때 띠 대신 같은 높이의 빈 자리(`mb-strip` 에 글자 없이)를 둔다. 띠가 없어지면 트리의 줄이 어긋나므로 높이는 지킨다.
+- 확인: `live` 자료로 끝난 경기 카드에 "테이블 미정" 글자가 없고, 카드의 y가 전과 같다.
+
+**T-125 부전승 승자 이름의 색** (Q-04)
+- 파일: `src/styles/brackets.css`, `.mb-row.inv .mb-seed { color: var(--ground); }` 아래
+- 바꿈: `.mb-row.inv :is(.mb-name, .mb-name *) { color: var(--ground); }` (회색이 되는 원인 규칙을 먼저 찾아 그 규칙에 `:not(.inv *)` 를 주는 쪽이 낫다면 그렇게 한다).
+- 확인: 부전승 경기의 승자 행 이름 색이 rgb(8,28,61)(다크) 또는 라이트의 `--ground`.
+
+**T-126 신고 지우기** (Q-07)
+- 파일: `src/components/CommunityReports.jsx`
+- 바꿈: "신고 지우기"를 행 사이의 링크가 아니라 그 행의 `value` 자리에(연결 요청의 "연결 해제"와 같은 방식).
+- 확인: `admin/flow.cjs live ADM-07 1440x900 dark admin "/?view=admin" wait:1500 full:rows` 에서 신고 행 사이에 다른 종류가 끼지 않는다.
+
+**T-127 대진표 마법사의 도구 키** (Q-08)
+- 파일: `src/styles/bracket.css`, `.bk-pin-keys { grid-template-columns: repeat(3, minmax(0, 1fr)); … }`, `.bk-place-tools` 둘
+- 바꿈: 860 이상에서 `display: flex; flex-wrap: wrap; gap: var(--seam);` 키는 낱말 폭, 높이 44. 참가자 목록과 배치 행은 709 폭(T-64의 709 + 439와 같은 줄).
+- 확인: 2·3단계 1440에서 키 폭 각 ≤ 200.
+
+**T-128 트레이너 시트의 운영 칸** (Q-10)
+- 파일: `src/pages/RecordsPage.jsx` 의 이름 바꾸기("이름 저장")와 합치기
+- 바꿈: 860 이상에서 칸과 키를 한 줄로(`grid-template-columns: minmax(0, 439px) auto; gap: var(--seam)`). 이름 바꾸기 묶음과 합치기 묶음 사이 32.
+- 확인: `admin/flow.cjs plain` 으로 시트를 열어(README) 이름 칸 폭 439, "이름 저장"이 칸 오른쪽에 붙는다.
+
+**T-129 진행 중 대진표의 "내 경기로"** (Q-14)
+- 파일: `src/pages/BracketsPage.jsx`, `{myMatch&&<Button variant="second" icon="arrow" …>내 경기로</Button>}`
+- 바꿈: 휴대폰(859 이하)에서는 공유 키 위로 올리고 `variant="main"`. 데스크톱은 지금 자리에 second.
+- 확인: `live` 자료와 연결된 선수로 390에서 "내 경기로"가 공유 키보다 위, 반전.
+
+#### 20d. 배틀과 도전의 탑
+
+**T-130 탑에서 판으로 들어갈 때 카드가 한 번만 켜진다** (P-02)
+- 파일: `src/pages/BattlePage.jsx` 의 `useMatchLit`, `if (!preview?.querySelector(".bt-card")) { light(main, DUR.leave); return; }`
+- 바꿈: 이른 return을 `.bt-preview` 자체가 없을 때로 좁힌다. 카드가 아직 없으면 늦게 온 카드를 잡는 `look()` 을 돌려, 카드가 생기는 순간 `lineup(…, -wait)` 으로 켠다(`wait` 은 `liftArrive` 의 값).
+- 확인: `scripts/visual-audit-env/streak/t6.cjs 390 844` 로그에서 카드가 처음 생기는 프레임의 불투명도가 0에 가깝고, `.tw-veil` 이 사라진 뒤에 1이 된다. 다음 판도 같다. `t4.cjs` 녹화 시트에서 카드가 두 번 켜지지 않는다.
+
+**T-131 판과 판 사이에 사이트 막대가 나오지 않게** (P-03)
+- 파일: `src/pages/BattlePage.jsx`, `return () => page?.classList.remove("page--battle");`
+- 바꿈: Arena가 언마운트될 때 지우지 말고, 배틀 화면을 떠날 때(BattlePage에서 배틀 id가 없어질 때, 또는 BattlePage 자체가 언마운트될 때) 지운다.
+- 확인: `t6.cjs` 로그에서 다음 판으로 넘어가는 동안 `.topbar` 높이가 0을 유지한다.
+
+**T-132 코드 방 대기(휴대폰)** (P-04)
+- 파일: `src/pages/BattlePage.jsx`, `<Counter label="기다린 시간" … h={code && !rematch ? 84 : 40} />`
+- 바꿈: 기다린 시간은 늘 `h={40}` (방 코드만 84). 그래도 대기 취소가 창 밖이면 859 이하에서 대기 취소를 독 안 두 번째 키로 둔다(링크 공유 1 : 대기 취소… 가 아니라 대기 취소 1 : 링크 공유 1.618, 확인 창과 같은 비).
+- 확인: `streak/t8.cjs` 의 코드 방 대기 390x844에서 기다린 시간 카운터 bottom ≤ 독 top, 대기 취소가 창 안.
+
+**T-133 탑 파티 고르기(휴대폰)** (P-05)
+- 파일: `src/styles/tower-play.css` 의 draft 카드, 그리고 카드의 특성·도구 두 줄을 그리는 `src/pages/battle/Streak.jsx`
+- 바꿈: 859 이하에서 특성과 도구를 한 줄에 ("특성, 도구", 넘치면 말줄임).
+- 확인: `t8.cjs` 의 draft 3장 390x844에서 `.streak-pick-stats` bottom ≤ 독 top.
+
+**T-134 데스크톱 머리의 판 이름** (P-06)
+- 파일: `src/pages/BattlePage.jsx`, 머리 태그 `도전의 탑 ${gameWords(gameAt)}`
+- 바꿈: 판 위치를 알 때는 `gameWords(gameAt)` 만 ("2층 두 번째 판"). "도전의 탑"은 판 위치를 모를 때만.
+- 확인: 1440 쉬는 화면과 끝 화면에서 그 글자의 scrollWidth ≤ clientWidth.
+
+**T-135 중계 탭의 칩(휴대폰)** (P-08)
+- 파일: `src/styles/battle.css`, `.bt-match .chips { … }` 가 아닌 중계 목록(LiveHall)의 칩 줄
+- 바꿈: 639 이하에서 그 칩 줄에 `flex-wrap: wrap` (사이트의 다른 칩 줄과 같이 두 줄로).
+- 확인: `streak/t3b.cjs` 의 중계 목록 390에서 칩 줄 오른쪽 끝 ≤ 370.
+
+**그대로 두는 것:** R-14(T-103에서 풀림), R-16(32 이동, 1440은 0), R-17(busy 칸), R-18(로딩이 빈 화면에 칸 하나: 움직임이 없다), Q-02(T-62에서 풀림), Q-05(T-18), Q-06(T-69), Q-09(연결 요청 키 폭, 카드와 한 덩어리로 읽힘), Q-15(경기 일정 시트), P-07(교환 → 문의 한 번 멈춤, 실제 속도 약 60ms. 측정만 남긴다).
+
+**묶음 20 끝 확인:** 위 스크립트들을 다시 돌려 각 작업의 수치를 채우고, `npm test`, `npm run build`. 정상 상태(운영 데이터, 로그아웃)의 `scripts/visual-audit.cjs --vp core` 샷을 묶음 19 뒤 샷과 나란히 놓아, 위 작업 말고 달라진 것이 없는지 본다.
+
 ### 5장의 순서와 끝 확인
 
-묶음 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17. 묶음마다 3장과 같은 공통 확인을 하고, 묶음 9~11을 마친 뒤에는 `_drafts/*-pair.png` 의 오른쪽 그림과 실제 화면을 나란히 본다. 5장을 다 마친 뒤 4장의 전체 확인을 다시 한다.
+묶음 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17, 그리고 묶음 20(18과 19는 실행 중에 수정 세션이 따로 만든 커밋이다). 묶음마다 3장과 같은 공통 확인을 하고, 묶음 9~11을 마친 뒤에는 `_drafts/*-pair.png` 의 오른쪽 그림과 실제 화면을 나란히 본다. 5장을 다 마친 뒤 4장의 전체 확인을 다시 한다.

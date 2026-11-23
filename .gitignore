@@ -21,3 +21,5 @@ src/services/.cpu-base-*.js
 /.visual-audit/
 /docs/visual-audit/before/
 /docs/visual-audit/after/
+/scripts/visual-audit-env/admin/data/
+/scripts/visual-audit-env/standin/server.mjs
