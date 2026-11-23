@@ -35,6 +35,8 @@ const SIDE = ["Reflect", "Light Screen", "Aurora Veil", "Tailwind", "Stealth Roc
 const toId = s => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export default function BattleLabPage({ flash: say, go }) {
+  // the lab is a page of its own: the battle frame its Arenas set goes with it (BattlePage does the same for the battle page)
+  useEffect(() => () => document.getElementById("ypl-main")?.classList.remove("page--battle"), []);
   const res = useResources();
   if (!res) return <Loader />;
   if (res.error) return <Empty title="배틀을 준비하지 못했습니다." desc={String(res.error.message || res.error)} />;

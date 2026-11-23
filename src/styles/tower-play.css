@@ -173,6 +173,15 @@
   .streak-slot > img { width: var(--s8); height: var(--s8); }
   .streak-pick-stats { padding: 0 var(--s2) var(--s2); }
 }
+/* up to a tablet a chosen-from card says its ability and item on one line, "특성, 도구", cut by an ellipsis, so the third card's six
+   stand above the dock (2026-11-23 audit, P-05: the two facts took a cell each and the six ran 32 under the dock at 390) */
+@media (max-width: 859px) {
+  .streak-draft-row .bt-card-facts { display: block; padding: var(--s1) var(--s2); background: var(--ground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 18px; font-weight: 600; }
+  .streak-draft-row .bt-card-facts > span { display: inline; padding: 0; background: none; }
+  .streak-draft-row .bt-card-facts small { display: none; }
+  .streak-draft-row .bt-card-facts b { display: inline; }
+  .streak-draft-row .bt-card-facts > span + span::before { content: ", "; }
+}
 /* the doors: two side by side, or the gatekeeper's one; each its name and the floor's type, what it gives under its name (chips
    framed in a hairline of its own colour: 램프 +1 and 교환 승급, or 보상 없음 dim), and the six behind it small along its foot; the
    chosen door inverted */

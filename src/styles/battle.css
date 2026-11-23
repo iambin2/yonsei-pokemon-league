@@ -19,7 +19,10 @@
   .bt-lobby-main { display: contents; }
   .bt-lobby-main > .dock { order: 1; }
   .bt-lobby-main > :is(.bt-after, .bt-cancel) { order: 2; }
+  .bt-lobby-main > .bt-cancel { display: none; }
+  .bt-wait-keys { grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
 }
+@media (min-width: 860px) { .bt-cancel-dock { display: none; } }
 @media (min-width: 860px) {
   .bt-lobby { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); justify-content: space-between; }
   /* 배틀 열기 too is the court and, beside it, what the sheets hold laid open (2026-11-19, the owner's draft A) */
@@ -68,6 +71,8 @@
 .bt-live:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .bt-hall-kind { display: inline-flex; align-items: center; gap: var(--s1); font-weight: 600; white-space: nowrap; }
 @media (max-width: 859px) { .bt-hall-filters { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); } }
+/* a phone's filters wrap to a second line as the site's other chip rows do, none running past the screen's edge (P-08) */
+@media (max-width: 639px) { .bt-hall-filters { flex-wrap: wrap; row-gap: var(--s2); overflow-x: visible; margin-inline: 0; padding-inline: 0; } .bt-hall-filter { min-width: 0; } .bt-hall-filter > .chips { flex-wrap: wrap; } }
 /* a battle left half played stands over everything, the first thing to press */
 .bt-resume { margin-bottom: calc(var(--s3) - var(--s5)); }
 /* a code room's two displays at 84 stand one over the other, the code first: side by side they are wider than the 439 column and

@@ -134,6 +134,11 @@ export default function BattlePage({ flash: say, go }) {
   useLayoutEffect(() => { if (moved.current) { moved.current = false; window.scrollTo(0, 0); } }, [cpu, id, replay, cpuRound]);
   // the stage's first paintings are made in idle moments while the page waits for its data (stageFx prewarm), not as a battle opens
   useEffect(() => { prewarm(); }, []);
+  /* the battle's frame (page--battle, which Arena sets) stays from one game to the next while a battle stands open, and goes when the
+     page goes back to its tabs or is left (2026-11-23 audit, P-03: between a run's games the site's bars stepped in for a moment) */
+  const inBattle = Boolean(id || cpu || replay);
+  useEffect(() => { if (!inBattle) document.getElementById("ypl-main")?.classList.remove("page--battle"); }, [inBattle]);
+  useEffect(() => () => document.getElementById("ypl-main")?.classList.remove("page--battle"), []);
   // a battle's own address waits on its frame with the court dark, not on the site's loader alone (T8)
   if (!res) return cpu || replay || id ? <MatchWait /> : <Loader />;
   if (res.error) return <ErrorNote onRetry={res.retry}>배틀을 준비하지 못했습니다.</ErrorNote>;
@@ -832,7 +837,9 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           {res && <LobbyArena res={res} foe="참가 대기" foeMuted waiting six={six} ours={<b className="bt-trainer">{row.p1_name || "나"}</b>}>
             <LobbyStage leads={leads} doubles={doubles} awaiting random={Boolean(team?.random)} label={`경기장, ${leads.length ? leads.map(s => nameOf(res, s)).join(", ") : "우리 쪽"}, 상대 쪽은 비어 있음`} />
           </LobbyArena>}
-          <Dock><Button variant="main" onClick={onShare}>링크 공유</Button></Dock>
+          {/* a phone keeps 대기 취소 in the dock beside 링크 공유, 1 to 1.618 as a dialog's two keys; a desktop under it (P-04: on a phone it
+              stood under the tab bar) */}
+          <Dock><div className="stack bt-wait-keys"><Button variant="second" className="bt-cancel-dock" onClick={onCancel}>대기 취소</Button><Button variant="main" onClick={onShare}>링크 공유</Button></div></Dock>
           <Button variant="second" className="bt-cancel" onClick={onCancel}>대기 취소</Button>
         </div>
         <div className="bt-lobby-set">
@@ -842,7 +849,8 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           {/* a code room's four digits stand first and largest: they are what the opener reads out to the one coming in */}
           <div className="bt-wait-counters">
             {code && !rematch && <Counter label="방 코드" value={code} cells={4} h={84} />}
-            <Counter label="기다린 시간" value={clock} cells={3} h={code && !rematch ? 84 : 40} />
+            {/* only the code is read out large; the time waited is a 40 counter beside it, so a phone keeps 대기 취소 in view (P-04) */}
+            <Counter label="기다린 시간" value={clock} cells={3} h={40} />
           </div>
         </div>
       </div>
@@ -1078,8 +1086,11 @@ function useMatchLit() {
     /* the court stays off until the dark has come over it: while the dark went from the tower's place to the stage's, the preview's
        court stood lit round it, a silhouette of the arena (2026-11-18, the user: "선출창에 들어가는 연출에 살짝 경기장 실루엣이 보여") */
     if (wait && !reduced()) main.querySelectorAll(".bt-match .bt-stagebox :is(.bt-pv-stage, .bt-arena)").forEach(a => { a.style.opacity = "0"; setTimeout(() => a.style.removeProperty("opacity"), wait); });
-    const preview = main?.querySelector(".bt-match .bt-preview");
-    if (!preview?.querySelector(".bt-card")) { light(main, DUR.leave); return; }
+    /* a screen with no preview lights whole. A preview drawn a moment after the screen mounted (a run's next game, read from the server)
+       still has its cards lined up as they come, behind the lifting dark (2026-11-23 audit, P-02: they stood lit under the veil) */
+    const pv = () => main?.querySelector(".bt-match .bt-preview");
+    const first = pv();
+    if (!first) light(main, DUR.leave);
     const side = main.querySelector(".bt-match .bt-side");
     // round the cards: the column's parts in order (the menu's own rows one by one) with 기권 at the end, or the dock under a phone's cards
     const round = () => {
@@ -1090,19 +1101,20 @@ function useMatchLit() {
     };
     /* the column's last part lights without rising: 12 under its place it reached out of the column, whose scrollbar then stood alone
        beside the dark cards for the whole line-up */
-    lineup(Array(7).fill(null), round(), -wait, side?.lastElementChild);
+    if (first) lineup(Array(7).fill(null), round(), -wait, side?.lastElementChild);
     // the other side's six are read from the log a frame or two after the preview mounts: ours keep their turn after the six places,
     // and the six take theirs when they are drawn
-    const cells = () => [...preview.querySelectorAll(".bt-foe-cell")];
+    const cells = () => [...(pv()?.querySelectorAll(".bt-foe-cell") || [])];
     /* a card with an info key stands in .bt-pick with the key beside it: the two light as one (2026-11-10: the i keys stood lit on
        the bare ground before their cards came) */
     const OURS = ".bt-pick, .bt-card:not(.bt-pick > .bt-card)";
-    lineup(Array(7).fill(null), [...preview.querySelectorAll(OURS)], -wait);
+    const cards = () => [...(pv()?.querySelectorAll(OURS) || [])];
+    if (first) lineup(Array(7).fill(null), cards(), -wait);
     const began = performance.now();
     let frame = 0;
     /* the other side's six, and our own cards when the request comes a moment after the preview mounted (a rematch: 2026-11-09, five
        cards popped in at once after the first had risen), each take their turn in the line-up when drawn */
-    const ours = () => [...preview.querySelectorAll(OURS), ...round()];
+    const ours = () => [...cards(), ...(first ? round() : [])];
     const seen = new Set(ours());
     let foeDone = false;
     const look = () => {
@@ -1110,7 +1122,7 @@ function useMatchLit() {
       if (!foeDone && cells().length) { foeDone = true; lineup([null, ...cells()], [], elapsed); }
       const late = ours().filter(el => !seen.has(el));
       if (late.length) { late.forEach(el => seen.add(el)); lineup(Array(7).fill(null), late, elapsed); }
-      if (performance.now() - began < 1500) frame = requestAnimationFrame(look);
+      if (performance.now() - began < 1500 + wait) frame = requestAnimationFrame(look);
     };
     look();
     return () => cancelAnimationFrame(frame);
@@ -1538,11 +1550,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     ? [{ key: "foe", label: `${names[foe]}의 파티`, cards: seenCards(res, scene[foe].roster, moveField) }, { key: "own", label: "내 파티", cards: ownList() }]
     : [perspective, foe].map(side => ({ key: side, label: `${names[side]}의 파티`, cards: seenCards(res, scene[side].roster, moveField) }));
   // on a wide screen the match takes the whole window: the page frame lets go of its 1200 for this view only
-  useEffect(() => {
-    const page = document.getElementById("ypl-main");
-    page?.classList.add("page--battle");
-    return () => page?.classList.remove("page--battle");
-  }, []);
+  // (it is let go by BattlePage when the battle closes, not here: the next game of a run mounts a new Arena under the same frame)
+  useEffect(() => { document.getElementById("ypl-main")?.classList.add("page--battle"); }, []);
   const preview = tape.state.sides;
   const mon = species => ({ species, name: nameOf(res, species) });
   /* the end (DESIGN.md "Battle", After the battle): the result large, then what comes next as keys, 다시하기 first. On a wide screen
@@ -1631,7 +1640,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     <div className="pn bt-head-main">
       {/* what this match is (an official one's event and round, a run's game) and, while it is played, how many are watching; while the
           other side chooses, the busy cell and whose choice is awaited, so a player always knows whether they are the one waited for */}
-      <span className="status t12">{shownEnded ? "종료" : waitWords ? <><Busy h={32} />{waitWords}</> : <><i className="lamp sig" aria-hidden="true" />{started ? "진행 중" : "선출 중"}</>}{official && <span className="dim">{labels[row.id] || "공식 경기"}</span>}{row.kind === "streak" && <span className="dim">{gameAt == null ? "도전의 탑" : `도전의 탑 ${gameWords(gameAt)}`}</span>}{!ended && watchers > 0 && <span className="dim bt-head-watch">{`관전 ${watchers}`}</span>}</span>
+      <span className="status t12">{shownEnded ? "종료" : waitWords ? <><Busy h={32} />{waitWords}</> : <><i className="lamp sig" aria-hidden="true" />{started ? "진행 중" : "선출 중"}</>}{official && <span className="dim">{labels[row.id] || "공식 경기"}</span>}{/* the game's place says it is the tower's ("2층 두 번째 판"); 도전의 탑 only where the place is not known (P-06: cut on a desktop) */}{row.kind === "streak" && <span className="dim">{gameAt == null ? "도전의 탑" : gameWords(gameAt)}</span>}{!ended && watchers > 0 && <span className="dim bt-head-watch">{`관전 ${watchers}`}</span>}</span>
       <b className="bt-head-names">{`${names[perspective]} 대 ${names[foe]}`}</b>
     </div>
     {/* the floor as its track: its number over its five games, this one lit (2026-11-09: the stair glyph went with the stairs) */}
