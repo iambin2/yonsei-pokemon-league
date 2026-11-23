@@ -152,6 +152,9 @@
 /* 대회 취소 is rare: an underlined word at the panel's end, 12 under its keys (Composing a screen 28) */
 .ad-cancel { display: flex; justify-content: flex-end; margin-top: var(--s3); }
 .ad-cancel > .btn { min-height: var(--h-control); justify-content: flex-end; }
+/* a row's own acts as words at its end (신고: 글 보기, 신고 지우기) */
+.ad-row-keys { display: flex; align-items: center; gap: 0 var(--s5); }
+.ad-row-keys > .btn { min-height: var(--h-control); }
 .ad-event-head, .ad-none { display: grid; gap: var(--s1); padding: var(--s3) var(--pad); }
 .ad-none { min-height: var(--h-row); align-content: center; }
 .ad-page > .btn { justify-self: start; }

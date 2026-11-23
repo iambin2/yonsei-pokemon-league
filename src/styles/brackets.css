@@ -54,8 +54,10 @@
   .bk-tools { display: grid; grid-auto-flow: column; flex: none; }
   .bk-tools .btn { height: var(--h-control); padding: 0 var(--s5); }
   .bk-cb-actions > .bk-img { display: none; }
-  .bk-share, .bk-pb-actions { display: none; }
+  .bk-share, .bk-pb-actions, .bk-mine-phone { display: none; }
 }
+/* 내 경기로: a phone shows it over the share key, a desktop under the tree's head (BracketsPage.jsx MyMatchKey) */
+@media (max-width: 859px) { .bk-mine-wide { display: none; } .bk-mine-phone { margin-top: var(--s5); } }
 
 /* the decided result: 우승 inverted, the places as spec rows, the images */
 .bk-winner { display: grid; gap: var(--s1); padding: var(--pad); }
@@ -128,6 +130,9 @@
 .mb-row.wait { font-weight: 600; }
 .mb-seed { flex: none; width: var(--s5); color: var(--mute); white-space: nowrap; }
 .mb-row.inv .mb-seed { color: var(--ground); }
+/* a bye's winner cannot be pressed in the operators' tree, and the site's grey for a disabled button outranked the lit row: the winner
+   keeps the inverted ink (2026-11-23 audit, Q-04) */
+.ypl .mb-row.inv:disabled { color: var(--ground); }
 .mb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mb-score { flex: none; font-size: var(--t15); font-weight: 700; }
 .mb-row:disabled { cursor: default; opacity: 1; }

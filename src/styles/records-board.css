@@ -41,6 +41,14 @@
 .acct-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); margin-top: var(--s3); }
 .acct-keys > .btn { min-height: var(--h-control); justify-content: flex-start; }
 .acct-keys > .form-error { flex-basis: 100%; }
+/* 운영 on a trainer's sheet: a field and its key; on a desktop the key stands on the field's right at the 439's end, the two acts 32 apart */
+.rc-admin-pair { display: grid; gap: var(--s3); }
+@media (min-width: 860px) {
+  .rc-admin-pair { grid-template-columns: minmax(0, 439px) auto; justify-content: start; align-items: end; gap: var(--seam); }
+  .rc-admin-pair > .btn { width: auto; }
+  .rc-admin-pair > .field { margin-bottom: 0; }
+  .rc-admin-pair + .rc-admin-pair { margin-top: calc(var(--s8) - var(--s3)); }
+}
 /* the rank tab's two rows of operators' keys are one kind: joined on the seam */
 /* the operators' links: underlined words at the line's end, a finger's 44 each (Composing a screen 28) */
 .rc-admin-links { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0 var(--s5); }

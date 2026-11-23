@@ -945,6 +945,19 @@ const lossWord=(battle,m)=>m?.departed==="disqualified"?"실격":m?.departed==="
 /* 나: a signed-in trainer's own name carries the records' league tag form after it (DESIGN.md "Records"), here 나 with its square lit */
 const MeTag=()=><span className="tb-type mb-me">나</span>;
 /* the account's player as an entry of this bracket: approved links only (docs/db/player_accounts.sql); signed out or unlinked, none */
+/* 내 경기로 (2026-11-22): a signed-in player's next match on a long bracket, one press away. The first undecided match they stand in. */
+function myMatchIn(b,me){
+  if(!me) return null;
+  return [...[b.graph,b.knockout].filter(Boolean).flatMap(g=>{ const {sp}=evalGraph(g); return collectGraphMatches(g).map(m=>({m,a:sp(m.a),b:sp(m.b)})); }),
+    ...(b.knockout?[]:(b.groups||[]).flatMap(g=>[...g.matches,...(g.playoffs||[])]).map(m=>({m,a:m.a?.pid,b:m.b?.pid})))]
+    .find(x=>!x.m.winner&&(x.a===me||x.b===me)&&x.a!==BYE&&x.b!==BYE)?.m.id||null;
+}
+/* the key: on a desktop a second key under the tree's head; on a phone the day's main act, over the share key (2026-11-23 audit, Q-14) */
+function MyMatchKey({ b, main=false, className="" }){
+  const id=myMatchIn(b,useMyEntry(b.participants));
+  if(!id) return null;
+  return <Button variant={main?"main":"second"} icon="arrow" className={className} onClick={()=>document.querySelector(`[data-match="${CSS.escape(id)}"]`)?.scrollIntoView({block:"center"})}>내 경기로</Button>;
+}
 function useMyEntry(participants){
   const [playerId,setPlayerId]=useState(null);
   useEffect(()=>{
@@ -1380,7 +1393,9 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
       ? <button type="button" className={"bk-col-h bk-col-set "+extra} onClick={onSchedule} aria-label={`${label}${start?` ${start} 시작`:""}, 경기 일정 정하기`}>{words}</button>
       : <div className={"bk-col-h "+extra}>{words}</div>;
   };
-  const stripOf=m=>{ const label=schedule?.tables?.get(m.id)||""; return <div className={"mb-strip t12"+(label?"":" wait")}>{label?tableWord(label):"테이블 미정"}</div>; };
+  /* a match already decided (a winner, or a bye) is no longer waiting for a table: its strip stands empty, keeping the tree's line
+     (2026-11-23 audit, Q-03: 테이블 미정 stood over finished matches) */
+  const stripOf=m=>{ const label=schedule?.tables?.get(m.id)||""; const settled=Boolean(ev.win[m.id]); return <div className={"mb-strip t12"+(label||settled?"":" wait")} aria-hidden={!label&&settled?true:undefined}>{label?tableWord(label):settled?"":"테이블 미정"}</div>; };
   /* the lines: one drawing over the whole tree, measured from the boxes as they stand (offsets, so a lighting rise never bends them).
      Out of each box a road to the middle of its pair and on into the next box; a decided road is a 2px lit line drawn over the rest,
      so it runs unbroken from the winner's box to the next. A double's winners' rounds are drawn the same; its 우승 stands with the
@@ -1725,10 +1740,6 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
   const [reportReady,setReportReady]=useState(false);
   useEffect(()=>{ let on=true; if(me&&!admin) handoverReady().then(ok=>on&&setReportReady(ok)); return ()=>{ on=false; }; },[me,admin]);
   const reportOn=reportReady&&!admin&&!teamMode&&championshipEvent?.status==="running"&&!sitePlayed(championshipEvent);
-  /* 내 경기로 (2026-11-22): a signed-in player's next match on a long bracket, one press away. The first undecided match they stand in. */
-  const myMatch=me?[...[b.graph,b.knockout].filter(Boolean).flatMap(g=>{ const {sp}=evalGraph(g); return collectGraphMatches(g).map(m=>({m,a:sp(m.a),b:sp(m.b)})); }),
-    ...(b.knockout?[]:(b.groups||[]).flatMap(g=>[...g.matches,...(g.playoffs||[])]).map(m=>({m,a:m.a?.pid,b:m.b?.pid})))]
-    .find(x=>!x.m.winner&&(x.a===me||x.b===me)&&x.a!==BYE&&x.b!==BYE)?.m.id||null:null;
   const [scheduling,setScheduling]=useState(null);
   const canSchedule=Boolean(editAdmin&&schedule&&runtimeId);
   /* 저장은 한 번에: 바뀐 라운드 일정, 바뀐 테이블. 되돌릴 수 있으므로 묻지 않고 저장한 뒤 되돌리기를 준다 (DESIGN.md "Sheets") */
@@ -1898,7 +1909,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
         {b.applied&&admin&&<div className="bk-ops"><span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span><span className="bk-ops-links">{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}{!readOnly&&admin&&championshipEvent?.championship_phase!=="qualifier"&&<Button variant="link" size="sm" onClick={()=>onApply(b,res,{titlesOnly:true})}>칭호 다시 판정</Button>}</span></div>}
       </div>
     </section>}
-    {myMatch&&<Button variant="second" icon="arrow" onClick={()=>document.querySelector(`[data-match="${CSS.escape(myMatch)}"]`)?.scrollIntoView({block:"center"})}>내 경기로</Button>}
+    <MyMatchKey b={b} className="bk-mine-wide"/>
     {b.eventId&&(admin||!(res&&res.done))&&<SubmissionStatusPanel
       model={submissionStatusModel}
       busy={submissionStatusBusy}
@@ -3085,6 +3096,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
         </div>
         {statusTag(open)==="진행 중"&&<p className="pn bk-strip t12"><Status live>진행 중</Status>{liveProgress(open)&&<span className="dim">{liveProgress(open)}</span>}</p>}
         {/* a phone: the share key under the head, the desktop keeps it among the tools beside the title */}
+        <MyMatchKey b={open} main className="bk-mine-phone"/>
         {open.eventId&&<div className="stack bk-actions bk-share"><Button variant="second" onClick={async()=>{ const r=await shareLink({view:"bracket",eventId:open.eventId},open.name); if(r==="copied")flash("주소를 복사했습니다."); }}>링크 공유</Button><Button variant="second" onClick={()=>setQr({name:open.name,url:communityUrl({view:"bracket",eventId:open.eventId})})}>QR</Button></div>}
       </header>
        {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res,opts)=>setApply({b,res,...opts})}/>}

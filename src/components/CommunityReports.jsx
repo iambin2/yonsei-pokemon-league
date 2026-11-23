@@ -34,11 +34,10 @@ export default function CommunityReports({ go, id = "ad-reports-h" }) {
   return <section className="ad-block" aria-labelledby={id}>
     <SectionHead id={id} title="신고" />
     {note ? <div className="pn ad-none"><span className="t15">{note}</span></div>
-      : <div className="stack">{rows.map(r => <React.Fragment key={r.item_id}>
-        <Row title={r.title || (r.parent_id ? "(댓글)" : "(제목 없음)")} lamp
+      /* each report is one row with its two acts at its end, 글 보기 and 신고 지우기, so no other kind stands between the rows
+         (2026-11-23 audit, Q-07; a key inside a pressable row would nest two buttons, so the row itself no longer opens) */
+      : <div className="stack">{rows.map(r => <Row key={r.item_id} title={r.title || (r.parent_id ? "(댓글)" : "(제목 없음)")} lamp
           line={[Object.entries(r.reasons || {}).map(([k, n]) => `${WORD[k] || k} ${n}`).join(", "), formatDate(r.last_at, { time: true })].filter(Boolean).join(", ")}
-          onClick={() => go("board", where(r))} />
-        <Button variant="link" size="sm" onClick={() => load(r.item_id)}>신고 지우기</Button>
-      </React.Fragment>)}</div>}
+          value={<span className="ad-row-keys"><Button variant="link" onClick={() => go("board", where(r))}>글 보기</Button><Button variant="link" onClick={() => load(r.item_id)}>신고 지우기</Button></span>} />)}</div>}
   </section>;
 }

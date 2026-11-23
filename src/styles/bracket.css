@@ -190,6 +190,13 @@
 /* ---------- 3 대진 배치: each first-round match a row, the two names as cells; the held name inverted ---------- */
 .bk-place-tools { grid-template-columns: minmax(0, 1fr); }
 .bk-place-tools:has(> :nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* desktop: the wizard's tools (전체 선택, 전체 해제, 참가자 추가, 팀 나누기, 다시 추첨, 랭킹 시드) are keys as wide as their words, 44 tall, and
+   the lists they act on stand in the 709 (2026-11-23 audit, Q-08: each tool took a third or a half of 1200) */
+@media (min-width: 860px) {
+  .bk-pin-keys, .bk-place-tools { display: flex; flex-wrap: wrap; gap: var(--seam); }
+  :is(.bk-pin-keys, .bk-place-tools) > .btn { flex: 0 0 auto; width: auto; height: var(--h-control); }
+  .bk-participant-confirm-list, .bk-place { max-width: 709px; }
+}
 .bk-place-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0 var(--s2) 0 var(--pad); }
 .bk-place-name { min-height: var(--h-control); padding: 0 var(--s3); text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; transition: scale var(--move-press), background-color var(--move-tone); }
 .bk-place-name.inv { color: var(--ground); }
@@ -225,4 +232,11 @@
 .bk-entry-row.inv .bk-entry-step { background: var(--panel); color: var(--lit); }
 .bk-entry-step:disabled { color: var(--mute); }
 .bk-entry-actions { grid-template-columns: minmax(0, 1fr); }
+/* desktop: result entry stands in the 709, so a name and its score are read together, and the rare 불참, 기권, 실격 are keys as wide
+   as their words, 44 tall, side by side (2026-11-23 audit, Q-01: 1000 between name and score, three 1200 keys) */
+@media (min-width: 860px) {
+  .bk-entry { max-width: 709px; }
+  .bk-entry-actions { display: flex; flex-wrap: wrap; gap: var(--seam); }
+  .bk-entry-actions > .btn { flex: 0 0 auto; width: auto; height: var(--h-control); }
+}
 .bk-entry-error { display: flex; align-items: center; gap: var(--s2); margin: 0; }
