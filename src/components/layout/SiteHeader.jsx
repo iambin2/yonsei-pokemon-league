@@ -37,9 +37,11 @@ export function Wordmark() {
   );
 }
 
-/* Google의 G (public/brand/google-g.svg): 구글 로그인임을 알리는 Google 자신의 네 색 표시. 다시 칠하거나 흐리게 하지 않는다
-   (Google 브랜드 규칙, DESIGN.md "The account word"). 구글 로그인 버튼마다 글자 앞에 20으로 선다. */
-export const GoogleMark = () => <img className="g-mark" src="/brand/google-g.svg" alt="" width={20} height={20} />;
+/* Google의 G: Google 자신의 G 모양 그대로, 네 조각을 한 경로로 합쳐 글자 색 하나로 칠한다(2026-11-23, 운영자 시안 B "단색":
+   네 색 G가 남색 판에서 혼자 튀었다). Wing Y와 같은 잉크라 두 테마를 따라가고, 반전된 면 위에서는 반전된 색이 된다.
+   구글 로그인의 글자 앞마다 20으로 선다(DESIGN.md "The account word"). */
+const G_PATH = "M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5zM46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65zM10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19zM24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z";
+export const GoogleMark = () => <svg className="g-mark" viewBox="0 0 48 48" width={20} height={20} fill="currentColor" aria-hidden="true"><path d={G_PATH} /></svg>;
 
 /* 구글 계정(docs/db/player_accounts.sql): 바의 오른쪽, 램프 앞에 G와 한 단어. 계정이 하는 일은 내 기록을 내 이름으로 갖는 것이라,
    버튼도 그 말을 한다(2026-11-06: "구글 로그인"은 눌러 보기 전에는 왜 있는지 알 수 없었다). 로그인 전은 "내 기록", 누르면 구글로
@@ -64,11 +66,11 @@ function AccountButton({ onNavigate }) {
   const named = signed && link && link.status !== "rejected" ? link.requested_name : "";
   // a door with an address is a link to it (DESIGN.md "Panels" 3)
   const to = { tab: "trainer", me: "1", ...(named && link.player_id ? { trainer: named } : {}) };
-  /* signed in, the account is a panel of its own: the name's first letter on an inverted square and the name; signed out, Google's G
-     and 로그인 as words on the bar (2026-11-23, the owner's draft A: the G and a name "그냥 동하니 떠 있는", in or out alike) */
+  /* in or out, Google's G and one word on the bar: 로그인, then the trainer name (내 기록 until one is linked). 2026-11-23, the owner's
+     draft A: the first letter's inverted square beside the name read 이 이제빈, "너무 못생겼어" */
   const label = named ? `${named}, 내 기록` : signed ? "내 기록, 구글 계정으로 로그인됨" : "로그인, 구글 계정으로 내 기록 연결";
-  return <a href={viewHref("records", to)} className={"acct" + (signed ? " pn on" : "")} onClick={follow(() => onNavigate("records", to))} aria-label={label}>
-    {signed && named ? <span className="inv acct-initial" aria-hidden="true">{[...named][0]}</span> : <GoogleMark />}
+  return <a href={viewHref("records", to)} className="acct" onClick={follow(() => onNavigate("records", to))} aria-label={label}>
+    <GoogleMark />
     <span className="acct-name">{signed ? (named || "내 기록") : "로그인"}</span>
   </a>;
 }
