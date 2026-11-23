@@ -39,7 +39,7 @@
 .rc-admin { margin-bottom: var(--s5); }
 /* the account's keys (AccountKeys.jsx): 로그아웃, 기록 연결 해제, 계정 삭제 as words on one line, a finger's 44 each; the error under them */
 .acct-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); margin-top: var(--s3); }
-.acct-keys > .btn { min-height: var(--h-control); }
+.acct-keys > .btn { min-height: var(--h-control); justify-content: flex-start; }
 .acct-keys > .form-error { flex-basis: 100%; }
 /* the rank tab's two rows of operators' keys are one kind: joined on the seam */
 /* the operators' links: underlined words at the line's end, a finger's 44 each (Composing a screen 28) */

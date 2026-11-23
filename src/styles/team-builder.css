@@ -32,7 +32,8 @@
 /* the panel: the event's name at 20 and its grey line 4 under it, then the steps and each step's block 20 apart; the panel's padding is
    never smaller than that gap. The main action stands last, as wide as the steps. */
 .official-submission { display: grid; gap: var(--s5); padding: var(--s5); }
-.official-submission > * { margin-top: 0; }
+/* the panel spaces its blocks by its gap; the list rule above (.tb-validation ul, 12) is more specific, so its lists are named too */
+.official-submission > *, .official-submission > ul { margin-top: 0; }
 .tb-sub-head { display: grid; gap: var(--s1); min-width: 0; }
 .tb-sub-head > b { overflow-wrap: anywhere; }
 /* inside the panel the steps and the second action stand one tone up, like a field inside a panel */

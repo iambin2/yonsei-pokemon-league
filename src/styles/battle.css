@@ -845,8 +845,9 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 
 @media (max-width: 379px) {
   button.bt-card > .bt-card-head { grid-template-rows: auto auto; grid-template-areas: "pic name end" "types types types"; }
-  /* the third row of cards above the dock at 375 by 667 (2026-11-23 audit, E-09) */
-  .bt-card.short { padding-block: var(--s2); }
+  /* the third row of cards above the dock at 375 by 667 (2026-11-23 audit, E-09): at 8 the third row still ran 5 under the dock
+     (measured in the computer battle's pick, T-100), at 4 it stands 12 above it and the page no longer scrolls */
+  .bt-card.short { padding-block: var(--s1); }
 }
 
 /* 선출 확정: docked on a phone, in the column on a desktop; the order stands on our strip */

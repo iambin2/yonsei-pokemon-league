@@ -19,6 +19,8 @@
 /* where the day's four-cell clock and 시작 do not fit one line (under 390), 시작 wraps under the clock, which keeps its 84 (no breakpoint
    of its own: the site has three, Layout) */
 .ho-board.today { flex-wrap: wrap; }
+/* the ranking read: its head stands at its size, unseen and out of reach (HomePage.jsx, T-95) */
+.ho-rank.off > .sh { visibility: hidden; }
 /* 일시, 신청 마감, 형식: spec rows on the next step, the key dim at the start, the fact lit at the end */
 .ho-spec { margin: 0; }
 .ho-spec-row { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }

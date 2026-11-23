@@ -302,9 +302,10 @@ export default function HomePage({ data, go, admin }) {
 
     {factsFailed && <ErrorNote action="다시 불러오기" onRetry={() => { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
 
-    {/* while the ranking is read its place stands switched off, so the notices under it do not move when it lights */}
-    {(season || !facts) && <section className="ho-sec ho-rank" aria-labelledby="ho-rank">
-      <SectionHead id="ho-rank" title={season ? `${season.name} 순위` : " "} link={season && "전체 보기"} onLink={() => go("records", { tab: "rank" })} />
+    {/* while the ranking is read its place stands switched off, so the notices under it do not move when it lights; its head keeps
+        the lit head's height, a blank title and link held unseen (2026-11-23 audit, T-95: a bare head stood 0 and grew 44) */}
+    {(season || !facts) && <section className={"ho-sec ho-rank" + (season ? "" : " off")} aria-labelledby="ho-rank" aria-hidden={season ? undefined : true}>
+      <SectionHead id="ho-rank" title={season ? `${season.name} 순위` : "\u00a0"} link={season ? "전체 보기" : "\u00a0"} onLink={() => season && go("records", { tab: "rank" })} />
       <StandTable rows={season ? season.rows : null} shown={5} onName={name => go("records", { trainer: name })} />
     </section>}
 

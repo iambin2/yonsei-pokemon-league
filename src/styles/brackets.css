@@ -66,7 +66,8 @@
 .bk-delete { margin-top: var(--s13); }
 /* desktop: one rare key at the end edge, as wide as its word (Composing a screen 27, 28) */
 @media (min-width: 860px) { .bk-delete { display: flex; justify-content: flex-end; } .bk-delete > .btn { width: auto; } }
-.bk-ops { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
+/* 기록 반영됨 carries its icon first, so a baseline line would sit on the icon; centred, the three words share one line (2026-11-23, T-69) */
+.bk-ops { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: var(--s5); }
 .bk-ops-links { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 var(--s5); }
 .bk-applied { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
 /* 목록 보기: a round a section, sections apart as the page's sections are */

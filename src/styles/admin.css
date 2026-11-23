@@ -151,7 +151,7 @@
 .ad-keys:has(> :only-child) { grid-template-columns: 1fr; }
 /* 대회 취소 is rare: an underlined word at the panel's end, 12 under its keys (Composing a screen 28) */
 .ad-cancel { display: flex; justify-content: flex-end; margin-top: var(--s3); }
-.ad-cancel > .btn { min-height: var(--h-control); }
+.ad-cancel > .btn { min-height: var(--h-control); justify-content: flex-end; }
 .ad-event-head, .ad-none { display: grid; gap: var(--s1); padding: var(--s3) var(--pad); }
 .ad-none { min-height: var(--h-row); align-content: center; }
 .ad-page > .btn { justify-self: start; }
