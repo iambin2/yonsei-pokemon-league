@@ -279,8 +279,8 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {list.length===0?(kw
       ? <>
-        <Empty className="search-none" title="맞는 공지가 없습니다." desc={`‘${q.trim()}’에 맞는 공지를 찾지 못했습니다.`}><Seg value={0} h={40} cells={2} label="0건"/></Empty>
-        {all.length>0&&<><p className="t12 dim nw-recent">최근 공지</p><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></>}
+        <Empty className="search-none" title="맞는 공지가 없습니다."><Seg value={0} h={40} cells={2} label="0건"/></Empty>
+        {all.length>0&&<section className="nw-recent"><SectionHead title="최근 공지"/><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></section>}
       </>
       : <Empty title="등록된 공지가 없습니다."/>)
     : <div className="stack nw-list">{shown.map((a,i)=>i===0&&cur===1&&!kw?<NoticeLead key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>:<NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div>}
@@ -463,7 +463,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
       </Question>
       <Question id="ff-pin" label="제출 비밀번호" required error={errors.pin}>
         <input id="ff-pin" className="in" aria-required="true" aria-invalid={errors.pin?true:undefined} aria-describedby={errors.pin?"ff-pin-error":undefined} type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={e=>{setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4));setErrors(x=>({...x,pin:""}));}} placeholder="예: 1234"/>
-        <p className="t12 dim reg">아직 정하지 않았다면 지금 입력한 숫자 4자리가 제출 비밀번호가 됩니다.</p>
+        {!errors.pin&&<p className="t12 dim reg">아직 정하지 않았다면 지금 입력한 숫자 4자리가 제출 비밀번호가 됩니다.</p>}
       </Question>
     </section>,
   });

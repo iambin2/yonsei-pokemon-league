@@ -295,6 +295,8 @@
 .push-group { margin-top: var(--s8); }
 .push-label { margin-bottom: var(--s3); }
 .push-board { grid-template-columns: 1fr 1fr; }
+/* an odd last kind takes the row, so the board has no empty cell (Composing a screen 26) */
+.push-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .push-cell { display: grid; align-content: center; gap: var(--s1); height: var(--h-row2); padding: 0 var(--pad); text-align: left; }
 
 /* ---------- errors and empty (DESIGN.md "Errors and empty"): the ! square and a sentence, then one way out ---------- */
@@ -319,8 +321,9 @@
 @media (min-width: 860px) { .status-title { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); } }
 .status-desc { margin-top: var(--s1); }
 .status-go { margin-top: var(--s5); display: grid; gap: var(--seam); max-width: 439px; }
-.status-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.status-links > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+/* 404's three ways out stand as one row of three; the failed app's four (홈 and the three) as two rows of two */
+.status-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.status-links:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---------- the chosen word's line: the word's own ::before, as wide as the word; a change slides it in by transform (motion.js slideLine) ---------- */
 .tabsline > button.on::before, .navlink:is([aria-current="page"], [data-current])::before {

@@ -8,7 +8,6 @@
 .bd-tools { margin-top: var(--s5); }
 .bd-list { margin-top: var(--s5); }
 .bd-list .row { height: var(--h-row2); }
-.bd-day { margin-left: var(--s2); }
 .bd-pager { margin-top: var(--s5); }
 
 /* a party or a sample in the list: the records' party row. The title and its grey line, then the pictures; on desktop the six stand
@@ -61,6 +60,8 @@
   .bd-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .bd-bar { grid-template-columns: minmax(0, 1.618fr) repeat(4, minmax(0, 1fr)); }
   .bd-art.many .bd-cmts { max-width: 709px; }
+  /* a free post is reading: its body and its comments stand in the 709 (Typesetting) */
+  .bd-free > :is(.bd-body, .bd-cmts) { max-width: 709px; }
   .bd-art.one { display: grid; grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: start;
     grid-template-areas: "head head" "sheet bar" "sheet body" "sheet cmts"; grid-template-rows: auto auto auto 1fr; }
   .bd-art.one > .bd-art-head { grid-area: head; }
@@ -80,7 +81,7 @@
 .bd-cmt { padding: var(--pad); }
 .bd-cmt-top { display: flex; align-items: center; gap: var(--s2); }
 .bd-cmt-body { margin-top: var(--s1); white-space: pre-wrap; overflow-wrap: anywhere; }
-.bd-act { min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); padding: 0 var(--s1); font-weight: 600; color: var(--dim); }
+.bd-act { min-width: var(--h-control); min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); padding: 0 var(--s1); text-align: center; font-weight: 600; color: var(--dim); }
 .bd-act:first-of-type { margin-left: auto; }
 @media (hover: hover) { .bd-act:hover { color: var(--lit); } }
 /* a reply stands 32 in under the comment it answers, its form in the same column */

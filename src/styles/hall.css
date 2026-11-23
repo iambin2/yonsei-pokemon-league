@@ -78,7 +78,9 @@
 /* ---------- about (draft 1C, 2026-11-19) ---------- */
 /* the big screen: the league's name and facts with ↗ 디스코드 참여 in the 709, the next two steps as doors in the 439 */
 .ab-screen { margin-top: var(--s5); }
-.ab-lead { display: grid; gap: var(--s3); align-content: start; padding: var(--pad); }
+/* the lead runs its row's height and its key stands on its foot, so no band stays empty under it */
+.ab-lead { display: grid; grid-template-rows: auto auto auto 1fr; gap: var(--s3); padding: var(--pad); }
+.ab-lead > :last-child { align-self: end; }
 .ab-name { margin-top: calc(var(--s2) * -1); font-weight: 700; }
 .ab-spec { margin: 0; }
 .ab-spec > div { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }

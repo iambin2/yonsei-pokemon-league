@@ -12,7 +12,7 @@
 .nw-pin { font-weight: 600; color: var(--lit); }
 .nw-pager { margin-top: var(--s5); }
 .nw-recent { margin-top: var(--s8); }
-.nw-recent + .nw-list { margin-top: var(--s3); }
+.nw-recent > .nw-list { margin-top: 0; }
 
 /* a notice: the back link stands 20 under the bar */
 .nw-art-head > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }
