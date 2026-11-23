@@ -30,6 +30,7 @@
 .hof-past { margin-top: var(--s13); }
 .hof-wall { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--seam); }
 .hof-slot { display: grid; gap: var(--seam); min-width: 0; }
+.hof-edit { justify-self: start; min-height: var(--h-control); }
 .hof-plate { display: grid; gap: var(--s2); width: 100%; height: 100%; padding: var(--s5) var(--pad) var(--s3); text-align: left; }
 .hof-plate-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s3); }
 .hof-plate-season { text-align: right; }

@@ -114,8 +114,9 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
             <b className="t20 hof-plate-name">{c.name}</b>
             <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} small /></span>)}</span>
           </button>
-          {/* the edit stands under its own plate, named by the generation, so two reigns of one trainer never read alike */}
-          {admin && c.kind !== "normalized" && <Button variant="second" size="sm" onClick={() => setModal({ type: "champion", item: c })}>{[generationText(c.gen), c.name, "수정"].filter(Boolean).join(" ")}</Button>}
+          {/* the edit stands under its own plate as a link as wide as its words (Composing a screen 27), named by the generation, so two
+              reigns of one trainer never read alike (2026-11-23: a 238 key under every plate) */}
+          {admin && c.kind !== "normalized" && <Button variant="link" className="hof-edit" onClick={() => setModal({ type: "champion", item: c })}>{[generationText(c.gen), c.name, "수정"].filter(Boolean).join(" ")}</Button>}
         </div>))}
       </div>
     </section>}
