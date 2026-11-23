@@ -71,5 +71,4 @@
   .ho-news > .stack > * { flex: 1 0 auto; }
   .ho-news .row { height: auto; min-height: var(--h-row2); }
   .ho-news .nt-lead { align-content: center; }
-  .ho-news .row-lamp { width: var(--s13); }
 }

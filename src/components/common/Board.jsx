@@ -89,17 +89,17 @@ export function Counter({ label, value, unit = "", cells = 2, onClick, lamp, aft
 }
 
 /* A row of a stack: 52 for one line, 64 with a grey line. lead is the cell on the left (a rank, a date), value the figure on the right,
-   lamp the lamp column at the end (true lights it, false keeps the column dark; a word lights it and stands beside it, since a lamp
+   lamp the lamp column at the end (true lights it, false keeps the column dark; a word lights it and stands after it, since a lamp
    is a word's companion: 새 글); sig makes it amber, for what is live (도전 중). className sets the columns. */
 export function Row({ lead, title, line, value, lamp, sig = false, onClick, href, className = "", label }) {
   const { as: Box, props } = door(onClick, href);
   return (
     <Box className={"pn row" + (line ? " row--2" : "") + (className ? " " + className : "")} {...props} aria-label={label}>
       {lead != null && <span className="row-lead">{lead}</span>}
-      <span className="row-main"><b className="t15">{title}</b>{line && <span className="t12 dim">{line}</span>}</span>
+      <span className="row-main"><b className="t15">{title}</b>{line && <span className="t12 dim reg">{line}</span>}</span>
       {value != null && <span className="row-value">{value}</span>}
-      {typeof lamp === "string" && <span className="row-lamp-word t12">{lamp}</span>}
-      {lamp != null && <span className="row-lamp">{lamp && <i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />}</span>}
+      {typeof lamp === "string" ? <span className="row-lamp-word t12"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>
+        : lamp != null && <span className="row-lamp">{lamp && <i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />}</span>}
     </Box>
   );
 }
@@ -113,7 +113,7 @@ export function Lead({ date, title, line, lamp, sig = false, onClick, href, labe
     <Box className="pn lead" {...props} aria-label={label}>
       <span className="lead-top">
         {m && d ? <span className="lead-date" aria-hidden="true"><Seg value={m} h={32} cells={2} label="" /><span className="t15">월</span><Seg value={d} h={32} cells={2} label="" /><span className="t15">일</span></span> : <span />}
-        {lamp && <span className="t12 lead-lamp">{lamp}<i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" /></span>}
+        {lamp && <span className="t12 lead-lamp"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>}
       </span>
       <b className="t20 lead-title">{title}</b>
       {line && <span className="t12 dim reg">{line}</span>}

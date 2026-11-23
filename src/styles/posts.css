@@ -75,6 +75,8 @@
 
 /* comments: panels, the name 12 bold with its time dim, the words read at 15 */
 .bd-cmts { margin-top: var(--s13); display: grid; gap: var(--seam); }
+/* the seam is already under the title: together they are the 12 (as .stack > .sh) */
+.bd-cmts > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }
 .bd-cmt { padding: var(--pad); }
 .bd-cmt-top { display: flex; align-items: center; gap: var(--s2); }
 .bd-cmt-body { margin-top: var(--s1); white-space: pre-wrap; overflow-wrap: anywhere; }

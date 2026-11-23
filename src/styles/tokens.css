@@ -173,6 +173,8 @@ iframe { border: 0; }
 :focus { outline: none; }
 /* the one focus ring: 2px of light inside the edge */
 :focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
+/* on anything inverted the ring is the ground's, or it is light on light (DESIGN.md "Controls": a ground ring on any inverted panel) */
+:is(.inv, .btn--main, .skip-link, .seg-track > [aria-selected="true"]):focus-visible { outline-color: var(--ground); }
 ::placeholder { color: var(--mute); opacity: 1; }
 input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: none; }
 input[type="date"], input[type="datetime-local"] { min-height: 52px; }

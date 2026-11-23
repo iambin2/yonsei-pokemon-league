@@ -120,7 +120,8 @@
    with the title and body above, and only the question boxes step up a tone */
 .sheet .fb-wrap { padding: 0; background: none; }
 /* a field inside a tinted group in a sheet stands on the sheet's own colour, or it would match the group */
-.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group) :is(input:not([type="checkbox"], [type="radio"]), textarea, .dd-btn) { background: var(--panel); }
+.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group, .fold) :is(input:not([type="checkbox"], [type="radio"]), textarea, .dd-btn) { background: var(--panel); }
+.sheet .fb-dot:not(.dropdown) { background: var(--panel); }
 .sheet :is(.fb-q, .ed-team, .bk-applybox, .bk-pin, .bk-team-card, .bk-series-row, .bk-ace) { background: var(--panel-2); }
 
 /* ---------- notice editor: taking entries is a switch row, the event settings cells, save is the main action ---------- */
@@ -137,6 +138,7 @@
 .ad-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ad-cols, .ad-main, .ad-side { display: grid; gap: var(--s8); align-content: start; min-width: 0; }
 .ad-block { display: grid; gap: var(--s3); }
+.ad-block > .sh, .ad-side > .sh { margin-bottom: 0; }
 /* 포인트 sheet: a league a section, its places as cells */
 .ad-points { display: grid; gap: var(--s3); margin-top: var(--s5); }
 .ad-side { gap: var(--s3); }

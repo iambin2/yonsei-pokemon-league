@@ -54,10 +54,13 @@ export function usePush(title) {
   const say = mode === "install" ? "아이폰과 아이패드는 Safari의 공유 버튼에서 홈 화면에 추가한 뒤, 그 앱의 알림 화면에서 알림을 켤 수 있습니다."
     : blocked ? "브라우저 설정에서 이 사이트의 알림을 허용해 주세요." : fail;
   const sheet = ask && <Modal title={title} onClose={() => setAsk(false)}>
-    <div className="push-ask">
-      {say && <p className="pn2 push-note t12 reg dim" role={mode === "install" ? undefined : "alert"}><Icon n="info" size={20} /><span>{say}</span></p>}
+    {say && <div className="push-ask">
+      <p className="pn2 push-note t12 reg dim" role={mode === "install" ? undefined : "alert"}><Icon n="info" size={20} /><span>{say}</span></p>
+    </div>}
+    {/* the way back first, the main action last and larger, on the sheet's bottom edge as every sheet's pair */}
+    <div className="modal-actions">
+      <Button variant="second" onClick={() => setAsk(false)}>나중에</Button>
       {mode === "ready" && !blocked && <Button variant="main" icon="check" disabled={busy} onClick={flip}>알림 받기</Button>}
-      <Button variant="second" className="push-later" onClick={() => setAsk(false)}>나중에</Button>
     </div>
   </Modal>;
   return { mode, on, busy, checked, press, sheet, kinds, pressKind };

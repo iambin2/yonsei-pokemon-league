@@ -49,7 +49,7 @@ export default function AlertsPage({ go }) {
             <p className="t12 dim push-label">{day}</p>
             <div className="stack">{list.map((item, i) => (
               <a key={i} href={item.url} onClick={follow(() => open(item.url))} className={"pn row row--2 alerts-row" + (item.unread ? "" : " read")}>
-                <span className="row-main"><b className="t15">{item.body}</b><span className="t12 dim alerts-meta"><span>{kindLabel(item.kind)}</span><span>{item.time}</span></span></span>
+                <span className="row-main"><b className="t15">{item.body}</b><span className="t12 dim reg alerts-meta"><span>{kindLabel(item.kind)}</span><span>{item.time}</span></span></span>
                 <span className="row-lamp">{item.unread && <i className="lamp" aria-label="새 알림" />}</span>
               </a>
             ))}</div>

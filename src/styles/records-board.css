@@ -36,6 +36,7 @@
 .rc-top-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rc-top-cell { display: grid; gap: var(--s1); padding: var(--s2) var(--s3); background: var(--panel-2); }
 .rc-top-cell > b { font-weight: 700; }
+@media (hover: hover) { .rc-top.pn:hover .rc-top-cell { background: var(--rule); } }
 /* on the inverted panel the cells take its lit tone, so no island of the old tone stays inside it (Composing a screen 13) */
 .inv .rc-top-cell { background: transparent; padding-left: 0; }
 .inv .rc-league { --tag-bg: var(--ground); }
@@ -77,7 +78,7 @@
 .rc-sort { margin-top: var(--s3); }
 .rc-rounds { margin: var(--s5) 0 0; padding: 0; list-style: none; }
 /* a season's chapter: its name at 20 and its number of events lit at 32, 32 above it and 12 to its first event */
-.rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); padding: var(--s8) 0 var(--s3); }
+.rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); padding: calc(var(--s8) - var(--seam)) 0 calc(var(--s3) - var(--seam)); }
 .rc-chapter:first-child { padding-top: 0; }
 .rc-chapter-n { display: flex; align-items: flex-end; gap: var(--s1); }
 /* the ranking's line score stands 20 under the season choice */

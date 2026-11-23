@@ -78,3 +78,5 @@
   .nw-form-aside > .nw-form-facts { order: 1; } .nw-form-aside > .nw-form-act { order: 2; } .nw-form-aside > .nw-form-resp { order: 3; }
   .nw-form-aside .dock { margin-top: 0; }
 }
+/* a second action on a row of the form stands one step up from the row, or it is the row */
+.nw-form .row .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }

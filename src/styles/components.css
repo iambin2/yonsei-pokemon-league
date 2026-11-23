@@ -117,10 +117,12 @@
   position: absolute; z-index: var(--z-popover); top: calc(100% + var(--s2)); left: 0; right: 0; min-width: calc(var(--s21) * 2 + var(--s13));
   max-height: min(calc(var(--s21) * 4 + var(--s5)), 61.8vh); overflow-y: auto; overscroll-behavior: contain; padding: 0; transform-origin: top center;
   animation: y-fade var(--move-tone);
+  /* a floating plane keeps its edge as a sheet does, by a hairline inside it: one tone over the panel under it ran into it in light */
+  box-shadow: inset 0 0 0 var(--hair) var(--rule);
 }
 .dd-opt {
   width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
-  padding: var(--s2) var(--s3); border: 0; background: transparent; text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
+  padding: var(--s2) var(--pad); border: 0; background: transparent; text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
   transition: scale var(--move-press), background-color var(--move-tone);
 }
 @media (hover: hover) { .dd-opt:hover:not(:disabled):not(.sel) { background: var(--panel-2); } }
@@ -137,7 +139,7 @@
 .menu { display: flex; flex-direction: column; gap: var(--s1); }
 .modal > .menu, .pick-list, .sc-pick { margin-inline: calc(var(--s3) * -1); }
 .mi {
-  position: relative; display: flex; align-items: center; gap: var(--s3); width: 100%; height: 52px; padding: 0 var(--s3); font-size: var(--t15); line-height: 1; font-weight: 600; text-align: left; color: var(--lit);
+  position: relative; display: flex; align-items: center; gap: var(--s3); width: 100%; height: 52px; padding: 0 var(--pad); font-size: var(--t15); line-height: 1; font-weight: 600; text-align: left; color: var(--lit);
 }
 .mi > .ic:first-child { color: var(--dim); }
 .mi .check, .mi .mi-end { margin-left: auto; color: var(--lit); }
@@ -146,7 +148,7 @@
 @media (hover: hover) { .mi:hover:not(.on) { background: var(--panel-2); } }
 .mi:focus-visible { outline-offset: calc(2px * -1); background: var(--panel-2); }
 .mi-sep { height: var(--seam); background: var(--ground); }
-.popover { position: fixed; z-index: var(--z-popover); min-width: calc(var(--s21) * 2 + var(--s13)); padding: 0; }
+.popover { position: fixed; z-index: var(--z-popover); min-width: calc(var(--s21) * 2 + var(--s13)); padding: 0; box-shadow: inset 0 0 0 var(--hair) var(--rule); }
 .popover .mi { height: 44px; font-size: var(--t15); }
 
 /* ---------- search field: a 48px line with the magnifier on it ---------- */
@@ -207,6 +209,8 @@
 .modal > h3 + *:not(.hint), .modal > .hint + * { margin-top: var(--s5); }
 .modal-x {
   position: absolute; top: 0; right: 0; z-index: var(--z-raised); width: 52px; height: 52px; display: grid; place-items: center; color: var(--dim);
+  /* the × stands on the centre of the title's first line (8 + 28 / 2), not of its own 52 */
+  translate: 0 calc(var(--s1) * -1);
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 @media (hover: hover) { .modal-x:hover { color: var(--lit); } }
@@ -223,6 +227,8 @@
 .modal-actions .btn { flex: 1 1 0; }
 /* the main action is the larger plane: back 1 to it 1.618, as in a dock */
 .modal-actions .btn--main { flex-grow: 1.618; }
+/* flex-grow shares only the room left after the keys' padding, which read 1 to 1.46 on a phone: a pair is a grid, 1 to 1.618 by its whole width */
+.modal-actions:has(> .btn:first-child:nth-last-child(2)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
 .sheet .chips { flex-wrap: wrap; overflow-x: visible; }
 /* in a sheet's bottom strip every action is a plane: a word action (취소, 나중에 within forms) stands as a second action panel */
 .modal-actions .btn.btn--link { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); --btn-fg: var(--lit); justify-content: center; height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none; }
@@ -233,6 +239,8 @@
   /* a sheet that shows a whole party is as wide as the content, so six cases stand side by side instead of crushing */
   .sheet.wide { width: min(100% - 52px, var(--content)); }
   .grip::after { display: none; }
+  /* with no grip to hold, the strip keeps 12, so the title stands 20 under the dialog's top as it stands 20 from its side */
+  .grip { height: var(--s3); }
   /* the body scrolls and clips, so the close button sits inside it, centred on the title's first line */
   .modal { padding: var(--s2) var(--pad) var(--s8); }
   .modal-x { right: 0; top: 0; }

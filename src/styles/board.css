@@ -9,6 +9,9 @@
 
 /* ---------- a section: the title (20) and its link stand 12 above the stack ---------- */
 .sh { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); margin-bottom: var(--s3); }
+/* inside a stack the seam is already under the title: together they are the 12 */
+.stack > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }
+.stack > :is(h2, h3):first-child:not(.sh) { margin-bottom: calc(var(--s3) - var(--seam)); }
 .sh-link { flex: none; font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: var(--hair); }
 @media (hover: hover) { .sh-link:hover { color: var(--lit); } }
 
@@ -27,8 +30,9 @@
 .row-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-main > b { font-weight: 700; }
 .row-value { flex: none; padding-right: var(--pad); }
-.row-lamp { flex: none; display: flex; justify-content: center; align-self: stretch; align-items: center; width: var(--s8); }
-.row-lamp-word { flex: none; font-weight: 600; white-space: nowrap; }
+/* a lamp stands before its word, as on the bar and the live strip; at a row's end it keeps the panel's padding like everything there */
+.row-lamp { flex: none; display: flex; justify-content: flex-end; align-self: stretch; align-items: center; padding: 0 var(--pad) 0 var(--s3); }
+.row-lamp-word { flex: none; display: inline-flex; align-items: center; gap: var(--s2); padding-right: var(--pad); font-weight: 600; white-space: nowrap; }
 
 /* ---------- a ranking as the line score (draft B): the sole leader an inverted row of 84, the name at 20 and the points at 32; the rest rows
    of 52 at 20; each name over its bar on a track, the bars the points over the first's ---------- */
