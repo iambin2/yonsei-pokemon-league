@@ -111,7 +111,11 @@
 .bd-act:first-of-type { margin-left: auto; }
 @media (hover: hover) { .bd-act:hover { color: var(--lit); } }
 /* a reply stands 32 in under the comment it answers, its form in the same column */
-.bd-cmt.reply, .bd-reply-form { margin-left: var(--s8); }
+/* a reply stands the comment's full width, its words 32 further in after a small corner that says it answers the one above (2026-11-23,
+   the owner: indented 32, the ground showed as an empty square beside it, "트레이너 옆에 네모 있는 거 너무 부자연스러운데") */
+.bd-cmt.reply { position: relative; padding-left: calc(var(--pad) + var(--s8)); }
+.bd-cmt.reply::before { content: ""; position: absolute; left: calc(var(--pad) + var(--s2)); top: var(--s5); width: var(--s3); height: var(--s3); box-shadow: inset var(--line) calc(var(--line) * -1) 0 var(--mute); }
+.bd-reply-form { margin-left: var(--s8); }
 .bd-reply-form > .bd-cform { margin-block: var(--s2) var(--s3); }
 .bd-cform { margin-top: var(--s5); }
 /* the fields and 등록 in one grid: 닉네임 and 비밀번호, then the comment and its key */
