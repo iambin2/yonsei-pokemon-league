@@ -31,7 +31,8 @@
 .btn > .y-busy .seg { color: inherit; }
 .form-error { display: flex; align-items: flex-start; gap: var(--s2); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
 /* section and whole-page errors: what went wrong, and one way to try again */
-.field--flush { margin-bottom: 0; }
+/* .field (below) has the same weight and comes later, so the flush form names both or it never applies */
+.field.field--flush { margin-bottom: 0; }
 
 /* ---------- Chip and badge (M10): one 32px word for every label, tag and status; the dot rides in front only while live ---------- */
 .pin, .bk-alloc-tag, .bk-participant-submission, .bk-exist, .tb-chip {

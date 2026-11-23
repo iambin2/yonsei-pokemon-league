@@ -243,13 +243,13 @@ function FormBuilder({ form, setForm, earlier = [] }){
             <Field label="본선 날짜"><input type="date" value={eventDraft.finalHeldOn||""} onChange={e=>patchForm({eventDraft:{...eventDraft,finalHeldOn:e.target.value}})}/></Field>
           </div>
           <div className="bk-grow2" style={{marginBottom:0}}>
-            <Field label="선발전 시작 시각"><input type="time" value={eventDraft.qualifierStartTime||""} onChange={e=>patchForm({eventDraft:{...eventDraft,qualifierStartTime:e.target.value}})}/></Field>
-            <Field label="본선 시작 시각"><input type="time" value={eventDraft.finalStartTime||""} onChange={e=>patchForm({eventDraft:{...eventDraft,finalStartTime:e.target.value}})}/></Field>
+            <Field label="선발전 시작 시각" flush><input type="time" value={eventDraft.qualifierStartTime||""} onChange={e=>patchForm({eventDraft:{...eventDraft,qualifierStartTime:e.target.value}})}/></Field>
+            <Field label="본선 시작 시각" flush><input type="time" value={eventDraft.finalStartTime||""} onChange={e=>patchForm({eventDraft:{...eventDraft,finalStartTime:e.target.value}})}/></Field>
           </div>
         </> : <>
           <div className="bk-grow2" style={{marginBottom:0}}>
-            <Field label="대회일"><input type="date" value={(form?.eventDraft?.heldOn)||""} onChange={e=>patchForm({eventDraft:{...(form?.eventDraft||{}),heldOn:e.target.value}})}/></Field>
-            <Field label="시작 시각"><input type="time" value={(form?.eventDraft?.startTime)||""} onChange={e=>patchForm({eventDraft:{...(form?.eventDraft||{}),startTime:e.target.value}})}/></Field>
+            <Field label="대회일" flush><input type="date" value={(form?.eventDraft?.heldOn)||""} onChange={e=>patchForm({eventDraft:{...(form?.eventDraft||{}),heldOn:e.target.value}})}/></Field>
+            <Field label="시작 시각" flush><input type="time" value={(form?.eventDraft?.startTime)||""} onChange={e=>patchForm({eventDraft:{...(form?.eventDraft||{}),startTime:e.target.value}})}/></Field>
           </div>
         </>}
         </>}

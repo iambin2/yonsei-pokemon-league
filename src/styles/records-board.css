@@ -21,6 +21,8 @@
 .rc-claim { margin-top: var(--s5); }
 .rc-newname { margin-top: var(--s3); }
 .rc-admin { margin-bottom: var(--s5); }
+/* the rank tab's two rows of operators' keys are one kind: joined on the seam */
+.rc-rank > .rc-admin { margin-top: var(--seam); }
 .rc-note { margin-top: var(--s8); max-width: 709px; }
 
 /* the trainers (draft B): the first three as panels in a row, 1.618, 1, 1 on desktop and stacked on a phone, the first inverted; each

@@ -90,7 +90,7 @@
 .ed-grid input { min-height: var(--h-control); padding: var(--s2) var(--s3); text-align: center; }
 .ed-grid input:first-child { text-align: left; }
 .ed-head { margin-bottom: var(--s2); font-size: var(--t12); font-weight: 600; color: var(--mute); text-align: center; }
-.ed-head span:first-child { text-align: left; }
+.ed-head span:first-child { text-align: left; padding-left: var(--s3); }
 .ed-scroll { max-height: 52vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 calc(var(--s1) * -1); padding: 0 var(--s1); }
 .ed-x { width: 24px; height: 24px; margin-left: var(--s2); }
 
@@ -140,7 +140,8 @@
 .ad-block { display: grid; gap: var(--s3); }
 .ad-block > .sh, .ad-side > .sh { margin-bottom: 0; }
 /* 포인트 sheet: a league a section, its places as cells */
-.ad-points { display: grid; gap: var(--s3); margin-top: var(--s5); }
+/* the fields keep their own 20 and the heads their 12: no gap is added on top of them */
+.ad-points { display: grid; gap: 0; margin-top: var(--s5); }
 .ad-side { gap: var(--s3); }
 .ad-side > .ad-event + .ad-event { margin-top: var(--s5); }
 .ad-event { display: grid; gap: var(--seam); }
@@ -149,6 +150,7 @@
 .ad-keys { grid-auto-flow: column; grid-template-columns: 1fr 1.618fr; }
 .ad-keys:has(> :only-child) { grid-template-columns: 1fr; }
 .ad-event-head, .ad-none { display: grid; gap: var(--s1); padding: var(--s3) var(--pad); }
+.ad-none { min-height: var(--h-row); align-content: center; }
 .ad-page > .btn { justify-self: start; }
 /* the link requests stand in the page's own rhythm, not with the records tab's margins */
 .ad-page > .rc-linkreq { margin: 0; display: grid; gap: var(--s3); }
