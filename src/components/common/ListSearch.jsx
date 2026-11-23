@@ -4,7 +4,7 @@ import Icon from "./Icon.jsx";
 /* A search: a 52 field panel with the search icon; focus draws the 2px line. The count stands inside it while a word is typed, so the field keeps its width. */
 export default function ListSearch({ q, setQ, placeholder, count }) {
   return (
-    <div className="search">
+    <div className="search" data-still>
       <label className="pn search-in">
         <Icon n="search" size={20} />
         <input value={q} onChange={e => setQ(e.target.value)} placeholder={placeholder} aria-label="검색" />

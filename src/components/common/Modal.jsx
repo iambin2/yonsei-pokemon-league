@@ -41,6 +41,14 @@ export function useExitAnimation(ref, { replacedBy = null, inPlace = false, exit
   }, [ref, replacedBy, inPlace]);
 }
 
+/* a fold's body closes as it opened (Composing a screen 14, 2026-11-23 audit F-07): its words go dark over the tone's length, ease-in,
+   then it is taken out. Its height does not move (transform and opacity only); with reduced motion it goes at once. */
+export function FoldOut({ as: Tag = "div", children, ...rest }) {
+  const ref = useRef(null);
+  useExitAnimation(ref, { inPlace: true, exit: node => reduced() ? [] : [node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR.tone, easing: EASE_IN, fill: "forwards" })] });
+  return <Tag ref={ref} {...rest}>{children}</Tag>;
+}
+
 /* ---------- what sits behind an open sheet: locked and inert; it stands still under the veil ----------
    One count for every open sheet, so a confirm over a form does not unlock the page underneath. */
 let openSheets = 0;
@@ -109,6 +117,16 @@ export default function Modal({ title, hint, children, onClose, className = "", 
     flyRef.current = null;
     if (!reduced()) scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.leave, easing: EASE_OUT });
     if (desktop()) {
+      /* its top stays where it opened (2026-11-23 audit, F-06): centred once, then pinned, so an error under a field grows the dialog
+         downward instead of moving the whole of it up; the max-height still holds it inside the window */
+      // only a form is pinned: a record sheet that fills in after it opens (a trainer, a party) still centres on what it became
+      // measured a frame after it opens, once its fields and fonts have laid it out
+      if (sheet.querySelector("input, textarea")) requestAnimationFrame(() => {
+        if (!sheet.isConnected) return;
+        const top = Math.max(0, Math.round((sheet.offsetParent.clientHeight - sheet.offsetHeight) / 2));
+        sheet.style.top = `${top}px`;
+        sheet.style.translate = "-50% 0";
+      });
       // a dialog switches on where it stands: nothing grows or flies (DESIGN.md "Motion")
       if (!reduced()) sheet.animate([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: DUR.light, easing: EASE_OUT });
     } else {

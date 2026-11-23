@@ -204,14 +204,16 @@ export default function HomePage({ data, go, admin }) {
     return () => { on = false; };
   }, [myNext?.id, myNext?.runtimeId]);
   /* 다음 대회가 없는 날의 첫 자리는 지난 대회의 결과다 (2026-11-16): 꺼진 88 대신 날짜, 이름, 리그마다의 우승, 대진표 보기 */
-  const [last, setLast] = useState(() => (now ? null : seenLast()));
+  // undefined while a first visit (no kept copy) still reads it: the board then stands as the last event's, switched off (F-03)
+  const [last, setLast] = useState(() => (now ? null : seenLast() ?? undefined));
   useEffect(() => {
     if (now) return undefined;
     let on = true;
-    loadLast(admin).then(next => { if (on) setLast(next); }, error => console.warn("home last event read failed", error));
+    loadLast(admin).then(next => { if (on) setLast(next); }, error => { console.warn("home last event read failed", error); if (on) setLast(null); });
     return () => { on = false; };
   }, [!now, data]);
-  const primary = !now ? (last ? ["대진표 보기", "bracket", { eventId: last.eventId }] : ["공지 보기", "news"]) : now.today ? (myNext ? ["내 경기 보기", "bracket", { eventId: myNext.eventId, m: myNext.id }] : ["대진표 보기", "bracket"]) : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
+  const lastWait = !now && last === undefined;
+  const primary = !now ? (last || lastWait ? ["대진표 보기", "bracket", { eventId: last?.eventId }] : ["공지 보기", "news"]) : now.today ? (myNext ? ["내 경기 보기", "bracket", { eventId: myNext.eventId, m: myNext.id }] : ["대진표 보기", "bracket"]) : now.open ? ["이번 대회 신청", "news", { notice: now.noticeId }] : ["대회 공지 보기", "news", { notice: now.noticeId }];
   const notices = useMemo(() => [...data.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.date < b.date ? 1 : -1)).slice(0, 3), [data.announcements]);
   const reigning = (facts || waited) ? champions?.[0] || null : null;
   const season = facts?.season;
@@ -220,16 +222,19 @@ export default function HomePage({ data, go, admin }) {
     {/* the big screen (draft B): the next event and the reigning champion as one device, joined by the seam */}
     <div className="stack ho-screen">
     <section className="pn ho-next" aria-labelledby={now ? "ho-title" : undefined}>
-      {!now && last ? <>
+      {!now && (last || lastWait) ? <>
         <p className="ho-label t12" data-light><span className="ho-lamp dim"><i className="lamp unlit" aria-hidden="true" />지난 대회</span></p>
-        <div className="stack ho-last" data-light>
+        {lastWait ? <div className="stack ho-last" aria-hidden="true">
+          <Lead date="  .  " title={" "} line={" "} />
+          <div className="pn ho-win"><span className="ho-win-place t12 inv" /><span className="row-main" /></div>
+        </div> : <div className="stack ho-last" data-light>
           <Lead date={last.date} title={last.name} line={last.leagues.map(l => [l.league, `${l.count}${l.team ? "팀" : "명"}`].filter(Boolean).join(" ")).join(", ")} />
           {last.leagues.map((l, i) => <div className="pn ho-win" key={l.eventId}>
             <span className={"ho-win-place t12 " + (i === 0 ? "inv" : "pn2")}>우승</span>
             <span className="row-main"><b className={i === 0 ? "t20" : "t15"}>{l.win}</b>
               {(l.league || l.ru.length > 0) && <span className="t12 dim">{[l.league, l.ru.length && `준우승 ${l.ru.join(", ")}`].filter(Boolean).join(", ")}</span>}</span>
           </div>)}
-        </div>
+        </div>}
       </> : <>
       <p className="ho-label t12" data-light>
         {now?.today
@@ -255,8 +260,8 @@ export default function HomePage({ data, go, admin }) {
         <Counter label={now.due.unit === "시간" ? "파티 제출 마감까지" : "파티 제출까지"} lamp={now.due.unit === "시간" ? "sig" : true} value={String(now.due.value).padStart(2, "0")} cells={now.due.value >= 100 ? 3 : 2} unit={now.due.unit}
           after={<span className="t15">{now.due.unit}</span>} onClick={() => go("news", { notice: now.noticeId })} />
       </div>}
-      <div className="ho-go">
-        <Button variant="main" onClick={() => go(primary[1], primary[2])}>{primary[0]}</Button>
+      <div className={"ho-go" + (lastWait ? " wait" : "")}>
+        <Button variant="main" disabled={lastWait} onClick={() => go(primary[1], primary[2])}>{primary[0]}</Button>
       </div>
       {myNext && (() => {
         const start = myWhere?.at ? new Date(myWhere.at) : null;

@@ -694,7 +694,7 @@ export default function CalculatorPage() {
       {detailStatus === "error" ? (
         <ErrorNote onRetry={() => { setDetailStatus("loading"); setAttempt(n => n + 1); }}>포켓몬 데이터를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.</ErrorNote>
       ) : loading ? <Loader /> : (
-        <div className="calc-swap swap" key={tab}>
+        <div className="calc-swap" key={tab}>
           {tab === "damage" && <DamageView sides={sides} setSide={setSide} swapSides={swapSides} field={field} setField={setField} records={records} pokemons={pokemons} engines={engines}
             detailData={detailData} legalItems={legalItems} display={display} openPokemonPicker={setPicker} />}
           {tab === "speed" && <SpeedView sides={sides} engines={engines} pokemons={pokemons} pool={pool} detailData={detailData} display={display} field={field} openPokemonPicker={setPicker} />}

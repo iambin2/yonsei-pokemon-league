@@ -121,7 +121,7 @@ export default function TitlesPage({ data, admin, setModal, go }) {
     {/* no line of counts: the board itself shows which medals are struck and which wait (2026-11-19, Made by people) */}
     {groups.length > 1 && <div className="tt-tabs"><TabsLine value={g?.key} onChange={choose} label="칭호 분류" options={groups.map(x => [x.key, x.name])} /></div>}
 
-    {g && <div className="swap" key={g.key}>
+    {g && <div key={g.key}>
       <div className="stack tl-board">
         {g.desc && <div className="pn tl-rule"><span className="t12 dim">조건</span><b className="t15">{g.desc}</b></div>}
         <MedalBoard medals={medals} cols={COLS[g.key] || [6, 3]} label={g.name} className={g.key === "champion" ? "tl-champs" : ""} />

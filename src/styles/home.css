@@ -31,6 +31,8 @@
 
 /* 지난 대회 (no event ahead): the lead panel and one strip a league's winner, the place in a cell of its own (the records' placings) */
 .ho-last { margin-top: var(--s3); }
+/* while a first visit reads the last event, its key keeps its place unseen, so nothing under it moves and no word changes in view */
+.ho-go.wait { visibility: hidden; }
 .ho-last > .pn { background: var(--panel-2); }
 .ho-win { display: flex; align-items: stretch; min-height: var(--h-row2); }
 .ho-win-place { flex: none; display: grid; place-items: center; width: var(--s21); font-weight: 700; }

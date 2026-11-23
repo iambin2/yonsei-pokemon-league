@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ShareHere from "../components/ShareHere.jsx";
-import { Dropdown, Empty, ErrorNote, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
+import { Dropdown, Empty, ErrorNote, FoldOut, FormError, Icon, ListSearch, Loader, Modal, Pager, StandTable, siteConfirm, sitePrompt } from "../components/index.js";
 import { Bar, Chips, Counter, Mon, Row, SectionHead, TabsLine, useArrival } from "../components/common/Board.jsx";
 import TeamSheet, { rosterSheet, useTeamDisplay } from "../components/common/TeamSheet.jsx";
 import { buildRecordsSnapshot, displayRecordMeta, displayTeamName, myMatchRecord } from "../services/recordsAnalytics.js";
@@ -245,7 +245,7 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
       )}
       <div className="rc-tabs"><TabsLine value={tab} onChange={setTab} label="기록 보기" options={RECORD_TABS} /></div>
 
-      <div className="swap rc-body" key={tab} ref={arrived}>
+      <div className="rc-body" key={tab} ref={arrived}>
         {normalizedRead.loading ? <Loader small /> : <>
         {tab === "trainer" && admin && <LinkRequests id="rc-linkreq-h" hint={(name) => { const p = profileOf(snapshot, name); return p ? trainerHint(p) : null; }} />}
         {tab === "trainer" && <TrainerView snapshot={snapshot} onOpen={openTrainer} finding={finding} />}
@@ -839,7 +839,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
             </button>
           )}
           {toggleable && expanded && (
-            <ul className="records-round-detail stack">
+            <FoldOut as="ul" className="records-round-detail stack">
               {partyRows.map((row, index) => {
                 const roster = row.roster?.pokemon?.length ? row.roster : null;
                 const line = [row.label, row.teamName && displayTeamName(row.teamName), !roster && "파티 미제출"].filter(Boolean).join(", ");
@@ -852,7 +852,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
                   </Box>
                 </li>;
               })}
-            </ul>
+            </FoldOut>
           )}
         </div>
       </li>
@@ -903,7 +903,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
     </div>
 
     {selectedTour ? (
-      <div className="swap" key={category}>
+      <div key={category}>
         {admin && selectedTour.legacy && <div className="rc-admin rc-admin-links"><Button variant="link" onClick={openRoundEditor}>회차 편집</Button></div>}
         <ul className="stack rc-rounds">
           {withChapters(sortRounds(selectedTour.rounds).map((r, i) => [r, r.id || i]), ([r]) => r, ([r, key]) => renderRound(selectedTour, r, key))}
@@ -913,7 +913,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
       <>
         {allRows.length ? (
           <>
-            <ul className="stack rc-rounds swap">
+            <ul className="stack rc-rounds">
               {withChapters(shownRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key), allRows)}
             </ul>
             {!allShown && allRows.length > LIST_SHOWN && <div className="rc-more"><Button variant="second" onClick={() => setShowAll(true)}>{allRows.length}개 전체 보기</Button></div>}

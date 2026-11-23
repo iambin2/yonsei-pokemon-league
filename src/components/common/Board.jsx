@@ -256,7 +256,7 @@ export function OptionRows({ name, options, value, onChange, disabled = false })
   );
 }
 export function Dock({ toast, children }) {
-  return <div className="dock">{toast}{children}</div>;
+  return <div className="dock" data-still>{toast}{children}</div>;
 }
 export function Toast({ error = false, action, onAction, children }) {
   return (

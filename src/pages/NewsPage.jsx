@@ -5,7 +5,7 @@ import { DUR, light } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
-import { Dropdown, Empty, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
+import { Dropdown, Empty, FoldOut, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
@@ -306,7 +306,7 @@ function PublicResponses({ ann, compact, onRefresh, updatedAt, responsesOverride
       <span className="pr-n">{resp.length}명</span>
       <span className="fold-chev" aria-hidden="true"><Icon n="chev" size={16}/></span>
     </button>
-    {open&&<div className="pr-body swap">
+    {open&&<FoldOut className="pr-body swap">
       {resp.length===0
         ? <div className="pr-empty">아직 신청자가 없습니다.</div>
         : <div className="pr-list">
@@ -325,7 +325,7 @@ function PublicResponses({ ann, compact, onRefresh, updatedAt, responsesOverride
         {onRefresh&&<button className="pr-refresh" onClick={e=>{e.stopPropagation();onRefresh();}} aria-label="공개 응답 새로고침"><Icon n="refresh" size={16}/></button>}
         {updatedAt&&<span>마지막 확인 {updatedAt}</span>}
       </div>
-    </div>}
+    </FoldOut>}
   </div>);
 }
 

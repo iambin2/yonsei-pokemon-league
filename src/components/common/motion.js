@@ -36,7 +36,7 @@ const RISE = [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, trans
 function rise(el, delay) {
   el.animate(RISE, { duration: DUR.light, delay, easing: EASE_OUT, fill: "backwards" });
 }
-export function light(root, total = DUR.light) {
+export function light(root, total = DUR.light, still = false) {
   if (!root || reduced() || typeof root.animate !== "function") return;
   /* what stands in a row the browser is skipping (content-visibility: auto, a long list's rows below the view) is not seen, and asking
      where it stands would lay each skipped row out for the answer (2026-11-10: the calculator's speed tab stood frozen 430 while its
@@ -48,7 +48,8 @@ export function light(root, total = DUR.light) {
      .champion, .lead, .ho-col: panels that hold a display but rise as a whole, like a counter; a line score's column rises as
      one, its three cells together */
   const panels = [...root.querySelectorAll(".pn:not(:has(.seg)), .inv:not(:has(.seg)), .counter, .champion, .lead, .ho-col, h1, .sh, .hof-crown, .btn--main, [data-rise]")]
-    .filter(el => !el.parentElement.closest(".pn, .inv, .counter, .ho-col, .hof-crown, .sheet, .stack.chips, .chips"));
+    .filter(el => !el.parentElement.closest(".pn, .inv, .counter, .ho-col, .hof-crown, .sheet, .stack.chips, .chips"))
+    .filter(el => !still || !el.closest(STILL));
   // a counter's unit (일, 명) is a word of its display: it comes on with the lit bars, not before them
   const displays = [...root.querySelectorAll(".seg .on, :is(.pn, .inv):has(.seg) > :not(.seg, :has(.seg)), .counter-board > :not(.seg), [data-light]")];
   const pictures = [...root.querySelectorAll("img")];
@@ -151,9 +152,12 @@ export function themeTurn(commit) {
 
 /* what follows a control that swaps the content under it (page tabs, filter chips) lights again, as a page does: everything after it in
    the page, at every level up to the page itself, not only the first level that has a next sibling */
+/* a control that swaps what is under it lights only what changed (2026-11-23 audit, F-04): the search field and the main action under
+   the tabs or chips stay as they stand ([data-still], a dock, a main action), and only the content the control swaps comes on */
+const STILL = "[data-still], .dock, .btn--main";
 export function lightAfter(el) {
   for (let at = el; at && at.id !== "ypl-main"; at = at.parentElement)
-    for (let n = at.nextElementSibling; n; n = n.nextElementSibling) light(n, DUR.leave);
+    for (let n = at.nextElementSibling; n; n = n.nextElementSibling) if (!n.matches(STILL)) light(n, DUR.leave, true);
 }
 
 /* ---------- verbs that return a promise settling when the verb is over, so a scene can run one beat at a time ---------- */

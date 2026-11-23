@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { formatDate } from "../services/dateFormat.js";
 import { josa } from "../services/josa.js";
-import { Button, Dropdown, Empty, ErrorNote, Field, FormError, Icon, ListSearch, Loader, Modal, Prose, STAGGER, Segmented, siteAlert, siteConfirm, sitePrompt, transition } from "../components/index.js";
+import { Button, Dropdown, Empty, ErrorNote, Field, FoldOut, FormError, Icon, ListSearch, Loader, Modal, Prose, STAGGER, Segmented, siteAlert, siteConfirm, sitePrompt, transition } from "../components/index.js";
 import { BackLink, Counter, Dock, Lead, Mon, Row, SectionHead, Status, Steps, TabsLine, Toast, useArrival } from "../components/common/Board.jsx";
 import { reduced } from "../components/common/motion.js";
 import { Busy } from "../components/common/Loader.jsx";
@@ -1508,7 +1508,7 @@ function SubmissionStatusPanel({ model, busy, error, expanded, onToggle, onRefre
       </div>
       {error && <ErrorNote action="다시 불러오기" onRetry={onRefresh}>{error}</ErrorNote>}
       {expanded && !busy && !error && model.total > 0 && (
-        <div className="bk-submission-detail">
+        <FoldOut className="bk-submission-detail">
           {model.mode === "team" ? (
             <div className="bk-submission-groups">
               {model.teams.map(team => (
@@ -1526,7 +1526,7 @@ function SubmissionStatusPanel({ model, busy, error, expanded, onToggle, onRefre
               {model.participants.map(renderMember)}
             </div>
           )}
-        </div>
+        </FoldOut>
       )}
       {expanded && !busy && !error && model.total === 0 && (
         <div className="bk-submission-empty">확정된 참가 신청이 없어 제출 현황을 표시할 수 없습니다.</div>
@@ -1883,7 +1883,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
       flash(`기록 반영을 취소하지 못했습니다. 바뀐 내용은 없습니다. ${error?.message||"원인을 확인하지 못했습니다."}`);
     }
   };
-  return (<div className="bk-board swap">
+  return (<div className="bk-board">
     {readOnly&&admin&&<p className="bk-hint">이미 끝난 과거 대진표입니다. 볼 수만 있고 수정, 삭제, 기록 반영은 할 수 없습니다.</p>}
     {res&&res.done&&championshipEvent?.championship_phase!=="qualifier"&&<section className="bk-result" aria-labelledby="bk-champ-name">
       <div className="inv bk-winner"><span className="t12">우승</span><h2 className="t20" id="bk-champ-name">{nameOf(res.champ)}</h2></div>
@@ -2725,7 +2725,7 @@ function PrivateBrackets({ admin, flash, tabs }){
       </header>
       {drawId===open.id
         ? <BracketDraw b={open} onDone={()=>setDrawId(null)}/>
-        : <div className="bk-board swap">
+        : <div className="bk-board">
             {res?.done&&<section className="bk-result" aria-labelledby="pb-champ-name">
               <div className="inv bk-winner"><span className="t12">우승</span><h2 className="t20" id="pb-champ-name">{nameOf(res.champ)}</h2></div>
               {(res.ru||(res.sf&&res.sf.length>0))&&<Places res={res} nameOf={nameOf}/>}
@@ -3057,7 +3057,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
     </header>}
     {!open&&!wizard&&normalizedLoadError&&<ErrorNote action="다시 불러오기" onRetry={()=>void loadNormalized({initial:true})}>대진표를 불러오지 못했습니다. {normalizedLoadError}</ErrorNote>}
     {!open&&!wizard&&tabsEl()}
-    {!open&&!wizard&&<div className="bk-list swap" ref={listArrived}>
+    {!open&&!wizard&&<div className="bk-list" ref={listArrived}>
       {!normalizedInitialReady
         ? <Loader/>
         : list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다."/>}

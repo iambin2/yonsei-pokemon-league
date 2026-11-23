@@ -5,7 +5,7 @@ export { default as ErrorNote } from "./common/ErrorNote.jsx";
 export { default as Loader } from "./common/Loader.jsx";
 export { default as Dropdown } from "./common/Dropdown.jsx";
 export { default as ListSearch } from "./common/ListSearch.jsx";
-export { default as Modal, useExitAnimation } from "./common/Modal.jsx";
+export { default as Modal, FoldOut, useExitAnimation } from "./common/Modal.jsx";
 export { default as Menu, MenuItems, Popover } from "./common/Menu.jsx";
 export { SiteDialogHost, siteAlert, siteConfirm, sitePrompt } from "./common/SiteDialog.jsx";
 export { default as Pager } from "./common/Pager.jsx";

@@ -291,7 +291,7 @@ function FreeBoard({ admin, flash, tabs }){
     <h1 className="t32">게시판</h1>
     {tabs}
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="제목, 내용, 글쓴이" count={list.length}/><Button variant="main" icon="plus" onClick={()=>setCompose(true)}>글쓰기</Button></div>
-    <div className="stack bd-list swap">
+    <div className="stack bd-list">
       {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
       {!loadError&&!posts&&!fresh&&<Loader/>}
       {!loadError&&posts&&list.length===0&&(kw
@@ -505,7 +505,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
     {tabs}
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="제목, 포켓몬, 글쓴이" count={list.length}/><Button variant="main" icon="plus" onClick={()=>setPicking(true)}>{label} 올리기</Button></div>
     {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
-    {!posts?(!loadError&&<Loader/>):<div className="stack bd-list swap">
+    {!posts?(!loadError&&<Loader/>):<div className="stack bd-list">
       {list.length===0&&(kw
         ? <Empty title="검색 결과가 없습니다."/>
         : <Empty title={`아직 ${FORMAT_LABEL[format]} ${label} 글이 없습니다.`}/>)}
