@@ -164,7 +164,10 @@
   .calc-move-tools .tb-search-row { grid-column: 1 / -1; }
 }
 @media (max-width: 639px) {
-  .calc-stat-row { grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control) calc(var(--s21) + var(--s5)); }
+  /* the rank stepper goes to a second line under the bar, so the bar a finger drags keeps its width (2026-11-23 audit, Q-15); H has none */
+  .calc-stat-row { grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control); }
+  .calc-stat-row > :nth-child(4) { grid-column: 2 / -1; justify-self: end; }
+  .calc-stat-row > span:nth-child(4):empty { display: none; }
   .calc-final { display: none; }
   .calc-move-tools { grid-template-columns: 1fr 1fr; }
   .calc-move-tools .cell:last-child { grid-column: 1 / -1; }

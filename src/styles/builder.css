@@ -94,6 +94,9 @@
 .tb-stat-number::-webkit-inner-spin-button, .tb-stat-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .tb-stat-number:focus-visible { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .tb-final-stat { text-align: right; }
+/* 최종 is said once, over its column at the head's end; the points' total stands beside its label */
+.tb-stat-head > b { margin-right: auto; }
+@media (max-width: 639px) { .tb-final-head { display: none; } .tb-stat-head > b { margin-right: 0; } }
 .tb-final-stat b { color: var(--lit); font-variant-numeric: tabular-nums; }
 @media (max-width: 639px) { .tb-stat-row { grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control); } .tb-final-stat { display: none; } }
 

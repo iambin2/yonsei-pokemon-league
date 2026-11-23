@@ -185,7 +185,8 @@ const PoolList = memo(function PoolList({ pool, detailData, displayPokemon, sort
    빈칸은 + 하나. 띠의 회색 줄은 도구와 기술 수. */
 function TeamSlot({ index, member, active, displayName, itemLabel, onSelect, onRemove }) {
   if (!member) {
-    return <div className="pn tb-mon empty" aria-label={`${index + 1}번 칸 비어 있음`}><Icon n="plus" size={20} /></div>;
+    // nothing to press here: the place shows its number, dim (2026-11-23 audit, Q-15)
+    return <div className="pn tb-mon empty" aria-label={`${index + 1}번 칸 비어 있음`}><span className="num t15">{index + 1}</span></div>;
   }
   const moveCount = member.moves.filter(Boolean).length;
   const unresolved = member.resolutionState === "unresolved";
@@ -361,13 +362,15 @@ function OfficialSubmissionPanel({
           eventContext.submission_target_at && `제출 마감 ${formatDate(eventContext.submission_target_at, { time: true })}`,
         ].filter(Boolean).join(", ")}</p>}
       </div>
-      <Steps labels={["팀 고르기", "확인", "제출"]} at={at} />
+      {/* an event that takes no party now says why under its name, and nothing it cannot use stands (2026-11-23 audit, Q-15) */}
+      {blocked ? <ul className="tb-blocked">{errors.slice(0, 8).map((message, index) => <li className="error" key={`b-${index}`}><Bang />{message}</li>)}</ul>
+        : <Steps labels={["팀 고르기", "확인", "제출"]} at={at} />}
 
       {justSubmitted ? <div className="inv tb-submitted" role="status">
         <Icon n="check" size={20} />
         <span><b className="t15">제출했습니다.</b><span className="t12 reg">이 파티가 지금의 공식 파티입니다.</span></span>
       </div> : null}
-      {justSubmitted ? <Button type="button" variant="second" onClick={onAgain}>다시 제출</Button> : <>
+      {blocked ? null : justSubmitted ? <Button type="button" variant="second" onClick={onAgain}>다시 제출</Button> : <>
         <p className={"tb-step-line t12" + (passed ? "" : " off")}>{passed ? <><Icon n="check" size={16} />지금 팀이 규정을 통과했습니다.</> : "팀을 구성해 규정을 통과하면 제출할 수 있습니다."}</p>
         <div className="q tb-sub-field">
           <label className="q-label t12 dim" htmlFor="tb-sub-name">신청자 이름</label>
@@ -1449,11 +1452,11 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
       {/* desktop: the rules are two cells in one row; the option rows with their periods stay on a phone's 규정 step */}
       <div className="cells tb-rules-line">
         <Cell label={`레귤레이션${eventId ? " (대회 기준)" : ""}`}>
-          <Dropdown className="tb-dd" value={regulationId} onChange={switchRegulation} disabled={Boolean(eventId)} ariaLabel="레귤레이션"
+          <Dropdown className="tb-dd" value={regulationId} onChange={switchRegulation} disabled={Boolean(eventId)} locked={Boolean(eventId)} ariaLabel="레귤레이션"
             options={Object.values(REGULATIONS).map(reg => ({ value: reg.id, label: `${reg.name}, ${reg.status === "current" ? "현행" : "이전"}` }))} />
         </Cell>
         <Cell label={`파이컵 추가 룰${eventId ? " (대회 기준)" : ""}`}>
-          <Dropdown className="tb-dd" value={cupRuleId} onChange={switchCupRule} disabled={Boolean(eventId)} ariaLabel="파이컵 추가 룰"
+          <Dropdown className="tb-dd" value={cupRuleId} onChange={switchCupRule} disabled={Boolean(eventId)} locked={Boolean(eventId)} ariaLabel="파이컵 추가 룰"
             options={Object.values(CUP_RULES).map(rule => ({ value: rule.id, label: rule.name }))} />
         </Cell>
       </div>
@@ -1510,7 +1513,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
               const member = team[index];
               return member
                 ? <button type="button" key={member.uid} className="pn stand" onClick={() => { setSelectedUid(member.uid); changeStep("team"); }} aria-label={`${displayPokemon(member.pokemon)} 세팅`}><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(member.pokemon.name)} /></button>
-                : <span key={`slot-${index}`} className="pn tb-pool-slot" aria-hidden="true"><Icon n="plus" size={16} /></span>;
+                : <span key={`slot-${index}`} className="pn tb-pool-slot" aria-hidden="true"><span className="num t12">{index + 1}</span></span>;
             })}
           </div>
           <div className="tb-panel-head">
@@ -1644,7 +1647,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                 {selectedRequiredItem && <p className="t12 reg dim tb-field-meta">메가폼의 도구는 자동으로 정해집니다.</p>}
 
                 <div className="tb-editor-section">
-                  <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className={"t12" + (STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0) > 66 ? " over" : "")}>{STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0)} / 66</b></div>
+                  <div className="tb-subhead tb-stat-head"><span className="t12 dim">능력 포인트</span><b className={"t12" + (STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0) > 66 ? " over" : "")}>{STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0)} / 66</b><span className="t12 dim tb-final-head">최종</span></div>
                   <div className="tb-stats">
                     {STAT_KEYS.map(key => {
                       const nature = alignmentFor(selectedMember);
@@ -1656,7 +1659,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                           <span className="t12 tb-stat-key"><span aria-hidden="true">{STAT_LETTERS[key]}{nature.plus === key ? "↑" : nature.minus === key ? "↓" : ""}</span><span className="sr-only">{STAT_LABELS[key]}{base != null ? `, 종족값 ${base}` : ""}{nature.plus === key ? ", 성격 보정 상승" : nature.minus === key ? ", 성격 보정 하락" : ""}</span></span>
                           <Bar thick value={point / 32}><input type="range" min="0" max="32" step="1" value={point} aria-label={`${STAT_LABELS[key]} 포인트`} onChange={event => updateStat(selectedMember, key, event.target.value)} /></Bar>
                           <input className="tb-stat-number" type="number" min="0" max="32" step="1" inputMode="numeric" value={point} onChange={event => updateStat(selectedMember, key, event.target.value)} aria-label={`${STAT_LABELS[key]} 포인트 숫자`} />
-                          <span className="t12 reg dim tb-final-stat">최종 <b>{final}</b></span>
+                          <span className="t12 reg dim tb-final-stat"><b>{final}</b></span>
                         </div>
                       );
                     })}
