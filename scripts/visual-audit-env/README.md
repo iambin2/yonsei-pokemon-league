@@ -41,3 +41,12 @@
 - `admin/builder.cjs <WxH> <theme>` 39회 루키를 제출 열림으로 고쳐 T-44(위반 줄 x), T-43(c)(이름 칸 → 오류 줄).
 - `admin/home74.cjs <WxH> <theme>` 대회 당일 홈의 시계와 일시 행(T-74).
 - `admin/flow.cjs` 에 `eval:<js>` 단계를 더했다. 예: T-19 `node flow.cjs step1 T-19 390x844 dark admin "/?view=news&notice=mgcf6zf" "응답 보기" "eval:..."`, T-69 `step1 ... "/?view=admin"`, 운영 줄 `plain ... "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13"`, T-100 `plain T-100 375x667 dark anon "/?view=battle" "배틀 시작" wait:9000 "eval:..."`(컴퓨터 배틀은 워커에서 돌고 배틀 함수와 쓰기는 lib.cjs가 답한다).
+
+## 묶음 20 (2026-11-23): 20a~20d를 재는 스크립트
+
+서버: `.claude/launch.json` 의 `ypl-audit-prod`(5193)와 `ypl-audit-standin`(5194), 가짜 백엔드 `node scripts/visual-audit-env/standin/server.mjs .`(54321).
+
+- `states/s20a.cjs <W> <H> <theme> <fail|hold|zero> [home news bracket alerts builder]` 오류 판의 수와 키 폭, 앞 요소와의 간격, 빈 상태 문장, 주 키(T-109~T-115). `states/b114.cjs` 읽는 중 팀 빌더 검색 줄과 홈 순위 첫 줄을 500ms마다.
+- `states/a20b.cjs <WxH> <theme> checking pending approved rejected long linesfail` 내 기록 찾기의 목록 y, 계정 키, 더보기 행 높이, 상단 바 간격(T-116~T-118). `states/gate119.cjs` 탑 문 시트(T-119). `states/t120.cjs` 현 챔피언의 긴 이름(T-120).
+- 대진표와 운영(T-122~T-129)은 `admin/flow.cjs` 의 `eval:` 단계로 잰다(커밋 015cd79의 측정 결과에 쓴 주소).
+- 배틀: `streak/t6.cjs` 에 머리 태그의 잘림(tag), `streak/t4.cjs` 로 녹화한 뒤 `python streak/cardlum.py streak/rec/next-game` 으로 카드 자리 밝기(두 번 켜지면 오르고 내리고 오름). `streak/t8.cjs` 는 탑이 이미 진행 중일 때 "다시 도전"도 누른다.

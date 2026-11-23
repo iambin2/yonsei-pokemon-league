@@ -21,7 +21,8 @@ const { launch, context, play, battleId, BASE } = require("./lib.cjs");
     execFileSync("python", [path.join(__dirname, "recsheet.py"), dir, "150"]); frames = null; };
   const press = re => page.click(`button:text-matches('${re}')`);
   await page.goto(BASE + "?view=battle&tab=streak"); await page.waitForSelector(".bt-end-keys button", { timeout: 30000 }); await page.waitForTimeout(2500);
-  if (!(await page.$(".streak-draft"))) await press("^(도전 시작|새로 도전|다시 도전)$"); await page.waitForSelector(".streak-draft"); await page.waitForTimeout(2000);
+  if (!(await page.$(".streak-draft"))) { await press("^(도전 시작|새로 도전|다시 도전)$"); await page.waitForTimeout(1500); if (!(await page.$(".streak-draft"))) await page.evaluate(() => [...document.querySelectorAll("button")].filter(x => x.textContent.trim() === "새로 도전" && x.getBoundingClientRect().width).pop()?.click()); }
+  await page.waitForSelector(".streak-draft"); await page.waitForTimeout(2000);
   for (let k = 0; k < 6; k++) { await page.evaluate(() => { const p = document.querySelector(".streak-draft-row .streak-pick"); (p.querySelector(".streak-pick-stats") || p.querySelector("button")).click(); }); await page.waitForTimeout(1500); }
   await page.waitForTimeout(1000);
   await rec("enter", 6500, () => press("^출발$"));

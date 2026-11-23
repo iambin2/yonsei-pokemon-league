@@ -13,7 +13,7 @@ const rects = sels => { const o = {}; for (const s of sels) { const el = [...doc
   await p.goto(BASE + "?view=battle&id=" + id); await p.waitForTimeout(4000);
   console.log("BTL-07 code", JSON.stringify(await p.evaluate(rects, [".dock", ".bt-lobby .dock", ".bt-cancel", ".bt-wait-counters", ".bt-wait-counters > :last-child", ".bt-lobby-set", ".tabbar"])));
   await p.goto(BASE + "?view=battle&tab=streak"); await p.waitForSelector(".bt-end-keys button", { timeout: 30000 }); await p.waitForTimeout(2500);
-  await p.evaluate(() => [...document.querySelectorAll(".bt-end-keys button")].find(x => /새로 도전|도전 시작/.test(x.textContent)).click()); await p.waitForTimeout(1500);
+  await p.evaluate(() => [...document.querySelectorAll(".bt-end-keys button")].find(x => /새로 도전|도전 시작|다시 도전/.test(x.textContent))?.click()); await p.waitForTimeout(1500);
   if (!(await p.$(".streak-draft"))) await p.evaluate(() => [...document.querySelectorAll("button")].filter(x => x.textContent.trim() === "새로 도전" && x.getBoundingClientRect().width).pop().click());
   await p.waitForSelector(".streak-draft"); await p.waitForTimeout(2000);
   for (let k = 0; k < 3; k++) { await p.evaluate(() => { const q = document.querySelector(".streak-draft-row .streak-pick"); (q.querySelector(".streak-pick-stats") || q.querySelector("button")).click(); }); await p.waitForTimeout(1500); }
