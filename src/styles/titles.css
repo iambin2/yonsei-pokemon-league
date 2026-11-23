@@ -37,6 +37,8 @@
 .tl-sheet-face > .tl-medal { width: 216px; }
 .tl-sheet-sec { margin-top: var(--s8); }
 .tl-sheet-face + .tl-sheet-sec { margin-top: var(--s5); }
+/* the share key under the list is 20 below it, as on the trainer's and the Pokémon's sheets */
+.tl-sheet-share { margin-top: var(--s5); }
 .tl-ord { display: flex; align-items: baseline; justify-content: center; width: 64px; white-space: nowrap; }
 
 /* ---------- the trainer's sheet: every medal they hold on one board, then the eighteen types and the ten regions as lamp boards under their counts ---------- */

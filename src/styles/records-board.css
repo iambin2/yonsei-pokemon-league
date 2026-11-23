@@ -21,7 +21,7 @@
 .rc-claim { margin-top: var(--s5); }
 .rc-newname { margin-top: var(--s3); }
 .rc-admin { margin-bottom: var(--s5); }
-.rc-note { margin-top: var(--s8); }
+.rc-note { margin-top: var(--s8); max-width: 709px; }
 
 /* the trainers (draft B): the first three as panels in a row, 1.618, 1, 1 on desktop and stacked on a phone, the first inverted; each
    the name at 32 and the place, and 우승, 준우승, 4강 as three cells. Then every other trainer as a 52 row: the place muted, the name and
@@ -46,7 +46,8 @@
 .rc-mark.win { background: var(--lit); }
 .rc-mark.ru { background: var(--dim); }
 .rc-tr { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; width: 100%; height: var(--h-row); padding-right: var(--pad); text-align: left; }
-.rc-tr-place { padding-left: var(--pad); color: var(--mute); }
+/* the places stand right-aligned so their last digits make one column, 12 before the name */
+.rc-tr-place { padding: 0 var(--s3) 0 var(--pad); text-align: right; color: var(--mute); }
 .rc-tr-main { display: grid; gap: var(--s1); min-width: 0; }
 .rc-tr-main > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .rc-marks { display: flex; flex-wrap: wrap; gap: var(--seam); height: var(--s2); overflow: hidden; }
@@ -55,7 +56,8 @@
 @media (min-width: 860px) {
   .rc-tops { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr) minmax(0, 1fr); }
   .rc-tr { grid-template-columns: var(--s13) minmax(0, 1fr) auto; }
-  .rc-tr-main { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--s8); }
+  /* the name column is one width, so the marks start on one line in every row */
+  .rc-tr-main { grid-template-columns: calc(var(--s21) * 2 + var(--s13)) minmax(0, 1fr); align-items: center; column-gap: var(--s8); }
   .rc-tr-words { display: block; }
 }
 /* the league after the name is the type's tag (team-builder.css .tb-type): 마스터 with its square lit, 루키 with it muted */
@@ -75,7 +77,8 @@
 
 /* events: a panel each, its name and grey line, the placings as lines, the winner bold */
 .rc-list-search { margin-top: var(--s5); }
-.rc-sort { margin-top: var(--s3); }
+/* the chips and the season select are two kinds: 12 apart, not joined on the seam */
+.rc-sort { margin-top: var(--s3); gap: var(--s3); }
 .rc-rounds { margin: var(--s5) 0 0; padding: 0; list-style: none; }
 /* a season's chapter: its name at 20 and its number of events lit at 32, 32 above it and 12 to its first event */
 .rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); padding: calc(var(--s8) - var(--seam)) 0 calc(var(--s3) - var(--seam)); }
@@ -106,7 +109,7 @@
 .records-round-chevron { flex: none; display: grid; place-items: center; width: var(--s5); height: var(--s5); color: var(--dim); transition: rotate var(--move-light); }
 .records-round-toggle[aria-expanded="true"] .records-round-chevron { rotate: 180deg; }
 .records-round-detail { margin: var(--s3) 0 0; padding: 0; list-style: none; }
-.records-round-detail .row { background: var(--panel-2); }
+.records-round-detail .rc-party-row { background: var(--panel-2); }
 
 /* Pokémon: panels of three across, each standing on its name band */
 .rc-mons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); margin-top: var(--s5); }

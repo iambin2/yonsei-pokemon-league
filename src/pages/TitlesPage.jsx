@@ -59,13 +59,14 @@ function groupMedals(group, items, open, champions, partnerMedalOf) {
 /* 파트너 메달은 포켓몬 하나에 그 트레이너들이 함께 서므로, 시트도 그 포켓몬과 그 트레이너 모두를 보인다(partner: { pokemon, trainers }). */
 function TitleSheet({ group, item, spec, partner, go, onClose }) {
   const holders = partner ? partner.trainers : holdersOf(item);
-  const title = partner ? `파트너 ${partner.pokemon}` : item.name;
+  // a champion's medal and a trainer's sheet say 1대 챔피언; the record keeps its own name (초대 챔피언)
+  const title = partner ? `파트너 ${partner.pokemon}` : group.key === "champion" ? `${generationText(item.name)} 챔피언` : item.name;
   const record = name => go ? () => { onClose(); go("records", { trainer: name }); } : undefined;
   return <Modal title={title} hint={partner ? group.desc : item.desc || group.desc} className="tl-sheet" onClose={onClose}>
     {!partner && spec && <div className="tl-sheet-face"><Medal spec={spec} off={!holders.length} big /></div>}
     <section className="tl-sheet-sec">
-      {/* the sheet's title is its h3, so the section under it is an h4 in the section head's own form */}
-      <div className="sh"><h4 className="t20">{partner ? `트레이너 ${holders.length}명` : `주인 ${holders.length}명`}</h4></div>
+      {/* the sheet's title is its h3, so the section under it is an h4 in the section head's own form; with no holder the empty line says it alone */}
+      {holders.length > 0 && <div className="sh"><h4 className="t20">{partner ? `트레이너 ${holders.length}명` : `주인 ${holders.length}명`}</h4></div>}
       {holders.length ? <div className="stack">
         {holders.map((name, i) => partner
           ? <Row key={name} title={name} onClick={record(name)} label={`${name}, 기록 보기`} />
@@ -73,7 +74,7 @@ function TitleSheet({ group, item, spec, partner, go, onClose }) {
             onClick={record(name)} label={`${i + 1}호 ${name}, 기록 보기`} />)}
       </div> : <Empty title="아직 주인이 없습니다." />}
     </section>
-    <ShareHere title={title} className="tl-sheet-sec" />
+    <ShareHere title={title} className="tl-sheet-share" />
   </Modal>;
 }
 
