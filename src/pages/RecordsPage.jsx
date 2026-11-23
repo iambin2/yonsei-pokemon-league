@@ -528,8 +528,6 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
         <div className="rc-pager"><Pager page={histCur} pages={histPages} onGo={setHistPage} /></div>
       </section>
 
-      {!finding && <TrainerLink profile={profile} />}
-
       <TrainerBattles go={go} playerIds={[...new Set([profile.playerId, ...profile.history.map(event => event.playerId)].filter(Boolean))]} />
 
       {parties.length > 0 && <section className="rc-sec" aria-labelledby="rc-party-h">
@@ -553,6 +551,8 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
           <Empty title="등록한 파티가 없습니다." />
         )}
       </section>
+      {/* the account's link to this record is used once: it stands last, over the share key (Composing a screen 28) */}
+      {!finding && <TrainerLink profile={profile} />}
     </div>
   );
 }

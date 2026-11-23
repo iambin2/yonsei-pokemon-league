@@ -62,13 +62,14 @@ export function SiteDialogHost() {
         />
       </div>}
       <div className="modal-actions">
-        {current.kind !== "alert" && <Button variant="second" type="button" onClick={cancel}>{current.cancelLabel || "취소"}</Button>}
+        {current.kind !== "alert" && <Button variant="second" type="button" onClick={cancel} autoFocus={Boolean(current.danger)}>{current.cancelLabel || "취소"}</Button>}
+        {/* a ✓ says done: a destructive confirm and a plain notice go without it, and a destructive one starts the focus on the way back (Hierarchy) */}
         <Button
           type="button"
           variant="main"
-          icon="check"
+          icon={current.danger || current.kind === "alert" ? null : "check"}
           onClick={accept}
-          autoFocus={current.kind !== "prompt"}
+          autoFocus={current.kind !== "prompt" && !current.danger}
         >
           {current.kind === "alert" ? "닫기" : current.confirmLabel}
         </Button>

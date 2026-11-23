@@ -218,13 +218,16 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
         {facts?.rows.length>0&&<div className={"stack nw-spec"+(next||counting?" joined":"")}>
           {facts.rows.map(([k,v])=><div className="pn spec-row" key={k}><span className="t12 dim">{k}</span><span className="t15">{v}</span></div>)}
         </div>}
-        <div className="stack nw-more">
+        {/* two ranks of keys (Composing a screen 28): what an entrant does next as 52 keys, what is used now and then as a row of 44 */}
+        {(editable||seconds.length>0)&&<div className="stack nw-more nw-apply">
           {editable&&<Button variant="second" onClick={()=>openForm(a.id,true)}>신청 수정</Button>}
           {seconds.map(([label,id])=><Button variant="second" key={label} onClick={()=>openBuilder(id)}>{label}</Button>)}
-          {a.link&&<Button variant="second" href={href(a.link)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.linkLabel||"링크 바로가기"}</Button>}
-          {a.link2&&<Button variant="second" href={href(a.link2)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.link2Label||"링크 바로가기"}</Button>}
-          {days.length>0&&next&&<Button variant="second" onClick={addToCalendar}>캘린더에 추가</Button>}
-          <Button variant="second" onClick={shareNotice}>링크 공유</Button>
+        </div>}
+        <div className="stack nw-more nw-utils">
+          {days.length>0&&next&&<Button variant="second" size="sm" onClick={addToCalendar}>캘린더에 추가</Button>}
+          <Button variant="second" size="sm" onClick={shareNotice}>링크 공유</Button>
+          {a.link&&<Button variant="second" size="sm" href={href(a.link)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.linkLabel||"링크 바로가기"}</Button>}
+          {a.link2&&<Button variant="second" size="sm" href={href(a.link2)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.link2Label||"링크 바로가기"}</Button>}
         </div>
         {admin&&<div className="stack nw-admin">
           {(hasForm||a.form?.eventId)&&<Button variant="second" onClick={()=>setRespId(a.id)}>응답 보기 {a.form.eventId?(eventResponses[a.id]||[]).length:(a.form.responses||[]).length}</Button>}

@@ -31,6 +31,17 @@
 .nw-spec.joined { margin-top: var(--seam); }
 .nw-body { margin-top: var(--s8); }
 .nw-more { margin-top: var(--s8); }
+/* the keys of using: one row of 44 joined by the seam, two to a row past two */
+.nw-utils { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.nw-utils:has(> :nth-child(3)) { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nw-utils > :last-child:nth-child(odd):not(:first-child) { grid-column: 1 / -1; }
+.nw-utils > .btn { height: var(--h-control); min-width: 0; padding: 0 var(--s3); }
+/* a phone: the entrant's keys come under the facts, before the body, two of them as one row of 44 */
+@media (max-width: 859px) {
+  .nw-apply { order: 2; margin-top: var(--s5); }
+  .nw-apply:has(> :nth-child(2):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nw-apply:has(> :nth-child(2):last-child) > .btn { height: var(--h-control); }
+}
 .nw-admin { margin-top: var(--s5); }
 .nw-more .btn .ic { width: 16px; height: 16px; }
 
@@ -65,6 +76,8 @@
   .nw-aside > *, .nw-main > :first-child { margin-top: 0; }
   .nw-aside > .nw-counts { order: 1; } .nw-aside > .nw-spec { order: 2; } .nw-aside > .nw-main-act { order: 3; }
   .nw-aside > .nw-more { order: 4; } .nw-aside > .nw-admin { order: 5; } .nw-aside > .nw-others { order: 6; }
+  /* the two ranks of keys are two kinds: 12 apart, not the aside's 20 (Composing a screen 30) */
+  .nw-aside > .nw-apply + .nw-utils { margin-top: calc(var(--s3) - var(--s5)); }
   .nw-aside > .nw-spec.joined { margin-top: calc(var(--seam) - var(--s5)); }
   .nw-aside .dock { margin-top: 0; }
   .nw-others { display: block; }

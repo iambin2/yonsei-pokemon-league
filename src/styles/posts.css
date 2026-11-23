@@ -58,7 +58,7 @@
 .bd-art.one .sc-post-sheet { margin-top: var(--s8); }
 @media (min-width: 860px) {
   .bd-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .bd-bar { grid-template-columns: minmax(0, 1.618fr) repeat(4, minmax(0, 1fr)); }
+  .bd-bar { grid-template-columns: minmax(0, 1.618fr) repeat(2, minmax(0, 1fr)); }
   .bd-art.many .bd-cmts { max-width: 709px; }
   /* a free post is reading: its body and its comments stand in the 709 (Typesetting) */
   .bd-free > :is(.bd-body, .bd-cmts) { max-width: 709px; }

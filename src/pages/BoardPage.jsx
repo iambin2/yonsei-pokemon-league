@@ -471,7 +471,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         <header className="bd-art-head">
           <BackLink to={label} onClick={closePost}/>
           <h1 className="t32 bd-title-h" data-vt={"s-"+p.id}>{p.title}</h1>
-          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
+          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         </header>
         {!one&&<div className="bd-six">{(p.team?.members||[]).map((m,i)=>{ const name=(sheet[i]?.name)||m.pokemonName;
           return <button type="button" className="pn stand bd-cell" key={i} onClick={()=>toCase(i)} aria-label={`${name} 세팅 보기`}><Mon src={spriteUrl(m.pokemonName)}/><span className="floor bd-band"><b className="t15">{name}</b></span></button>; })}</div>}
@@ -479,8 +479,6 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
           <Dock><Button variant="main" onClick={()=>openInBuilder(p,go)}>팀 빌더에서 열기</Button></Dock>
           <Button variant="second" disabled={!sheet.length||imageBusy} onClick={()=>saveImage(p,sheet)} loading={imageBusy}>이미지 저장</Button>
           <Button variant="second" onClick={()=>share(p)}>링크 공유</Button>
-          <Button variant="second" onClick={()=>editPost(p)}>수정</Button>
-          <Button variant="second" onClick={()=>delPost(p)}>삭제</Button>
         </div>
         {p.body&&<div className="bd-body"><Prose text={p.body}/></div>}
         <section className="sc-post-sheet" aria-label="포켓몬별 세팅">

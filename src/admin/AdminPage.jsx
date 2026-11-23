@@ -113,10 +113,10 @@ function EventPanel({ e, main, go, onClose, onCancel }) {
       /* while it takes applications: close them now (undone from the toast), and the applications themselves */
       : e.noticeId && <div className="stack ad-keys">
         {e.closesAt && <Button variant="second" onClick={() => onClose(e)}>지금 마감</Button>}
-        <Button variant="second" onClick={() => go("news", { notice: e.noticeId })}>신청 현황</Button>
+        <Button variant={main ? "main" : "second"} onClick={() => go("news", { notice: e.noticeId })}>신청 현황</Button>
       </div>}
     {/* an event that will not be held (2026-11-22: two stood open for weeks, the notice undeletable for its applications) */}
-    {e.step <= 2 && <Button variant="second" onClick={() => onCancel(e)}>대회 취소</Button>}
+    {e.step <= 2 && <div className="ad-cancel"><Button variant="link" onClick={() => onCancel(e)}>대회 취소</Button></div>}
   </section>;
 }
 
