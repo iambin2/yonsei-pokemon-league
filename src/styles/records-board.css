@@ -56,11 +56,9 @@
 .rc-top-tags { display: flex; margin-top: calc(var(--s2) * -1); }
 .rc-top-tags > .rc-league:first-child { margin-left: 0; }
 .rc-top-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.rc-top-cell { display: grid; gap: var(--s1); padding: var(--s2) var(--s3); background: var(--panel-2); }
+/* the three figures stand on the panel itself, their labels on the name's start edge (no cell of their own: 2026-11-23 audit, Q-14) */
+.rc-top-cell { display: grid; gap: var(--s1); padding: var(--s2) var(--s3) var(--s2) 0; }
 .rc-top-cell > b { font-weight: 700; }
-@media (hover: hover) { .rc-top.pn:hover .rc-top-cell { background: var(--rule); } }
-/* on the inverted panel the cells take its lit tone, so no island of the old tone stays inside it (Composing a screen 13) */
-.inv .rc-top-cell { background: transparent; padding-left: 0; }
 .inv .rc-league { --tag-bg: var(--ground); }
 .rc-legend { display: flex; gap: var(--s3); margin: var(--s5) 0 var(--s3); }
 .rc-legend > span { display: inline-flex; align-items: center; gap: var(--s1); }

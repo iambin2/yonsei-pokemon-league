@@ -484,6 +484,9 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
   const shownTitles = new Set(profile.champions.map((c) => genLabel(c.gen)));
   const restTitles = profile.titles.filter((t) => !shownTitles.has(t.name) && !(/챔피언\s*$/.test(t.name) && shownTitles.has(genLabel(t.name))));
   const historyRows = history.slice().sort(compareHistoryRecency).slice((histCur - 1) * HIST_PER_PAGE, histCur * HIST_PER_PAGE);
+  // a list across two years or more writes the year on every row, not only on the past year's (2026-11-23 audit, Q-14): the date service
+  // leaves out only the year of `now`, so a `now` of no record's year keeps it
+  const yearly = new Set(history.map((event) => String(event.date || "").slice(0, 4)).filter(Boolean)).size > 1;
   const parties = rosters.slice().sort(compareHistoryRecency);
   const rosterOf = (event) => rosters.find((roster) => event.eventId && roster.eventId === event.eventId);
 
@@ -515,7 +518,7 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
               const teamName = displayTeamName(event.teamName);
               const rule = displayRecordMeta(event.rule);
               const label = event.resultLabel || placementLabel(event.placement, event.team);
-              const meta = [formatDate(event.date), event.season, teamName, rule].filter(Boolean).join(", ");
+              const meta = [formatDate(event.date, yearly ? { now: new Date(0) } : undefined), event.season, teamName, rule].filter(Boolean).join(", ");
               const roster = rosterOf(event);
               return <Row key={`${event.id}:${event.playerId || profile.playerId || profile.key}:${event.placement}`}
                 title={event.championSeries ? "챔피언스 시리즈" : event.eventName || recordRoundTitle(event.tournamentName, event.round)}
@@ -726,6 +729,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
   const otours = [...tours].sort((a, b) => rank(a) - rank(b));
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
   // 대회는 여러 개를 함께 펼쳐 비교할 수 있다. 하나를 연다고 다른 것이 닫히지 않는다.
   const [openRounds, setOpenRounds] = useState(() => new Set());
   const selectedTour = category === "all" ? null : tours.find((x) => x.key === category) || otours[0];
@@ -865,6 +869,9 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
   });
 
   if (!otours.length) return <Empty title="대회 기록이 없습니다." />;
+  // the newest 20 first, then N개 전체 보기 as the trainers' list does; a search shows all it finds (2026-11-23 audit, Q-14)
+  const allShown = showAll || query.trim() !== "";
+  const shownRows = allShown ? allRows : allRows.slice(0, LIST_SHOWN);
 
   /* 59개 대회가 같은 블록으로 이어지지 않도록 시즌마다 장을 나눈다: 시즌 이름 20과 그 시즌의 대회 수를 32의 세그먼트로.
      시즌이 없는 옛 기록은 연도로 묶는다. items 는 이미 최신순이다. */
@@ -872,9 +879,9 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
     const year = String(round.date || "").match(/\d{4}/)?.[0];
     return round.season || (year ? `${year}년` : "");
   };
-  const withChapters = (items, roundOf, render) => {
+  const withChapters = (items, roundOf, render, countFrom = items) => {
     const counts = new Map();
-    items.forEach((item) => { const c = chapterOf(roundOf(item)); counts.set(c, (counts.get(c) || 0) + 1); });
+    countFrom.forEach((item) => { const c = chapterOf(roundOf(item)); counts.set(c, (counts.get(c) || 0) + 1); });
     let last = null;
     return items.flatMap((item, i) => {
       const c = chapterOf(roundOf(item));
@@ -905,9 +912,12 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
     ) : (
       <>
         {allRows.length ? (
-          <ul className="stack rc-rounds swap">
-            {withChapters(allRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key))}
-          </ul>
+          <>
+            <ul className="stack rc-rounds swap">
+              {withChapters(shownRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key), allRows)}
+            </ul>
+            {!allShown && allRows.length > LIST_SHOWN && <div className="rc-more"><Button variant="second" onClick={() => setShowAll(true)}>{allRows.length}개 전체 보기</Button></div>}
+          </>
         ) : <Empty title="검색 결과가 없습니다." />}
       </>
     )}

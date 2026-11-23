@@ -22,7 +22,7 @@
 .hof-crown-name { margin-top: var(--s2); }
 .hof-crown-act { display: flex; flex-wrap: wrap; gap: var(--s5); margin-top: var(--s3); }
 .hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
-.hof-crown-mon { --floor: var(--h-control); aspect-ratio: 1; }
+.hof-crown-mon { --floor: var(--h-strip); aspect-ratio: 1; }
 .hof-crown-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .hof-band { display: grid; place-items: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* the hall's three facts */
@@ -66,9 +66,9 @@
 @media (min-width: 860px) {
   .hof-plaques { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* draft 3B (2026-11-19): the six stand in one row, so the crown is as tall as its words and no band without ink is left beside them */
-  .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: end; padding: var(--s8) var(--pad); }
+  .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: stretch; padding: var(--s8) var(--pad); }
   .hof-crown-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .hof-crown-mon { aspect-ratio: auto; height: calc(var(--s21) * 2); }
+  .hof-crown-mon { aspect-ratio: auto; height: 100%; min-height: calc(var(--s21) * 2); }
   .hof-wall { grid-template-columns: repeat(var(--wc, 3), minmax(0, 1fr)); }
   .hof-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
