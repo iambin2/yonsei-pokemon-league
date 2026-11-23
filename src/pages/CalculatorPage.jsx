@@ -411,7 +411,9 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
     </li>
   );
   return (
-    <>
+    <div className="calc-two">
+      {/* desktop: the basis and the conditions held in the 439, the speed line in the 709 (Composing a screen 27) */}
+      <div className="calc-two-side">
       <Segmented value={String(basis)} onChange={value => setBasis(Number(value))} ariaLabel="기준 포켓몬" options={[["0", SIDE_NAMES[0]], ["1", SIDE_NAMES[1]]]} />
       {pokemons[basis] && me != null ? (
         <div className="pn calc-speed-me">
@@ -436,6 +438,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
         <Chips label="상대 스피드 보정" value={modifier} onChange={setModifier} options={SPEED_MODIFIERS.map(m => [m.value, m.label])} />
       </div>
       <p className="t12 reg dim">최속은 32포인트에 스피드 상승 성격, 준속은 32포인트에 무보정 성격, 무보정은 0포인트, 최저는 0포인트에 스피드 하락 성격입니다.</p>
+      </div>
       <div className="calc-tier-wrap">
         <div className="tb-search-row calc-tier-search">
           <span className="search-input-icon" aria-hidden="true"><Icon n="search" size={20} /></span>
@@ -458,7 +461,7 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
           {!shown.length && <li><Empty title="검색 결과가 없습니다." /></li>}
         </ol>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -490,7 +493,9 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
   const chart = defensiveMatchups(record.types);
   const total = STAT_KEYS.reduce((sum, key) => sum + (record.baseStats?.[key] || 0), 0);
   return (
-    <>
+    <div className="calc-two">
+      {/* desktop: the Pokémon, its base stats and matchups in the 439, its moves in the 709 */}
+      <div className="calc-two-side">
       <div className="stack calc-dex-head">
         <div className="pn stand calc-fig calc-dex-fig"><Mon src={spriteUrl(pokemon.name)} /><span className="floor" aria-hidden="true" /></div>
         <div className="pn calc-dex-copy">
@@ -538,6 +543,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
         </div>
       </div>
 
+      </div>
       <div className="calc-dex-block">
         <div className="tb-subhead"><span className="t12 dim">배우는 기술</span><b className="t12">{moves.length} / {learnset.length}</b></div>
         <div className="calc-move-tools">
@@ -569,7 +575,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
           {!moves.length && <p className="tb-pool-empty">조건에 맞는 기술이 없습니다.</p>}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -323,10 +323,10 @@ export default function HomePage({ data, go, admin }) {
     </section>}
 
     {pop && <ChampionSheet name={pop.name} line={pop.line} generation={pop.generation} genText={pop.label} reigning={pop.key === reigning?.key}
-      party={pop.party} sets={pop.sets} regulationId={pop.regulationId} onClose={() => setPop(null)}>
+      party={pop.party} sets={pop.sets} regulationId={pop.regulationId} onClose={() => setPop(null)}
+      link={<Button variant="link" size="lg" data-tab="champions" onClick={() => go("champions")}>명예의 전당 보기</Button>}>
       {/* the same sheet carries the same action wherever it opens (명예의 전당): the champion's record, and the hall beside it */}
       <Button variant="main" onClick={() => { setPop(null); go("records", { trainer: pop.name }); }}>{pop.name} 기록 보기</Button>
-      <Button variant="link" size="lg" data-tab="champions" onClick={() => go("champions")}>명예의 전당 보기</Button>
     </ChampionSheet>}
   </div>);
 }

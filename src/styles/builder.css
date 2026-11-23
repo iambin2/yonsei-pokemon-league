@@ -157,6 +157,8 @@
   /* with no third rule (the monotype's type) the rules' own block is empty on desktop and keeps no gap */
   .tb-rules:not(:has(.tb-rule-group:nth-child(3))) { display: none; }
 }
+/* from 1100 the two rule cells stand on the list's 439 and the editor's 709 under them */
+@media (min-width: 1100px) { .tb-rules-line { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); } }
 /* the type board stands 12 under the search, the list's sort under it */
 .tb-pool-panel > .tb-type-grid { flex: none; margin-top: var(--s3); }
 

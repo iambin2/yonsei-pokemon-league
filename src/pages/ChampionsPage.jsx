@@ -84,7 +84,7 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
     : <span className="t15">{generationText(c.gen)}</span>;
 
   return (<section className="hof">
-    <h1 className="t32">명예의 전당</h1>
+    <header className="hof-head"><h1 className="t32">명예의 전당</h1>{admin && <Button variant="link" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button>}</header>
     {failed && <ErrorNote action="다시 불러오기" onRetry={() => { setFailed(false); setTries(n => n + 1); }}>챔피언 기록을 불러오지 못했습니다.</ErrorNote>}
     {!reigning && (reading ? <Loader /> : !failed && <Empty title="등록된 챔피언이 없습니다." />)}
     {reigning && <section className="pn hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
@@ -103,7 +103,6 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
       </div>
     </section>}
 
-    {admin && <div className="stack hof-actions"><Button variant="second" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button></div>}
 
     {past.length > 0 && <section className="hof-past" aria-labelledby="hof-past-h">
       <SectionHead id="hof-past-h" title="역대 챔피언" />

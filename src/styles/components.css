@@ -236,6 +236,8 @@
 /* flex-grow shares only the room left after the keys' padding, which read 1 to 1.46 on a phone: a pair is a grid, 1 to 1.618 by its whole width */
 .modal-actions:has(> .btn:first-child:nth-last-child(2)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
 .sheet .chips { flex-wrap: wrap; overflow-x: visible; }
+/* on desktop a sheet's one utility key (링크 공유) is as wide as its word, at the sheet's end edge (Sheets, dialogs, toasts) */
+@media (min-width: 860px) { .share-here { display: flex; justify-content: flex-end; } .share-here > .btn.btn--second { width: auto; } }
 /* in a sheet's bottom strip every action is a plane: a word action (취소, 나중에 within forms) stands as a second action panel */
 .modal-actions .btn.btn--link { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); --btn-fg: var(--lit); justify-content: center; height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none; }
 /* between a phone and the desktop a sheet still rises from the bottom, on the content's 576 column (tokens.css) */

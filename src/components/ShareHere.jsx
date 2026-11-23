@@ -11,5 +11,5 @@ export default function ShareHere({ title = "", className = "" }) {
     if (how === "copied") { setCopied(true); setTimeout(() => setCopied(false), 2000); }
   };
   // className: the sheet's own space above a closing button (rc-more, tl-sheet-sec)
-  return <div className={className}><Button variant="second" onClick={share}>{copied ? "복사 완료" : "링크 공유"}</Button></div>;
+  return <div className={"share-here" + (className ? " " + className : "")}><Button variant="second" onClick={share}>{copied ? "복사 완료" : "링크 공유"}</Button></div>;
 }

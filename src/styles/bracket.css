@@ -69,6 +69,12 @@
 .bk-counters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* back stands first and the step forward last, as in a sheet's bottom planes: 1 to 1.618 */
 .bk-dock { grid-template-columns: 1fr 1.618fr; }
+/* desktop: the first step's fields stand in the 709 and its 취소 and 다음 beside them in the 439, as a notice's form (Composing a screen 27) */
+@media (min-width: 860px) {
+  .bk-step1 { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: start; }
+  .bk-step1 > :not(.dock) { grid-column: 1; }
+  .bk-create .bk-step1 > .dock { grid-column: 2; grid-row: 1 / span 9; width: auto; margin-top: 0; justify-self: stretch; }
+}
 /* the two sides of a match are equals: one width each, and the key one step above the panel it stands on, or it vanishes into it */
 .bk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .bk-pick .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }

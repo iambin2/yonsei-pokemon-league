@@ -888,19 +888,22 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
   };
 
   return (<>
-    <Chips value={selectedTour ? selectedTour.key : "all"} onChange={setCategory} label="대회 종류"
-      options={[["all", `전체 ${(snapshot.archives || []).length}`], ...otours.map((tour) => [tour.key, `${tour.label} ${(tour.rounds || []).length}`])]} />
+    {/* on desktop the search and the kinds stand on one line, the search first (Composing a screen 27); a phone keeps the kinds first */}
+    <div className="rc-tour-tools">
+      {!selectedTour && <div className="rc-list-search"><ListSearch q={query} setQ={setQuery} placeholder="대회명, 시즌, 룰, 입상자, 포켓몬 검색" count={allRows.length} /></div>}
+      <Chips value={selectedTour ? selectedTour.key : "all"} onChange={setCategory} label="대회 종류"
+        options={[["all", `전체 ${(snapshot.archives || []).length}`], ...otours.map((tour) => [tour.key, `${tour.label} ${(tour.rounds || []).length}`])]} />
+    </div>
 
     {selectedTour ? (
       <div className="swap" key={category}>
-        {admin && selectedTour.legacy && <div className="rc-admin"><Button variant="second" onClick={openRoundEditor}>회차 편집</Button></div>}
+        {admin && selectedTour.legacy && <div className="rc-admin rc-admin-links"><Button variant="link" onClick={openRoundEditor}>회차 편집</Button></div>}
         <ul className="stack rc-rounds">
           {withChapters(sortRounds(selectedTour.rounds).map((r, i) => [r, r.id || i]), ([r]) => r, ([r, key]) => renderRound(selectedTour, r, key))}
         </ul>
       </div>
     ) : (
       <>
-        <div className="rc-list-search"><ListSearch q={query} setQ={setQuery} placeholder="대회명, 시즌, 룰, 입상자, 포켓몬 검색" count={allRows.length} /></div>
         {allRows.length ? (
           <ul className="stack rc-rounds swap">
             {withChapters(allRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key))}
@@ -1115,6 +1118,16 @@ function RankingHub({ snapshot, data, admin, setModal, save, onName }) {
   const [sel, setSel] = useState(null);
   const view = views.find((v) => v.id === sel) || primary[0];
 
+  // the legacy standings editor of the view shown (an era's ranking or a season's results), moved up from RankView and SeasonView
+  const editStandings = !admin || !view ? null
+    : view.era ? (view.era.source !== "normalized" ? { label: "이 시기 랭킹 수정", open: () => setModal({
+      type: "standings", title: view.era.label + " 랭킹", rows: view.era.rows,
+      build: (rows) => ({ ...data, rankings: (data.rankings || []).map((x) => x.key === view.era.key ? { ...x, rows } : x) }),
+    }) } : null)
+    : view.season.source !== "normalized" ? { label: `${view.season.name} 성적 수정`, open: () => setModal({
+      type: "standings", title: view.season.name, rows: view.season.rows,
+      build: (rows) => ({ ...data, seasons: (data.seasons || []).map((x) => x.name === view.season.name ? { ...x, rows } : x) }),
+    }) } : null;
   const addEra = async () => {
     const name = (await sitePrompt({ title: "누적 탭 추가", label: "탭 이름", placeholder: "예: 클래식", confirmLabel: "추가" })) || "";
     if (!name) return;
@@ -1133,14 +1146,16 @@ function RankingHub({ snapshot, data, admin, setModal, save, onName }) {
     <>
       <div className="rc-season">
         {views.length > 0 && <Dropdown value={view?.id || ""} ariaLabel="시즌" onChange={setSel} options={views.map((v) => ({ value: v.id, label: v.label }))} />}
-        {admin && !normalizedMode && <div className="stack rc-admin-two">
-          <Button variant="second" onClick={addSeason}>시즌 추가</Button>
-          <Button variant="second" onClick={addEra}>누적 탭 추가</Button>
+        {/* the operators' keys are links at the season line's end (Composing a screen 27, 28); the standings editor is this view's */}
+        {admin && (!normalizedMode || editStandings) && <div className="rc-admin-links">
+          {editStandings && <Button variant="link" onClick={editStandings.open}>{editStandings.label}</Button>}
+          {!normalizedMode && <Button variant="link" onClick={addSeason}>시즌 추가</Button>}
+          {!normalizedMode && <Button variant="link" onClick={addEra}>누적 탭 추가</Button>}
         </div>}
       </div>
       {!view ? <Empty title="랭킹 기록이 없습니다." />
-        : view.era ? <RankView era={view.era} data={data} admin={admin} setModal={setModal} onName={onName} />
-        : <SeasonView s={view.season} data={data} admin={admin} setModal={setModal} onName={onName} />}
+        : view.era ? <RankView era={view.era} onName={onName} />
+        : <SeasonView s={view.season} onName={onName} />}
       <p className="t12 dim reg rc-note">
         누적 랭킹과 시즌 성적은 이전 기록에서 넘어온 점수에 대회마다 얻은 점수를 더해 매깁니다.
         포인트는 마스터 리그와 마스터 리그 팀전에서만 쌓입니다. 파이컵 라이트와 루키 리그에는 포인트가 없습니다.
@@ -1149,33 +1164,19 @@ function RankingHub({ snapshot, data, admin, setModal, save, onName }) {
   );
 }
 
-function RankView({ era, data, admin, setModal, onName }) {
-  const legacyEras = data.rankings || [];
+function RankView({ era, onName }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rc-rank">
-      {admin && era.source !== "normalized" && (
-        <div className="rc-admin"><Button variant="second" onClick={() => setModal({
-          type: "standings", title: era.label + " 랭킹", rows: era.rows,
-          build: (rows) => ({ ...data, rankings: legacyEras.map((x) => x.key === era.key ? { ...x, rows } : x) }),
-        })}>이 시기 랭킹 수정</Button></div>
-      )}
       <StandTable rows={era.rows} total={era.rows.length} onName={onName} open={open} onMore={() => setOpen(true)} />
     </div>
   );
 }
 
-function SeasonView({ s, data, admin, setModal, onName }) {
-  const legacySeasons = data.seasons || [];
+function SeasonView({ s, onName }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rc-rank">
-      {admin && s.source !== "normalized" && (
-        <div className="rc-admin"><Button variant="second" onClick={() => setModal({
-          type: "standings", title: s.name, rows: s.rows,
-          build: (rows) => ({ ...data, seasons: legacySeasons.map((x) => x.name === s.name ? { ...x, rows } : x) }),
-        })}>{s.name} 성적 수정</Button></div>
-      )}
       {s.rows.length ? <StandTable rows={s.rows} total={s.rows.length} onName={onName} open={open} onMore={() => setOpen(true)} />
         : <Empty title={`${s.name} 성적은 아직 없습니다.`} />}
     </div>

@@ -630,7 +630,7 @@ function BracketWizard({ data, onClose, onCreate }){
     <BackLink to="대진표" onClick={onClose}/>
     <header className="bk-head"><h1 className="t32">대진표 만들기</h1>{(linkedEvent?.name||name)&&<span className="t12 dim">{linkedEvent?.name||name}</span>}</header>
     <Steps labels={placeable?["대회 설정","참가자 확정","대진 배치"]:["대회 설정","참가자 확정"]} at={step}/>
-    <div className="form-card swap" key={step}>
+    <div className={"form-card swap"+(step===1?" bk-step1":"")} key={step}>
     {step===1&&<>
       {eventListLoading?<Loader/>:!events.length?<>
         {eventError?<ErrorNote>{eventError}</ErrorNote>:<Empty title="연결할 대회가 없습니다."
@@ -2688,10 +2688,26 @@ function PrivateBrackets({ admin, flash, tabs }){
       <header className="bk-head-open">
         <BackLink to="사설 대진표" onClick={closeBracket}/>
         {live&&<p className="bk-live t12"><Status live>{pbStatus(open)}</Status></p>}
-        <h1 className="t32 bk-open-title" data-vt={"pb-"+open.id}>{open.name}</h1>
-        <p className="t12 dim reg bk-open-line">사설, {open.host?`${open.host} 개설, `:""}{pbFormat(open)}, {open.participants.length}명{open.createdAt?`, ${formatDate(open.createdAt)}`:""}</p>
+        <div className="bk-open-row">
+          <div className="bk-open-copy">
+            <h1 className="t32 bk-open-title" data-vt={"pb-"+open.id}>{open.name}</h1>
+            <p className="t12 dim reg bk-open-line">사설, {open.host?`${open.host} 개설, `:""}{pbFormat(open)}, {open.participants.length}명{open.createdAt?`, ${formatDate(open.createdAt)}`:""}</p>
+          </div>
+          {/* desktop: the keys stand beside the title as the official bracket's do, in its order, then the private bracket's own */}
+          <div className="stack bk-tools">
+            <Button variant="second" size="sm" onClick={share}>링크 공유</Button>
+            {res?.done&&<Button variant="second" size="sm" onClick={()=>downloadChampionPng(pngBracket,res,nameOf)}>우승 이미지</Button>}
+            <Button variant="second" size="sm" onClick={()=>downloadBracketPng(pngBracket,nameOf)}>대진표 이미지</Button>
+            {canEdit
+              ? <>{!admin&&<Button variant="second" size="sm" onClick={()=>lock(open.id)}>입력 마치기</Button>}
+                  {!pbHasPicks(open)&&<Button variant="second" size="sm" disabled={busy} onClick={redraw}>다시 추첨</Button>}</>
+              : <Button variant="second" size="sm" onClick={askUnlock}>결과 입력</Button>}
+            <Button variant="second" size="sm" disabled={busy} onClick={startEdit}>수정</Button>
+            {(canEdit||admin)&&<Button variant="second" size="sm" disabled={busy} onClick={del}>삭제</Button>}
+          </div>
+        </div>
         {open.note&&<div className="bk-note"><Prose text={open.note}/></div>}
-        <div className="stack bk-actions">
+        <div className="stack bk-actions bk-pb-actions">
           {canEdit
             ? <>{!admin&&<Button variant="second" onClick={()=>lock(open.id)}>입력 마치기</Button>}
                 {!pbHasPicks(open)&&<Button variant="second" disabled={busy} onClick={redraw}>다시 추첨</Button>}</>
@@ -3040,9 +3056,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
     {!open&&!wizard&&<div className="bk-list swap" ref={listArrived}>
       {!normalizedInitialReady
         ? <Loader/>
-        : list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다.">
-            {admin&&<Button variant="second" onClick={()=>transition(()=>flushSync(()=>setWizard(true)))}>첫 대진표 만들기</Button>}
-          </Empty>}
+        : list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다."/>}
       {list.length>0&&<div className="stack bk-rows">{list.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0} vt={"b-"+b.id} live={statusTag(b)==="진행 중"}
         line={lineOf(b)} end={admin&&statusTag(b)!=="진행 중"?statusTag(b):null} onOpen={()=>openBracket(b)} href={b.eventId?viewHref("bracket",{eventId:b.eventId}):undefined}/>)}</div>}
     </div>}

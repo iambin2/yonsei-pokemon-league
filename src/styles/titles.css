@@ -5,7 +5,6 @@
    ========================================================================== */
 
 .tl-board { margin-top: var(--s5); }
-.tt-add + .tl-board { margin-top: var(--s3); }
 /* the group's rule, as a strip the board hangs from */
 .tl-rule { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: var(--s3) var(--pad); }
 .tl-rule > span { flex: none; }

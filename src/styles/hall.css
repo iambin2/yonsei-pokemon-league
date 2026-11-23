@@ -4,9 +4,11 @@
    ========================================================================== */
 
 /* ---------- titles: the page's frame ---------- */
-.tt-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
+/* the champion sheet's one word action, the hall, stands over its record key (Composing a screen 28) */
+.hof-sheet-link { display: flex; justify-content: flex-end; margin-top: var(--s5); }
+.hof-sheet-link > .btn { min-height: var(--h-control); }
+.tt-head, .hof-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .tt-tabs { margin-top: var(--s8); }
-.tt-add { margin-top: var(--s5); }
 
 /* ---------- hall of fame: one reign large, the rest hung on a wall (2026-11-03) ---------- */
 /* the crown: the reigning champion's board. The generation lights in segments, the name at 32, the six large with their names */
@@ -24,7 +26,6 @@
 .hof-crown-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .hof-band { display: grid; place-items: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* the hall's three facts */
-.hof-actions { margin-top: var(--s5); }
 /* the wall: a plate per past reign, newest first */
 .hof-past { margin-top: var(--s13); }
 .hof-wall { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--seam); }
@@ -40,8 +41,6 @@
 .hof-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .hof-cell { --floor: var(--h-control); aspect-ratio: 1; }
 .hof-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
-.hof-sheet-act { display: grid; justify-items: start; gap: var(--s5); margin-top: var(--s5); }
-.hof-sheet-act > .btn--main { justify-self: stretch; }
 /* the seal on top of the sheet: the one inverted panel, the generation lit at 84; the party joins it by the seam */
 .hof-seal { display: grid; justify-items: start; gap: var(--s3); margin-bottom: var(--seam); padding: var(--pad); }
 .hof-sheet-note { margin-top: var(--s3); }

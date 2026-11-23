@@ -51,7 +51,7 @@
   .bk-tools { display: grid; grid-auto-flow: column; flex: none; }
   .bk-tools .btn { height: var(--h-control); padding: 0 var(--s5); }
   .bk-cb-actions > .bk-img { display: none; }
-  .bk-share { display: none; }
+  .bk-share, .bk-pb-actions { display: none; }
 }
 
 /* the decided result: 우승 inverted, the places as spec rows, the images */
@@ -61,6 +61,8 @@
 .bk-cb-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); margin-top: var(--s5); }
 .bk-cb-actions > .btn--main, .bk-cb-actions > .dock { grid-column: 1 / -1; }
 .bk-delete { margin-top: var(--s13); }
+/* desktop: one rare key at the end edge, as wide as its word (Composing a screen 27, 28) */
+@media (min-width: 860px) { .bk-delete { display: flex; justify-content: flex-end; } .bk-delete > .btn { width: auto; } }
 .bk-applied { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
 /* 목록 보기: a round a section, sections apart as the page's sections are */
 .bk-rounds { display: grid; gap: var(--s5); }

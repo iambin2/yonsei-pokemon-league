@@ -147,6 +147,13 @@
 /* desktop: the field's flags fill the row under the cells, joined by the seam */
 @media (min-width: 860px) { .calc-field > .calc-toggles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } }
 @media (max-width: 1099px) { .calc-dex-grid { grid-template-columns: 1fr; } }
+/* the speed and dex tabs: one column on a phone; on desktop the 439 held in view beside the 709 (Composing a screen 27) */
+.calc-two, .calc-two-side { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+@media (min-width: 860px) {
+  .calc-two { display: grid; grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: start; }
+  .calc-two-side { position: sticky; top: calc(var(--nav-height) + var(--s5)); }
+  .calc-two-side .calc-dex-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 859px) {
   .calc-side-switch { display: block; }
   .calc-sides { grid-template-columns: 1fr; }
