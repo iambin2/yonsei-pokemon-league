@@ -662,8 +662,7 @@ class Engine {
       const rect = { left: r.left - box.left, top: r.top - box.top, width: r.width, height: r.height };
       if (!mon) continue;
       seen.add(key);
-      const img = mon.querySelector("img"), sub = mon.querySelector(".bs-sub");
-      const src = sub ? subUrl(sub) : img?.getAttribute("src") || "";
+      const src = mon.querySelector("img")?.getAttribute("src") || "";
       const name = mon.dataset.name || "";
       let a = this.actors.get(key);
       if (!a || a.name !== name) { if (a) this.drop(a); a = this.actor(key, name, slot.closest(".bs-side")?.classList.contains("own")); }
@@ -724,20 +723,16 @@ class Engine {
     const gl = this.gl, tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-    // an SVG (the doll) is drawn to a canvas at a size of its own first: it has no pixels until it is given some
-    let pic = img;
-    const bitmap = typeof ImageBitmap !== "undefined" && img instanceof ImageBitmap;
-    if (!bitmap && (src.startsWith("data:") || !img.naturalWidth)) { pic = document.createElement("canvas"); pic.width = 480; pic.height = 500; pic.getContext("2d").drawImage(img, 0, 0, 480, 500); }
-    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, pic); } catch { gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.deleteTexture(tex); return null; }
+    try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img); } catch { gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.deleteTexture(tex); return null; }
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return { tex, iw: pic.width || img.naturalWidth, ih: pic.height || img.naturalHeight, ink: inkBox(pic, pic === img ? src : "") };
+    return { tex, iw: img.width || img.naturalWidth, ih: img.height || img.naturalHeight, ink: inkBox(img, src) };
   }
   /* pictures fetched, decoded and put on the GPU one a frame, before they are needed (a replay's team before its opening), so the
      throws never stop for an upload; resolves when all are there or after a moment. ponytail: pictures warmed and never shown keep
-     their textures until the stage goes (at most the twelve of a team preview) */
+     their textures until the stage goes (at most the twelve of a team preview and the substitute doll) */
   warm(srcs) {
     const todo = srcs.filter(src => src && !this.warmed.has(src));
     for (const src of todo) this.warmed.set(src, { done: null });
@@ -990,14 +985,12 @@ class Engine {
   }
 }
 
-// the substitute doll is a CSS background (battle-stage.css); its data URL is drawn as the picture
-function subUrl(el) { const m = getComputedStyle(el).backgroundImage.match(/url\("?(.+?)"?\)$/); return m ? m[1].replace(/\\"/g, "\"") : ""; }
 /* a picture decoded and premultiplied off the page's thread (createImageBitmap), so putting it on the GPU is only the copy: read from the
    image itself, a Pokémon's picture was 23 to 53 ms of the frame it went up in at a phone's speed (2026-11-18). WebGL takes an
-   ImageBitmap as it is (its own premultiplied alpha, the store's unpack flags left aside), so the texture is the same. A data URL (the
-   doll, an SVG) or a browser without it goes up from the image as before */
+   ImageBitmap as it is (its own premultiplied alpha, the store's unpack flags left aside), so the texture is the same. A browser without
+   it goes up from the image as before */
 function bitmapOf(img, src) {
-  if (typeof createImageBitmap !== "function" || src.startsWith("data:") || !img.naturalWidth) return Promise.resolve(null);
+  if (typeof createImageBitmap !== "function" || !img.naturalWidth) return Promise.resolve(null);
   /* from the file, not from the <img>: made from the element the picture was decoded on the page's thread, 147 to 160 ms of a frame at a
      phone's speed (2026-11-18, a Chrome trace); from the file it is decoded off it, the same bytes on the GPU (compared: six pictures) */
   return fetch(src).then(res => (res.ok ? res.blob() : Promise.reject()))

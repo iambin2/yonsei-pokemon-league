@@ -12,6 +12,7 @@ import { audio, primeAudio } from "./cries.js";
 import { setField } from "./arena.js";
 import "./arena.js";
 import { sfx, setSfxSpeed, setMoveType, warmSound } from "./sfx.js";
+import { spriteUrlForSlug } from "../../services/teamBuilderCore.js";
 
 let speed = 1;
 export const setSpeed = s => { speed = s; setSfxSpeed(s); };
@@ -398,7 +399,7 @@ export function flashMon(stage, key, strength = 1) {
   return e.anim(a, { flash: [0, .75 * strength, 0] }, { dur: 260, at: [0, .25, 1] });
 }
 /* it is struck: knocked back away from the foe and settling, flashing white, a critical blow sharper; a blow from the field or a
-   status only shudders it in place. A substitute squashes as it takes it. */
+   status only shudders it in place. A substitute takes it as a Pokémon does (포켓몬 champions' footage shows the doll keep its shape) */
 export function hit(stage, key, { share = .2, crit = false, strong = false, weak = false, direct = true } = {}) {
   const e = E(stage), a = actorOf(stage, key);
   if (!e || !a || instant()) return Promise.resolve();
@@ -413,7 +414,6 @@ export function hit(stage, key, { share = .2, crit = false, strong = false, weak
     // a white body for half a second); a blow inside another's blink only shakes it
     const now = performance.now();
     if (!(a.blinkUntil > now)) { a.blinkUntil = now + ms(300); runs.push(e.anim(a, { flash: [0, .26, 0, .14, 0] }, { dur: 300, ease: "linear" })); }
-    if (a.src.startsWith("data:")) runs.push(e.anim(a, { sx: [1, 1.18, .94, 1], sy: [1, .8, 1.08, 1] }, { dur: 440 }));
     // a critical blow lights the stage a moment and parts its colours; the picture does not shake (2026-11-18: 포켓몬 챔피언스's
     // footage shows no shake at a blow, critical or super effective; a quake or a landing body still shakes it)
     if (crit) { runs.push(e.anim(e.grade, { ca: [0, .012, 0] }, { dur: 360, at: [0, .15, 1] })); flashStage(stage, .1, 220); }
@@ -530,44 +530,35 @@ export function sway(stage, key) {
   return e.anim(a, { rot: [0, -.1, .1, -.07, 0] }, { dur: 900, ease: "sine" });
 }
 
-/* ---------- the substitute ---------- */
-export function hideForDoll(stage, key) {
+/* ---------- the substitute ----------
+   the games' own doll (Pokémon Legends: Z-A's model, which 포켓몬 champions uses) rendered as the HOME pictures are, in
+   public/sprites/pokemon/substitute.webp. Every change between the doll and the Pokémon is the same two steps in 포켓몬 champions'
+   footage (2026-11-23, 30 fps; the doll put up, the Pokémon coming out to use a move and going back, the doll fading): the one going
+   turns white in 3 or 4 frames and falls flat into the floor in 2 (sink), then a ring opens on the floor, a cloud bursts out of it with
+   white streaks thrown up, and the one coming rises out of it pale and takes its colour in 5 frames; the cloud spreads sideways and is
+   gone some 12 frames later (rise). Nothing shatters: a broken doll sinks as it does when the Pokémon comes out to move */
+export const SUBSTITUTE = spriteUrlForSlug("substitute");
+export function sink(stage, key) {
   const e = E(stage), a = actorOf(stage, key);
   if (!e || !a || instant()) return Promise.resolve();
-  const [x, y] = centre(stage, key, .15), s = sizeOf(stage, key);
-  sfx("puff", { pan: panOf(e, [x, y]) });
-  smoke(e, [x, y], s * 1.2, 8, { ramp: "steam", rise: 50, alpha: .8 });
-  return e.anim(a, { alpha: [1, 0], sx: [1, .6], sy: [1, .6] }, { dur: 240, ease: "in2", fill: true });
+  sfx("puff", { at: 130, pan: panOf(e, centre(stage, key)) });
+  return e.anim(a, { flash: [0, 1, 1], sx: [1, 1, 1.35], sy: [1, 1, .2], alpha: [1, 1, 0] }, { dur: 200, at: [0, .65, 1], eases: ["linear", "in2"], fill: true });
 }
-export async function doll(stage, key, on) {
+export async function rise(stage, key) {
   const e = E(stage);
   if (!e || instant()) return;
   e.sync();
   const a = actorOf(stage, key);
   if (!a) return;
-  e.cancel(a);
+  // the held tween that hid the one going stays until the new picture is on the GPU, or the old one shows a frame between
   await a.ready;
-  const s = sizeOf(stage, key), [x, y] = centre(stage, key, .1);
-  if (on) {
-    sfx("boing", { at: 270, pan: panOf(e, [x, y]) });
-    smoke(e, [x, y], s, 4, { ramp: "steam", rise: 30, delay: 200 });
-    e.at(270, () => { dust(e, [x, y], s, 3); e.shake(.1); });
-    await e.anim(a, { y: [-s * .6, 0, 0, 0, 0], alpha: [0, 1, 1, 1, 1], sx: [.85, 1, 1.2, .92, 1], sy: [1.1, 1, .78, 1.1, 1] }, { dur: 680, at: [0, .4, .56, .78, 1], eases: ["in2", "out", "inout", "inout"] });
-    return;
-  }
-  await e.anim(a, { alpha: [0, 1], flash: [1.2, 0] }, { dur: 380 });
-}
-export function breakDoll(stage, key) {
-  const e = E(stage), a = actorOf(stage, key);
-  if (!e || !a || instant()) return Promise.resolve();
-  const [x, y] = centre(stage, key, .3), s = sizeOf(stage, key);
-  sfx("pop", { at: 120, pan: panOf(e, [x, y]) });
-  e.at(120, () => {
-    smoke(e, [x, y], s, 8, { ramp: "steam", rise: 60, alpha: .8 });
-    e.emit({ n: 12, at: [x, y], tex: "rock", ramp: "grass.m", speed: [s * 1.2, s * 2.4], dir: -Math.PI / 2, arc: 2.6, acc: [0, s * 3.5], size: [[s * .05, s * .09], "same"], rot: "rand", spin: [-10, 10], life: [600, 800], occ: 1, emis: .1 });
-    ring(e, [x, y], s * 1.4, "normal", { dur: 420 });
-  });
-  return e.anim(a, { sx: [1, 1.2, .7], sy: [1, .78, 1.3], alpha: [1, 1, 0] }, { dur: 320, fill: true });
+  e.cancel(a);
+  const s = sizeOf(stage, key), [x, y] = centre(stage, key, 0);
+  ring(e, [x, y], s * 1.5, "normal", { dur: 300, flat: .3, ramp: "white", alpha: .4 });
+  e.emit({ n: 18, at: [x, y - s * .05], r: [s * .45, s * .08], tex: "billow", lit: true, ramp: "steam", size: [[s * .3, s * .45], [s * .7, s * .95]], vel: () => [rand(-s * 1.1, s * 1.1), -rand(6, 24)], drag: 2.5, life: [480, 640], alpha: .95, occ: .7, emis: .15, erode: .5, rot: "rand", spin: [-.5, .5], grow: true });
+  sparks(e, [x, y - s * .1], 10, "normal", { ramp: "white", dir: -Math.PI / 2, arc: 1.4, speed: [s * 2.5, s * 4.5], len: [8, 16], life: [160, 260], delay: 30 });
+  await e.anim(a, { y: [s * .25, s * .25, 0], sy: [.55, .55, 1], alpha: [0, 0, 1], flash: [1, 1, 0] }, { dur: 230, at: [0, .25, 1], eases: ["linear", "out"] });
+  await e.after(330);
 }
 export function morph(stage, key) {
   const e = E(stage), a = actorOf(stage, key);
