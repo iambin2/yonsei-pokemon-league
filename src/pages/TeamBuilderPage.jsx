@@ -1436,8 +1436,8 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
     return () => { cancelled = true; };
   }, [registrationIdForRevisions, latestRevisionId]);
 
-  const dataStatusText = detailStatus === "ready" ? "배틀 데이터 연결됨" : detailStatus === "error" ? "데이터 연결 안 됨" : "배틀 데이터 불러오는 중…";
-  const localizationText = localizationStatus === "ready" ? "한국어 이름 사용" : localizationStatus === "error" ? "영문 이름 사용" : "한국어 이름 준비 중…";
+  const dataStatusText = detailStatus === "ready" ? "배틀 데이터 연결됨" : detailStatus === "error" ? "데이터 연결 안 됨" : "배틀 데이터 불러오는 중";
+  const localizationText = localizationStatus === "ready" ? "한국어 이름 사용" : localizationStatus === "error" ? "영문 이름 사용" : "한국어 이름 준비 중";
   const draftText = draftStatus === "saved" ? "임시저장됨" : draftStatus === "error" ? "임시저장 안 됨" : "";
   const hasWorkingState = team.length > 0 || Boolean(activeSavedTeamId) || cupRuleId !== "none" || Boolean(assignedTypeId);
 
@@ -1519,7 +1519,8 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
           <div className="tb-panel-head">
             <div><h2 className="t20">포켓몬 선택</h2></div>
           </div>
-          {(detailStatus!=="ready"||localizationStatus!=="ready")&&<div className="tb-data-line">{detailStatus==="error"?<Bang/>:<i className={"lamp"+(detailStatus==="ready"?"":" unlit")} aria-hidden="true"/>}{[detailStatus!=="ready"&&dataStatusText,localizationStatus!=="ready"&&localizationText].filter(Boolean).join(", ")}</div>}
+          {/* the line keeps its place once both are ready, so the search under it does not rise (2026-11-23 audit, R-13) */}
+          <div className="tb-data-line">{(detailStatus!=="ready"||localizationStatus!=="ready")&&<>{detailStatus==="error"?<Bang/>:<i className={"lamp"+(detailStatus==="ready"?"":" unlit")} aria-hidden="true"/>}{[detailStatus!=="ready"&&dataStatusText,localizationStatus!=="ready"&&localizationText].filter(Boolean).join(", ")}</>}</div>
           <div className="tb-search-row">
             <span className="search-input-icon" aria-hidden="true"><Icon n="search" size={20}/></span>
             <input

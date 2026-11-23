@@ -17,7 +17,7 @@ import Toaster from "./components/common/Toaster.jsx";
 import { DUR, light, reduced, themeTurn, transition } from "./components/common/motion.js";
 import { initHistory, popHandlers, popped, pushHistory } from "./components/layout/history.js";
 import AdminModeBar from "./admin/AdminModeBar.jsx";
-import { onAdminSessionLost, restoreAdmin, signOutAdmin } from "./storage.js";
+import { STORAGE_MODE, onAdminSessionLost, restoreAdmin, signOutAdmin } from "./storage.js";
 import LazyContent from "./components/common/LazyContent.jsx";
 import Loader, { Busy } from "./components/common/Loader.jsx";
 import { Arrived, LiveStrip } from "./components/common/Board.jsx";
@@ -94,9 +94,12 @@ export default function App() {
   // 가는 중인 화면: 누른 즉시 바의 줄이 옮겨 가고 지금 화면은 흐려지며, 다음 화면이 늦으면 바쁨 칸이 선다.
   const [going,setGoing]=useState(null);
   // 시드는 저장소가 비었을 때만 쓰므로 첫 번들에서 뺐다. 재방문은 지난 사본으로 이미 그렸다: 같은 값이면 그대로 두고, 읽지 못하면 사본을 둔다.
+  // the server's copy failed with no copy of our own: the seed is drawn, and the home says the records were not read (2026-11-23 audit, R-01)
+  const [siteFailed,setSiteFailed]=useState(false);
   useEffect(()=>{(async()=>{
     const fresh=await loadSiteData();
     if(fresh===seenSiteData()&&fresh) return;
+    if(!fresh&&STORAGE_MODE==="supabase"&&!seenSiteData()) setSiteFailed(true);
     const seed=fresh?null:(await import("./data/siteSeed.js")).SEED;
     setData(shown=>fresh?normalizeData(fresh):shown||normalizeData(seed));
   })();},[]);
@@ -213,7 +216,7 @@ export default function App() {
       if(rows.length) flash(`지난 대회 ${rows.length}개가 아직 기록 반영 전입니다.`,{label:"대진표",run:()=>go("bracket")});
     }).catch(()=>{});
   },[admin]);
-  const refresh=useCallback(async()=>{ const fresh=await loadSiteData(); if(fresh) setData(normalizeData(fresh)); },[]);
+  const refresh=useCallback(async()=>{ const fresh=await loadSiteData(); if(fresh){ setData(normalizeData(fresh)); setSiteFailed(false); } },[]);
   /* 탭으로 돌아온 방문자는 5분 넘게 떠나 있었으면 공지와 사이트 데이터를 다시 읽는다(2026-11-22: 앱을 띄워 둔 채로는 새 공지를
      다시 열 때까지 보지 못했다). 운영자는 편집 중인 내용을 덮지 않도록 자기 저장과 충돌 확인으로만 다시 읽는다. */
   useEffect(()=>{
@@ -310,12 +313,12 @@ export default function App() {
         {!data ? <Loader/> : <LazyContent>
         <Arrived onArrive={firstLight}/>
         {live&&view!=="home"&&view!=="bracket"&&<LiveStrip name={live.name} onGo={()=>go("bracket")}/>}
-        {view==="home"&&<HomePage data={shown} go={go} admin={admin}/>}
+        {view==="home"&&<HomePage data={shown} go={go} admin={admin} siteFailed={siteFailed} onRetrySite={refresh}/>}
         {view==="about"&&<AboutPage go={go} data={shown} admin={admin}/>}
         {view==="privacy"&&<PrivacyPage/>}
         {view==="alerts"&&<AlertsPage go={go}/>}
         {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
-        {view==="news"&&<NewsPage data={shown} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
+        {view==="news"&&<NewsPage data={shown} siteFailed={siteFailed} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
         {view==="board"&&<BoardPage data={shown} admin={admin} save={save} flash={flash} go={go}/>}
         {view==="records"&&<RecordsPage data={shown} admin={admin} setModal={setModal} save={save} go={go}/>}
         {view==="bracket"&&<BracketsPage data={shown} admin={admin} save={save} flash={flash} refresh={refresh}/>}

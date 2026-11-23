@@ -24,7 +24,7 @@ const recordLine = (r) => [["우승", r.win], ["준우승", r.ru], ["4강", r.to
    rows null is the board switched off: the rows at their size while the ranking is read, so nothing under it moves when it lights. */
 export default function StandTable({ rows, total, onName, open = false, onMore, shown: limit = SHOWN, placed = false, unit = "점" }) {
   if (!rows) return <div className="stack line-score" aria-hidden="true">
-    <div className="inv ls-row ls-first" />{[1, 2, 3, 4].map(i => <div key={i} className="pn ls-row" />)}
+    <div className="pn ls-row ls-first" />{[1, 2, 3, 4].map(i => <div key={i} className="pn ls-row" />)}
   </div>;
   const ranked = placed ? rows : rankRows(rows);
   if (!ranked.length) return null;

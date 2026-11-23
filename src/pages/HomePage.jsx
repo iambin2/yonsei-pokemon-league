@@ -81,7 +81,7 @@ async function loadLast(admin) {
    전광판 한 장 (DESIGN.md "Layout and pages").
    첫 화면: 다음 대회까지의 날(없으면 꺼진 판), 대회 이름, 주 행동, 현 챔피언의 패널, 세 카운터. 아래: 시즌 순위, 공지, 역대 챔피언.
    데스크톱은 709와 439의 두 단이고, 두 단은 머리글 줄과 마지막 줄을 함께 쓴다. */
-export default function HomePage({ data, go, admin }) {
+export default function HomePage({ data, go, admin, siteFailed = false, onRetrySite }) {
   const [enter] = useState(opening);
   const root = useRef(null);
   const [champions, setChampions] = useState(seenChampions), [facts, setFacts] = useState(() => admin ? null : seenFacts()), [pop, setPop] = useState(null);
@@ -261,9 +261,10 @@ export default function HomePage({ data, go, admin }) {
         <Counter label={now.due.unit === "시간" ? "파티 제출 마감까지" : "파티 제출까지"} lamp={now.due.unit === "시간" ? "sig" : true} value={String(now.due.value).padStart(2, "0")} cells={now.due.value >= 100 ? 3 : 2} unit={now.due.unit}
           after={<span className="t15">{now.due.unit}</span>} onClick={() => go("news", { notice: now.noticeId })} />
       </div>}
-      <div className={"ho-go" + (lastWait ? " wait" : "")}>
+      {/* with no event and no notice there is nowhere to go: no key (2026-11-23 audit, R-19) */}
+      {!(primary[1] === "news" && !primary[2] && !data.announcements.length) && <div className={"ho-go" + (lastWait ? " wait" : "")}>
         <Button variant="main" disabled={lastWait} onClick={() => go(primary[1], primary[2])}>{primary[0]}</Button>
-      </div>
+      </div>}
       {myNext && (() => {
         const start = myWhere?.at ? new Date(myWhere.at) : null;
         const clock = start ? start.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }) : "";
@@ -301,7 +302,8 @@ export default function HomePage({ data, go, admin }) {
     <ChampionPanel champion={reigning} onClick={() => setPop(reigning)} />
     </div>
 
-    {factsFailed && <ErrorNote action="다시 불러오기" onRetry={() => { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
+    {/* one note for either read: the records (facts) or the site's own copy, the seed standing in for it (2026-11-23 audit, T-109) */}
+    {(factsFailed || siteFailed) && <ErrorNote action="다시 불러오기" onRetry={() => { if (factsFailed) { setFactsFailed(false); setFacts(null); setFactsTry(n => n + 1); } if (siteFailed) onRetrySite?.(); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
 
     {/* while the ranking is read its place stands switched off, so the notices under it do not move when it lights; its head keeps
         the lit head's height, a blank title and link held unseen (2026-11-23 audit, T-95: a bare head stood 0 and grew 44) */}

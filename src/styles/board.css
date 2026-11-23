@@ -303,6 +303,10 @@
 
 /* ---------- errors and empty (DESIGN.md "Errors and empty"): the ! square and a sentence, then one way out ---------- */
 .error-note { display: grid; gap: var(--s3); padding: var(--pad); }
+/* on a desktop its one way out is as wide as its word, at the start (Composing a screen 27; 2026-11-23 audit, R-07) */
+@media (min-width: 860px) { .error-note > .btn { justify-self: start; width: auto; } }
+/* a note that follows a page's head or its search stands a block below it, not on it (measured 0 under 대진표, 공지 and the home's screen) */
+:is(.bk-head, .nw-search, .ho-screen) + .error-note { margin-top: var(--s5); }
 .error-say { display: flex; align-items: flex-start; gap: var(--s3); font-weight: 600; }
 /* an empty place stands on a panel of its own, as 지금 할 일이 없습니다. and the notices' no-match do: its two lines on the open ground
    read as words left floating (2026-11-10, the user: "텍스트 홀로 둥 떠있는 걸 안 좋아해"); on a sheet it is one step up, as every panel there */

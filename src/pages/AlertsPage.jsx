@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { follow, useArrival } from "../components/common/Board.jsx";
+import ErrorNote from "../components/common/ErrorNote.jsx";
 import { PushBoard, usePush } from "../components/common/PushControl.jsx";
 import { alertsSeenAt, markAlertsSeen, readInbox } from "../services/announcementPush.js";
 import { PUSH_KINDS, inboxDays, kindLabel } from "../services/announcementPushPolicy.js";
@@ -26,6 +27,8 @@ export default function AlertsPage({ go }) {
   const kinds = push.on && push.kinds ? push.kinds.kinds : ALL;
   // undefined while reading, null when push_inbox.sql has not run
   const [items, setItems] = useState(undefined);
+  // a failed read is said as one (T-110), not shown as seven quiet days; 다시 불러오기 reads again
+  const [failed, setFailed] = useState(false), [again, setAgain] = useState(0);
   const seen = useRef(alertsSeenAt());
   // seen once the page has stood: this visit still lights what came since the last one (seen.current), the next visit does not.
   // Marked on arrival, not on leaving, since a reload or a closed tab never runs a page's cleanup.
@@ -33,9 +36,9 @@ export default function AlertsPage({ go }) {
   useEffect(() => {
     if (!push.checked || push.mode === "none") return undefined;
     let cancelled = false;
-    readInbox(kinds).then(rows => { if (!cancelled) setItems(rows); }, error => { console.error(error); if (!cancelled) setItems([]); });
+    readInbox(kinds).then(rows => { if (!cancelled) { setFailed(false); setItems(rows); } }, error => { console.error(error); if (!cancelled) { setFailed(true); setItems([]); } });
     return () => { cancelled = true; };
-  }, [push.checked, push.mode, kinds.join()]);
+  }, [push.checked, push.mode, kinds.join(), again]);
   const arrival = useArrival(items !== undefined);
   const open = opener(go);
   const days = items ? inboxDays(items, new Date(), seen.current) : [];
@@ -44,7 +47,8 @@ export default function AlertsPage({ go }) {
     <section className="alerts">
       <h1 className="t32">알림</h1>
       {items !== null && push.mode !== "none" && <div className="alerts-main" ref={arrival}>
-        {items === undefined ? null : !days.length ? <div className="ypl-empty"><p className="t15">최근 7일의 알림이 없습니다.</p></div>
+        {items === undefined ? null : failed ? <ErrorNote action="다시 불러오기" onRetry={() => { setItems(undefined); setAgain(n => n + 1); }}>알림을 불러오지 못했습니다.</ErrorNote>
+          : !days.length ? <div className="ypl-empty"><p className="t15">최근 7일의 알림이 없습니다.</p></div>
           : days.map(({ day, items: list }) => <div className="alerts-day" key={day}>
             <p className="t12 dim push-label">{day}</p>
             <div className="stack">{list.map((item, i) => (

@@ -3060,7 +3060,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
     {!open&&!wizard&&<div className="bk-list" ref={listArrived}>
       {!normalizedInitialReady
         ? <Loader/>
-        : list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다."/>}
+        : list.length===0&&!normalizedLoadError&&<Empty title="아직 만들어진 대진표가 없습니다."/>}
       {list.length>0&&<div className="stack bk-rows">{list.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0} vt={"b-"+b.id} live={statusTag(b)==="진행 중"}
         line={lineOf(b)} end={admin&&statusTag(b)!=="진행 중"?statusTag(b):null} onOpen={()=>openBracket(b)} href={b.eventId?viewHref("bracket",{eventId:b.eventId}):undefined}/>)}</div>}
     </div>}

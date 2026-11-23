@@ -5,7 +5,7 @@ import { DUR, light } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
-import { Dropdown, Empty, FoldOut, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
+import { Dropdown, Empty, ErrorNote, FoldOut, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
 import { backWith, popHandlers, pushHistory } from "../components/layout/history.js";
 import { dotDate, formatDate } from "../services/dateFormat.js";
 import { applicationsClosed, partyDeadlines } from "../services/announcementTimes.js";
@@ -54,7 +54,7 @@ function eventFacts(a){
 /* 공지 목록의 한 줄: 제목, 그 아래 회색 줄의 날짜(고정이면 고정이 켜진다), 줄 끝의 램프 칸. 새 글이면 램프가 켜진다(seenNotices.js) */
 /* 공지: 목록에서 제목을 누르면 본문 화면으로 넘어간다. 신청은 공지 위에 서는 한 장이고, 파티 제출은 팀 빌더로 간다.
    연 공지는 주소(?notice=)와 기록 한 칸에 남는다. */
-export default function NewsPage({ data, admin, setModal, save, submitForm, refresh, go, flash }) {
+export default function NewsPage({ data, siteFailed = false, admin, setModal, save, submitForm, refresh, go, flash }) {
   const [q,setQ]=useState(""); const [page,setPage]=useState(1);
   const [fill,setFill]=useState(null); const [editing,setEditing]=useState(false); const [respId,setRespId]=useState(null);
   const [eventResponses,setEventResponses]=useState({});
@@ -285,6 +285,8 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
         <Empty className="search-none" title="맞는 공지가 없습니다."/>
         {all.length>0&&<section className="nw-recent"><SectionHead title="최근 공지"/><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></section>}
       </>
+      /* the notices could not be read (the seed stands in for the site's copy): a failed read, not an empty list (T-110) */
+      : siteFailed ? <ErrorNote action="다시 불러오기" onRetry={refresh}>공지를 불러오지 못했습니다.</ErrorNote>
       : <Empty title="등록된 공지가 없습니다."/>)
     : <div className="stack nw-list">{shown.map((a,i)=>i===0&&cur===1&&!kw?<NoticeLead key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>:<NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div>}
     <div className="nw-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>
