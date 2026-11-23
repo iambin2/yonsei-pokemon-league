@@ -65,10 +65,16 @@ export function Medal({ spec, off = false, big = false, onDrawn }) {
    speed, 1.7 s for the eighteen types, and the board read as stuttering) */
 export function MedalBoard({ medals, cols, className = "", label }) {
   const desk = useDesk();
-  const n = desk ? cols[0] : cols[1], empty = (n - medals.length % n) % n, big = bigMedal(n, desk);
+  // the columns follow the medals (Composing a screen 29): a board of fewer medals than columns is that many wide, and a short last row
+  // gives way to a divisor near the column count (7 partners stand as 7, 8 events as 4 and 4); where none is near, the last row ends
+  // early. The board is never padded with empty panels, and a cell is never widened past the width it has at the base count.
+  const base = desk ? cols[0] : cols[1], count = medals.length;
+  const fit = count <= base ? count : count % base === 0 ? base
+    : [...Array(base + 1).keys()].slice(1).concat(base + 1).filter(d => count % d === 0 && d >= Math.ceil(base / 2)).pop() || base;
+  const n = Math.max(1, fit), big = bigMedal(base, desk);
   const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
   useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });
-  return <div ref={board} className={"stack tl-board-medals " + className + (lit ? " lit" : "")} style={{ "--cols": n }} role="list" aria-label={label}>
+  return <div ref={board} className={"stack tl-board-medals " + className + (lit ? " lit" : "")} style={{ "--cols": n, "--base": base }} role="list" aria-label={label}>
     {medals.map(m => {
       const body = <>
         <Medal spec={m.spec} off={!m.on} big={big} onDrawn={drawn} />
@@ -80,7 +86,6 @@ export function MedalBoard({ medals, cols, className = "", label }) {
         ? <button type="button" key={m.key} role="listitem" className={cls} onClick={m.onClick} aria-label={m.label || m.name}>{body}</button>
         : <span key={m.key} role="listitem" className={cls} aria-label={m.label || m.name}>{body}</span>;
     })}
-    {Array.from({ length: empty }, (_, i) => <span key={"e" + i} className="pn tl-cell" aria-hidden="true" />)}
   </div>;
 }
 

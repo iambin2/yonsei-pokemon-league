@@ -1425,7 +1425,7 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   return (<div className="bk-scroll" role="region" aria-label="대진표" tabIndex={0}>
   {seen&&<MatchSheet g={g} m={seen} ev={ev} nameOf={nameOf} onClose={()=>setSeen(null)} battle={battleForMatch(battles,seen.id,[ev.sp(seen.a),ev.sp(seen.b)])} startable={startable} eventId={eventId} battles={battles} boutCount={teamMode?boutsOf(seen,ev):0}
     start={seenRound?startOf(seenRound):""} table={schedule?.tables?.get(seen.id)||""} me={me} reportOn={reportOn&&!teamMode} onReported={onReported} need={winsOf(seen.id)}/>}
-  <div className="bk-tree" ref={treeRef}>
+  <div className="bk-tree" ref={treeRef} style={{"--n":g.rounds.length+(g.kind!=="double"&&!qualifier?1:0)}}>
     {wires&&<svg className="bk-wires" width={wires.w} height={wires.h} aria-hidden="true"><path className="dim" d={wires.dim}/><path className="lit" d={wires.lit}/></svg>}
     {g.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
       {head(roundLabel(g,ri),r)}
@@ -1447,10 +1447,13 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   </div>
   {/* 3위 결정전 (third_place_best_of.sql): under the tree, between the semifinal losers */}
   {g.third&&<div className="bk-lb"><div className="bk-lb-h t15">3위 결정전</div><div className="bk-cols bk-third" style={{"--bk-n":g.rounds.length+(qualifier?0:1)}}><div className="bk-col">{card(g.third)}</div></div></div>}
-  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자조</div><div className="bk-cols">
+  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자조</div><div className="bk-cols" style={{"--n":g.lb.length}}>
     {g.lb.map((r,ri)=>(<div className="bk-col" key={ri}>{head(lbRoundName(ri),r)}
       {r.map(m=><React.Fragment key={m.id}>{strip?<div className="stack">{stripOf(m)}{card(m)}</div>:card(m)}</React.Fragment>)}
     </div>))}
+  </div></div>}
+  {/* the grand final and the 우승 stand on a row of their own under the losers' rounds, on the same columns (2026-11-23 audit, C-09) */}
+  {g.kind==="double"&&!qualifier&&<div className="bk-lb bk-gf-row"><div className="bk-cols" style={{"--n":g.lb.length}}>
     {!qualifier&&<div className="bk-col"><div className="bk-col-h gf">그랜드 파이널</div>{strip?<div className="stack">{stripOf(g.gf)}{card(g.gf)}</div>:card(g.gf)}</div>}
     {!qualifier&&g.reset&&g.gf.winner==="b"&&<div className="bk-col"><div className="bk-col-h gf">리셋 결승</div>{strip?<div className="stack">{stripOf(g.reset)}{card(g.reset)}</div>:card(g.reset)}</div>}
     {!qualifier&&finalRes&&finalRes.champ&&<div className="bk-col bk-champ-col">
@@ -1546,7 +1549,7 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
     <MatchBattle m={match} ev={roundRobin} battle={battleForMatch(battles,match.id,[match.a.pid,match.b.pid])} startable={startable&&!b.knockout}
       eventId={b.eventId} admin={admin} onChanged={refresh}/>
   </div>;
-  return <div className="stack">
+  return <div className="stack bk-gs">
     {b.groups.map(group=>{
       const {rows,ready,next,cutoff,complete,qualified}=group.standing;
       return <section className="stack" key={group.id}>
@@ -1912,7 +1915,7 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
     {b.projection?.topology===GROUP_TOPOLOGY&&<GroupStageBoard b={b} admin={admin&&!locked} busy={matchMutationBusy}
       run={runGroup} nameOf={nameOf} battles={battles} startable={battleStartable} refresh={()=>void refreshNormalized?.()}/>}
     {b.projection?.topology===GROUP_TOPOLOGY&&b.knockout&&<>
-      <h2 className="t20">본선</h2>
+      <h2 className="t20 bk-final-h">본선</h2>
       {editAdmin&&!(res&&res.done)&&<ResultEntry g={b.knockout} nameOf={nameOf} busy={matchMutationBusy} onPick={pickGroupFinal} outcomeOn={Boolean(outcomes)} onOutcome={saveOutcome} onDepart={departures?saveDeparture:null} {...pickProps} {...swapProps} reports={reports} winsOf={id=>winsNeeded(b,id)}
         battles={battles} startable={battleStartable} eventId={b.eventId} onBattleChanged={()=>void refreshNormalized?.()}/>}
       <TabsLine value={shape} onChange={setShape} options={[["tree","대진표"],["list","목록"]]} label="보기"/>
@@ -2743,7 +2746,7 @@ function PrivateBrackets({ admin, flash, tabs }){
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="대진표, 개설자, 참가자 검색" count={shown.length}/><Button variant="main" icon="plus" onClick={()=>setCreating(true)}>새 사설 대진표</Button></div>
     {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
     {!list?(!loadError&&<Loader/>):shown.length===0
-      ? (kw?<Empty className="search-none swap" title="맞는 대진표가 없습니다." desc={`‘${q.trim()}’에 맞는 대진표를 찾지 못했습니다.`}><Seg value={0} h={40} cells={2} label="0건"/></Empty>
+      ? (kw?<Empty className="search-none swap" title="맞는 대진표가 없습니다."/>
            :<Empty className="swap" title="아직 사설 대진표가 없습니다."/>)
       : <div className="stack bk-rows" ref={listArrived}>{shown.map((b,i)=><BracketRow key={b.id} b={b} lead={i===0&&!kw} vt={"pb-"+b.id} live={pbStatus(b)==="진행 중"}
           line={`${b.host?`${b.host} 개설, `:""}${b.participants.length}명, ${pbFormat(b)}${pbChamp(b)?`, 우승 ${pbChamp(b)}`:""}`} onOpen={()=>openBracket(b)} href={viewHref("bracket",{tab:"private",pb:b.id})}/>)}</div>}

@@ -16,6 +16,9 @@
 .ho-board { display: flex; align-items: flex-end; gap: var(--s3); }
 /* the unit stands on the display's baseline */
 .ho-unit { font-size: var(--t20); line-height: var(--l15); font-weight: 700; }
+/* where the day's four-cell clock and 시작 do not fit one line (under 390), 시작 wraps under the clock, which keeps its 84 (no breakpoint
+   of its own: the site has three, Layout) */
+.ho-board.today { flex-wrap: wrap; }
 /* 일시, 신청 마감, 형식: spec rows on the next step, the key dim at the start, the fact lit at the end */
 .ho-spec { margin: 0; }
 .ho-spec-row { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
@@ -60,8 +63,8 @@
   .ho { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: stretch; padding-top: var(--s5); }
   .ho > :is(.ho-screen, .ho-hall, .error-note) { grid-column: 1 / -1; }
   .ho-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); align-items: stretch; }
-  /* the countdown at 120 with the spec rows beside it, the rows' foot on the digits' floor */
-  .ho-display { grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: var(--s8); }
+  /* the countdown at 120 with the spec rows beside it, both from the top line under the name (no band above the clock) */
+  .ho-display { grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: var(--s8); }
   .ho-col { height: calc(var(--s21) * 3); }
   .ho-col-who { padding: 0 var(--pad); }
   /* the two columns end on one line: the ranking and the notices stretch their last panels */

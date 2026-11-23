@@ -7,7 +7,7 @@
 .rc-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .rc-counts { margin-top: var(--s5); grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rc-tabs { margin-top: var(--s8); }
-.rc-body { margin-top: var(--s3); }
+.rc-body { margin-top: var(--s5); }
 .rc-list { display: grid; min-width: 0; }
 .rc-tour-tools { display: grid; min-width: 0; }
 .rc-tour-tools > .chips { order: -1; }

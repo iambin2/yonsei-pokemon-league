@@ -106,7 +106,8 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
 
     {past.length > 0 && <section className="hof-past" aria-labelledby="hof-past-h">
       <SectionHead id="hof-past-h" title="역대 챔피언" />
-      <div className="hof-wall">
+      {/* the wall's columns follow its champions (Composing a screen 29): four or five stand as one row on desktop, three on a tablet */}
+      <div className="hof-wall" style={{ "--wc": past.length === 4 || past.length === 5 ? past.length : 3, "--tc": past.length === 3 ? 3 : 2 }}>
         {past.map((c, i) => (<div className="hof-slot" key={c.id || i}>
           <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
             <span className="hof-plate-top">{plate(c, 40)}<span className="t12 dim hof-plate-season">{title(c)}</span></span>

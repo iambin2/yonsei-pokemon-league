@@ -6,7 +6,9 @@
 
 .nw-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .nw-tools { display: flex; align-items: baseline; gap: var(--s5); }
-.nw-upcoming, .nw-search, .nw-list { margin-top: var(--s5); }
+/* a page title stands 32 over what follows it (Space: a page title under the bar), and the search heads the list */
+.nw-search, .nw-upcoming { margin-top: var(--s8); }
+.nw-list { margin-top: var(--s5); }
 .nw-list .row { height: var(--h-row2); }
 /* 고정 stands first in a notice's grey line, as on the lead panel and the notice itself: 고정, 10.28 수 */
 .nw-pin { font-weight: 600; color: var(--lit); }
@@ -15,7 +17,6 @@
 .nw-recent > .nw-list { margin-top: 0; }
 
 /* a notice: the back link stands 20 under the bar */
-.nw-art-head > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }
 /* a phone reads one column in the notice's own order: head, counters, spec, body, links, answers, admin */
 .nw-art { display: flex; flex-direction: column; }
 .nw-aside, .nw-main { display: contents; }

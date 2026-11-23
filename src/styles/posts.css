@@ -36,7 +36,6 @@
    A party: the six large across the page (each opens its settings below), the actions joined under them by the seam, the author's
    words, the settings three across, the comments in a 709 column. A sample: its one case stands at the left (439) held in view, the
    actions, the words and the comments run at the right (709). A phone reads it all in one column in that order. */
-.bd > .back:first-child, .bd-art-head > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }
 .bd-date-line { margin-top: var(--s3); }
 .bd-title-h { margin-top: var(--s2); }
 /* a sample or party post is not a notice: nothing small above its title but the back link; its facts are the title's grey line, 4 under it */
@@ -80,6 +79,8 @@
 .bd-cmts > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }
 .bd-cmt { padding: var(--pad); }
 .bd-cmt-top { display: flex; align-items: center; gap: var(--s2); }
+.dt-short { display: none; }
+@media (max-width: 639px) { .dt-long { display: none; } .dt-short { display: inline; } div.bd-cmt-top > .num { white-space: nowrap; } }
 .bd-cmt-body { margin-top: var(--s1); white-space: pre-wrap; overflow-wrap: anywhere; }
 .bd-act { min-width: var(--h-control); min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); padding: 0 var(--s1); text-align: center; font-weight: 600; color: var(--dim); }
 .bd-act:first-of-type { margin-left: auto; }

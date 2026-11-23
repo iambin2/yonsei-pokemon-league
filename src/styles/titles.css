@@ -12,6 +12,8 @@
 
 /* ---------- a board of medals: square cells on the seam, a medal and its name in each ---------- */
 .tl-board-medals { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+/* fewer columns than the base: the board is as wide as its cells at the base width, from the start edge */
+.tl-board-medals { width: calc((100% + var(--seam)) * min(var(--cols), var(--base)) / var(--base) - var(--seam)); }
 .tl-cell { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: var(--s2) var(--s1) var(--s3); text-align: center; }
 .tl-cell:disabled { opacity: 1; cursor: default; }
 .tl-medal { display: block; width: 100%; aspect-ratio: 1; padding: var(--s1); }

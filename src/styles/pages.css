@@ -117,12 +117,8 @@
 .sc-choose-mon span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-choose-mon.on { background: var(--lit); color: var(--ground); }
 
-/* an empty search, one form everywhere (DESIGN.md "Errors and empty"): a dark 0 display and two sentences in the empty panel,
-   the display standing beside them; dark is the cells unlit, as a total leaves its unused cells */
-.ypl-empty.search-none { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s5); align-items: center; margin-top: var(--s5); }
-.search-none > :is(b, p) { grid-column: 2; }
-.search-none > .seg { grid-column: 1; grid-row: 1 / span 2; }
-.search-none > .seg .on { opacity: var(--off); }
+/* an empty search, one form everywhere (DESIGN.md "Errors and empty"): one line on its panel; the count is in the search field */
+.ypl-empty.search-none { margin-top: var(--s5); }
 
 /* ---------- privacy (PrivacyPage.jsx) ---------- */
 /* reading stands in the 709 as a notice's does, never across the 1200 (DESIGN.md "Typesetting", Measure); the 439 beside it holds the

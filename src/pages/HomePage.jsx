@@ -126,7 +126,8 @@ export default function HomePage({ data, go, admin }) {
     const date = dotDate(raw);
     const at = time && !/\d{1,2}:\d{2}/.test(String(raw)) ? `${String(raw).slice(0, 10)}T${time}` : raw;
     // the facts that belong to the countdown stand beside it (Composing a screen 26): 일시, 신청 마감, 형식
-    const spec = [["일시", formatDate(at, { time: true })], ...(a.form?.closesAt ? [["신청 마감", `${formatDate(a.form.closesAt, { time: true })}까지`]] : []),
+    // on the day the clock beside them is the start, so 일시 does not stand twice (Composing a screen 22)
+    const spec = [...(dday === 0 ? [] : [["일시", formatDate(at, { time: true })]]), ...(a.form?.closesAt ? [["신청 마감", `${formatDate(a.form.closesAt, { time: true })}까지`]] : []),
       ...(BATTLE[draft.battleFormat] ? [["형식", BATTLE[draft.battleFormat]]] : [])];
     return { today: dday === 0, dday, name: draft.name || a.title, kind: draft.isTeamEvent ? "팀전" : "개인전", spec, date: date && { ...date, clock: time || date.clock }, eventId: a.form?.eventId || null, noticeId: a.id,
       // 파티 제출은 대회 시작까지다: 그 전날까지는 남은 날이 위의 카운트다운과 같아서, 그날 시작 전에만 남은 시간을 센다

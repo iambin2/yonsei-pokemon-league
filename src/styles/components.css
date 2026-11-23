@@ -94,7 +94,8 @@
 .bk-grow2 > .dd, .bk-grow2 > input { margin-bottom: var(--s3); }
 @media (max-width: 639px) { .bk-grow2 { grid-template-columns: 1fr; } }
 /* an explanatory sentence (a sheet's hint, a note in a form, an empty state, a page description) reads in one grey */
-.bk-hint, .hint { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }
+/* a hint is the label tier (Hierarchy 5): 12/16, 15/20 on desktop, never larger than the label of the field it serves */
+.bk-hint, .hint { font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
 .row-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .row-actions > div { display: flex; gap: var(--s2); flex-wrap: wrap; }
 .pts-note { padding: var(--s5) var(--pad); background: var(--panel-2); font-size: var(--t12); line-height: var(--l12); color: var(--mute); }

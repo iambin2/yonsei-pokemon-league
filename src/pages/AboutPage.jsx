@@ -44,6 +44,8 @@ export default function AboutPage({ go }) {
 
     <div className="stack ab-screen">
       <section className="pn ab-lead" aria-labelledby="ab-name">
+        {/* the first of the steps: the steps beside it count on from 2 */}
+        <span className="num t20 ab-n">1</span>
         <span className="t12 dim">YPL, Yonsei Pokémon League</span>
         <b className="t32 ab-name" id="ab-name">포센연의 배틀 리그</b>
         <dl className="stack ab-spec">

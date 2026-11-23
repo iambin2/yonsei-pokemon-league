@@ -69,16 +69,16 @@
   .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: end; padding: var(--s8) var(--pad); }
   .hof-crown-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .hof-crown-mon { aspect-ratio: auto; height: calc(var(--s21) * 2); }
-  .hof-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hof-wall { grid-template-columns: repeat(var(--wc, 3), minmax(0, 1fr)); }
   .hof-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-@media (min-width: 640px) and (max-width: 859px) { .hof-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 640px) and (max-width: 859px) { .hof-wall { grid-template-columns: repeat(var(--tc, 2), minmax(0, 1fr)); } }
 
 /* ---------- about (draft 1C, 2026-11-19) ---------- */
 /* the big screen: the league's name and facts with ↗ 디스코드 참여 in the 709, the next two steps as doors in the 439 */
-.ab-screen { margin-top: var(--s5); }
+.ab-screen { margin-top: var(--s8); }
 /* the lead runs its row's height and its key stands on its foot, so no band stays empty under it */
-.ab-lead { display: grid; grid-template-rows: auto auto auto 1fr; gap: var(--s3); padding: var(--pad); }
+.ab-lead { display: grid; grid-template-rows: auto auto auto auto 1fr; gap: var(--s3); padding: var(--pad); }
 .ab-lead > :last-child { align-self: end; }
 .ab-name { margin-top: calc(var(--s2) * -1); font-weight: 700; }
 .ab-spec { margin: 0; }
@@ -107,7 +107,8 @@
 .ab-tag { --type: var(--mute); }
 .ab-tag.lit { --type: var(--lit); }
 @media (min-width: 860px) {
-  .ab-screen { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); }
+  /* the big screen split as the home's: the steps on the 439 */
+  .ab-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); }
   .ab-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ab-flow > li:nth-child(3)::before { content: "→"; }
   .ab-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }

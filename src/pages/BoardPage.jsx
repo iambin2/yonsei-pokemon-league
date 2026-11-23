@@ -34,6 +34,10 @@ const keepNick=nick=>{ try{ localStorage.setItem(NICK_KEY,nick); }catch{ /* 기�
 
 /* ============================== BOARD (자유게시판) ============================== */
 const fmtDT=iso=>formatDate(iso,{time:true});
+// a phone's comment head keeps one line (2026-11-23 audit, Q-10): the short form 11.19 오후 3:12, the year (25.) only when it is not this
+// one. Both forms are drawn and the width picks one (posts.css), so the date service stays as it is.
+const shortDT=iso=>{ const full=fmtDT(iso), d=dotDate(iso); if(!d) return full; const t=full.match(/(오전|오후) \d{1,2}:\d{2}$/), y=full.match(/^(\d{4})년/); return `${y?y[1].slice(2)+".":""}${d.day}${t?" "+t[0]:""}`; };
+const DT=({iso})=><><span className="dt-long">{fmtDT(iso)}</span><span className="dt-short">{shortDT(iso)}</span></>;
 
 function parseMedia(url){
   if(!url) return null; const u=String(url).trim(); if(!u) return null;
@@ -203,7 +207,7 @@ function CommentForm({ onSubmit, label="댓글", second=false }){
 function Comments({ comments=[], onAdd, onEdit, onDel, second=false }){
   const [replying,setReplying]=useState(null);
   const one=(c,root)=>(<div className={"pn bd-cmt"+(c.id===root?"":" reply")} key={c.id}>
-    <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num">{fmtDT(c.createdAt)}</span><Edited at={c.editedAt}/>
+    <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num"><DT iso={c.createdAt}/></span><Edited at={c.editedAt}/>
       <button className="bd-act t12" aria-expanded={replying===root} onClick={()=>setReplying(replying===root?null:root)}>답글</button>
       <button className="bd-act t12" onClick={()=>onEdit(c)}>수정</button><button className="bd-act t12" onClick={()=>onDel(c)}>삭제</button></div>
     <div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
@@ -267,7 +271,7 @@ function FreeBoard({ admin, flash, tabs }){
         <BackLink to="게시판" onClick={closePost}/>
         {/* a post's 수정 and 삭제 stand as its comments' do, two words at the end of its own line: as two 52 panels under the body they
             were the largest keys on a post, for a visitor who only reads it (2026-11-10, DESIGN.md "Composing a screen" 1) */}
-        <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
+        <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick].filter(Boolean).join(", ")}{p.createdAt&&<>, <DT iso={p.createdAt}/></>}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         <h1 className="t32 bd-title-h" data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</h1>
         {(p.body||p.link)&&<div className="bd-body">
           <Prose text={p.body}/>
@@ -291,7 +295,7 @@ function FreeBoard({ admin, flash, tabs }){
       {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
       {!loadError&&!posts&&!fresh&&<Loader/>}
       {!loadError&&posts&&list.length===0&&(kw
-        ? <Empty title="검색 결과가 없습니다." desc={`‘${kw}’에 맞는 글을 찾지 못했습니다.`}/>
+        ? <Empty title="검색 결과가 없습니다."/>
         : <Empty title="아직 글이 없습니다."/>)}
       {shown.map(p=>{ const cc=(p.comments||[]).length; const d=dotDay(p.createdAt);
         return <Row key={p.id} title={<span data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</span>}
@@ -471,7 +475,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         <header className="bd-art-head">
           <BackLink to={label} onClick={closePost}/>
           <h1 className="t32 bd-title-h" data-vt={"s-"+p.id}>{p.title}</h1>
-          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick,fmtDT(p.createdAt)].filter(Boolean).join(", ")}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
+          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[label,FORMAT_LABEL[formatOf(p)],ruleSummary(p.team),p.nick].filter(Boolean).join(", ")}{p.createdAt&&<>, <DT iso={p.createdAt}/></>}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         </header>
         {!one&&<div className="bd-six">{(p.team?.members||[]).map((m,i)=>{ const name=(sheet[i]?.name)||m.pokemonName;
           return <button type="button" className="pn stand bd-cell" key={i} onClick={()=>toCase(i)} aria-label={`${name} 세팅 보기`}><Mon src={spriteUrl(m.pokemonName)}/><span className="floor bd-band"><b className="t15">{name}</b></span></button>; })}</div>}
@@ -503,7 +507,7 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
     {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
     {!posts?(!loadError&&<Loader/>):<div className="stack bd-list swap">
       {list.length===0&&(kw
-        ? <Empty title="검색 결과가 없습니다." desc={`‘${kw}’에 맞는 ${FORMAT_LABEL[format]} ${label} 글을 찾지 못했습니다.`}/>
+        ? <Empty title="검색 결과가 없습니다."/>
         : <Empty title={`아직 ${FORMAT_LABEL[format]} ${label} 글이 없습니다.`}/>)}
       {shown.map(post=>{ const cc=(post.comments||[]).length; const d=dotDay(post.createdAt);
         const by=[post.nick,kind==="party"?REGULATIONS[post.team?.regulationId]?.shortName:post.names?.[0]].filter(Boolean).join(", ");

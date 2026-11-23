@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 import { BackLink, Chips, Choice, Counter, Dock, OptionRows, Question, Row, SectionHead, Toast } from "../components/common/Board.jsx";
 import { DUR, light } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
-import Seg from "../components/common/Seg.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
 import { Dropdown, Empty, Icon, ListSearch, Loader, Modal, Pager, Prose, siteAlert, siteConfirm, transition } from "../components/index.js";
@@ -269,6 +268,8 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
         {admin&&<Button variant="link" onClick={()=>setModal({type:"ann"})}>공지 작성</Button>}
       </span>
     </header>
+    {/* the search stands first, so typing in it never moves it (2026-11-23 audit, Q-08) */}
+    <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {upcoming.length>0&&!kw&&<section className="nw-upcoming" aria-labelledby="nw-upcoming-h">
       <SectionHead id="nw-upcoming-h" title="다가오는 대회" link="캘린더에 추가" onLink={allToCalendar}/>
       <div className="stack">{upcoming.map(({a:x,facts})=>{
@@ -279,10 +280,9 @@ export default function NewsPage({ data, admin, setModal, save, submitForm, refr
           value={<span className="num t15">{facts.next.dday===0?"오늘":`D-${facts.next.dday}`}</span>} label={`${x.form?.eventDraft?.name||x.title}, ${line}, ${facts.next.dday===0?"오늘":`${facts.next.dday}일 남음`}`}/>;
       })}</div>
     </section>}
-    <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {list.length===0?(kw
       ? <>
-        <Empty className="search-none" title="맞는 공지가 없습니다."><Seg value={0} h={40} cells={2} label="0건"/></Empty>
+        <Empty className="search-none" title="맞는 공지가 없습니다."/>
         {all.length>0&&<section className="nw-recent"><SectionHead title="최근 공지"/><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></section>}
       </>
       : <Empty title="등록된 공지가 없습니다."/>)

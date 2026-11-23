@@ -12,7 +12,6 @@
 .bk-rows .row { height: var(--h-row2); }
 
 /* an open bracket: the back link 20 under the bar, the live strip, its name at 20, a grey line */
-.bk-head-open > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }
 .bk-strip { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-strip); margin-top: var(--s5); padding: 0 var(--s3); }
 .bk-strip > .dim { margin-left: auto; }
 .bk-open-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s5); }
@@ -31,7 +30,11 @@
 .bk-board:has(.bk-champ-node) .bk-winner { display: none; }
 .bk-board:has(.bk-champ-node) .bk-places { margin-top: 0; }
 /* the decided winner reads at 32: the one fact the whole tree leads to (DESIGN.md "Hierarchy", the named exception) */
-.bk-champ-node b { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
+.bk-champ-node b, .bk-winner > h2 { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
+/* a group stage: its standings and its matches are two kinds, 12 apart (Composing a screen 30); 본선 is a section head, 12 over its stack */
+.bk-gs > section > .row + [data-match] { margin-top: calc(var(--s3) - var(--seam)); }
+.bk-board > .bk-final-h { margin-bottom: calc(var(--s3) - var(--s8)); }
+@media (min-width: 860px) { .bk-gs > section { max-width: 709px; } }
 /* the 우승 panel is a trophy's panel, 180, taller than a match, centred on the final */
 .bk-champ-pos { translate: 0 calc((var(--mb) - var(--s21) * 2 - var(--s3)) / 2); }
 .bk-champ-col .bk-champ-node { height: calc(var(--s21) * 2 + var(--s3)); align-items: center; justify-content: center; text-align: center; }
@@ -43,8 +46,8 @@
 @media (max-width: 859px) {
   .bk-board > .bk-result { display: contents; }
   .bk-board > .bk-result > * { order: 1; }
-  .bk-board:has(.bk-champ-node) .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }
-  .bk-winner > h2 { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
+  /* the winner leads on a phone in both views, the list as the tree (Composing a screen 4) */
+  .bk-board .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }
   .bk-board:has(.bk-result) .bk-champ-col { display: none; }
 }
 @media (min-width: 860px) {
@@ -97,13 +100,18 @@
   /* a short tree runs the full 1200: its columns share what is left, so the tree ends on the bar's right edge like every row */
   .bk-scroll > .bk-tree { min-width: 100%; }
   /* five rounds at 216 and 32 between are 1208, past the 1200: the columns share the width down to 200 (five 1128), and from six the tree scrolls */
-  .bk-tree > .bk-col2 { flex: 1 1 0; min-width: calc(var(--s21) * 2 + var(--s8)); width: auto; }
+  /* each column is a whole pixel wide (a column of 214.4 drew its cards' edges on half pixels): the scroller is the measure (cqw), every
+     column takes the share rounded down and the last one takes what is left, so the tree still ends on the bar's right edge */
+  .bk-scroll { container-type: inline-size; }
+  .bk-tree > .bk-col2 { flex: 0 0 max(calc(var(--s21) * 2 + var(--s8)), round(down, calc((100cqw - (var(--n) - 1) * var(--bk-gap)) / var(--n)), 1px)); width: auto; }
+  .bk-tree > .bk-col2:last-child { flex-grow: 1; }
   /* a double's losers' rounds, its 그랜드 파이널 and its 우승 share the 1200 too (2026-11-10: at 216 each the 우승 stood past the
      board's edge in a scroller with no bar, so a finished double named no champion in view) */
   .bk-lb > .bk-cols { width: auto; min-width: 100%; }
-  .bk-cols > .bk-col { flex: 1 1 0; width: auto; min-width: calc(var(--s21) + var(--s8)); }
+  .bk-cols > .bk-col { flex: 0 0 max(calc(var(--s21) + var(--s8)), round(down, calc((100cqw - (var(--n) - 1) * var(--bk-gap)) / var(--n)), 1px)); width: auto; }
+  .bk-lb:not(.bk-gf-row) > .bk-cols:not(.bk-third) > .bk-col:last-child { flex-grow: 1; }
   /* the 3위 결정전 keeps the width of one of the tree's columns above it (--bk-n: the tree's columns) */
-  .bk-third > .bk-col { flex: 0 0 calc((100% - (var(--bk-n) - 1) * var(--bk-gap)) / var(--bk-n)); }
+  .bk-third > .bk-col { flex: 0 0 round(down, calc((100cqw - (var(--bk-n) - 1) * var(--bk-gap)) / var(--bk-n)), 1px); }
 }
 
 /* a match box: two rows of 36 with the seam between; the winner inverts, the loser mutes, a waiting slot is muted words */
