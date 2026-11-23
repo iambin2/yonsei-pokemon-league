@@ -291,6 +291,8 @@
 .pick-field .dd-btn { width: 100%; }
 .pick-field:has(.pick-clear) .dd-btn { padding-right: var(--s13); }
 .pick-type { flex: none; margin-left: auto; }
+/* in a field the tag is the value's line, so the filled field stands as the empty one does */
+.pick-field .pick-type { height: var(--l15); }
 /* in a phone's two-across cells the tag's word and the clear key left a move two letters (겁나…, measured at 390: 60 of 175):
    there the tag is its colour square alone, as a status is in the battle's strips; the word is in the list it was picked from */
 @media (max-width: 639px) { .pick-field:has(.pick-clear) .pick-type { width: var(--s5); padding: 0 0 0 calc((var(--s5) - var(--s2)) / 2); gap: var(--s3); justify-content: flex-start; overflow: hidden; white-space: nowrap; } }

@@ -26,7 +26,7 @@
 .calc-vs-label { position: absolute; left: var(--pad); top: var(--s2); z-index: var(--z-raised); }
 /* an empty side: the + stands in the middle of the whole panel, its words on the band below */
 .calc-vs-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mute); }
-.calc-vs-band { display: grid; align-content: center; gap: var(--s1); padding: 0 var(--pad); }
+.calc-vs-band { display: grid; align-content: start; gap: var(--s1); padding: var(--s2) var(--pad) 0; }
 /* the x that empties a side stands in the panel's top corner, beside its label */
 .calc-vs-slot { position: relative; min-width: 0; }
 .calc-vs-x { top: 0; translate: none; z-index: var(--z-raised); }
@@ -119,6 +119,8 @@
 .calc-dex-block { display: grid; gap: var(--s3); min-width: 0; }
 .calc-base { display: grid; }
 .calc-base-row { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) calc(var(--s21) - var(--s5)); align-items: center; gap: var(--s3); min-height: var(--h-strip); }
+/* on desktop the range (183 ~ 215) keeps one line */
+@media (min-width: 860px) { .calc-base-row { grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) var(--s21); } .calc-base-row > :last-child { white-space: nowrap; } }
 .calc-base-row > b { text-align: right; font-variant-numeric: tabular-nums; }
 .calc-base-row > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
 .calc-matchup { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s2) var(--pad); }

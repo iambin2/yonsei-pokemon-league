@@ -15,7 +15,9 @@
 /* the reasons: an error starts with the ! square, the rest are dim sentences */
 .tb-validation ul { margin: var(--s3) 0 0; padding: 0; list-style: none; display: grid; gap: var(--s2); }
 /* only the reasons' list: the steps are an ol of their own and keep their centred 44 cells */
-.tb-validation ul > li { display: flex; align-items: flex-start; gap: var(--s2); font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
+/* the words of every line start on the head's: 12 after the 20 mark, or 32 in where a line has none */
+.tb-validation ul > li { display: flex; align-items: flex-start; gap: var(--s3); font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
+.tb-validation:has(.tb-validation-icon) ul > li:not(:has(> .bang)) { padding-left: calc(var(--s5) + var(--s3)); }
 .tb-validation ul > li.error { color: var(--lit); }
 .tb-validation ul > li .bang { margin-top: calc((var(--l12) - var(--s5)) / 2); }
 .tb-more { margin: var(--s2) 0 0; font-size: var(--t12); color: var(--mute); }
@@ -132,7 +134,7 @@
 /* ---------- dialogs: rule change ---------- */
 .tb-rule-confirm-copy { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }
 .tb-rule-confirm-copy + .tb-rule-confirm-copy { margin-top: var(--s3); }
-.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) var(--s5) var(--s3) var(--s13); background: var(--panel); font-weight: 600; }
+.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) var(--pad); list-style: none; background: var(--panel); font-weight: 600; }
 
 @media (max-width: 1099px) {
   .tb-layout { grid-template-columns: 1fr; }

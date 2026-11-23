@@ -1641,7 +1641,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
                       options={ALIGNMENTS.map(alignment => ({ value: alignment.id, label: alignmentDisplay(alignment) }))} />
                   </Cell>
                 </div>
-                <p className="t12 reg dim tb-field-meta">{selectedRequiredItem ? "메가폼의 도구는 자동으로 정해집니다." : ""}</p>
+                {selectedRequiredItem && <p className="t12 reg dim tb-field-meta">메가폼의 도구는 자동으로 정해집니다.</p>}
 
                 <div className="tb-editor-section">
                   <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className={"t12" + (STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0) > 66 ? " over" : "")}>{STAT_KEYS.reduce((sum, key) => sum + Number(selectedMember.statPoints?.[key] || 0), 0)} / 66</b></div>

@@ -79,10 +79,16 @@
 .tb-locked-item { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); color: var(--dim); font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
 .tb-move-cell { padding-block: var(--s2); }
 .tb-move-meta:empty { display: none; }
+/* a cell's value rule (15/20/600, one line) took the move's grey line too: it is the cell's grey line, 12/16/400, and wraps */
+.cell > span.tb-move-meta { font-size: var(--t12); line-height: var(--l12); font-weight: 400; white-space: normal; }
+/* the save dock stands 20 under the editor it saves, as the rules check stands 20 under it */
+@media (min-width: 860px) { .tb-main-column > .dock { margin-top: 0; } }
 
 /* a point is a bar: the track a panel, the points lit; the range input lies over it unseen, so it still takes touch and keys */
 .tb-stats { display: grid; }
 .tb-stat-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control) var(--s21); align-items: center; gap: var(--s3); min-height: var(--h-strip); }
+/* a slider a finger takes keeps a finger's 44 on a phone, as the calculator's does */
+@media (max-width: 859px) { .tb-stat-row { min-height: var(--h-control); } .tb-stat-row .bar > input[type="range"] { height: var(--h-control); } }
 .tb-stat-key { color: var(--dim); white-space: nowrap; }
 .tb-stat-number { min-height: var(--h-strip); padding: 0; background: none; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
 .tb-stat-number::-webkit-inner-spin-button, .tb-stat-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -96,7 +102,7 @@
 
 /* ---------- my teams: new and copy, the save line, each team a panel with its six; the open one inverted ---------- */
 .tb-library-top { grid-template-columns: 1.618fr 1fr; }
-.tb-library-text { grid-template-columns: 1fr 1fr; margin-top: var(--s2); }
+.tb-library-text { grid-template-columns: 1fr 1fr; margin-top: var(--seam); }
 .tb-library-save { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--seam); margin-top: var(--s5); }
 .tb-library-save .cell { --field-bg: transparent; }
 .tb-team-name { min-height: 0; padding: 0; background: none; font-weight: 600; }
@@ -148,7 +154,8 @@
 @media (min-width: 860px) {
   .tb-rules-line { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tb-rules > .tb-rule-group:nth-child(-n + 2) { display: none; }
-  .tb-rules:not(:has(.tb-rule-group:nth-child(3))) { grid-template-columns: minmax(0, 1fr); }
+  /* with no third rule (the monotype's type) the rules' own block is empty on desktop and keeps no gap */
+  .tb-rules:not(:has(.tb-rule-group:nth-child(3))) { display: none; }
 }
 /* the type board stands 12 under the search, the list's sort under it */
 .tb-pool-panel > .tb-type-grid { flex: none; margin-top: var(--s3); }
