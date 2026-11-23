@@ -954,6 +954,9 @@ button.bt-card:focus-visible { outline: var(--line) solid var(--lit); outline-of
 .bt-console { position: relative; }
 .bt-peek { position: absolute; inset: 0; z-index: var(--z-raised); padding: var(--s3) var(--pad); overflow: hidden auto; animation: bt-take var(--move-tone) backwards; }
 .bt-peek .bt-tip { gap: var(--s2); }
+/* its 닫기 at the top right, sticky so it stays in reach while the card scrolls */
+.bt-peek-x { position: sticky; top: 0; float: right; z-index: 1; display: grid; place-items: center; width: var(--h-control); height: var(--h-control); margin: calc(var(--s3) * -1) calc(var(--pad) * -1) 0 var(--s2); color: var(--dim); }
+@media (hover: hover) { .bt-peek-x:hover { color: var(--lit); } }
 /* the hold's one-time hint stands just over the deck, never over the keys */
 .bt-console > .bt-hint { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s3)); z-index: var(--z-raised); display: flex; justify-content: center; pointer-events: none; }
 .bt-console > .bt-hint .toast-panel { position: static; }

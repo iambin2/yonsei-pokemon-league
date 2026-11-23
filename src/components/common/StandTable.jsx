@@ -13,8 +13,6 @@ export function rankRows(rows) {
 }
 
 const SHOWN = 12;
-/* 0인 성적은 쓰지 않는다: "우승 2, 4강 1" */
-const recordLine = (r) => [["우승", r.win], ["준우승", r.ru], ["4강", r.top4]].filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(", ");
 
 /* A ranking as the line score (DESIGN.md "Layout and pages", draft B; Composing a screen 25): a sole leader stands first as an inverted
    row 84 tall, the name at 20, its bar on a track and the points at 32; the rest are rows of 52, the place, the name, the bar and the
@@ -41,7 +39,7 @@ export default function StandTable({ rows, total, onName, open = false, onMore, 
         const first = i === 0 && solo;
         const pts = r.points || 0;
         const place = `${tied(r) ? "공동 " : ""}${r.rank}위`;
-        const line = [recordLine(r), r.note].filter(Boolean).join(", ");
+        const line = r.note || "";
         const go = r.open || (onName ? (e) => onName(r.name, e.currentTarget) : null);
         const Box = go ? "button" : "div";
         return <Box key={`${r.name}#${n}`} {...(go ? { type: "button", onClick: go } : {})} className={(first ? "inv ls-first" : "pn") + " ls-row" + (line ? " two" : "")}

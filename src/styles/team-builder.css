@@ -59,6 +59,8 @@
   display: flex; flex-direction: column; max-height: calc(100dvh - var(--nav-height) - var(--s8));
 }
 .tb-data-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); min-height: var(--l12); margin: var(--s2) 0 0; font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
+/* once the data stands the line holds nothing and goes, so no band without ink stays under the head (2026-11-23) */
+.tb-data-line:empty { display: none; }
 .tb-pokemon-list {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: var(--s1); margin: var(--s5) calc(var(--s2) * -1) 0; padding: 0 var(--s2);
@@ -147,17 +149,19 @@
    (letter dim, figure lit; the sorted one bold), the total as the row's figure at the right, then + */
 .tb-bst { display: none; }
 @media (min-width: 1100px) {
-  /* a row is the picture's 64 (2026-11-23 audit, Q-15): the name and its type tags on one line, the six stats under them, the total and + */
-  .tb-pokemon-row { grid-template-columns: var(--h-row2) auto minmax(0, 1fr) auto var(--h-strip); column-gap: var(--s2); row-gap: 0; min-height: var(--h-row2); padding: 0 var(--s3) 0 0; contain-intrinsic-size: auto 64px; }
+  /* a row (rebuilt 2026-11-23, the owner: rows of 64 with no padding were "빡빡", the type tags touching the row's top edge): the picture's
+     64 with 12 over and under the words, the name at 15 and its type tags on the first line, the six stats on the second as one line of
+     letter and figure in equal columns under the whole width, 8 between the lines; the total at the first line's end, + at the right */
+  .tb-pokemon-row { grid-template-columns: var(--h-row2) auto minmax(0, 1fr) auto var(--h-strip); align-content: center; column-gap: var(--s3); row-gap: var(--s2); min-height: var(--h-counter); padding: var(--s3) var(--s3) var(--s3) 0; contain-intrinsic-size: auto 84px; }
   .tb-pokemon-row > .tb-pic { grid-row: 1 / span 2; }
-  .tb-pokemon-row .tb-pokemon-copy { grid-column: 2; grid-row: 1; }
+  .tb-pokemon-row .tb-pokemon-copy { grid-column: 2; grid-row: 1; align-self: center; }
+  .tb-pokemon-row .tb-pokemon-copy strong { font-weight: 700; }
   .tb-pokemon-row .tb-pokemon-copy small { display: none; }
-  .tb-pokemon-row .tb-types { grid-column: 3; grid-row: 1; }
-  /* six equal columns, the letter over its figure, so the figures stand in columns from row to row like a table; 8 between them */
-  .tb-base-strip { grid-column: 2 / 4; grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0 var(--s2); padding-top: 0; }
-  .tb-base-strip > span { display: grid; justify-items: start; gap: 0; color: var(--dim); }
+  .tb-pokemon-row .tb-types { grid-column: 3; grid-row: 1; align-self: center; flex-wrap: nowrap; }
+  .tb-base-strip { grid-column: 2 / 5; grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0 var(--s2); padding-top: 0; }
+  .tb-base-strip > span { display: flex; align-items: baseline; gap: var(--s1); justify-items: start; color: var(--dim); }
   .tb-base-strip > span:last-child { display: none; }
-  .tb-bst { display: block; grid-column: 4; grid-row: 1 / span 2; align-self: center; font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tb-bst { display: block; grid-column: 4; grid-row: 1; align-self: center; text-align: right; font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; }
   .tb-pokemon-row > .tb-add-mark { grid-column: 5; grid-row: 1 / span 2; align-self: center; }
 }
 
@@ -209,5 +213,7 @@
 /* an active condition is inverted, like a selected control */
 .tb-chip { padding: 0 var(--s2) 0 var(--s3); border: 0; background: var(--lit); color: var(--ground); }
 .tb-chip small { font-size: var(--t12); font-weight: 400; }
-.tb-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: center; margin-top: var(--s3); }
+.tb-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) var(--h-row); gap: var(--seam); align-items: stretch; margin-top: var(--s3); }
+.tb-sort-dir { display: grid; place-items: center; min-height: var(--h-row); color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
+@media (hover: hover) { .tb-sort-dir:hover { background: var(--panel-2); } }
 

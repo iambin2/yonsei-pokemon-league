@@ -223,10 +223,10 @@ export function speedDuel({ a, b, sideA, sideB, field }) {
 // Game rounding for a 4096-based modifier: halves round down.
 const pokeRound = value => (value % 1 > 0.5 ? Math.ceil(value) : Math.floor(value));
 export const SPEED_MODIFIERS = [
-  { value: "1", label: "보정 없음" },
-  { value: "1.5", label: "1.5배 (스카프, 랭크 +1)" },
-  { value: "2", label: "2배 (순풍, 랭크 +2)" },
-  { value: "0.5", label: "0.5배 (마비)" },
+  { value: "0.5", label: "0.5배 (마비)", times: "×0.5", cause: "마비" },
+  { value: "1", label: "보정 없음", times: "×1", cause: "보정 없음" },
+  { value: "1.5", label: "1.5배 (스카프, 랭크 +1)", times: "×1.5", cause: "스카프, +1" },
+  { value: "2", label: "2배 (순풍, 랭크 +2)", times: "×2", cause: "순풍, +2" },
 ];
 export function applySpeedModifier(speed, modifier) {
   const m = Number(modifier) || 1;

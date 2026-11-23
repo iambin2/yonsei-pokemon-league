@@ -434,7 +434,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
      컴포넌트가 아니라 함수로 부른다: 그릴 때마다 새 컴포넌트가 되면 입력 칸이 다시 만들어져 포커스를 잃는다. */
   const facts=(eventFacts(ann)?.rows||[]).filter(([k])=>/일시$|신청 마감/.test(k));
   const both=form.eventDraft?.division==="both";
-  const sheet=({line,act,toast,children})=>(<section className="nw nw-form">
+  const sheet=({line,act,toast,children})=>(<section className="nw nw-form" data-enter>
     <header className="nw-form-head">
       <BackLink to={ann.title} onClick={onBack}/>
       <h1 className="t32 nw-form-title">{title}</h1>

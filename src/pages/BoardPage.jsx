@@ -17,7 +17,7 @@ import { BackLink, Chips, Choice, Dock, Mon, Row, SectionHead, TabsLine } from "
 import { dotDate } from "../services/dateFormat.js";
 
 const dotDay=dotDate;
-import TeamSheet, { sheetOf, useTeamDisplay } from "../components/common/TeamSheet.jsx";
+import TeamSheet, { SampleCase, sheetOf, useTeamDisplay } from "../components/common/TeamSheet.jsx";
 import Field from "../components/common/Field.jsx";
 import { useItemTitle } from "../components/layout/title.js";
 import { viewHref } from "../services/appRouting.js";
@@ -185,18 +185,18 @@ function CommentForm({ onSubmit, label="댓글", second=false }){
   const submit=()=>{ if(noNick||noBody){ setTried(true); return; }
     if(!as.on) keepNick(nick.trim().slice(0,20));
     onSubmit({nick:as.on?as.name:nick.trim().slice(0,20),body:body.trim(),pin:as.on?"":pin.trim(),link:link.trim(),byAccount:as.on}); setTried(false); setBody(""); setPin(""); setLink(""); };
+  /* one grid for the fields and 등록 (2026-11-23, the owner's draft A): on a phone 닉네임 and 비밀번호 over the comment and its key; on a
+     free post's desktop all four on one line across the page */
   return (<div className="bd-cform stack">
     <AsAccount as={as}/>
     {/* each field is a cell: its label 12 over what is typed, so a placeholder never stands in for the label (DESIGN.md "Controls") */}
-    {!as.on&&<div className="bd-cform-row">
-      <label className="cell bd-cform-nick"><span className="cell-label">닉네임</span><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20} aria-invalid={tried&&noNick?true:undefined} aria-describedby={tried&&noNick?"bd-cform-nick-error":undefined}/></label>
-      <label className="cell bd-cform-pin"><span className="cell-label">비밀번호 (선택)</span><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="숫자 4자리" inputMode="numeric"/></label>
-    </div>}
-    {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
-    <div className="bd-cform-row">
-      <label className="cell bd-cform-body"><span className="cell-label">{label}</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")submit();}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
+    <div className={"bd-cform-grid"+(as.on?" as":"")}>
+      {!as.on&&<label className="cell bd-cform-nick"><span className="cell-label">닉네임</span><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="예: 지나가던트레이너" maxLength={20} aria-invalid={tried&&noNick?true:undefined} aria-describedby={tried&&noNick?"bd-cform-nick-error":undefined}/></label>}
+      {!as.on&&<label className="cell bd-cform-pin"><span className="cell-label">비밀번호 (선택)</span><input value={pin} onChange={e=>setPin(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} placeholder="숫자 4자리" inputMode="numeric"/></label>}
+      <label className="cell bd-cform-body"><span className="cell-label">{label}</span><input value={body} onChange={e=>setBody(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();submit();}}} aria-invalid={tried&&noBody?true:undefined} aria-describedby={tried&&noBody?"bd-cform-body-error":undefined}/></label>
       <Button variant={second?"second":"main"} icon="check" size="sm" onClick={submit}>등록</Button>
     </div>
+    {tried&&noNick&&<FormError id="bd-cform-nick-error">닉네임을 입력해 주세요.</FormError>}
     {tried&&noBody&&<FormError id="bd-cform-body-error">{label}이나 링크를 입력해 주세요.</FormError>}
     <label className="cell bd-cform-link"><span className="cell-label">이미지 또는 유튜브 링크 (선택)</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://"/></label>
   </div>);
@@ -207,7 +207,7 @@ function CommentForm({ onSubmit, label="댓글", second=false }){
 function Comments({ comments=[], onAdd, onEdit, onDel, second=false }){
   const [replying,setReplying]=useState(null);
   const one=(c,root)=>(<div className={"pn bd-cmt"+(c.id===root?"":" reply")} key={c.id}>
-    <div className="bd-cmt-top"><b className="t12">{c.nick}</b><span className="t12 dim num"><DT iso={c.createdAt}/></span><Edited at={c.editedAt}/>
+    <div className="bd-cmt-top"><b className="t15">{c.nick}</b><span className="t12 dim num"><DT iso={c.createdAt}/></span><Edited at={c.editedAt}/>
       <button className="bd-act t12" aria-expanded={replying===root} onClick={()=>setReplying(replying===root?null:root)}>답글</button>
       <button className="bd-act t12" onClick={()=>onEdit(c)}>수정</button><button className="bd-act t12" onClick={()=>onDel(c)}>삭제</button></div>
     <div className="read bd-cmt-body">{c.body}{c.link&&<MediaEmbed url={c.link}/>}</div>
@@ -269,14 +269,27 @@ function FreeBoard({ admin, flash, tabs }){
     return (<section className="bd">
       <article className="bd-free">
         <BackLink to="게시판" onClick={closePost}/>
-        {/* a post's 수정 and 삭제 stand as its comments' do, two words at the end of its own line: as two 52 panels under the body they
-            were the largest keys on a post, for a visitor who only reads it (2026-11-10, DESIGN.md "Composing a screen" 1) */}
-        <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick].filter(Boolean).join(", ")}{p.createdAt&&<>, <DT iso={p.createdAt}/></>}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
         <h1 className="t32 bd-title-h" data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</h1>
-        {(p.body||p.link)&&<div className="bd-body">
-          <Prose text={p.body}/>
-          {p.link&&<MediaEmbed url={p.link}/>}
-        </div>}
+        {/* the body in the 709 and the post's facts with its keys in the 439 beside it (2026-11-23, the owner's draft A: the right half
+            stood empty and 수정 and 삭제 were two words at a date line's end) */}
+        <div className="bd-free-top">
+          <div className="bd-body">
+            {p.body&&<Prose text={p.body}/>}
+            {p.link&&<MediaEmbed url={p.link}/>}
+          </div>
+          <aside className="stack bd-free-side">
+            <div className="pn bd-free-who">
+              <span className="t12 dim">{p.secret?"관리자 전용, 글쓴이":"글쓴이"}</span><b className="t20">{p.nick}</b>
+              {p.createdAt&&<span className="t12 dim reg"><DT iso={p.createdAt}/><Edited at={p.editedAt}/></span>}
+            </div>
+            <div className="pn bd-free-count"><span className="t12 dim">댓글</span><b className="t20 num">{cc}</b></div>
+            <div className="bd-free-keys">
+              <button type="button" className="pn" onClick={()=>editPost(p)}>수정</button>
+              <button type="button" className="pn" onClick={()=>delPost(p)}>삭제</button>
+              {reportOn&&<button type="button" className="pn quiet" onClick={()=>setReporting(p)}>신고</button>}
+            </div>
+          </aside>
+        </div>
         <div className="bd-cmts">
           <SectionHead title={cc>0?`댓글 ${cc}`:"댓글"}/>
           <Comments comments={p.comments} onAdd={c=>addComment(c,p)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>
@@ -479,17 +492,22 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
         </header>
         {!one&&<div className="bd-six">{(p.team?.members||[]).map((m,i)=>{ const name=(sheet[i]?.name)||m.pokemonName;
           return <button type="button" className="pn stand bd-cell" key={i} onClick={()=>toCase(i)} aria-label={`${name} 세팅 보기`}><Mon src={spriteUrl(m.pokemonName)}/><span className="floor bd-band"><b className="t15">{name}</b></span></button>; })}</div>}
-        <div className="stack bd-bar">
+        {(()=>{ const bar=<div className="stack bd-bar">
           <Dock><Button variant="main" onClick={()=>openInBuilder(p,go)}>팀 빌더에서 열기</Button></Dock>
           <Button variant="second" disabled={!sheet.length||imageBusy} onClick={()=>saveImage(p,sheet)} loading={imageBusy}>이미지 저장</Button>
           <Button variant="second" onClick={()=>share(p)}>링크 공유</Button>
-        </div>
-        {p.body&&<div className="bd-body"><Prose text={p.body}/></div>}
-        <section className="sc-post-sheet" aria-label="포켓몬별 세팅">
-          {!one&&<SectionHead id={"bd-sets-"+p.id} title="포켓몬별 세팅"/>}
-          {display==="error"?<ErrorNote>배틀 데이터를 불러오지 못해 세팅을 보여 줄 수 없습니다. 팀 빌더에서 열면 확인할 수 있습니다.</ErrorNote>
-            :!display?<Loader small/>:<TeamSheet sheet={sheet} idPrefix={`bd-case-${p.id}-`}/>}
-        </section>
+        </div>;
+          const failed=display==="error"&&<ErrorNote>배틀 데이터를 불러오지 못해 세팅을 보여 줄 수 없습니다. 팀 빌더에서 열면 확인할 수 있습니다.</ErrorNote>;
+          // a sample: its one Pokémon large at the left, the actions and its whole set at the right (draft A, 2026-11-23)
+          if(one) return <>{failed||(!display||!sheet[0]?<><Loader small/>{bar}</>:<SampleCase row={sheet[0]} actions={bar}/>)}
+            {p.body&&<div className="bd-body"><p className="t12 dim bd-words-h">글쓴이의 말</p><Prose text={p.body}/></div>}</>;
+          return <>{bar}
+            {p.body&&<div className="bd-body"><Prose text={p.body}/></div>}
+            <section className="sc-post-sheet" aria-label="포켓몬별 세팅">
+              <SectionHead id={"bd-sets-"+p.id} title="포켓몬별 세팅"/>
+              {failed||(!display?<Loader small/>:<TeamSheet sheet={sheet} idPrefix={`bd-case-${p.id}-`}/>)}
+            </section></>;
+        })()}
         <section className="bd-cmts" aria-labelledby={"bd-cmts-"+p.id}>
           <SectionHead id={"bd-cmts-"+p.id} title={cc>0?`댓글 ${cc}`:"댓글"}/>
           <Comments second comments={p.comments} onAdd={c=>addComment(p,c)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>

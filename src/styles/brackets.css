@@ -32,9 +32,15 @@
 /* the decided winner reads at 32: the one fact the whole tree leads to (DESIGN.md "Hierarchy", the named exception) */
 .bk-champ-node b, .bk-winner > h2 { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); }
 /* a group stage: its standings and its matches are two kinds, 12 apart (Composing a screen 30); 본선 is a section head, 12 over its stack */
-.bk-gs > section > .row + [data-match] { margin-top: calc(var(--s3) - var(--seam)); }
 .bk-board > .bk-final-h { margin-bottom: calc(var(--s3) - var(--s8)); }
-@media (min-width: 860px) { .bk-gs > section { max-width: 709px; } }
+/* a group: its name, then the standing and the games, one over the other on a phone, side by side from 860 (709 to 439) */
+.bk-gs { gap: var(--s8); }
+.bk-gs-group { display: grid; gap: var(--s3); }
+.bk-gs-group > h2 { margin: 0; }
+@media (min-width: 860px) {
+  .bk-gs-group { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: start; }
+  .bk-gs-group > h2 { grid-column: 1 / -1; }
+}
 /* the 우승 panel is a trophy's panel, 180, taller than a match, centred on the final */
 .bk-champ-pos { translate: 0 calc((var(--mb) - var(--s21) * 2 - var(--s3)) / 2); }
 .bk-champ-col .bk-champ-node { height: calc(var(--s21) * 2 + var(--s3)); align-items: center; justify-content: center; text-align: center; }
@@ -49,6 +55,8 @@
   /* the winner leads on a phone in both views, the list as the tree (Composing a screen 4) */
   .bk-board .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }
   .bk-board:has(.bk-result) .bk-champ-col { display: none; }
+  /* a tree of one round (the final alone) with its 우승 above: the final takes the whole width, not half of it with nothing beside (2026-11-23) */
+  .bk-board:has(.bk-result) .bk-tree > .bk-col2:nth-child(2):nth-last-child(2) { width: calc(100vw - var(--gutter) * 2); }
 }
 @media (min-width: 860px) {
   .bk-tools { display: grid; grid-auto-flow: column; flex: none; }

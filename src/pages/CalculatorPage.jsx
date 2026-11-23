@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown, Empty, ErrorNote, Icon, Loader, Segmented } from "../components/index.js";
-import { Bar, Cell, Chips, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
+import { Bar, Cell, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
 import Seg from "../components/common/Seg.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { DEFAULT_REGULATION_ID, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
@@ -434,10 +434,10 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
 
       <div className="calc-speed-controls">
         <Segmented value={spread} onChange={setSpread} ariaLabel="상대 스피드 기준" options={Object.entries(SPEED_SPREAD_LABELS)} />
-        {/* the opponents' speed modifier as a row of choices, so which one is on reads at a glance */}
-        <Chips label="상대 스피드 보정" value={modifier} onChange={setModifier} options={SPEED_MODIFIERS.map(m => [m.value, m.label])} />
+        {/* the opponents' speed modifier as a second row of the same cells, the factor lit and its cause under it */}
+        <Segmented className="calc-mod" value={modifier} onChange={setModifier} ariaLabel="상대 스피드 보정"
+          options={SPEED_MODIFIERS.map(m => [m.value, <><b className="t15">{m.times}</b><span className="t12">{m.cause}</span></>])} />
       </div>
-      <p className="t12 reg dim">최속은 32포인트에 스피드 상승 성격, 준속은 32포인트에 무보정 성격, 무보정은 0포인트, 최저는 0포인트에 스피드 하락 성격입니다.</p>
       </div>
       <div className="calc-tier-wrap">
         <div className="tb-search-row calc-tier-search">

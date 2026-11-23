@@ -36,4 +36,7 @@
   .alerts > h1 { grid-column: 1 / -1; }
   .alerts-main { grid-column: 1; }
   .alerts-side { grid-column: 2; grid-row: 2; margin-top: 0; position: sticky; top: calc(var(--nav-height) + var(--s5)); }
+  /* no list on this device (push not offered, or the list still being read): the settings take the list's place at the left, not the
+     439 beside an empty 709 (2026-11-23) */
+  .alerts:not(:has(> .alerts-main)) > .alerts-side { grid-column: 1; position: static; }
 }

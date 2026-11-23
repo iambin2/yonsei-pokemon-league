@@ -1,6 +1,6 @@
 import React, { memo, startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Dropdown, Empty, Field, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
+import { Dropdown, Field, Icon, Loader, Modal, Segmented, siteAlert, siteConfirm } from "../components/index.js";
 import { teamToText, textToTeam } from "../services/showdownText.js";
 import { Bang, Bar, Cell, Choice, Dock, Mon, OptionRows, Steps, TabsLine, TypeGrid } from "../components/common/Board.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
@@ -180,6 +180,30 @@ const PoolList = memo(function PoolList({ pool, detailData, displayPokemon, sort
     </div>
   );
 });
+
+/* nothing chosen: the editor stands switched off, its own cells, bars and move places dark (2026-11-23, the owner: one sentence in an
+   empty panel read "덩그러니"). The head names what to do; choosing a Pokémon lights the same board. */
+function OffEditor() {
+  return (
+    <div className="tb-editor-off" aria-label="세팅할 포켓몬을 선택해 주세요.">
+      <div className="tb-editor-head"><h2 className="t20">세팅할 포켓몬을 선택해 주세요.</h2></div>
+      <div className="cells tb-spec" aria-hidden="true">
+        {["특성", "도구"].map(label => <Cell key={label} label={label}><span>없음</span></Cell>)}
+        <Cell label="성격" wide><span>없음</span></Cell>
+      </div>
+      <div className="tb-editor-section" aria-hidden="true">
+        <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className="t12">0 / 66</b></div>
+        <div className="tb-stats">
+          {STAT_KEYS.map(key => <div className="tb-stat-row" key={key}><span className="t12 tb-stat-key">{STAT_LETTERS[key]}</span><Bar thick value={0} /><span className="t15 tb-off-num">0</span><span /></div>)}
+        </div>
+      </div>
+      <div className="tb-editor-section" aria-hidden="true">
+        <div className="tb-subhead"><span className="t12 dim">기술</span><b className="t12">0 / 4</b></div>
+        <div className="cells">{[1, 2, 3, 4].map(n => <Cell key={n} label={`기술 ${n}`}><span>없음</span></Cell>)}</div>
+      </div>
+    </div>
+  );
+}
 
 /* 팀의 한 칸 (DESIGN.md "Team builder"): 포켓몬은 패널 안에서 이름 띠를 딛고 서고, 고른 칸의 이름 띠가 반전된다.
    빈칸은 + 하나. 띠의 회색 줄은 도구와 기술 수. */
@@ -1571,9 +1595,12 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
             onChange={id => setSearchChips(current => [...current.filter(chip => chip.kind !== "type"), ...(id ? [{ kind: "type", id, label: TYPE_OPTIONS.find(type => type.id === id)?.korean || id }] : [])])} />
           <div className="tb-sort-row">
             <Dropdown className="tb-dd" value={sortId} onChange={setSortId} ariaLabel="정렬 기준" options={BUILDER_SORTS.map(sort => ({ value: sort.id, label: sort.label }))} />
-            <Button type="button" variant="link" size="lg" onClick={() => setSortReversed(current => !current)} aria-pressed={sortReversed}>
-              {sortId === "name" ? (sortReversed ? "ㅎ부터" : "ㄱ부터") : (sortReversed ? "낮은 순" : "높은 순")}
-            </Button>
+            {/* the order's direction as a square key beside the select on the seam, its arrow the direction (2026-11-23, the owner: a word
+                floating beside the select, "기호나 아이콘으로") */}
+            <button type="button" className="pn tb-sort-dir" onClick={() => setSortReversed(current => !current)} aria-pressed={sortReversed}
+              aria-label={sortId === "name" ? (sortReversed ? "ㅎ부터, 순서 바꾸기" : "ㄱ부터, 순서 바꾸기") : (sortReversed ? "낮은 순, 순서 바꾸기" : "높은 순, 순서 바꾸기")}>
+              <Icon n={sortReversed ? "up" : "down"} size={20} />
+            </button>
           </div>
           {cupRule.kind === "monotype" && !assignedTypeId ? (
             <div className="tb-pool-empty">모노타입 챌린지의 타입을 선택해 주세요.</div>
@@ -1613,7 +1640,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
 
           <div className="tb-editor">
             {!selectedMember ? (
-              <Empty className="tb-editor-empty" title="세팅할 포켓몬을 선택해 주세요." />
+              <OffEditor />
             ) : (
               <>
                 <div className="tb-editor-head">

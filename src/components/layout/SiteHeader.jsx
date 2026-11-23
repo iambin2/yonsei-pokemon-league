@@ -64,7 +64,13 @@ function AccountButton({ onNavigate }) {
   const named = signed && link && link.status !== "rejected" ? link.requested_name : "";
   // a door with an address is a link to it (DESIGN.md "Panels" 3)
   const to = { tab: "trainer", me: "1", ...(named && link.player_id ? { trainer: named } : {}) };
-  return <a href={viewHref("records", to)} className="acct" onClick={follow(() => onNavigate("records", to))} aria-label={named ? `${named}, 내 기록` : "내 기록 찾기, 구글 계정으로 연결"}><GoogleMark /><span className="acct-name">{named || "내 기록"}</span></a>;
+  /* signed in, the account is a panel of its own: the name's first letter on an inverted square and the name; signed out, Google's G
+     and 로그인 as words on the bar (2026-11-23, the owner's draft A: the G and a name "그냥 동하니 떠 있는", in or out alike) */
+  const label = named ? `${named}, 내 기록` : signed ? "내 기록, 구글 계정으로 로그인됨" : "로그인, 구글 계정으로 내 기록 연결";
+  return <a href={viewHref("records", to)} className={"acct" + (signed ? " pn on" : "")} onClick={follow(() => onNavigate("records", to))} aria-label={label}>
+    {signed && named ? <span className="inv acct-initial" aria-hidden="true">{[...named][0]}</span> : <GoogleMark />}
+    <span className="acct-name">{signed ? (named || "내 기록") : "로그인"}</span>
+  </a>;
 }
 
 /* 바는 바탕 톤에 아래 머리카락 선 하나, 움직이지 않는다. 폰은 Wing Y와 워드마크, 오른쪽 끝에 테마 버튼.

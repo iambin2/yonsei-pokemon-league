@@ -114,7 +114,7 @@ function CupCode({ onClose, onJoin }) {
     <Question id="cup-code" label="코드" error={error}>
       <input id="cup-code" className="in" inputMode="numeric" autoComplete="off" maxLength={4} enterKeyHint="go" value={code} placeholder="숫자 4자리" autoFocus
         onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4)); if (error) setError(""); }}
-        onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) go(); }} />
+        onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); go(); } }} />
     </Question>
     <div className="modal-actions"><Button variant="main" onClick={go} loading={busy}>참가</Button></div>
   </Modal>;

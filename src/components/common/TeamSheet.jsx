@@ -72,3 +72,42 @@ export default function TeamSheet({ sheet, idPrefix = "" }) {
       </div>
     </article>))}</div>;
 }
+
+/* a sample post's one Pokémon (2026-11-23, the owner's draft A: one case at the left and an empty half beside it "비효율적"): the
+   Pokémon large on its floor at the left, its name and types on the floor band; at the right the actions, then every value of its set
+   at the right's width, as the builder lays them out: 특성, 도구 and 성격 as three cells, the points on their bars, the four moves as cells. */
+export function SampleCase({ row, actions }) {
+  return <div className="sc-one">
+    <div className="pn stand sc-one-hero">
+      <img className="mon" src={row.sprite} alt="" onError={onSpriteError()} />
+      <div className="floor sc-one-band">
+        <span className="sc-one-who"><b className="t20">{row.name}</b><span className="t12 dim">{row.num != null ? `No. ${String(row.num).padStart(4, "0")}` : ""}</span></span>
+        <span className="tb-types">{row.types.map(t => <span key={t.id} className={`tb-type type-${t.id}`}>{t.label}</span>)}</span>
+      </div>
+    </div>
+    <div className="sc-one-set">
+      {actions}
+      {row.unresolved && <p className="bk-hint">지금 데이터에서 확인할 수 없는 포켓몬입니다.</p>}
+      <div className="cells sc-one-facts">
+        <div className="cell"><span className="cell-label">특성</span><b>{row.ability || "없음"}</b></div>
+        <div className="cell"><span className="cell-label">도구</span><b>{row.item || "없음"}</b></div>
+        <div className="cell"><span className="cell-label">성격</span><b>{row.nature}<small className="t12 dim reg"> {row.natureEffect}</small></b></div>
+      </div>
+      <div className="sc-stat-block">
+        <div className="tb-subhead"><span className="t12 dim">능력 포인트</span><b className="t12">{row.spTotal} / 66</b></div>
+        <div className="sc-stats" role="table" aria-label={`${row.name} 능력치`}>
+          {row.stats.map(st => (<div className="sc-stat" role="row" key={st.key}>
+            <b role="cell">{st.label}{st.mark === "+" ? " ↑" : st.mark === "-" ? " ↓" : ""}</b>
+            <span role="cell" className="sc-base">{st.base != null && <><small>종족값</small> <span className="tnum">{st.base}</span></>}</span>
+            <span role="cell" className="sc-sp"><Bar value={st.sp / 32} /><em className={"tnum" + (st.sp ? " on" : "")}>{st.sp}</em></span>
+            <strong role="cell" className="tnum">{st.final}</strong>
+          </div>))}
+        </div>
+      </div>
+      <ul className="sc-one-moves">{Array.from({ length: 4 }, (_, k) => {
+        const mv = row.moves[k];
+        return <li key={k} className={"pn" + (mv ? "" : " empty")}>{mv ? <><b className="t15">{mv.name}</b><span className="sc-move-line">{mv.type?.label && <span className={`tb-type type-${mv.type?.id || ""}`}>{mv.type.label}</span>}{mv.category && <small className="t12 dim">{mv.category}</small>}</span></> : <small className="t12 mute">기술 없음</small>}</li>;
+      })}</ul>
+    </div>
+  </div>;
+}

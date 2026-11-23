@@ -1567,11 +1567,14 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
   return <div className="stack bk-gs">
     {b.groups.map(group=>{
       const {rows,ready,next,cutoff,complete,qualified}=group.standing;
-      return <section className="stack" key={group.id}>
+      /* the group's standing and its games side by side on desktop (2026-11-23, the owner: one 709 column left the page's right half
+         empty): the standing 709 at the left, the games 439 at the right, each from the same top line */
+      return <section className="bk-gs-group" key={group.id}>
         <h2 className="t20">{group.name}조</h2>
-        {rows.map(row=><Row key={row.id} title={nameOf(row.id)}
+        <div className="stack bk-gs-rank">{rows.map(row=><Row key={row.id} title={nameOf(row.id)}
           line={[complete?(row.tied?`공동 ${row.rank}위`:`${row.rank}위`):null,`${row.wins}승`,row.reason==="승자승"?row.reason:null].filter(Boolean).join(", ")}
-          value={ready?(qualified.includes(row.id)?"본선 진출":"조별 탈락"):null}/>)}
+          value={ready?(qualified.includes(row.id)?"본선 진출":"조별 탈락"):null}/>)}</div>
+        <div className="stack bk-gs-games">
         {group.matches.map(match=>renderMatch(match,admin&&!b.knockout&&!group.playoffs.length?true:admin?false:undefined))}
         {cutoff&&<Row title="순위 결정전" line={ready?"진출자가 확정되었습니다.":`동률 선수 ${cutoff.ids.length}명 중 ${cutoff.places}명이 진출합니다.`}/>}
         {group.playoffs.map((match,i)=>renderMatch(match,admin&&!b.knockout&&i===group.playoffs.length-1?true:admin?false:undefined))}
@@ -1581,6 +1584,7 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
             await run(()=>reopenGroupStage(b,group.id));
           }
         }}>결정전 초기화</Button>}
+        </div>
       </section>;
     })}
     {admin&&!b.knockout&&b.groupCfg.ready&&<Button variant="main" disabled={busy} onClick={()=>run(()=>createGroupFinal(b))}>본선 추첨 및 확정</Button>}

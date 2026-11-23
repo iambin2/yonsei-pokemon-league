@@ -6,6 +6,7 @@ import StatusPage from "./pages/StatusPage.jsx";
 import { isUnknownPath, isUnknownView } from "./services/appRouting.js";
 import { captureVisitorSession } from "./services/visitorAuth.js";
 import { reportError, watchErrors } from "./services/errorReport.js";
+import { watchEnter } from "./components/common/enterKey.js";
 import "./styles/tokens.css";
 import "./styles/components.css";
 import "./styles/shell.css";
@@ -92,6 +93,7 @@ document.addEventListener("load", e => { if (e.target.matches?.('img[src*="/spri
 // a return from Google sign-in leaves its tokens after # in the address: kept on the device and cleared from the address first
 captureVisitorSession();
 watchErrors();
+watchEnter();
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {isUnknownPath(window.location.pathname, import.meta.env.BASE_URL) || isUnknownView(window.location.search)

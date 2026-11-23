@@ -18,6 +18,10 @@
   .rc-list > * { grid-column: 1 / -1; }
   .rc-list > .search { grid-column: 1; }
   .rc-list > .rc-sort { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: var(--s3); margin-top: 0; }
+  /* with no sort beside it the search runs to the board's edge, and under 내 기록 찾기 the sort stands on the search's row (2026-11-23:
+     an empty column kept the search 12 short of every panel under it) */
+  .rc-list:not(:has(> .rc-sort)) > .search { grid-column: 1 / -1; }
+  .rc-list:has(> .rc-find) > .rc-sort { grid-row: 2; }
   .rc-sort .dd { width: calc(var(--s21) * 2 + var(--s13)); }
   .rc-tour-tools { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3); }
   .rc-tour-tools > .chips { order: 0; }
@@ -38,9 +42,15 @@
 .rc-newname { margin-top: var(--s3); }
 .rc-admin { margin-bottom: var(--s5); }
 /* the account's keys (AccountKeys.jsx): 로그아웃, 기록 연결 해제, 계정 삭제 as words on one line, a finger's 44 each; the error under them */
-.acct-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); margin-top: var(--s3); }
-.acct-keys > .btn { min-height: var(--h-control); justify-content: flex-start; }
-.acct-keys > .form-error { flex-basis: 100%; }
+/* the account (draft B, 2026-11-23): an inverted card and its three rows on the seam, side by side at 1 to 1.618 from 640 */
+.acct-keys { display: grid; gap: var(--seam); margin-top: var(--s3); }
+.acct-card { display: grid; align-content: space-between; gap: var(--s5); padding: var(--s5) var(--pad); min-width: 0; }
+.acct-card-g { display: flex; align-items: center; gap: var(--s2); }
+.acct-card-who { display: grid; gap: var(--s1); min-width: 0; }
+.acct-card-who > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-delete .row-main > b, .acct-delete .row-value { color: var(--dim); }
+.acct-keys > .form-error { grid-column: 1 / -1; }
+@media (min-width: 640px) { .acct-keys:not(.bare) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); } }
 /* 운영 on a trainer's sheet: a field and its key; on a desktop the key stands on the field's right at the 439's end, the two acts 32 apart */
 .rc-admin-pair { display: grid; gap: var(--s3); }
 @media (min-width: 860px) {

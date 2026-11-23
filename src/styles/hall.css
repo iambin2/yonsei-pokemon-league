@@ -4,9 +4,6 @@
    ========================================================================== */
 
 /* ---------- titles: the page's frame ---------- */
-/* the champion sheet's one word action, the hall, stands over its record key (Composing a screen 28) */
-.hof-sheet-link { display: flex; justify-content: flex-end; margin-top: var(--s5); }
-.hof-sheet-link > .btn { min-height: var(--h-control); }
 .tt-head, .hof-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .tt-tabs { margin-top: var(--s8); }
 
@@ -18,7 +15,11 @@
 .hof-crown-who { display: grid; justify-items: start; align-content: start; gap: var(--s2); min-width: 0; }
 .hof-crown-tag { padding: var(--s1) var(--s2); }
 .hof-gen { display: inline-flex; align-items: flex-end; gap: var(--s2); }
-.hof-crown .hof-gen { margin-top: var(--s3); }
+/* the crown's two windows (draft A, 2026-11-23): the generation inverted and the season one tone up, joined on the seam */
+.hof-windows { display: flex; gap: var(--seam); margin-top: var(--s3); }
+.hof-window { display: grid; gap: var(--s2); padding: var(--s3); }
+@media (min-width: 640px) { .hof-window { padding: var(--s3) var(--s5); } }
+.hof-window-season { background: var(--panel-2); }
 .hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }
 .hof-crown-act { display: flex; flex-wrap: wrap; gap: var(--s5); margin-top: var(--s3); }
 .hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
@@ -33,7 +34,7 @@
 .hof-edit { justify-self: start; min-height: var(--h-control); }
 .hof-plate { display: grid; gap: var(--s2); width: 100%; height: 100%; padding: var(--s5) var(--pad) var(--s3); text-align: left; }
 .hof-plate-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s3); }
-.hof-plate-season { text-align: right; }
+.hof-plate-season { display: inline-flex; align-items: flex-end; gap: var(--s2); text-align: right; white-space: nowrap; }
 .hof-plate-name { margin-top: var(--s2); }
 .hof-plate-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: var(--s2); }
 .hof-plate-mon { aspect-ratio: 1; }

@@ -649,7 +649,7 @@ function TrainerLink({ profile, lead = false, linkedOnly = false }) {
         {!signedIn
           ? <Row title="구글 계정으로 연결" value={<Button variant="second" size="sm" onClick={() => signInWithGoogle(profile.name, findBack(profile.name))}><GoogleMark />구글 로그인</Button>} />
           : link === undefined ? <Row title="연결 상태를 확인하는 중입니다." />
-          : mine ? <Row title={link.status === "approved" ? "기록 연결됨" : LINK_STATE[link.status] || ""} line={link.email || undefined} />
+          : mine ? null /* the account card below says it: its address and 기록 연결됨 */
           : <Row title="내 기록으로 연결 요청" line={moving ? `지금은 ${link.requested_name} 기록에 요청되어 있습니다.` : "운영진이 확인한 뒤 연결됩니다."}
               value={<Button variant="second" size="sm" loading={busy} onClick={go}>요청</Button>} />}
       </div>

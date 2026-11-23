@@ -196,8 +196,7 @@
   max-height: calc(100dvh - 52px - env(safe-area-inset-top, 0px)); display: flex; flex-direction: column; outline: none;
 }
 .grip { flex: none; height: 20px; display: grid; place-items: center; touch-action: none; cursor: grab; }
-/* the sheet (DESIGN.md "Sheets"): a panel plate with a hairline on its top edge, a 32 by 4 grip, its title at 20 and a × */
-.sheet { box-shadow: inset 0 1px 0 var(--rule); }
+/* the sheet (DESIGN.md "Sheets"): one solid panel plate (2026-11-23: a hairline on its top edge read as a tone not meant), a 32 by 4 grip, its title at 20 and a × */
 .grip::after { content: ""; width: var(--s8); height: var(--s1); background: var(--mute); }
 /* the sheet is itself a panel, so every panel on it stands one tone up, a Pokémon's cell included (nothing is painted under a
    Pokémon, so its cell is the only thing it stands in), and a hover lifts to the hairline tone. An inverted row stays inverted. */

@@ -34,6 +34,10 @@
 .acct { display: flex; align-items: center; gap: var(--s2); height: var(--h-control); padding: 0 var(--s2); margin-right: var(--s2); flex: 0 1 auto; min-width: 0; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit); }
 /* a long trainer name gives way by an ellipsis; it never pushes the theme key off a phone's bar */
 .acct > .g-mark { flex: none; }
+/* signed in: the account stands as a panel, its name's first letter on a 32 inverted square at the panel's start */
+.acct.on { padding: 0 var(--s3) 0 calc((var(--h-control) - var(--h-strip)) / 2); font-weight: 700; }
+.acct-initial { display: grid; place-items: center; flex: none; width: var(--h-strip); height: var(--h-strip); font-size: var(--t15); line-height: 1; font-weight: 700; }
+@media (hover: hover) { .acct.on:hover { background: var(--panel-2); } }
 .acct-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* on a phone's bar the name stops at 116, so the wordmark keeps 20 or more (2026-11-23 audit, R-10: a 16-letter name ran into it; 168 still touched it) */
 @media (max-width: 859px) { .acct-name { max-width: calc(var(--s21) + var(--s8)); } }

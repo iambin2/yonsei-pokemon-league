@@ -276,7 +276,7 @@ function Lobby({ res, teams, teamId, setTeamId, name, setName, nameError = "", f
             ours={/* a field on the strip, its line always drawn and the edit mark after it, so it never reads as a caption (2026-11-09) */
               <label className="bt-name-field"><input id="bt-name" className="bt-name" aria-label="내 이름" value={name} maxLength={20} autoComplete="nickname" enterKeyHint="go" placeholder="내 이름"
                 aria-invalid={nameError ? true : undefined} aria-describedby={nameError ? "bt-name-error" : undefined}
-                onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) onEnter?.(); }} /><Icon n="edit" size={16} /></label>}>
+                onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); onEnter?.(); } }} /><Icon n="edit" size={16} /></label>}>
             <LobbyStage leads={leads} doubles={doubles} random={random} foeLead={foeLead} label={`${stageLabel}${foeLead ? `, 상대 ${nameOf(res, foeLead)}` : ""}`} />
           </LobbyArena>
           {nameError && <p className="q-error t12 bt-name-error" id="bt-name-error" role="alert"><Bang />{nameError}</p>}
@@ -932,7 +932,7 @@ function OfficialSeat({ eventId, nodeKey, res, onOpen }) {
           <Question id="bt-pin" label="제출 비밀번호">
             <input id="bt-pin" className="in" type="password" inputMode="numeric" autoComplete="off" maxLength={4} enterKeyHint="go" value={pin}
               onChange={e => { setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 4)); if (error) setError(""); }}
-              onKeyDown={e => { if (e.key === "Enter") submit(); }} placeholder="숫자 4자리" />
+              onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }} placeholder="숫자 4자리" />
           </Question>
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>
             <Button variant="main" onClick={submit} loading={busy} disabled={!ready}>{open ? "경기 들어가기" : "경기 시작"}</Button>
@@ -980,7 +980,7 @@ function Join({ row, res, code: linkCode, onJoined, onRefresh }) {
       {askCode && <Question id="bt-code" label="방 코드">
         <input id="bt-code" className="in" inputMode="numeric" autoComplete="off" maxLength={4} enterKeyHint="go" value={code} placeholder="숫자 4자리"
           onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4)); if (error) setError(""); }}
-          onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) submit(); }} />
+          onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }} />
       </Question>}
     </>}
     /* a missing name is the name field's own error under the strip, as on the opener's screen, never a toast over the choices (2026-11-10) */
@@ -1504,8 +1504,14 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   useEffect(() => { if (!(hint && choosing && started)) return undefined; const t = setTimeout(() => setHint(false), 4660); return () => clearTimeout(t); }, [hint, choosing, started]);
   // the stage's box: a run's break between games stands in it once a game is over (Streak.jsx StreakEnd)
   const [stageBox, setStageBox] = useState(null);
+  // the card goes with Escape, and when the question it was read for is gone
+  useEffect(() => { if (!peek) return undefined; const off = e => { if (e.key === "Escape") setPeek(null); }; window.addEventListener("keydown", off); return () => window.removeEventListener("keydown", off); }, [peek]);
+  useEffect(() => { if (!choosing) setPeek(null); }, [choosing]);
   const pressing = useRef(null);
   const pressStart = e => {
+    // the held move's card stays once shown, so it can be scrolled (2026-11-23, the owner: letting go to scroll took it away); a press
+    // anywhere off it puts it back
+    if (peek && !e.target.closest?.(".bt-peek")) setPeek(null);
     if (e.target.closest?.("button, summary, [role=button]")) sfx("select");
     const el = e.target.closest?.("[data-info]");
     clearTimeout(pressing.current?.timer);
@@ -1525,8 +1531,6 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     if (e.type === "pointermove" && !moved) return;
     clearTimeout(at.timer);
     at.move?.classList.remove("holding");
-    // a hold on a move shows it while held: letting go gives the moves back
-    if (at.fired && at.move) setPeek(null);
   };
   const pressClick = e => { if (pressing.current?.fired) { e.preventDefault(); e.stopPropagation(); pressing.current = null; } };
   const pressMenu = e => { if (e.target.closest?.("[data-info]")) e.preventDefault(); };
@@ -1684,12 +1688,13 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     </Question>}
     {row.kind === "streak" && seat && !ended && <StreakStake wins={seat.wins ?? 0} lives={seat.lives} />}
     {narrow && logBox}
-    <div className="bt-links">
+    {/* the links' row stands only when it holds a link: empty, it kept a row of the menu's grid and doubled the gap over 기권 (2026-11-23) */}
+    {(!seat || ended || official) && <div className="bt-links">
       {(!seat || ended) && <Button variant="link" onClick={shareHere}>{ended ? "리플레이 공유" : "링크 공유"}</Button>}
       {ended && <Button variant="link" onClick={shareToBoard}>게시판에 공유</Button>}
       {official && <Button variant="link" onClick={() => go?.("bracket", { eventId: row.event_id })}>대진표</Button>}
       {ended && log && <Button variant="link" onClick={() => downloadReplay({ row, log, res, perspective, names })}>기록 내려받기</Button>}
-    </div>
+    </div>}
     {/* 기권 stands here and nowhere else: a key that ends the match is never one slip from the moves (2026-11-09) */}
     {seat && !ended && <Button className="bt-forfeit" onClick={() => { setMenuOpen(false); giveUp(); }}>기권</Button>}
   </div>;
@@ -1756,8 +1761,12 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {/* the locked keys stay until the end takes their place: a battle that ended while its last turn still played emptied the deck,
             and on a phone the stage grew into it and drew black for a frame (2026-11-09, measured) */}
         {seat && started && !shownEnded && <div ref={consoleRef} className="bt-console">
-          {/* the held move's card, in the deck's own place over the moves and the bench, until it is let go */}
-          {peek && <div className="pn bt-peek" aria-live="polite">{tipView(peek)}</div>}
+          {/* the held move's card, in the deck's own place over the moves and the bench: it stays when the finger lets go, scrolls in
+              its place, and goes with its 닫기, Escape, a press off it or the next question */}
+          {peek && <div className="pn bt-peek" aria-live="polite">
+            <button type="button" className="bt-peek-x" onClick={() => setPeek(null)} aria-label="설명 닫기"><Icon n="x" size={20} /></button>
+            {tipView(peek)}
+          </div>}
           {hint && choosing && !peek && <div className="bt-hint"><Toast>기술을 길게 누르면 설명을 볼 수 있습니다.</Toast></div>}
           {choosing ? <Choices key={requestKey(view?.turn, request)} request={request} ghost={lastAsked.current} doubles={doubles} res={res} foes={foes} typesAt={typesAt} nameAt={nameAt} monAt={monAt}
             field={moveField} perspective={perspective} onSend={send} setAsk={setAsk} onAim={watch} narrow={narrow} toast={error ? <Toast error>{error}</Toast> : null} screensAt={screensAt} formatId={row.format_id} />
@@ -1782,7 +1791,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {othersBox}
         {logBox}
         <span className="t12 mute">배틀 엔진: Pokémon Showdown (MIT)</span>
-        <span className="t12 mute">음악: YPL (Suno로 제작)</span>
+        <span className="t12 mute">음악: YPL (코드로 작곡)</span>
         <span className="t12 mute">효과음: Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}

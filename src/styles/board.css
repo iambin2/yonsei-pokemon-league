@@ -136,6 +136,8 @@
 }
 .q textarea.in { height: auto; min-height: calc(var(--h-row) * 2); padding-block: var(--s3); line-height: var(--l-read); font-weight: 400; }
 .q.has-error .in { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+/* an erring field in focus keeps its line alone: line and ring together stood over what is typed (2026-11-23) */
+.q.has-error .in:focus-visible { outline: none; }
 .q .in::placeholder { color: var(--mute); font-weight: 400; }
 .q-error { display: flex; align-items: center; gap: var(--s2); }
 .bang { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--lit); color: var(--ground); font-size: var(--t12); line-height: 1; font-weight: 700; }
@@ -163,6 +165,10 @@
 .cell :is(.dd, .pick-field) { position: static; }
 .cell .dd-btn { position: static; min-height: 0; padding: 0; background: none; box-shadow: none; }
 .cell .dd-btn::after { content: ""; position: absolute; inset: 0; }
+/* the press is the cell's, not the button's (2026-11-23, the owner: a cell opened only from its small fold): a scale on the pressed
+   button made it the containing block of this ::after, so the target shrank to the text's line under the finger and the click was lost */
+.cell .dd-btn:active { scale: none; }
+.cell:has(.dd-btn:active:not(:disabled)) { scale: .976; transition: scale var(--move-press); }
 .cell .dd-btn:focus-visible { outline: none; }
 .cell:has(.dd.open) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .cell:has(.dd-btn:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }

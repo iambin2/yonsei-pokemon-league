@@ -22,7 +22,8 @@ const setParams = pairs => {
   Object.entries(pairs).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); else url.searchParams.delete(k); });
   if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
 };
-const COLS = { champion: [6, 3], type: [9, 3], region: [10, 5] };
+/* every tab's medals are one size (2026-11-23, the owner: "칭호 탭마다 칭호 크기가 다른데 하나로 통일"): ten across on desktop, three on a phone */
+const COLS = [10, 3];
 
 /* the medals of one group, in the board's order */
 function groupMedals(group, items, open, champions, partnerMedalOf) {
@@ -111,7 +112,7 @@ export default function TitlesPage({ data, admin, setModal, go }) {
   useEffect(() => {
     if (!partnerMedalOf) return;
     for (const x of groups) if (x !== g) for (const m of groupMedals(x, x.items || [], () => undefined, data.champions, partnerMedalOf))
-      if (m.spec) medalUrl(m.spec, !m.on, bigMedal((COLS[x.key] || [6, 3])[desk ? 0 : 1], desk), true);
+      if (m.spec) medalUrl(m.spec, !m.on, bigMedal(COLS[desk ? 0 : 1], desk), true);
   }, [groups, Boolean(partnerMedalOf), desk]);
   // 타입과 지방 판에 자리가 없는 항목(운영자가 더한 이름)은 제 메달로 뒤에 선다
   const strays = g?.key === "type" ? items.filter(item => !typeOfTitle(item.name)) : g?.key === "region" ? items.filter(item => !regionOfTitle(item.name)) : [];
@@ -124,8 +125,8 @@ export default function TitlesPage({ data, admin, setModal, go }) {
     {g && <div key={g.key}>
       <div className="stack tl-board">
         {g.desc && <div className="pn tl-rule"><span className="t12 dim">조건</span><b className="t15">{g.desc}</b></div>}
-        <MedalBoard medals={medals} cols={COLS[g.key] || [6, 3]} label={g.name} className={g.key === "champion" ? "tl-champs" : ""} />
-        {strays.length > 0 && <MedalBoard medals={groupMedals({ key: "own" }, strays, item => () => open(item))} cols={[6, 3]} label={`${g.name} 그 밖`} />}
+        <MedalBoard medals={medals} cols={COLS} label={g.name} className={g.key === "champion" ? "tl-champs" : ""} />
+        {strays.length > 0 && <MedalBoard medals={groupMedals({ key: "own" }, strays, item => () => open(item))} cols={COLS} label={`${g.name} 그 밖`} />}
       </div>
     </div>}
     {sheet && <TitleSheet {...sheet} go={go} onClose={close} />}

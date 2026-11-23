@@ -94,7 +94,7 @@ const RULES = {
   "type: a line runs to its column; nothing carries a narrower measure (Type)": d => /^max-(width|inline-size)$/.test(d.prop) && (/\d(ch|r?em)\b/.test(d.value) || /var\(--read\)/.test(d.value)),
   "panels: nothing is round (Panels)": d => /radius/.test(d.prop) && !d.prop.startsWith("--") && !/^0(px)?$/.test(d.value),
   "panels: no shadow; a box-shadow only draws an inset hairline, rule or ring (Panels)": d => d.prop === "box-shadow" && !/^(none|var\(--shadow-[12]\))$/.test(d.value) && layers(d.value).some(p => !/^inset\s/.test(p)),
-  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row, a sheet and the footer (Panels)": d =>
+  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row and the footer (Panels)": d =>
     (d.prop === "box-shadow" && layers(d.value).some(p => /^inset 0 (-?1px|-?var\(--hair\)) 0 var\(--rule\)$/.test(p)))
     || (d.prop === "height" && /^(1px|var\(--hair\))$/.test(d.value) && BLOCKS[d.blk]?.background === "var(--rule)"),
   "panels: no border (Panels)": d => strict(d) && /^border(-(top|right|bottom|left))?$/.test(d.prop) && !/^(0|none)$/.test(d.value),
@@ -122,11 +122,11 @@ const RULES = {
 const C = "src/styles/components.css", P = "src/styles/pages.css", T = "src/styles/tokens.css";
 const B = "src/styles/bracket.css", R = "src/styles/records.css";
 const EXCEPT = {
-  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row, a sheet and the footer (Panels)": {
+  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row and the footer (Panels)": {
     "the edges DESIGN.md names (Panels 2)": [
       "src/styles/shell.css | .topbar | box-shadow: inset 0 -1px 0 var(--rule)", "src/styles/shell.css | .tabbar | box-shadow: inset 0 1px 0 var(--rule)",
       "src/styles/board.css | .dock | box-shadow: inset 0 1px 0 var(--rule)", "src/styles/board.css | .tabsline-frame | box-shadow: inset 0 -1px 0 var(--rule)",
-      `${C} | .sheet | box-shadow: inset 0 1px 0 var(--rule)`, "src/styles/shell.css | .site-foot | box-shadow: inset 0 1px 0 var(--rule)"],
+      "src/styles/shell.css | .site-foot | box-shadow: inset 0 1px 0 var(--rule)"],
   },
   "depth: a z-index is a named step": {
     "a stack orders itself: toasts by their place": ["src/components/common/Toaster.jsx | style | z-index: 10 - index"],

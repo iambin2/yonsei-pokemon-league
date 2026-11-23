@@ -72,7 +72,7 @@ function MyAccount({ go, account, fresh }) {
       {/* signed in, 알림 stands here only, with its 새 알림 lamp (2026-11-23 audit, H-04: it stood twice) */}
       <Row title="알림" line={line("alerts")} value={<>{fresh && <span className="t12 more-new"><i className="lamp" aria-hidden="true" />새 알림</span>}{chev}</>} onClick={() => go("alerts")} />
     </div>
-    <AccountKeys link={account.requested_name && account.status !== "rejected" ? account : null} />
+    <AccountKeys bare link={account.requested_name && account.status !== "rejected" ? account : null} />
   </div>;
 }
 

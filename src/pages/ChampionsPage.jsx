@@ -20,7 +20,7 @@ import { useItemTitle } from "../components/layout/title.js";
    (DESIGN.md "Titles and hall of fame") 전당은 한 사람을 크게, 나머지를 벽에 건다.
    위: 현 챔피언의 판. 세대는 세그먼트로 켜지고, 이름은 32, 여섯 마리는 크게 이름과 함께 선다.
    가운데: 전당의 숫자 셋(세대, 챔피언, 최다 우승). 아래: 이전 챔피언의 명판이 최신부터 벽에 걸린다.
-   명판은 세대, 이름, 시즌, 몇 번째 우승인지, 여섯 마리. 누르면 파티 시트가 열린다. */
+   명판은 세대, 이름, 시즌, 여섯 마리. 누르면 파티 시트가 열린다. */
 export default function ChampionsPage({ data, admin, setModal, normTeam = normalizeLegacyParty, go }) {
   // 홈과 같은 전당 조회 캐시: 홈에서 넘어오면 기억한 값으로 바로 그린다
   const [normalizedChamps, setNormalizedChamps] = useState(() => peekRead("champions") ?? null);
@@ -70,10 +70,10 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
   const partyOf = c => normTeam(c.team).filter(m => m.name || m.img || m.pokemonId).slice(0, 6)
     .map(m => ({ name: m.name || "", img: resolveHallOfFameArtwork(m, artworkLookup) }));
   const genNo = c => c.generationNumber > 0 ? c.generationNumber : 0;
-  // 몇 번째 우승인지: 오래된 것부터 세어 같은 이름이 다시 나오면 2번째, 3번째
-  const nth = new Map(); const seen = new Map();
-  champs.forEach(c => { const k = (seen.get(c.name) || 0) + 1; seen.set(c.name, k); nth.set(c, k); });
-  const title = c => [seasonLabel(c) + " 우승", nth.get(c) > 1 ? `${nth.get(c)}번째 우승` : ""].filter(Boolean).join(", ");
+  const title = c => seasonLabel(c) + " 우승";
+  // the season as its league's name and its number (YPL 시즌 2 → ["YPL 시즌", 2]), so the number lights in segments as the generation
+  // does (2026-11-23, the owner's draft A: "어떤 시즌에 우승했는지가 그냥 텍스트로 덩하니"); a label that is not one stays words
+  const seasonParts = c => { const m = seasonLabel(c).match(/^(.*?시즌)\s*(\d+)$/); return m ? [m[1], Number(m[2])] : null; };
 
   const reigning = champs.length ? champs[champs.length - 1] : null;
   // the merge builds new rows on every render, so an open sheet's row is never the same object: a reign is its generation and name
@@ -90,9 +90,15 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
     {reigning && <section className="pn hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
       <div className="hof-crown-who">
         <span className="inv t12 hof-crown-tag">현 챔피언</span>
-        {plate(reigning, 84)}
+        {/* two windows on the seam: the generation lit inverted, the season the window beside it */}
+        <div className="hof-windows">
+          <span className="inv hof-window"><span className="t12">세대</span>{plate(reigning, 84)}</span>
+          {seasonParts(reigning)
+            ? <span className="hof-window hof-window-season" aria-label={title(reigning)}><span className="t12 dim">{seasonParts(reigning)[0]}</span>
+                <Seg value={String(seasonParts(reigning)[1])} h={84} cells={Math.max(2, String(seasonParts(reigning)[1]).length)} label={title(reigning)} /></span>
+            : <span className="hof-window hof-window-season"><span className="t12 dim">시즌</span><b className="t20">{seasonLabel(reigning)}</b></span>}
+        </div>
         <h2 className="t32 hof-crown-name">{reigning.name}</h2>
-        <p className="t15 dim reg">{title(reigning)}</p>
         <div className="hof-crown-act">
           {go && <Button variant="link" onClick={() => go("records", { trainer: reigning.name })}>{reigning.name} 기록 보기</Button>}
           <Button variant="link" onClick={() => setPop(reigning)}>파티 보기</Button>
@@ -110,7 +116,9 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
       <div className="hof-wall" style={{ "--wc": past.length === 4 || past.length === 5 ? past.length : 3, "--tc": past.length === 3 ? 3 : 2 }}>
         {past.map((c, i) => (<div className="hof-slot" key={c.id || i}>
           <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
-            <span className="hof-plate-top">{plate(c, 40)}<span className="t12 dim hof-plate-season">{title(c)}</span></span>
+            <span className="hof-plate-top">{plate(c, 40)}{seasonParts(c)
+              ? <span className="hof-plate-season"><span className="t12 dim">{seasonParts(c)[0]}</span><Seg value={String(seasonParts(c)[1])} h={40} cells={Math.max(2, String(seasonParts(c)[1]).length)} label={title(c)} /></span>
+              : <span className="t12 dim hof-plate-season">{title(c)}</span>}</span>
             <b className="t20 hof-plate-name">{c.name}</b>
             <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} small /></span>)}</span>
           </button>

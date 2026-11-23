@@ -65,12 +65,10 @@ export function Medal({ spec, off = false, big = false, onDrawn }) {
    speed, 1.7 s for the eighteen types, and the board read as stuttering) */
 export function MedalBoard({ medals, cols, className = "", label }) {
   const desk = useDesk();
-  // the columns follow the medals (Composing a screen 29): a board of fewer medals than columns is that many wide, and a short last row
-  // gives way to a divisor near the column count (7 partners stand as 7, 8 events as 4 and 4); where none is near, the last row ends
-  // early. The board is never padded with empty panels, and a cell is never widened past the width it has at the base count.
-  const base = desk ? cols[0] : cols[1], count = medals.length;
-  const fit = count <= base ? count : count % base === 0 ? base
-    : [...Array(base + 1).keys()].slice(1).concat(base + 1).filter(d => count % d === 0 && d >= Math.ceil(base / 2)).pop() || base;
+  // the columns follow the medals (Composing a screen 29): a board of fewer medals than columns is that many wide from the start edge,
+  // and a longer one fills its rows and ends its last row early. A cell is never widened past its width at the base count, and a board
+  // is never split into short rows to look even (2026-11-23, the owner: eight events as four and four left "무의미한 공백")
+  const base = desk ? cols[0] : cols[1], fit = Math.min(medals.length, base);
   const n = Math.max(1, fit), big = bigMedal(base, desk);
   const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
   useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });

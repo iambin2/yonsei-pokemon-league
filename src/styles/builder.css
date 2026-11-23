@@ -68,7 +68,10 @@
 /* nothing chosen: the editor's one panel (the site's empty form, .ypl-empty) takes the column down to the list's last line, so the two
    columns end on one line (Composing a screen 26) */
 .tb-main-column { align-self: stretch; }
-.tb-editor:has(> .tb-editor-empty) { flex: 1; }
+/* nothing chosen: the editor's own board switched off (OffEditor), every value muted so the head is the one lit line */
+.tb-editor-off { display: grid; gap: var(--s3); }
+.tb-editor-off .cell > span:not(.cell-label), .tb-editor-off .tb-stat-key, .tb-editor-off .tb-off-num, .tb-editor-off .tb-subhead > b { color: var(--mute); }
+.tb-off-num { text-align: right; font-variant-numeric: tabular-nums; }
 .tb-editor-head { display: grid; gap: var(--s1); }
 .tb-editor-head h2 { margin: 0; }
 .tb-editor-head .tb-types { margin-top: var(--s1); }
@@ -92,7 +95,9 @@
 .tb-stat-key { color: var(--dim); white-space: nowrap; }
 .tb-stat-number { min-height: var(--h-strip); padding: 0; background: none; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
 .tb-stat-number::-webkit-inner-spin-button, .tb-stat-number::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.tb-stat-number:focus-visible { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+/* a typed figure in focus draws only its line under it: the ring as well stood over the digits (2026-11-23, the owner: "밑줄과 네모가
+   동시에 활성화되어 입력하는 내용이 안 보이는", "밑줄만 활성화되도록") */
+.tb-stat-number:focus-visible { outline: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .tb-final-stat { text-align: right; }
 /* 최종 is said once, over its column at the head's end; the points' total stands beside its label */
 .tb-stat-head > b { margin-right: auto; }
@@ -111,6 +116,7 @@
 .tb-team-name { min-height: 0; padding: 0; background: none; font-weight: 600; }
 .tb-team-name:focus-visible { box-shadow: none; }
 .tb-library-save .cell:has(input:focus-visible) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.tb-library-save .cell input:focus-visible { outline: none; }
 .tb-library-save-meta, .tb-save-message { margin-top: var(--s2); }
 .tb-saved-list { margin-top: var(--s5); }
 /* this device's teams not yet on the account: one line and one key, once (docs/db/account_teams.sql) */
