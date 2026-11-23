@@ -181,7 +181,27 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       // a scene that says what the last one said draws nothing (a line of words alone, a result the plates do not show)
       let drawn = "";
       const put = next => { const sig = JSON.stringify(next); if (sig === drawn) return; drawn = sig; flushSync(() => setScene(next)); };
-      const show = () => put(sceneOf(R.state, standing));
+      /* a Pokémon behind its substitute comes out of it to use a move and goes back once the move's beat is over, as in 포켓몬
+         champions (footage, 2026-11-23): out holds the slots shown as the Pokémon though their doll stands, behind the one out now */
+      const out = new Set();
+      let behind = "";
+      const sceneNow = () => ({ ...sceneOf(R.state, standing), out: [...out] });
+      const show = () => put(sceneNow());
+      const monAt = key => R.state.sides[key.slice(0, 2)].active[key.charCodeAt(2) - 97];
+      const swapDoll = async (key, toDoll) => {
+        const stage = stageRef.current;
+        await fx.sink(stage, key);
+        if (toDoll) out.delete(key); else out.add(key);
+        show();
+        await fx.rise(stage, key);
+      };
+      // back behind the doll if it still stands there; a Pokémon that fell or left, or whose doll is gone, is only let go of
+      const backBehind = async () => {
+        const key = behind, mon = monAt(key);
+        behind = "";
+        if (mon && !mon.fainted && mon.hp > 0 && mon.volatiles.includes("substitute") && out.has(key)) await swapDoll(key, true);
+        else { out.delete(key); show(); }
+      };
       const own = key => key.startsWith(perspective);
       // the cry of the one standing in a slot (DESIGN.md "Battle", Cries): its own as it comes out, lower as it falls
       const cryOf = (key, rate = 1) => { const mon = R.state.sides[key.slice(0, 2)].active[key.charCodeAt(2) - 97]; return cry(cryKey(res, mon?.species), rate); };
@@ -212,6 +232,13 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
         for (const side of ["p1", "p2"]) R.state.sides[side].active.forEach((m, s) => { if (m) before[slotKey(side, s)] = { hp: m.hp, maxhp: m.maxhp }; });
         /* a line the reader cannot read is passed over, never the battle (2026-11-16: read outside any guard, one such line left
            the tape marked as running for good, and the battle stood still until the page was loaded again) */
+        /* the beat over (a line that is not its result), the one out of its doll goes back before the line is read: read first, the
+           scene drawn as it goes back would already show what the line changes (2026-11-23, doubles: the other side's doll breaking
+           with no effect at all) */
+        if (behind && !RESULT.test(line) && !/^\|-sideend\||\|\[from\] move:/.test(line)) {
+          if (landing.length) { await Promise.all(landing); landing = []; }
+          await backBehind();
+        }
         let read;
         try { read = R.read(line); } catch (err) { console.error("stage read", err); continue; }
         const { lines: text, event, reveal } = read;
@@ -259,6 +286,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
             /* the camera frames the user as it gathers and pans to its target as the move travels, holding there through the blow;
                a spread move stays wide and leans in a little on its user */
             // the move itself carries the camera on from the user (moveFx.js: on the user, on both, on the target)
+            if (event.move !== "substitute" && monAt(k)?.volatiles.includes("substitute")) { behind = k; await swapDoll(k, false); }
             push(k, event.spread ? 1.05 : 1.12, 420);
             await fx.move(stage, { ...event, priority: data.priority || 0 }, keyOf, aheadOf(fresh.slice(i + 1)));
             break;
@@ -273,7 +301,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
             if (event.hp === 0 && !event.heal) standing.set(k, "blow");
             // the stage as this line leaves it: the lines after it are read on while it plays (a multi-hit move's further hits),
             // and its bar must not show their HP before they land
-            const view = sceneOf(R.state, standing);
+            const view = sceneNow();
             const direct = event.verb === "take";
             const again = direct && blow.on && blow.hit.has(k);
             // one hit of several: each keeps a short rhythm and its number stands apart from the one before
@@ -361,7 +389,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
                 const top = (st.closest(".bt-arena") || st).getBoundingClientRect().top - bar;
                 if (top < 0) window.scrollBy({ top, behavior: "instant" });
                 // the pictures go onto the GPU one a frame while the lamps are off, so the lamps and the throws never stop for an upload
-                await Promise.all([fx.warm(st, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl))), uncovered]);
+                await Promise.all([fx.warm(st, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl)).concat(fx.SUBSTITUTE)), uncovered]);
               }
               fx.sceneOn(); opening = true;
               await fx.opening(st);
@@ -414,10 +442,14 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
           case "ability": fx.popup(stage, k, `${word(k)}의 특성`, event.name, own(k)); await fx.wait(420); show(); break;
           case "item": fx.popup(stage, k, `${word(k)}의 도구`, event.name, own(k)); await fx.wait(420); show(); break;
           case "volatile":
-            if (event.id === "substitute" && !event.on) { await fx.breakDoll(stage, k); show(); await fx.doll(stage, k, false); break; }
-            if (event.on && event.id === "substitute") await fx.hideForDoll(stage, k);
+            // the doll put up or gone (broken, or the move that made it failed): the one standing sinks and the other rises in its place;
+            // a Pokémon already out of its doll to use a move only stays out. A broken doll waits under its words a moment first, as in
+            // 포켓몬 champions' footage (the line "…의 대타가 사라졌다" stands half a second before the doll goes white)
+            if (event.id === "substitute" && !(out.delete(k) && !event.on)) {
+              if (!event.on) await fx.hold(saidAt, 500);
+              await fx.sink(stage, k); show(); await fx.rise(stage, k); break;
+            }
             show();
-            if (event.on && event.id === "substitute") await fx.doll(stage, k, true);
             break;
           case "cant": show(); await fx.cant(stage, k, event.why); break;
           /* the turn's line runs along the message window by itself: waited out, its 1100 stood between every turn's last word and
@@ -441,6 +473,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       }
       if (landing.length) await Promise.all(landing);
       if (leads.length) await Promise.all(leads);
+      if (behind) await backBehind();
       opened0();
       toWide();
       stageRef.current?.classList.remove("bs-intro");
@@ -451,7 +484,7 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
       const st0 = stageRef.current;
       if (catchUp && !liveRef.current && st0 && R.state.turn === 0 && !["p1", "p2"].some(s => R.state.sides[s].active.some(Boolean))) {
         fx.hideAll(st0, { dark: true });
-        warming.current = fx.warm(st0, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl)));
+        warming.current = fx.warm(st0, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl)).concat(fx.SUBSTITUTE));
       }
       flushLines();
       if (lastSaid.length && shown.at(-1) !== lastSaid.at(-1)) flushSync(() => said.set(lastSaid));
@@ -533,12 +566,12 @@ function SideField({ side, scene, own, doubles }) {
         const key = slotKey(side, slot);
         const mon = s?.active?.[slot];
         const alive = mon && (!mon.fainted || mon.standing);
+        const doll = mon?.volatiles.includes("substitute") && !scene?.out?.includes(key);
         return (
           <div key={slot} className="bs-slot" data-mon={key} data-pos={`${own ? "own" : "foe"}${doubles ? `-d${slot}` : ""}`}>
             {/* the picture is drawn by the GPU stage (gl.js), which reads what stands here; the element keeps the place and the doll */}
             {alive && <div className="bs-mon" key={mon.name} data-name={mon.name}>
-              {mon.volatiles.includes("substitute") ? <i className="bs-sub" aria-hidden="true" />
-                : <img src={spriteUrl(mon.species)} alt="" draggable="false" decoding="async" onError={onSpriteError()} />}
+              <img src={doll ? fx.SUBSTITUTE : spriteUrl(mon.species)} alt="" draggable="false" decoding="async" onError={onSpriteError()} />
             </div>}
           </div>
         );

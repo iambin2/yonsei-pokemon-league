@@ -281,9 +281,12 @@ const LIB = {
   protect: (c, t, o) => { S(c, t, "field", { g: .65, pan: o.pan, wet: .45, rate: 1.1 }); S(c, t, "veil", { g: .35, pan: o.pan, wet: .55 }); if (o.spiky) S(c, t, "metalL2", { g: .45, pan: o.pan, at: .1 }); },
   ability: (c, t, o) => S(c, t, "plate", { g: .55, pan: o.pan, wet: .3 }),
   item: (c, t, o) => S(c, t, "plate2", { g: .55, pan: o.pan, wet: .35 }),
-  puff: (c, t, o) => { S(c, t, "softH", { g: .45, pan: o.pan, at: o.at2 || 0 }); S(c, t, "breeze", { g: .35, pan: o.pan, rate: 1.4, dur: .35, at: o.at2 || 0 }); },
+  /* the substitute's cloud: 포켓몬 champions sounds one bright puff of noise as the one going falls flat and the cloud bursts, a swell of
+     0.15 to 0.23 s over 0.75 to 0.8 s, centred near 3.2 kHz (measured 2026-11-23 from its footage: the doll put up, the Pokémon coming
+     out to move, the doll fading). The recall's noise under 4 kHz with a soft low body measures 3.15 kHz, a 157 ms swell (earshot) */
+  puff: (c, t, o) => { S(c, t, "recallS", { g: .7, pan: o.pan, wet: .35, lp: 4000, dur: .8 }); S(c, t, "softH", { g: .3, pan: o.pan }); },
+  // ponytail: no longer played (the doll rises in silence, as in the game); it and its bloop clip go at the next build-sfx.py run
   boing: (c, t, o) => { S(c, t, "bloop", { g: .55, pan: o.pan, wet: .3 }); heavy(c, t, 0, .45, o.pan); },
-  pop: (c, t, o) => { S(c, t, "glassL", { g: .6, pan: o.pan }); S(c, t, "plank", { g: .45, pan: o.pan, at: .02 }); },
   morph: (c, t, o) => { S(c, t, "morph", { g: .55, pan: o.pan, wet: .5 }); S(c, t, "field3", { g: .3, pan: o.pan, rate: 1.3 }); },
   glass: (c, t, o) => { S(c, t, "glassH", { g: .75, pan: o.pan, wet: .4 }); S(c, t, "glassM", { g: .5, pan: o.pan, at: .04, wet: .4 }); },
 
