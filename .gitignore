@@ -15,3 +15,9 @@ src/services/.cpu-base-*.js
 
 # the music's masters (Suno, kept by the owner; scripts/build-music.py)
 /music/
+
+# the visual audit: pictures (rebuilt by scripts/visual-audit.cjs) and the operator session kept for it
+/docs/visual-audit/shots/
+/.visual-audit/
+/docs/visual-audit/before/
+/docs/visual-audit/after/
