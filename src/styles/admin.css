@@ -154,7 +154,8 @@
 .ad-page > .rc-linkreq { margin: 0; display: grid; gap: var(--s3); }
 @media (max-width: 859px) {
   .ad-main { display: contents; }
-  .ad-main > .ad-block:last-child { order: 2; }
+  /* 할 일, then 대회 진행, then everything else (편집, the logs, 내보내기) */
+  .ad-main > :not(.ad-block:first-child) { order: 2; }
   .ad-side { order: 1; }
 }
 @media (min-width: 860px) {

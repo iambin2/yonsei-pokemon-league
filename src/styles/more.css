@@ -13,9 +13,9 @@
   .more { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); grid-auto-flow: row dense; column-gap: var(--s13); align-items: start; }
   .more > h1 { grid-column: 1 / -1; }
   .more-group { grid-column: 1; }
-  /* the settings stand beside all three groups as one column: once the alert kinds are on it is taller than 기록, and as a cell of
+  /* the settings stand beside all four groups as one column: once the alert kinds are on it is taller than 기록, and as a cell of
      its row it pushed 함께하기 down by the difference */
-  .more-side { grid-column: 2; grid-row: 2 / span 3; }
+  .more-side { grid-column: 2; grid-row: 2 / span 4; }
   /* the two columns end on one line (Composing a screen 26): the side runs the groups' height and the operators' login stands at its
      foot, level with 디스코드 참여 */
   .more-side { align-self: stretch; display: grid; grid-template-rows: auto minmax(0, 1fr); }

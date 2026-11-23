@@ -163,7 +163,7 @@
 @media (min-width: 1200px) {
   /* the match is one window and nothing under it: no footer, so the page cannot scroll and nothing jumps when the deck changes
      (2026-11-09 second round, the user: "배틀이 끝나면 화면이 살짝 위로 스크롤되는 오류", "기본 배틀 화면이 살짝 아래로 스크롤된 상태") */
-  .ypl:has(.bt-match) .site-foot { display: none; }
+  .ypl:has(.bt-match) :is(.site-foot, .live-strip) { display: none; }
   .page.page--battle { padding-top: calc(env(safe-area-inset-top, 0px) + var(--nav-height) + var(--s5)); padding-bottom: var(--s5); }
   /* the match stands on the 1200 as every page does, edge to edge with the bar (2026-11-10, the user: "다른 홈페이지의 탭과 동일하게");
      the stage keeps the column's whole width and gives up height instead, from 16 to 9 down to what leaves the two strips and the
@@ -247,6 +247,9 @@
   .bt-end-row > :only-child { grid-column: 1 / -1; }
   .bt-end-row > .dock, .bt-end-row > .dock > .bt-end-keys { height: 100%; }
   .bt-end-row .bt-end-keys > .btn { min-height: 100%; }
+  /* with no result beside them the keys are a row of keys, 52, not a counter's 84 */
+  .bt-end-row:has(> :only-child) { min-height: 0; }
+  .bt-end-row:has(> :only-child) .bt-end-keys > .btn { min-height: var(--h-row); }
 }
 .bt-end-title { font-size: var(--t32); line-height: var(--l32); font-weight: 700; letter-spacing: var(--ls32); }
 .bt-end-line { font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
@@ -376,7 +379,7 @@
    first (an ellipsis), then the party shrinks together. The strip keeps one height through the battle: the side's conditions stand by
    its plates on the stage (2026-11-10: a line of them under the party grew the strip and pushed the stage down at once). */
 .bt-strip { --ball: 40px; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); width: 100%; min-height: var(--h-row); padding: var(--s1) var(--pad); text-align: left; background: var(--ground); }
-:root[data-theme="light"] .bt-strip { background: var(--panel); }
+:root[data-theme="light"] .bt-strip:not([data-won]) { background: var(--panel); }
 .bt-strip-row { flex: 1 0 100%; display: flex; align-items: center; gap: var(--s3); min-width: 0; max-width: 100%; }
 /* the two sides face each other as they stand on the court: ours from the left (the name, then the party), the foe's from the right
    (the name at the right end, its party to the left of it), the foe's conditions under them at the right */
