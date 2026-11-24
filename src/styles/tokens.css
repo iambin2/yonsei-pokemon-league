@@ -217,6 +217,9 @@ input:-webkit-autofill { -webkit-text-fill-color: var(--lit); box-shadow: inset 
 :where(button, .tab, .navlink, a.pn) { user-select: none; }
 label:has(input) { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
+/* a finger scrolls without a bar: on a phone the 8 took a sheet's right edge, its lists standing 8 short of the left's margin
+   (2026-11-25, the owner: 가능하면 꽉 차게) */
+@media (pointer: coarse) { ::-webkit-scrollbar { width: 0; height: 0; } }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--mute); }
 /* the page's scrollbar-color is inherited, and Chrome (121 on) then draws the system's bar with arrow keys in every scroller of a sheet
