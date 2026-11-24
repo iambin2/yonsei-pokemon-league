@@ -1909,8 +1909,12 @@ function BracketBoard({ b, admin, flash, onApply, deleting=false, readOnly=false
         <Button variant="second" className="bk-img" onClick={()=>downloadBracketPng(b,nameOf)}>대진표 이미지</Button>
         {/* the one main action docks above the bars on a scrolling screen (DESIGN.md "Controls") */}
         {admin&&!readOnly&&!b.applied&&championshipEvent?.championship_phase!=="qualifier"&&<Dock><Button variant="main" icon="check" onClick={()=>onApply(b,res)}>기록에 반영</Button></Dock>}
-        {/* the operators' line after the record: its state at the start, the rare acts as words at the end (Composing a screen 28) */}
-        {b.applied&&admin&&<div className="bk-ops"><span className="bk-applied"><Icon n="check" size={16}/> 기록 반영됨</span><span className="bk-ops-links">{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="link" size="sm" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{!readOnly&&admin&&<Button variant="link" size="sm" onClick={undoApplied}>반영 취소</Button>}{!readOnly&&admin&&championshipEvent?.championship_phase!=="qualifier"&&<Button variant="link" size="sm" onClick={()=>onApply(b,res,{titlesOnly:true})}>칭호 다시 판정</Button>}</span></div>}
+        {/* the operators' block after the record (2026-11-24, the owner: words floating on the ground read as nothing): its state lit on
+            a panel, its acts as keys joined on the seam under it, as an event stands on 운영 */}
+        {b.applied&&admin&&<div className="bk-ops">
+          <p className="pn bk-ops-state t15"><Icon n="check" size={20}/>기록 반영됨</p>
+          {!readOnly&&<div className="stack bk-ops-keys">{!readOnly&&admin&&championshipEvent?.event_type==="champions"&&championshipEvent?.championship_phase==="final"&&<Button variant="second" disabled={hallOfFameBusy} onClick={async()=>{setHallOfFameBusy(true);try{await ensureChampionshipHallOfFameEntry(b.eventId);flash("명예의 전당에 등록했습니다.");}catch(error){flash(`명예의 전당에 등록하지 못했습니다. ${error?.message||"잠시 뒤 다시 시도해 주세요."}`);}finally{setHallOfFameBusy(false);}}} loading={hallOfFameBusy}>명예의 전당 재시도</Button>}{championshipEvent?.championship_phase!=="qualifier"&&<Button variant="second" onClick={()=>onApply(b,res,{titlesOnly:true})}>칭호 다시 판정</Button>}<Button variant="second" onClick={undoApplied}>반영 취소</Button></div>}
+        </div>}
       </div>
     </section>}
     <MyMatchKey b={b} className="bk-mine-wide"/>
@@ -3105,7 +3109,8 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
       </header>
        {drawId===open.id ? <BracketDraw b={open} onDone={()=>setDrawId(completeNormalizedBracketDraw())}/> : <BracketBoard b={open} admin={admin} flash={flash} readOnly={open.readOnly} refreshNormalized={loadNormalized} onNormalizedReverted={loadNormalized} data={data} save={save} deleting={deletingId===open.id} onApply={(b,res,opts)=>setApply({b,res,...opts})}/>}
       {/* a delete that cannot be undone stands last, after everything the bracket shows */}
-      {!open.readOnly&&admin&&<div className="stack bk-actions bk-delete"><Button variant="second" disabled={!!open.applied} loading={deletingId===open.id} title={open.applied?"기록 반영 취소 후 삭제할 수 있습니다.":""} onClick={()=>del(open)}>삭제</Button></div>}
+      {/* only while it can act: a recorded bracket is undone first, from 반영 취소 in its operators' block (2026-11-24) */}
+      {!open.readOnly&&admin&&!open.applied&&<div className="stack bk-actions bk-delete"><Button variant="second" loading={deletingId===open.id} onClick={()=>del(open)}>삭제</Button></div>}
     </div>; })()}
     {wizard&&<BracketWizard data={data} onClose={()=>transition(()=>flushSync(()=>setWizard(false)),{dir:"back"})} onCreate={create}/>}
      {qr&&<QrSheet name={qr.name} url={qr.url} onClose={()=>setQr(null)}/>}

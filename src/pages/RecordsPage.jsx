@@ -441,7 +441,9 @@ function TrainerAdmin({ snapshot, profile, data, save, onDone }) {
   });
   return <section className="rc-sec ad-block" aria-labelledby="rc-admin-h">
     <SectionHead id="rc-admin-h" title="운영" />
-    {/* each act is its field with its key beside it on a desktop, the two acts 32 apart (2026-11-23 audit, Q-10) */}
+    {/* the two acts side by side across the sheet, each its field with its key joined under it (2026-11-24, the owner: two short fields
+        in under half the width stood unnaturally) */}
+    <div className="rc-admin-acts">
     <div className="rc-admin-pair">
       <Field label="이름 바꾸기"><input value={name} onChange={e => setName(e.target.value)} maxLength={30} /></Field>
       <Button variant="second" disabled={busy || !name.trim() || name.trim() === profile.name} onClick={rename}>이름 저장</Button>
@@ -450,6 +452,7 @@ function TrainerAdmin({ snapshot, profile, data, save, onDone }) {
       <Field label="같은 사람 합치기"><Dropdown value={other} onChange={setOther} placeholder="합칠 트레이너" ariaLabel="합칠 트레이너"
         options={others.map(p => ({ value: p.playerId, label: p.name }))} /></Field>
       <Button variant="second" disabled={busy || !drop} onClick={merge}>합치기</Button>
+    </div>
     </div>
     {drop && <div className="stack"><Row title={`${drop.name}의 기록이 옮겨집니다.`}
       line={`대회 ${(drop.participations || []).length}개, 경기 ${(drop.matches || []).length}개, 칭호 ${(drop.titles || []).length}개`} /></div>}

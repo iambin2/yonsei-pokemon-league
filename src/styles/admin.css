@@ -138,12 +138,12 @@
 .ad-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ad-cols, .ad-main, .ad-side { display: grid; gap: var(--s8); align-content: start; min-width: 0; }
 .ad-block { display: grid; gap: var(--s3); }
-.ad-block > .sh, .ad-side > .sh { margin-bottom: 0; }
+.ad-block > .sh { margin-bottom: 0; }
 /* 포인트 sheet: a league a section, its places as cells */
 /* the fields keep their own 20 and the heads their 12: no gap is added on top of them */
 .ad-points { display: grid; gap: 0; margin-top: var(--s5); }
-.ad-side { gap: var(--s3); }
-.ad-side > .ad-event + .ad-event { margin-top: var(--s5); }
+/* 대회 진행 on the 439 (draft B, 2026-11-24): events one under another, 20 apart, never held in view */
+.ad-events { display: grid; gap: var(--s5); }
 .ad-event { display: grid; gap: var(--seam); }
 .ad-event > :is(.btn, .ad-keys) { margin-top: var(--s3); }
 /* two keys of one event joined on the seam, the rarer one first and smaller, 1 to 1.618 (Hierarchy) */
@@ -160,14 +160,14 @@
 .ad-page > .btn { justify-self: start; }
 /* the link requests stand in the page's own rhythm, not with the records tab's margins */
 .ad-page > .rc-linkreq { margin: 0; display: grid; gap: var(--s3); }
+/* a phone: one column, 할 일 first, then 대회 진행, then the rest in their order */
 @media (max-width: 859px) {
-  .ad-main { display: contents; }
-  /* 할 일, then 대회 진행, then everything else (편집, the logs, 내보내기) */
-  .ad-main > :not(.ad-block:first-child) { order: 2; }
-  .ad-side { order: 1; }
+  .ad-main, .ad-side { display: contents; }
+  .ad-cols > * > * { order: 3; }
+  .ad-cols .ad-todo { order: 1; }
+  .ad-cols .ad-events-block { order: 2; }
 }
 @media (min-width: 860px) {
   .ad-counts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ad-cols { grid-template-columns: minmax(0, 709px) minmax(0, 439px); gap: var(--s13); justify-content: space-between; align-items: start; }
-  .ad-side { position: sticky; top: calc(var(--nav-height) + var(--s5)); }
 }

@@ -12,7 +12,7 @@ const nameOf = u => { const m = u.match(/\/rest\/v1\/rpc\/([a-z0-9_]+)/); if (m)
 async function open(opts = {}) {
   const { w = 1440, h = 900, theme = "dark", mocks = {}, patches = [], safeReads = [], log = [] } = opts;
   const browser = await pw.chromium.launch({ channel: "chrome", args: opts.gpu ? ["--use-angle=d3d11", "--enable-gpu"] : [] });
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, locale: "ko-KR", timezoneId: "Asia/Seoul", hasTouch: w < 860 });
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: Number(process.env.DPR || 1), locale: "ko-KR", timezoneId: "Asia/Seoul", hasTouch: w < 860 });
   await ctx.addInitScript(([t, v, extra]) => { try { localStorage.setItem("ypl-theme", t); if (v) localStorage.setItem("ypl-visitor-session", JSON.stringify(v)); for (const [k, x] of Object.entries(extra || {})) localStorage.setItem(k, typeof x === "string" ? x : JSON.stringify(x)); } catch {} }, [theme, opts.visitor || null, opts.storage || null]);
   await ctx.route(/supabase\.co\//, async (route, req) => {
     const u = req.url(), m = req.method();

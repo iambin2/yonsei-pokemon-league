@@ -18,6 +18,7 @@ import { readTowerMonthTops } from "../services/visitorAuth.js";
 import { TOWER_TITLE, towerMonthLabel, towerTitlesDue } from "../services/towerTitles.js";
 import { applyTitleAwards } from "../services/titleAwards.js";
 import { buildExportCsvs, downloadText, fetchExportTables } from "../services/recordsExport.js";
+import { FREE_BOARD_KEY, readCommunity } from "../services/communityStore.js";
 
 /* 운영 (DESIGN.md "Admin", 2026-11-08): the operators' one place. Their work had stood scattered inside the public pages (a notice's
    responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counters,
@@ -60,6 +61,24 @@ function Exports({ flash }) {
     <div className="stack ad-doors">{EXPORTS.map(([title, line, key]) => <Row key={key} title={title} line={busy === key ? "받는 중" : line} onClick={() => void take(key)} label={`${title} 받기, ${line}`} />)}</div>
   </section>;
 }
+/* 관리자 전용 글 (2026-11-24, the owner: 관리자에게만 보이게 쓴 글을 운영 화면에서 눈에 잘 띄게): the board's posts written for the
+   operators, newest first; one nobody has answered yet keeps its lamp lit. A row opens the post. With none, nothing shows. */
+function Letters({ go }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    let on = true;
+    readCommunity(FREE_BOARD_KEY).then(items => on && setRows(items.filter(p => p.secret).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, 8)), () => {});
+    return () => { on = false; };
+  }, []);
+  if (!rows?.length) return null;
+  return <section className="ad-block" aria-labelledby="ad-letters-h">
+    <SectionHead id="ad-letters-h" title="관리자 전용 글" link="게시판" onLink={() => go("board")} />
+    <div className="stack">{rows.map(p => { const cc = (p.comments || []).length;
+      return <Row key={p.id} title={p.title || p.body || "(제목 없음)"} line={[p.nick, p.createdAt && formatDate(p.createdAt, { time: true })].filter(Boolean).join(", ")}
+        lamp={cc ? undefined : "답글 전"} value={cc ? <span className="t12 dim">댓글 {cc}</span> : undefined} onClick={() => go("board", { post: p.id })} />; })}</div>
+  </section>;
+}
+
 /* 포인트 (2026-11-22, the owner's draft 4 A): the points a place gives, per kind and league, for events recorded from now on. Kept in
    site_data (pointPolicy); the record sheet and the awards read it through setPointTable. A blank cell keeps the default. */
 const LEAGUES = [["master", "마스터"], ["light", "라이트"]];
@@ -182,32 +201,39 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
     <LinkRequests id="ad-linkreq-h" onCount={counted} />
     {failed ? <Empty title="운영 현황을 불러오지 못했습니다." desc="잠시 뒤 다시 열어 주세요." />
       : !overview ? <Loader />
-      : <div className="ad-cols">
-        <div className="ad-main">
-          <section className="ad-block" aria-labelledby="ad-todo-h">
-            <SectionHead id="ad-todo-h" title="할 일" />
-            {tasks.length || towerDue.length ? <div className="stack">
-              {tasks.map(t => <Row key={t.key} title={t.title} line={t.line} lamp={true} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}
-              {towerDue.map(d => <Row key={d.grantId} title={`${towerMonthLabel(d.month)} ${TOWER_TITLE}`} line={`도전의 탑 1위 ${d.trainer_name}, ${d.wins}연승. 누르면 칭호를 줍니다.`} lamp={true} onClick={() => grantTower(d)} label={`${towerMonthLabel(d.month)} ${TOWER_TITLE}, ${d.trainer_name}에게 주기`} />)}
-            </div>
-              : <div className="pn ad-none"><span className="t15">지금 할 일이 없습니다.</span></div>}
-          </section>
-          <section className="ad-block" aria-labelledby="ad-doors-h">
-            <SectionHead id="ad-doors-h" title="편집" />
-            <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}
-              <Row title="포인트" line="순위마다 주는 랭킹 포인트" onClick={() => setPoints(true)} /></div>
-          </section>
-          <ChangeLog />
-          <ClientErrors />
-          <CommunityReports go={go} />
-          <Exports flash={flash} />
+      : <>
+        <div className="ad-cols">
+          <div className="ad-main">
+            <section className="ad-block ad-todo" aria-labelledby="ad-todo-h">
+              <SectionHead id="ad-todo-h" title="할 일" />
+              {tasks.length || towerDue.length ? <div className="stack">
+                {tasks.map(t => <Row key={t.key} title={t.title} line={t.line} lamp={true} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}
+                {towerDue.map(d => <Row key={d.grantId} title={`${towerMonthLabel(d.month)} ${TOWER_TITLE}`} line={`도전의 탑 1위 ${d.trainer_name}, ${d.wins}연승. 누르면 칭호를 줍니다.`} lamp={true} onClick={() => grantTower(d)} label={`${towerMonthLabel(d.month)} ${TOWER_TITLE}, ${d.trainer_name}에게 주기`} />)}
+              </div>
+                : <div className="pn ad-none"><span className="t15">지금 할 일이 없습니다.</span></div>}
+            </section>
+            <Letters go={go} />
+            <CommunityReports go={go} />
+            <section className="ad-block" aria-labelledby="ad-doors-h">
+              <SectionHead id="ad-doors-h" title="편집" />
+              <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}
+                <Row title="포인트" line="순위마다 주는 랭킹 포인트" onClick={() => setPoints(true)} /></div>
+            </section>
+          </div>
+          <div className="ad-side">
+            {/* 대회 진행 on the 439 beside 할 일, from the same top line, scrolling with the page (2026-11-24, the owner's draft B: the
+                439 held in view took the page's width at every scroll) */}
+            <section className="ad-block ad-events-block" aria-labelledby="ad-events-h">
+              <SectionHead id="ad-events-h" title="대회 진행" />
+              {events.length ? <div className="ad-events">{events.map((e, i) => <EventPanel key={e.id} e={e} main={i === 0} go={go} onClose={closeNow} onCancel={cancelEvent} />)}</div>
+                : <div className="pn ad-none"><span className="t15">진행 중인 대회가 없습니다.</span></div>}
+            </section>
+            <Exports flash={flash} />
+            <ChangeLog />
+            <ClientErrors />
+          </div>
         </div>
         {points && <PointSheet data={data} save={save} onClose={() => setPoints(false)} />}
-        <aside className="ad-side" aria-labelledby="ad-events-h">
-          <SectionHead id="ad-events-h" title="대회 진행" />
-          {events.length ? events.map((e, i) => <EventPanel key={e.id} e={e} main={i === 0} go={go} onClose={closeNow} onCancel={cancelEvent} />)
-            : <div className="pn ad-none"><span className="t15">진행 중인 대회가 없습니다.</span></div>}
-        </aside>
-      </div>}
+      </>}
   </div>;
 }

@@ -301,7 +301,9 @@ function FreeBoard({ admin, flash, tabs }){
         : <Empty title="아직 글이 없습니다."/>)}
       {shown.map(p=>{ const cc=(p.comments||[]).length; const d=dotDay(p.createdAt);
         return <Row key={p.id} title={<span data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</span>}
-          line={<>{p.secret&&"관리자 전용, "}{p.nick}{d&&<>, <span className="num">{d.day}</span> {d.weekday}</>}</>}
+          line={<>{p.nick}{d&&<>, <span className="num">{d.day}</span> {d.weekday}</>}</>}
+          /* a post for the operators carries its lit lamp and word at the row's end, as a state does (2026-11-24, the owner: 눈에 잘 띄게) */
+          lamp={p.secret?"관리자 전용":undefined}
           value={cc>0?<span className="t12 dim">댓글 {cc}</span>:undefined} onClick={()=>openPost(p.id)} href={viewHref("board",{post:p.id})}/>;})}
     </div>
     <div className="bd-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>

@@ -105,7 +105,7 @@ export function LiveHall({ res, rows, onOpen, onRetry }) {
   const list = all.filter(r => (kind === "all" || r.kind === kind) && (format === "all" || (format === "doubles") === isDoubles(r.format_id)));
   const count = n => (rows ? String(n) : null);
   const labels = useLabels(rows);
-  if (rows === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>중계를 불러오지 못했습니다.</ErrorNote>;
+  if (rows === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>관전할 배틀을 불러오지 못했습니다.</ErrorNote>;
   return <>
     <div className="stack bt-hall-counts">
       <Counter label="진행 중" value={count(all.length)} cells={2} lamp={all.length > 0 ? "sig" : false} />

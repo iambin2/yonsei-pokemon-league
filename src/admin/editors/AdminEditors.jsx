@@ -66,7 +66,9 @@ export function ChampionEditor({ item, onClose, onSave, onDelete, normTeam = nor
       </div>); })}</div>
       <datalist id="ch-mon-names">{monNames.map(n=><option key={n} value={n}/>)}</datalist>
     </div>
-    <div className="modal-actions">{onDelete&&<Button variant="second" onClick={onDelete}>삭제</Button>}<Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>
+    {/* 삭제 is rare: an underlined word at the sheet's end, so the strip stays the one pair 취소 and 저장 (2026-11-24, the owner: a heavy line stood between 삭제 and 취소) */}
+    {onDelete&&<div className="ad-cancel"><Button variant="link" onClick={onDelete}>삭제</Button></div>}
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>
   </Modal>);
 }
 
@@ -138,7 +140,9 @@ export function TitleItemEditor({ groupKey, item, data, onClose, onSave, onDelet
       <HolderPicker id="title-holder" names={names} value={holders} onChange={setHolders} placeholder={partner?"예: 한카리아스":"예: 정두호"}/></div>
     {isAutoCheckedTitle(groupKey,name.trim())&&<div className="bk-hint fb-reveal">기록 반영 때 조건을 자동으로 확인하는 칭호입니다.</div>}
     {ownFace&&<TitleLookPicker look={look} onChange={setLook}/>}
-    <div className="modal-actions">{onDelete&&<Button variant="second" onClick={onDelete}>삭제</Button>}<Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>
+    {/* 삭제 is rare: an underlined word at the sheet's end, so the strip stays the one pair 취소 and 저장 (2026-11-24, the owner: a heavy line stood between 삭제 and 취소) */}
+    {onDelete&&<div className="ad-cancel"><Button variant="link" onClick={onDelete}>삭제</Button></div>}
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>
   </Modal>);
 }
 const Q_TYPES=[
@@ -314,7 +318,9 @@ export function AnnEditor({ item, onClose, onSave, onDelete, earlier = [] }) {
     <Field label="게시 예약 (선택)" hint="비워 두면 저장하는 즉시 올라갑니다."><input type="datetime-local" value={publishAt} onChange={e=>setPublishAt(e.target.value)}/></Field>
     <div className="field"><input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)} id="pin"/><label htmlFor="pin" style={{margin:0}}>상단 고정</label></div>
     {item&&<div className="field"><input type="checkbox" checked={renotify} onChange={e=>setRenotify(e.target.checked)} id="renotify"/><label htmlFor="renotify" style={{margin:0}}>수정 알림 보내기</label></div>}
-    <div className="modal-actions">{onDelete&&<Button variant="second" onClick={onDelete}>삭제</Button>}<Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={()=>{ const missing=missingAnnouncementTimes(form); if(missing.length){ siteAlert(`${missing.join(", ")}을 입력해 주세요.`); return; } onSave({id:announcementId,date,title:title.trim()||"(제목 없음)",body,pinned,link:link.trim(),linkLabel:linkLabel.trim(),link2:link2.trim(),link2Label:link2Label.trim(),...(publishAt?{publishAt}:{}),form:{...form,eventDraft:normalizedEventDraft}},{renotify}); }}>저장</Button></div>
+    {/* 삭제 is rare: an underlined word at the sheet's end, so the strip stays the one pair 취소 and 저장 (2026-11-24, the owner: a heavy line stood between 삭제 and 취소) */}
+    {onDelete&&<div className="ad-cancel"><Button variant="link" onClick={onDelete}>삭제</Button></div>}
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={()=>{ const missing=missingAnnouncementTimes(form); if(missing.length){ siteAlert(`${missing.join(", ")}을 입력해 주세요.`); return; } onSave({id:announcementId,date,title:title.trim()||"(제목 없음)",body,pinned,link:link.trim(),linkLabel:linkLabel.trim(),link2:link2.trim(),link2Label:link2Label.trim(),...(publishAt?{publishAt}:{}),form:{...form,eventDraft:normalizedEventDraft}},{renotify}); }}>저장</Button></div>
   </Modal>);
 }
 export function StandingsEditor({ title, rows, onClose, onSave }) {

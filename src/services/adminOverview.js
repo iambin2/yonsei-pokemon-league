@@ -37,7 +37,8 @@ export async function readAdminOverview(announcements = []) {
     // a notice taking both leagues lists both leagues' applications: each league event counts its own
     const own = applicants && applicants.filter(row => !row.division || !event.division || row.division === event.division);
     return {
-      id: event.id, name: draft.name || event.name, noticeId: notice?.id || null,
+      // a notice taking both leagues has one name for two events: each league event keeps its own, with its league in it
+      id: event.id, name: (event.division && event.name) || draft.name || event.name, noticeId: notice?.id || null,
       heldOn: draft.heldOn || draft.qualifierHeldOn || null, startTime: draft.startTime || draft.qualifierStartTime || null, closesAt: notice?.form?.closesAt || null,
       step: eventStep({ open, bracket, left, awaiting: awaitingRecord }),
       applicants: own ? own.length : null,

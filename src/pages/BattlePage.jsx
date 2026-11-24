@@ -37,7 +37,7 @@ import { BattleLists, ReplayBar, downloadReplay, replayKey } from "./battle/Repl
 import { MonCard, PickDock, TeamInfo, TeamPick, WatchPick, ownCards, packedCards, seenCards } from "./battle/Sets.jsx";
 import { StreakBand, StreakEnd, StreakOpen, StreakStake, TrackBar, floorCall, useAccount } from "./battle/Streak.jsx";
 import { liftArrive, towerDrop } from "./battle/tower.js";
-import { floorGame, gameWords, runTrack, streakFloor, streakMaster } from "../services/streak.js";
+import { floorGame, runTrack, streakFloor, streakMaster } from "../services/streak.js";
 import { LiveCard, LiveHall, useLabels, useLiveBoards } from "./battle/Live.jsx";
 
 /* 배틀 (DESIGN.md "Battle"). 친선전은 팀 빌더에 저장한 팀으로 열고, 링크를 받은 사람이 참가한다.
@@ -571,7 +571,7 @@ function BattleOpen({ res, onOpen, go, preset }) {
     if (t !== "open") url.searchParams.set("tab", t); else url.searchParams.delete("tab");
     window.history.replaceState(window.history.state, "", url);
   };
-  const tabs = <div className="bt-tabs"><TabsLine value={tab} onChange={changeTab} label="배틀 화면" options={[["open", "배틀 열기"], ["streak", "도전의 탑"], ["rooms", rooms?.length ? `방 목록 ${rooms.length}` : "방 목록"], ["live", live?.length ? `중계 ${live.length}` : "중계"], ["mine", "기록"]]} /></div>;
+  const tabs = <div className="bt-tabs"><TabsLine value={tab} onChange={changeTab} label="배틀 화면" options={[["open", "배틀 열기"], ["streak", "도전의 탑"], ["rooms", rooms?.length ? `방 목록 ${rooms.length}` : "방 목록"], ["live", live?.length ? `관전 ${live.length}` : "관전"], ["mine", "기록"]]} /></div>;
   if (tab === "live") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<LiveHall res={res} rows={live} onOpen={onOpen} onRetry={rereadLive} /></div>;
   if (tab === "mine") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<BattleLists onOpen={onOpen} /></div>;
   if (tab === "streak") return <StreakOpen res={res} onOpen={onOpen} go={go} tabs={tabs} enter={enterBattle} goingIn={goingIn} standUp={standUp} leaveNow={leaveNow} onPractice={() => { setFirstFoe("cpu"); changeTab("open"); }} />;
@@ -632,9 +632,9 @@ function BattleSetup({ res, onOpen, preset, tabs, firstFoe }) {
   const typeName = v => { setName(v); setNameError(""); };
   const roomRow = ROOMS.find(([key]) => key === room);
   return <Lobby res={res} teams={teams} teamId={teamId} setTeamId={setTeamId} name={name} setName={typeName} nameError={nameError} doubles={format === "doubles"} onEnter={submit}
-    foe={foe === "cpu" ? "컴퓨터" : null} foeNote={foe === "cpu" ? levelOf(level).label : ""} foeHint={roomRow[2]} foeLead={foe === "cpu" ? levelOf(level).species : null}
+    foe={foe === "cpu" ? "컴퓨터" : null} foeNote={foe === "cpu" ? `난이도 ${levelOf(level).label}` : ""} foeHint={roomRow[2]} foeLead={foe === "cpu" ? levelOf(level).species : null}
     foeWord={FORMATS.find(([key]) => key === format)[1]}
-    before={saved?.status === "active" && <Row className="bt-resume" title="컴퓨터와의 배틀" line={levelOf(saved.level ?? saved.start?.level).label} lamp="진행 중" onClick={() => onOpen(CPU_ROOM)} label="컴퓨터와의 배틀 이어서 하기" />}
+    before={saved?.status === "active" && <Row className="bt-resume" title="컴퓨터와의 배틀" line={`난이도 ${levelOf(saved.level ?? saved.start?.level).label}`} lamp="진행 중" onClick={() => onOpen(CPU_ROOM)} label="컴퓨터와의 배틀 이어서 하기" />}
     foeSheet={<>
       <Question id="bt-foe" label="상대" group>
         <Choice name="bt-foe" options={OPPONENTS.map(([, label]) => label)} value={OPPONENTS.find(([key]) => key === foe)[1]} onChange={label => { setFoe(OPPONENTS.find(([, l]) => l === label)[0]); setError(""); setNameError(""); }} />
@@ -1645,7 +1645,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     <div className="pn bt-head-main">
       {/* what this match is (an official one's event and round, a run's game) and, while it is played, how many are watching; while the
           other side chooses, the busy cell and whose choice is awaited, so a player always knows whether they are the one waited for */}
-      <span className="status t12">{shownEnded ? "종료" : waitWords ? <><Busy h={32} />{waitWords}</> : <><i className="lamp sig" aria-hidden="true" />{started ? "진행 중" : "선출 중"}</>}{official && <span className="dim">{labels[row.id] || "공식 경기"}</span>}{/* the game's place says it is the tower's ("2층 두 번째 판"); 도전의 탑 only where the place is not known (P-06: cut on a desktop) */}{row.kind === "streak" && <span className="dim">{gameAt == null ? "도전의 탑" : gameWords(gameAt)}</span>}{!ended && watchers > 0 && <span className="dim bt-head-watch">{`관전 ${watchers}`}</span>}</span>
+      <span className="status t12">{shownEnded ? "종료" : waitWords ? <><Busy h={32} />{waitWords}</> : <><i className="lamp sig" aria-hidden="true" />{started ? "진행 중" : "선출 중"}</>}{official && <span className="dim">{labels[row.id] || "공식 경기"}</span>}{/* a run's game is said by the floor track beside the head and by the stake in the menu; its words here were cut to 2층 네 … on a
+          desktop (2026-11-24, the owner: 그냥 없애줘), so only 도전의 탑 stands, where the place is not known */}{row.kind === "streak" && gameAt == null && <span className="dim">도전의 탑</span>}{!ended && watchers > 0 && <span className="dim bt-head-watch">{`관전 ${watchers}`}</span>}</span>
       <b className="bt-head-names">{`${names[perspective]} 대 ${names[foe]}`}</b>
     </div>
     {/* the floor as its track: its number over its five games, this one lit (2026-11-09: the stair glyph went with the stairs) */}
@@ -1663,7 +1664,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     : null;
   // the other battles being played, so a watcher goes from one to the next without the lobby: the same event's first
   const othersBox = others.length > 0 && <section className="bt-others" aria-labelledby="bt-others-h">
-    <SectionHead id="bt-others-h" title="다른 중계" link="전체 보기" onLink={() => go?.("battle", { tab: "live" })} />
+    <SectionHead id="bt-others-h" title="다른 배틀" link="전체 보기" onLink={() => go?.("battle", { tab: "live" })} />
     <div className="stack">{others.map(r => <LiveCard key={r.id} res={res} row={r} label={labels[r.id]} onOpen={onOpen} />)}</div>
   </section>;
   /* both parties' sets at the end: a battle with the computer has both whole on this device (its input log); a player has their own
@@ -1690,11 +1691,12 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
     {row.kind === "streak" && seat && !ended && <StreakStake wins={seat.wins ?? 0} lives={seat.lives} />}
     {narrow && logBox}
     {/* the links' row stands only when it holds a link: empty, it kept a row of the menu's grid and doubled the gap over 기권 (2026-11-23) */}
-    {(!seat || ended || official) && <div className="bt-links">
-      {(!seat || ended) && <Button variant="link" onClick={shareHere}>{ended ? "리플레이 공유" : "링크 공유"}</Button>}
-      {ended && <Button variant="link" onClick={shareToBoard}>게시판에 공유</Button>}
-      {official && <Button variant="link" onClick={() => go?.("bracket", { eventId: row.event_id })}>대진표</Button>}
-      {ended && log && <Button variant="link" onClick={() => downloadReplay({ row, log, res, perspective, names })}>기록 내려받기</Button>}
+    {/* keys of one kind joined on the seam, not words floating on the ground (2026-11-24, the owner) */}
+    {(!seat || ended || official) && <div className="stack bt-links">
+      {(!seat || ended) && <Button size="sm" onClick={shareHere}>{ended ? "리플레이 공유" : "링크 공유"}</Button>}
+      {ended && <Button size="sm" onClick={shareToBoard}>게시판에 공유</Button>}
+      {official && <Button size="sm" onClick={() => go?.("bracket", { eventId: row.event_id })}>대진표</Button>}
+      {ended && log && <Button size="sm" onClick={() => downloadReplay({ row, log, res, perspective, names })}>기록 내려받기</Button>}
     </div>}
     {/* 기권 stands here and nowhere else: a key that ends the match is never one slip from the moves (2026-11-09) */}
     {seat && !ended && <Button className="bt-forfeit" onClick={() => { setMenuOpen(false); giveUp(); }}>기권</Button>}
@@ -1791,9 +1793,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {/* the other battles being played, so a watcher goes from one to the next without the lobby: the same event's first */}
         {othersBox}
         {logBox}
-        <span className="t12 mute">배틀 엔진: Pokémon Showdown (MIT)</span>
-        <span className="t12 mute">음악: YPL (코드로 작곡)</span>
-        <span className="t12 mute">효과음: Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span>
+        {/* the credits are a footnote, not a fact (Composing a screen 16): one quiet paragraph at the very end, regular weight, set apart
+            (2026-11-24, the owner: 이렇게까지 강조 안 해도 될 사항들) */}
+        <div className="bt-credit t12 reg mute"><span>배틀 엔진 Pokémon Showdown (MIT)</span><span>음악 YPL (코드로 작곡)</span><span>효과음 Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span></div>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}
       {soundOpen && <Modal title="소리" onClose={() => setSoundOpen(false)}><SoundSheet /></Modal>}

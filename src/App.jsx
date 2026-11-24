@@ -213,7 +213,8 @@ export default function App() {
     if(!admin) return;
     if(restored.current){ restored.current=false; return; }
     listEventsAwaitingRecord().then(rows=>{
-      if(rows.length) flash(`지난 대회 ${rows.length}개가 아직 기록 반영 전입니다.`,{label:"대진표",run:()=>go("bracket")});
+      // a past event may have no bracket at all (to be cancelled), so it goes to 운영, where each says what it waits on
+      if(rows.length) flash(`지난 대회 ${rows.length}개가 아직 마무리되지 않았습니다.`,{label:"운영",run:()=>go("admin")});
     }).catch(()=>{});
   },[admin]);
   const refresh=useCallback(async()=>{ const fresh=await loadSiteData(); if(fresh){ setData(normalizeData(fresh)); setSiteFailed(false); } },[]);

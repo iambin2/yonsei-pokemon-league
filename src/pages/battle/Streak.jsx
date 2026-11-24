@@ -12,6 +12,7 @@ import Button from "../../components/common/Button.jsx";
 import Icon from "../../components/common/Icon.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
+import Pager from "../../components/common/Pager.jsx";
 import Seg from "../../components/common/Seg.jsx";
 import { Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
@@ -563,28 +564,42 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   );
 }
 
-/* 내 도전 (docs/db/tower_history.sql, 2026-11-22): the account's own runs, newest first, under the month's board, so a run is still
-   found after its month's board has moved on. Five, then all thirty with 더 보기. Not drawn for a signed-out viewer, an account with no
-   run yet, or before that SQL has run. */
+/* 내 도전 (docs/db/tower_history.sql, 2026-11-22): the account's own runs, under the month's board, so a run is still found after its
+   month's board has moved on. Since 2026-11-24 (the owner: 더 보기 ran down without end) the section holds its height: three counters
+   (최고 연승, 이번 달 최고, 도전) say the whole at a glance, then five runs a page with the pager, newest first. Not drawn for a
+   signed-out viewer, an account with no run yet, or before that SQL has run. */
+const RUNS_PAGE = 5;
 function MyRuns({ approved, asked }) {
   const [runs, setRuns] = useState(null);
-  const [all, setAll] = useState(false);
+  const [page, setPage] = useState(1);
   useEffect(() => {
     if (!approved) { setRuns(null); return undefined; }
     let on = true;
-    readMyStreakRuns().then(rows => on && setRuns(rows), () => on && setRuns(null));
+    // ponytail: the server gives at most 100 runs, so the counters read the last 100; a count past that would need its own read
+    readMyStreakRuns().then(rows => { if (on) { setRuns(rows); setPage(1); } }, () => on && setRuns(null));
     return () => { on = false; };
   }, [approved, asked]);
   if (!runs?.length) return null;
-  const shown = all ? runs : runs.slice(0, 5);
+  const pages = Math.ceil(runs.length / RUNS_PAGE);
+  const cur = Math.min(page, pages);
+  const shown = runs.slice((cur - 1) * RUNS_PAGE, cur * RUNS_PAGE);
   const label = r => {
     const [y, m] = String(r.month).split("-").map(Number);
     return r.daily ? `${formatDate(r.daily)} 오늘의 탑` : `${y}년 ${m}월`;
   };
-  return <section aria-labelledby="streak-mine">
-    <SectionHead id="streak-mine" title="내 도전" link={runs.length > 5 && !all ? "더 보기" : undefined} onLink={() => setAll(true)} />
-    <div className="stack">{shown.map(r => <Row key={r.run_id} title={`${label(r)}, ${r.wins}연승`}
-      line={r.status === "active" ? "진행 중" : [formatDate(r.started_at, { time: true }), r.ended_at ? `${formatDate(r.ended_at, { time: true })} 끝` : ""].filter(Boolean).join(", ")} />)}</div>
+  const month = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 7);
+  const best = list => list.reduce((n, r) => Math.max(n, r.wins || 0), 0);
+  const thisMonth = runs.filter(r => !r.daily && String(r.month).slice(0, 7) === month);
+  return <section className="streak-mine" aria-labelledby="streak-mine">
+    <SectionHead id="streak-mine" title="내 도전" />
+    <div className="stack streak-mine-counts">
+      <Counter label="최고 연승" value={String(best(runs))} />
+      <Counter label="이번 달 최고" value={String(best(thisMonth))} />
+      <Counter label="도전" value={String(runs.length)} cells={runs.length > 99 ? 3 : 2} />
+    </div>
+    <div className="stack">{shown.map(r => <Row key={r.run_id} title={`${label(r)}, ${r.wins}연승`} lamp={r.status === "active" ? "진행 중" : undefined} sig
+      line={r.status === "active" ? formatDate(r.started_at, { time: true }) : [formatDate(r.started_at, { time: true }), r.ended_at ? `${formatDate(r.ended_at, { time: true })} 끝` : ""].filter(Boolean).join(", ")} />)}</div>
+    <div className="streak-mine-pager"><Pager page={cur} pages={pages} onGo={setPage} /></div>
   </section>;
 }
 

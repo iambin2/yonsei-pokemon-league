@@ -25,7 +25,9 @@ const ERRORS = [{ id: 1, message: "TypeError: Cannot read properties of undefine
   { id: 2, message: "ChunkLoadError: Loading chunk 12 failed.", created_at: iso(20), url: "/?view=battle", build: "3ffd32c" }];
 const REPORTS = [{ item_id: "r1", parent_id: null, board: "free", title: "신고된 글의 제목이 꽤 길 때 어떻게 보이는지 확인하는 글입니다", reasons: { spam: 2, abuse: 1 }, last_at: iso(5) }, { item_id: "r2", parent_id: "r1", board: "free", title: "", reasons: { abuse: 1 }, last_at: iso(9) }];
 const FX = {
-  plain: () => ({ mocks: { streak_month_tops: [], admin_change_log: [], admin_client_errors: [], admin_community_reports: [], "fn:battle": {} } }),
+  plain: () => ({ mocks: { streak_month_tops: [], admin_change_log: [], admin_client_errors: [], admin_community_reports: [], "fn:battle": {} },
+    // SECRETS=1: the first two posts of the free board read as written for the operators (the anon read never returns the real ones)
+    patches: process.env.SECRETS ? [{ re: /tbl:community_items/, fn: rows => { if (Array.isArray(rows)) rows.filter(r => !r.parent_id).slice(0, 2).forEach(r => { r.secret = true; }); return rows; } }] : [] }),
   live: () => L.live({ visitor: role === "visitor", battle: true, reports: process.env.REPORTS || "differ", report: process.env.REPORT ? JSON.parse(process.env.REPORT) : { status: "waiting", mine: null }, requests: REQUESTS }),
   done: () => { const f = L.live({ requests: REQUESTS }); const m = f.patches.find(p => String(p.re).includes("matches")); m.fn = (rows, u) => rows; const b = f.patches.find(p => String(p.re).includes("battles")); b.fn = rows => rows; return f; },
   step1: () => stepFx("2099-12-31T23:59"), step2: () => stepFx("2026-11-01T00:00"),
