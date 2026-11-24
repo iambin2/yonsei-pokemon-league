@@ -61,7 +61,7 @@
 .rc-pod-line > b { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--lit); }
 .rc-me { margin-left: var(--s2); }
 @media (hover: hover) { :is(.rc-pod, .rc-tr):hover .rc-name { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: 4px; } }
-.rc-table { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) repeat(3, var(--s13)); margin-top: var(--s5); }
+.rc-table { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) repeat(4, var(--s13)); margin-top: var(--s5); }
 .rc-table.under { margin-top: var(--s13); }
 .rc-th, .rc-tr { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
 /* a table opens with its 2px lit rule across the whole table (2026-11-24, the owner: under the heads it read as an underline of the small
@@ -80,7 +80,7 @@
   .rc-pod + .rc-pod { padding-left: var(--s8); box-shadow: inset 1px 0 0 var(--rule); }
   .rc-pod-rank.fig { font-size: calc((var(--s21) + var(--s13) + var(--s3) + var(--seam)) / .72); margin-bottom: var(--s5); }
   .rc-pod:first-child .rc-pod-name { font-size: var(--s13); line-height: calc(var(--s13) + var(--s2)); }
-  .rc-table { grid-template-columns: var(--s13) minmax(0, 1fr) repeat(3, calc(var(--s21) + var(--s8) + var(--s1))); }
+  .rc-table { grid-template-columns: var(--s13) minmax(0, 1fr) repeat(4, calc(var(--s21) + var(--s8) + var(--s1))); }
 }
 
 /* the ranking: one season choice, a head strip, rows of 52 (64 with the record line) */

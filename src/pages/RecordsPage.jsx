@@ -300,28 +300,36 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   const [all, setAll] = useState(false);
   /* 정렬과 시즌 (2026-11-22, the owner's draft A): chips under the search, a season under them. A season counts only that season's
      results; 출전순 counts events entered. The first three stand as the podium only in the medal order, the records' own ranking. */
-  const [order, setOrder] = useState("wins");
+  const [order, setOrder] = useState("points");
   const [season, setSeason] = useState("");
   const seasons = useMemo(() => [...new Set(Object.values(snapshot.profiles || {}).flatMap(p => (p.participations || []).map(x => x.season)).filter(Boolean))]
     .sort((a, b) => b.localeCompare(a, "ko", { numeric: true })), [snapshot]);
   const ranked = useMemo(() => {
+    /* 포인트순 (2026-11-24, the owner: "우승순이 아니라 포인트 순"): points and medals come from the ranking ledger (RankingAward and its
+       baselines), the 랭킹 tab's own source, so 루키 리그 and the champions events, which award no points, count for nothing here. A season
+       reads that season's ledger; every season sums each series' ledger. */
+    const ledger = snapshot.ranking ? (season ? (snapshot.ranking.seasons || []).filter(s => s.name === season) : snapshot.ranking.series || []) : null;
+    const byId = new Map(), byName = new Map();
+    for (const row of (ledger || []).flatMap(s => s.rows || [])) {
+      const map = row.playerId ? byId : byName, key = row.playerId || row.name;
+      const sum = map.get(key) || { points: 0, wins: 0, runnerUps: 0, top4: 0 };
+      map.set(key, { points: sum.points + (row.points || 0), wins: sum.wins + (row.win || 0), runnerUps: sum.runnerUps + (row.ru || 0), top4: sum.top4 + (row.top4 || 0) });
+    }
+    const zero = { points: 0, wins: 0, runnerUps: 0, top4: 0 };
     const count = (t) => {
-      if (!season) return t;
       const p = profileOf(snapshot, t.key || t.name);
-      const placed = (p?.placements || []).filter(x => x.season === season && x.team !== true);
-      return { ...t, wins: placed.filter(x => x.placement === "win").length, runnerUps: placed.filter(x => x.placement === "ru").length, top4: placed.filter(x => x.placement === "sf").length,
-        games: (p?.participations || []).filter(x => x.season === season).length };
+      const games = (p?.participations || []).filter(x => !season || x.season === season).length;
+      return { ...t, ...(ledger ? (t.playerId && byId.get(t.playerId)) || byName.get(t.name) || zero : { points: 0 }), games };
     };
-    const games = t => t.games ?? (profileOf(snapshot, t.key || t.name)?.participations || []).length;
-    const list = snapshot.trainers.map(count).filter(t => !season || t.games > 0).map(t => ({ ...t, games: games(t) }));
-    const medals = (a, b) => b.wins - a.wins || b.runnerUps - a.runnerUps || b.top4 - a.top4 || a.name.localeCompare(b.name, "ko");
-    return list.sort(order === "name" ? (a, b) => a.name.localeCompare(b.name, "ko") : order === "games" ? (a, b) => b.games - a.games || medals(a, b) : medals);
+    const list = snapshot.trainers.map(count).filter(t => !season || t.games > 0);
+    const byPoints = (a, b) => b.points - a.points || b.wins - a.wins || b.runnerUps - a.runnerUps || b.top4 - a.top4 || a.name.localeCompare(b.name, "ko");
+    return list.sort(order === "name" ? (a, b) => a.name.localeCompare(b.name, "ko") : order === "games" ? (a, b) => b.games - a.games || byPoints(a, b) : byPoints);
   }, [snapshot, order, season]);
 
   const visible = ranked.filter((t) => t.name.includes(query.trim()));
   if (!snapshot.trainers.length && !finding) return <Empty title="트레이너 기록이 없습니다." />;
   // the first three stand as the podium over the rest, and 20 rows follow it; a search or another order shows every match as a row
-  const podium = !query.trim() && order === "wins";
+  const podium = !query.trim() && order === "points";
   const rows = all || query.trim() ? visible : visible.slice(0, LIST_SHOWN + (podium ? 3 : 0));
   const exact = snapshot.trainers.some((t) => t.name === query.trim());
   const tops = podium ? rows.slice(0, 3) : [];
@@ -334,7 +342,7 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   };
   // 로그인한 트레이너의 자기 줄: 이름 뒤에 작게 나
   const mineTag = (t) => t.mine ? <span className="t12 dim rc-me">나</span> : null;
-  const say = (trainer, t, place) => `${place}위 ${trainer.name}${t.mine ? ", 나" : ""}, ${t.league}, 우승 ${trainer.wins}, 준우승 ${trainer.runnerUps}, 4강 ${trainer.top4}`;
+  const say = (trainer, t, place) => `${place}위 ${trainer.name}${t.mine ? ", 나" : ""}, ${t.league}, ${trainer.points}점, 우승 ${trainer.wins}, 준우승 ${trainer.runnerUps}, 4강 ${trainer.top4}`;
   const open = (trainer) => (e) => onOpen(trainer.key || trainer.name, e.currentTarget.querySelector(".rc-name"));
   const n = (v) => <span className={"rc-n" + (v ? "" : " mute")}>{v || 0}</span>;
 
@@ -344,7 +352,7 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
       {/* one control row on one line (2026-11-24): the search, the order and the season */}
       <div className="ctl-row rc-ctl">
         <ListSearch q={query} setQ={setQuery} placeholder={finding ? "내 트레이너 이름" : "트레이너 검색"} count={visible.length} />
-        {!finding && <Chips value={order} onChange={setOrder} options={[["wins", "우승순"], ["games", "출전순"], ["name", "이름순"]]} label="정렬" />}
+        {!finding && <Chips value={order} onChange={setOrder} options={[["points", "포인트순"], ["games", "출전순"], ["name", "이름순"]]} label="정렬" />}
         {!finding && seasons.length > 1 && <Dropdown value={season} onChange={setSeason} ariaLabel="시즌" options={[{ value: "", label: "모든 시즌" }, ...seasons.map(s => ({ value: s, label: s }))]} />}
       </div>
       {finding && <FindMe query={query} exact={exact} onOpen={onOpen} part="name" />}
@@ -356,18 +364,18 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
             return <button type="button" key={trainer.key || trainer.name} className="rc-pod" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
               <Fig value={String(place)} h={150} className="rc-pod-rank" label={`${place}위`} />
               <b className="rc-pod-name rc-name">{trainer.name}{mineTag(t)}</b>
-              <span className="rc-pod-line" aria-hidden="true">우승 <b>{trainer.wins}</b>, 준우승 <b>{trainer.runnerUps}</b>, 4강 <b>{trainer.top4}</b></span>
+              <span className="rc-pod-line" aria-hidden="true"><b>{trainer.points}</b>점, 우승 <b>{trainer.wins}</b>, 준우승 <b>{trainer.runnerUps}</b>, 4강 <b>{trainer.top4}</b></span>
             </button>;
           })}
         </div>}
         {rest.length > 0 && <div className={"rc-table" + (tops.length ? " under" : "")}>
-          <div className="rc-th t12 dim" aria-hidden="true"><span>순위</span><span>트레이너</span><span>우승</span><span>준우승</span><span>4강</span></div>
+          <div className="rc-th t12 dim" aria-hidden="true"><span>순위</span><span>트레이너</span><span>점수</span><span>우승</span><span>준우승</span><span>4강</span></div>
           {rest.map((trainer) => {
             const t = tagsOf(trainer), place = ranked.indexOf(trainer) + 1;
             return <button type="button" key={trainer.key || trainer.name} className="pn rc-tr" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
               <span className="rc-tr-place">{place}</span>
               <b className="t15 rc-name">{trainer.name}{mineTag(t)}</b>
-              {n(trainer.wins)}{n(trainer.runnerUps)}{n(trainer.top4)}
+              {n(trainer.points)}{n(trainer.wins)}{n(trainer.runnerUps)}{n(trainer.top4)}
             </button>;
           })}
         </div>}
