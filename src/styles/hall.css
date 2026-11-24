@@ -7,38 +7,35 @@
 .tt-head, .hof-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .tt-tabs { margin-top: var(--s5); }
 
-/* ---------- hall of fame: one reign large, the rest hung on a wall (2026-11-03) ---------- */
-/* the crown: the reigning champion's board. The generation lights in segments, the name at 32, the six large with their names */
+/* ---------- hall of fame: a lineage (2026-11-24, draft A). The crown is the page's big screen; every earlier reign is one row under it,
+   so a champion added is one row more and the oldest stands as large as the newest ---------- */
 /* a failed or empty read stands where the crown would */
 .hof > :is(.ypl-empty, .error-note) { margin-top: var(--s5); }
-.hof-crown { display: grid; gap: var(--s8); margin-top: var(--s5); padding: var(--s5) var(--pad); }
-.hof-crown-who { display: grid; justify-items: start; align-content: start; gap: var(--s2); min-width: 0; }
-.hof-crown-tag { padding: var(--s1) var(--s2); }
 .hof-gen { display: inline-flex; align-items: flex-end; gap: var(--s2); }
-/* the crown's two windows (draft A, 2026-11-23): the generation inverted and the season one tone up, joined on the seam */
-.hof-windows { display: flex; gap: var(--seam); margin-top: var(--s3); }
-.hof-window { display: grid; gap: var(--s2); padding: var(--s3); }
-@media (min-width: 640px) { .hof-window { padding: var(--s3) var(--s5); } }
-.hof-window-season { background: var(--panel-2); }
-.hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }
+/* the crown: one inverted panel. 현 챔피언 over the generation at the column's top, the name, the season and the links at its foot */
+.hof-crown { display: grid; gap: var(--s5); margin-top: var(--s5); padding: var(--s5) var(--pad); }
+.hof-crown-who { display: grid; justify-items: start; align-content: space-between; gap: var(--s5); min-width: 0; }
+.hof-crown-top { display: grid; justify-items: start; gap: var(--s2); }
+.hof-crown-end { display: grid; justify-items: start; gap: var(--s1); min-width: 0; }
+.hof-crown-name { min-width: 0; overflow-wrap: anywhere; }
 .hof-crown-act { display: flex; flex-wrap: wrap; gap: var(--s5); margin-top: var(--s3); }
+.hof-crown .btn.btn--link, .hof-crown .btn.btn--link:hover:not(:disabled) { --btn-fg: var(--ground); }
 .hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .hof-crown-mon { --floor: var(--h-strip); aspect-ratio: 1; }
 .hof-crown-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 .hof-band { display: grid; place-items: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-/* the hall's three facts */
-/* the wall: a plate per past reign, newest first */
+/* 계보: one row a reign, newest first; on a phone the generation and the name over the six in one row of six */
 .hof-past { margin-top: var(--s13); }
-.hof-wall { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--seam); }
+.hof-line { display: grid; gap: var(--seam); }
 .hof-slot { display: grid; gap: var(--seam); min-width: 0; }
 .hof-edit { justify-self: start; min-height: var(--h-control); }
-.hof-plate { display: grid; gap: var(--s2); width: 100%; height: 100%; padding: var(--s5) var(--pad) var(--s3); text-align: left; }
-.hof-plate-top { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s3); }
-.hof-plate-season { display: inline-flex; align-items: flex-end; gap: var(--s2); text-align: right; white-space: nowrap; }
-.hof-plate-name { margin-top: var(--s2); }
-.hof-plate-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: var(--s2); }
-.hof-plate-mon { aspect-ratio: 1; }
-.hof-plate-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
+.hof-row { display: grid; gap: var(--s3); width: 100%; padding: var(--s3) var(--pad); text-align: left; }
+.hof-row-head { display: flex; align-items: center; gap: var(--s5); min-width: 0; }
+.hof-row-who { display: grid; gap: var(--s1); min-width: 0; }
+.hof-row-who > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hof-row-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.hof-row-mon { aspect-ratio: 1; }
+.hof-row-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
 /* the champion sheet: the six with their names; on desktop as wide as the content, all six in one row */
 .hof-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .hof-cell { --floor: var(--h-control); aspect-ratio: 1; }
@@ -67,14 +64,15 @@
 @media (min-width: 640px) { .hof-plaques { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 860px) {
   .hof-plaques { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* draft 3B (2026-11-19): the six stand in one row, so the crown is as tall as its words and no band without ink is left beside them */
-  .hof-crown { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: stretch; padding: var(--s8) var(--pad); }
-  .hof-crown-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .hof-crown-mon { aspect-ratio: auto; height: 100%; min-height: calc(var(--s21) * 2); }
-  .hof-wall { grid-template-columns: repeat(var(--wc, 3), minmax(0, 1fr)); }
+  /* the crown and every row part 439 to 709 on one line, so the six of each reign stand under the crown's six; the crown's two rows of
+     three take the height of its words' column, so neither side keeps a band without ink */
+  .hof-crown, .hof-row { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s8); padding: var(--s8); }
+  .hof-crown { align-items: stretch; }
+  .hof-crown-six { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .hof-crown-mon { aspect-ratio: auto; min-height: calc(var(--s21) * 2); }
+  .hof-row { align-items: center; padding-block: var(--s3); }
   .hof-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-@media (min-width: 640px) and (max-width: 859px) { .hof-wall { grid-template-columns: repeat(var(--tc, 2), minmax(0, 1fr)); } }
 
 /* ---------- about (draft 1C, 2026-11-19) ---------- */
 /* the big screen: the league's name and facts with ↗ 디스코드 참여 in the 709, the next two steps as doors in the 439 */

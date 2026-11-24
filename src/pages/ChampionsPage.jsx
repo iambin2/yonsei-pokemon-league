@@ -17,10 +17,21 @@ import { CHAMPIONS_MAX_AGE_MS } from "../components/home/homeFacts.js";
 import { useItemTitle } from "../components/layout/title.js";
 
 /* ============================== CHAMPIONS ==============================
-   (DESIGN.md "Titles and hall of fame") 전당은 한 사람을 크게, 나머지를 벽에 건다.
-   위: 현 챔피언의 판. 세대는 세그먼트로 켜지고, 이름은 32, 여섯 마리는 크게 이름과 함께 선다.
-   가운데: 전당의 숫자 셋(세대, 챔피언, 최다 우승). 아래: 이전 챔피언의 명판이 최신부터 벽에 걸린다.
-   명판은 세대, 이름, 시즌, 여섯 마리. 누르면 파티 시트가 열린다. */
+   (DESIGN.md "Titles and hall of fame") 전당은 계보다(2026-11-24, 시안 A). 위: 현 챔피언의 대형 스크린, 반전된 한 판에 세대가 240(폰 120)
+   세그먼트로 켜지고 이름, 시즌, 두 링크가 같은 단에, 여섯 마리가 이름 띠와 함께 709에 선다. 아래: 계보, 이전 챔피언이 최신부터 한 줄씩
+   1200을 받는다(세대 84, 이름 20, 시즌, 여섯 마리). 챔피언이 늘면 줄이 하나 느는 것뿐이다. 줄을 누르면 파티 시트가 열린다. */
+// desktop or a phone, as the stylesheet's 860 parts them (the displays' heights are attributes, not CSS)
+const WIDE = "(min-width: 860px)";
+function useWide() {
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE).matches);
+  useEffect(() => {
+    const q = window.matchMedia(WIDE), f = () => setWide(q.matches);
+    q.addEventListener("change", f);
+    return () => q.removeEventListener("change", f);
+  }, []);
+  return wide;
+}
+
 export default function ChampionsPage({ data, admin, setModal, normTeam = normalizeLegacyParty, go }) {
   // 홈과 같은 전당 조회 캐시: 홈에서 넘어오면 기억한 값으로 바로 그린다
   const [normalizedChamps, setNormalizedChamps] = useState(() => peekRead("champions") ?? null);
@@ -71,58 +82,48 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
     .map(m => ({ name: m.name || "", img: resolveHallOfFameArtwork(m, artworkLookup) }));
   const genNo = c => c.generationNumber > 0 ? c.generationNumber : 0;
   const title = c => seasonLabel(c) + " 우승";
-  // the season as its league's name and its number (YPL 시즌 2 → ["YPL 시즌", 2]), so the number lights in segments as the generation
-  // does (2026-11-23, the owner's draft A: "어떤 시즌에 우승했는지가 그냥 텍스트로 덩하니"); a label that is not one stays words
-  const seasonParts = c => { const m = seasonLabel(c).match(/^(.*?시즌)\s*(\d+)$/); return m ? [m[1], Number(m[2])] : null; };
 
   const reigning = champs.length ? champs[champs.length - 1] : null;
   // the merge builds new rows on every render, so an open sheet's row is never the same object: a reign is its generation and name
   const sameReign = (a, b) => Boolean(a && b) && a.generationNumber === b.generationNumber && a.name === b.name && a.format === b.format;
   const past = champs.slice(0, -1).reverse();
-  const plate = (c, h) => genNo(c) > 0
-    ? <span className="hof-gen"><Seg value={String(genNo(c))} h={h} cells={Math.max(2, String(genNo(c)).length)} label={`${genNo(c)}대`} /><span className={h > 40 ? "t20" : "t15"}>대</span></span>
-    : <span className="t15">{generationText(c.gen)}</span>;
+  const plate = (c, h, unit) => genNo(c) > 0
+    ? <span className="hof-gen"><Seg value={String(genNo(c))} h={h} cells={Math.max(2, String(genNo(c)).length)} label={`${genNo(c)}대`} /><span className={unit}>대</span></span>
+    : <span className="t20">{generationText(c.gen)}</span>;
+  // the hero's display is 240 on desktop and 120 on a phone (DESIGN.md "The golden law"), the lineage's 84 and 40; a cell of the six over 64 takes the large picture
+  const wide = useWide();
 
   return (<section className="hof">
     <header className="hof-head"><h1 className="t32">명예의 전당</h1>{admin && <Button variant="link" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button>}</header>
     {failed && <ErrorNote action="다시 불러오기" onRetry={() => { setFailed(false); setTries(n => n + 1); }}>챔피언 기록을 불러오지 못했습니다.</ErrorNote>}
     {!reigning && (reading ? <Loader /> : !failed && <Empty title="등록된 챔피언이 없습니다." />)}
-    {reigning && <section className="pn hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
+    {reigning && <section className="inv hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
       <div className="hof-crown-who">
-        <span className="inv t12 hof-crown-tag">현 챔피언</span>
-        {/* two windows on the seam: the generation lit inverted, the season the window beside it */}
-        <div className="hof-windows">
-          <span className="inv hof-window"><span className="t12">세대</span>{plate(reigning, 84)}</span>
-          {seasonParts(reigning)
-            ? <span className="hof-window hof-window-season" aria-label={title(reigning)}><span className="t12 dim">{seasonParts(reigning)[0]}</span>
-                <Seg value={String(seasonParts(reigning)[1])} h={84} cells={Math.max(2, String(seasonParts(reigning)[1]).length)} label={title(reigning)} /></span>
-            : <span className="hof-window hof-window-season"><span className="t12 dim">시즌</span><b className="t20">{seasonLabel(reigning)}</b></span>}
-        </div>
-        <h2 className="t32 hof-crown-name">{reigning.name}</h2>
-        <div className="hof-crown-act">
-          {go && <Button variant="link" onClick={() => go("records", { trainer: reigning.name })}>{reigning.name} 기록 보기</Button>}
-          <Button variant="link" onClick={() => setPop(reigning)}>파티 보기</Button>
-        </div>
+        <span className="hof-crown-top"><span className="t12">현 챔피언</span>{plate(reigning, wide ? 240 : 120, "t32")}</span>
+        <span className="hof-crown-end">
+          <h2 className="t32 hof-crown-name">{reigning.name}</h2>
+          <span className="t15">{title(reigning)}</span>
+          <span className="hof-crown-act">
+            {go && <Button variant="link" size="lg" onClick={() => go("records", { trainer: reigning.name })}>{reigning.name} 기록 보기</Button>}
+            <Button variant="link" size="lg" onClick={() => setPop(reigning)}>파티 보기</Button>
+          </span>
+        </span>
       </div>
       <div className="hof-crown-six">
         {partyOf(reigning).map((m, i) => <span className="stand hof-crown-mon" key={i}><Mon src={m.img} /><b className="floor hof-band t15">{m.name}</b></span>)}
       </div>
     </section>}
 
-
     {past.length > 0 && <section className="hof-past" aria-labelledby="hof-past-h">
-      <SectionHead id="hof-past-h" title="역대 챔피언" />
-      {/* the wall's columns follow its champions (Composing a screen 29): four or five stand as one row on desktop, three on a tablet */}
-      <div className="hof-wall" style={{ "--wc": past.length === 4 || past.length === 5 ? past.length : 3, "--tc": past.length === 3 ? 3 : 2 }}>
+      <SectionHead id="hof-past-h" title="계보" />
+      <div className="hof-line">
         {past.map((c, i) => (<div className="hof-slot" key={c.id || i}>
-          <button type="button" className="pn hof-plate" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
-            <span className="hof-plate-top">{plate(c, 40)}{seasonParts(c)
-              ? <span className="hof-plate-season"><span className="t12 dim">{seasonParts(c)[0]}</span><Seg value={String(seasonParts(c)[1])} h={40} cells={Math.max(2, String(seasonParts(c)[1]).length)} label={title(c)} /></span>
-              : <span className="t12 dim hof-plate-season">{title(c)}</span>}</span>
-            <b className="t20 hof-plate-name">{c.name}</b>
-            <span className="hof-plate-six">{partyOf(c).map((m, k) => <span className="stand hof-plate-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} small /></span>)}</span>
+          <button type="button" className="pn hof-row" onClick={() => setPop(c)} aria-label={`${genLabel(c)} ${c.name}, ${title(c)}, 파티 보기`}>
+            <span className="hof-row-head">{plate(c, wide ? 84 : 40, wide ? "t20" : "t15")}
+              <span className="hof-row-who"><b className="t20">{c.name}</b><span className="t12 dim">{title(c)}</span></span></span>
+            <span className="hof-row-six">{partyOf(c).map((m, k) => <span className="stand hof-row-mon" key={k}><i className="floor" aria-hidden="true" /><Mon src={m.img} small={!wide} /></span>)}</span>
           </button>
-          {/* the edit stands under its own plate as a link as wide as its words (Composing a screen 27), named by the generation, so two
+          {/* the edit stands under its own row as a link as wide as its words (Composing a screen 27), named by the generation, so two
               reigns of one trainer never read alike (2026-11-23: a 238 key under every plate) */}
           {admin && c.kind !== "normalized" && <Button variant="link" className="hof-edit" onClick={() => setModal({ type: "champion", item: c })}>{[generationText(c.gen), c.name, "수정"].filter(Boolean).join(" ")}</Button>}
         </div>))}
