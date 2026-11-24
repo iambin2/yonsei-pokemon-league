@@ -11,6 +11,8 @@ export const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
 export const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // 현장의 불안한 네트워크에서 조회가 멈추면 화면이 끝없이 불러오는 중에 머문다. 쓰기는 끊지 않는다: 저장됐는지 알 수 없게 된다.
 const READ_TIMEOUT_MS = 15000;
+// the headers a browser sends without asking first (Fetch standard, CORS-safelisted), besides the apikey moved into the address
+const SIMPLE_HEADERS = new Set(["apikey", "accept", "accept-language", "content-language"]);
 
 /* 관리자 로그인 세션. 토큰은 메모리에 두고, 갱신 토큰만 이 탭의 sessionStorage에 남긴다(2026-11-08, 관리자 워크스페이스:
    새로고침할 때마다 다시 로그인해야 했다). 탭을 닫으면 사라지고, 다른 탭과 기기에는 넘어가지 않는다. 운영진이 함께 쓰는 계정이라
@@ -32,8 +34,18 @@ const authFetch = async (url, init = {}) => {
   const headers = new Headers(init.headers);
   /* an operator's session wins; without one, a request that carries a signed-in visitor's token (the board written as an account,
      communityStore.js) keeps it, and every other goes as the anonymous key */
-  headers.set("Authorization", session?.access_token ? `Bearer ${session.access_token}` : headers.get("Authorization") || `Bearer ${SUPA_KEY}`);
   const read = !init.method || init.method === "GET" || init.method === "HEAD";
+  /* an anonymous read of the public schema goes with its key in the address and no header of its own, so the browser sends it as a
+     simple request with no preflight (OPTIONS) before it: a third of the site's request log was preflights (2026-11-24, the free
+     plan's 1 GB of logs a month). A read that needs a header (an operator's or visitor's token, another schema's Accept-Profile, a
+     count's Prefer) keeps its headers. */
+  if (read && !session && !headers.has("Authorization") && [...headers.keys()].every(k => SIMPLE_HEADERS.has(k))) {
+    headers.delete("apikey");
+    const plain = new URL(String(url));
+    plain.searchParams.set("apikey", SUPA_KEY);
+    return fetch(plain, { ...init, headers, signal: init.signal ?? AbortSignal.timeout?.(READ_TIMEOUT_MS) });
+  }
+  headers.set("Authorization", session?.access_token ? `Bearer ${session.access_token}` : headers.get("Authorization") || `Bearer ${SUPA_KEY}`);
   return fetch(url, { ...init, headers, signal: init.signal ?? (read ? AbortSignal.timeout?.(READ_TIMEOUT_MS) : undefined) });
 };
 
