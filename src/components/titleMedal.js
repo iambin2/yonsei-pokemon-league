@@ -106,35 +106,52 @@ const ENGINEERING = [
 /* ---------- each region's landmark, engraved as a small scene (original, generic) ---------- */
 const parts = (c, ...ds) => { for (const d of ds) c.fill(P(d)); };
 const SCENES = {
-  관동: c => { c.fill(P(circ(70, 32, 12))); c.fill(P("M4 86L38 36Q50 26 62 36L96 86Z")); c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P("M38 36Q50 26 62 36L70 48L62 44L56 50L50 42L44 50L38 44L30 48Z")); c.restore(); },
+  /* 관동: 달맞이산, the peak with its cave and a crescent moon over it (the region's most famous mountain) */
+  관동: c => {
+    c.fill(P("M2 94L38 42Q50 28 62 42L98 94Z")); c.fill(P(circ(22, 24, 16)));
+    cut(c, () => { c.fill(P("M38 42Q50 28 62 42L69 52L61 48L55 55L50 47L45 55L39 48L31 52Z")); c.fill(P("M39 94C39 76 61 76 61 94Z")); c.fill(P(circ(30, 17, 14))); });
+  },
   /* 성도: a pagoda of three broad roofs, each wider than the storey under it */
   성도: c => parts(c, "M46 2L54 2L54 18L46 18Z", "M26 30L36 17L64 17L74 30Z", "M38 29L62 29L62 41L38 41Z", "M18 53L30 40L70 40L82 53Z", "M34 52L66 52L66 64L34 64Z", "M10 77L24 63L76 63L90 77Z", "M28 76L72 76L72 97L28 97Z"),
+  /* 호연: 굴뚝산, a volcano breathing its plume over the sea (its lava cut into its sides; never Alola's palm) */
   호연: c => {
-    c.fill(P("M8 84Q50 58 92 84Z"));
-    c.lineWidth = 8; c.lineCap = "round"; c.beginPath(); c.moveTo(56, 78); c.quadraticCurveTo(58, 52, 46, 30); c.stroke();
-    for (const a of [-2.6, -1.9, -1.2, -.5, .2]) { c.save(); c.translate(46, 30); c.rotate(a); c.beginPath(); c.ellipse(19, 0, 20, 7, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
-    c.lineWidth = 6.5; c.beginPath(); for (let x = 5; x <= 95; x += 2) { const y = 93 + 3 * Math.sin(x / 6); x === 5 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
+    c.fill(P("M6 84L34 46L42 51L50 46L58 51L66 46L94 84Z"));
+    cut(c, () => { c.lineWidth = 5; c.lineCap = "round"; c.beginPath(); c.moveTo(45, 56); c.quadraticCurveTo(40, 68, 30, 77); c.moveTo(56, 56); c.quadraticCurveTo(62, 68, 72, 77); c.stroke(); });
+    c.fill(P(circ(49, 35, 8) + circ(59, 25, 10) + circ(74, 17, 12) + circ(90, 16, 8)));
+    c.lineWidth = 6.5; c.lineCap = "round"; c.beginPath(); for (let x = 5; x <= 95; x += 2) { const y = 93 + 3 * Math.sin(x / 6); x === 5 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
   },
-  신오: c => { fillEO(c, "M8 32L50 8L92 32Z M34 28L50 19L66 28Z"); c.fill(P("M10 35L90 35L90 43L10 43Z M16 46L30 46L30 82L16 82Z M43 46L57 46L57 82L43 82Z M70 46L84 46L84 82L70 82Z M8 85L92 85L92 91L8 91Z M2 93L98 93L98 99L2 99Z")); },
+  /* 신오: 창기둥, the ruin at the top of the world: a lintel on two whole columns, two broken ones beside them, on its steps */
+  신오: c => parts(c, "M2 92L98 92L98 99L2 99Z", "M9 83L91 83L91 89L9 89Z",
+    "M30 6L66 6L70 11L64 15L30 15Z", "M33 18L45 18L45 82L33 82Z", "M55 18L67 18L67 82L55 82Z",
+    "M12 82L12 40L16 34L19 39L24 35L24 82Z", "M76 82L76 56L80 51L83 57L88 52L88 82Z"),
   하나: c => { parts(c, "M21 14L31 14L31 92L21 92Z", "M69 14L79 14L79 92L69 92Z", "M0 65L100 65L100 75L0 75Z"); c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.moveTo(3, 34); c.quadraticCurveTo(14, 26, 26, 16); c.quadraticCurveTo(50, 70, 74, 16); c.quadraticCurveTo(86, 26, 97, 34); c.stroke(); for (const x of [38, 50, 62]) c.fillRect(x - 2.5, x === 50 ? 42 : 34, 5, x === 50 ? 24 : 32); },
   /* 칼로스: a lattice tower on wide legs, one broad deck across them and a window cut above it */
   칼로스: c => { parts(c, "M44 2L56 2L58 26L66 26L66 36L60 36C63 58 72 78 92 98L66 98C61 87 56 80 50 80C44 80 39 87 34 98L8 98C28 78 37 58 40 36L34 36L34 26L42 26Z", "M25 54L75 54L75 65L25 65Z"); c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P("M50 38L55 45.5L50 53L45 45.5Z")); c.restore(); },
-  알로라: c => { for (let i = 0; i < 5; i++) { c.save(); c.translate(50, 52); c.rotate(i * Math.PI * 2 / 5); c.beginPath(); c.ellipse(0, -24, 15, 22, 0, 0, Math.PI * 2); c.fill(); c.restore(); } c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P(circ(50, 52, 11))); c.restore(); c.fill(P(circ(50, 52, 6))); c.lineWidth = 5; c.lineCap = "round"; c.beginPath(); c.moveTo(50, 52); c.lineTo(58, 28); c.stroke(); },
+  /* 알로라: a palm leaning over its island, the sun half set into the sea behind (the hibiscus read as any flower, 2026-11-24) */
+  알로라: c => {
+    c.fill(P(circ(70, 80, 18))); cut(c, () => c.fillRect(0, 80, 100, 20));
+    c.fill(P("M2 88Q24 72 50 88Z"));
+    c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.moveTo(28, 82); c.quadraticCurveTo(28, 54, 40, 28); c.stroke();
+    for (const a of [-2.9, -2.2, -1.5, -.8, -.1]) { c.save(); c.translate(40, 26); c.rotate(a); c.beginPath(); c.ellipse(18, 0, 19, 6.5, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
+    c.lineWidth = 6; c.beginPath(); for (let x = 5; x <= 95; x += 2) { const y = 94 + 3 * Math.sin(x / 6); x === 5 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
+  },
   /* 가라르: a clock tower, its face cut through with two broad hands, two long windows below */
   가라르: c => {
     parts(c, "M36 22L50 2L64 22Z", "M28 21L72 21L72 57L28 57Z", "M33 56L67 56L67 91L33 91Z", "M24 90L76 90L76 98L24 98Z");
     c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P(circ(50, 39, 13))); c.fill(P("M40 63h7v21h-7Z M53 63h7v21h-7Z")); c.restore();
     parts(c, circ(50, 39, 4.5), "M47 40L53 40L53 28L47 28Z", "M50 36L61 36L61 42L50 42Z");
   },
-  히스이: c => parts(c, "M6 13Q50 24 94 13L97 26Q50 37 3 26Z", "M15 45L85 45L85 56L15 56Z", "M22 30L34 30L32 96L20 96Z", "M66 30L78 30L80 96L68 96Z", "M45 30L55 30L55 46L45 46Z", circ(50, 77, 13)),
+  /* 히스이: the space-time rift, a vortex torn in the sky over the peak of 코가네산 */
+  히스이: c => {
+    c.fill(P("M4 98L36 60L46 68L58 52L96 98Z"));
+    c.save(); c.translate(50, 28); c.scale(1, .6); c.lineWidth = 11; c.lineCap = "round"; c.beginPath();
+    for (let a = 0; a <= Math.PI * 3.6; a += .05) { const r = 4 + a * 3.9, x = r * Math.cos(a), y = r * Math.sin(a); a ? c.lineTo(x, y) : c.moveTo(x, y); }
+    c.stroke(); c.restore();
+  },
+  /* 팔데아: the academy at the top of 테이블시티, over its grand stair (the crystal on the crater read as a ring, 2026-11-24) */
   팔데아: c => {
-    const cutout = draw => { c.save(); c.globalCompositeOperation = "destination-out"; draw(); c.restore(); };
-    const sail = P("M-3.5 -6L3.5 -6L11 -48L-11 -48Z");
-    c.fill(P("M33 98L42 46L58 46L67 98Z M36 46L50 31L64 46Z M12 94L88 94L88 100L12 100Z"));
-    /* four sails widening to their ends, each parted from the tower by a cut of 3 (so the mill is never a figure with crossed arms) */
-    for (let i = 0; i < 4; i++) { c.save(); c.translate(50, 38); c.rotate(Math.PI / 4 + i * Math.PI / 2); cutout(() => { c.lineWidth = 6; c.lineJoin = "round"; c.stroke(sail); }); c.fill(sail); c.restore(); }
-    cutout(() => c.fill(P(circ(50, 38, 11)))); c.fill(P(circ(50, 38, 7)));
-    cutout(() => c.fill(P("M45 70L55 70L55 82L45 82Z")));
+    parts(c, "M2 99L98 99L84 74L16 74Z", "M8 52L92 52L92 72L8 72Z", "M8 52L22 40L36 52Z", "M64 52L78 40L92 52Z", "M38 22L62 22L62 52L38 52Z", "M36 23L50 4L64 23Z");
+    cut(c, () => { for (const y of [80, 87, 94]) c.fillRect(0, y, 100, 2.6); c.fill(P(circ(50, 34, 6))); c.fill(P("M44 72C44 62 56 62 56 72Z")); for (const x of [16, 26, 70, 80]) c.fillRect(x, 58, 5, 9); });
   },
 };
 
