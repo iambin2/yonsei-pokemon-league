@@ -15,12 +15,12 @@ import { formatDate } from "../../services/dateFormat.js";
 import { stopIndex } from "../../services/battleReplay.js";
 
 /* 리플레이와 다시 찾기 (DESIGN.md "Battle", Replay; Finding a battle again).
-   끝난 배틀은 무대 아래의 리플레이 줄로 처음, 이전 턴, 재생, 다음 턴, 끝을 오가고, 막대를 끌어 원하는 턴으로 간다. */
+   끝난 배틀은 무대 아래의 리플레이 줄로 이전 턴, 재생, 다음 턴을 오가고, 무대의 바닥선을 끌어 원하는 턴으로 간다. */
 
 const stopWord = s => (s.end ? "끝" : s.turn === 0 ? "선출" : `${s.turn}턴`);
 
-// the replay's controls stand back under the stage: small round keys with their signs and a thin track to drag to any turn
-const KEY = { sound: "M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.4 6a8.5 8.5 0 0 1 0 12L17 16.6a6.5 6.5 0 0 0 0-9.2z", mute: "M4 9h4l5-4v14l-5-4H4zM15.3 9.4l1.4-1.4 2.1 2.1 2.1-2.1 1.4 1.4-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z", first: "M6 6h2v12H6zM18 6l-9 6 9 6z", prev: "M16 6l-9 6 9 6z", play: "M8 5l11 7-11 7z", pause: "M8 5h3v14H8zM13 5h3v14h-3z", next: "M8 6l9 6-9 6z", last: "M16 6h2v12h-2zM6 6l9 6-9 6z",
+// the replay's controls stand back under the stage: small keys with their signs under the stage's foot, which is the track
+const KEY = { sound: "M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.4 6a8.5 8.5 0 0 1 0 12L17 16.6a6.5 6.5 0 0 0 0-9.2z", mute: "M4 9h4l5-4v14l-5-4H4zM15.3 9.4l1.4-1.4 2.1 2.1 2.1-2.1 1.4 1.4-2.1 2.1 2.1 2.1-1.4 1.4-2.1-2.1-2.1 2.1-1.4-1.4 2.1-2.1z", prev: "M16 6l-9 6 9 6z", play: "M8 5l11 7-11 7z", pause: "M8 5h3v14H8zM13 5h3v14h-3z", next: "M8 6l9 6-9 6z",
   full: "M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z", unfull: "M8 4h2v6H4V8h4zM14 4h2v4h4v2h-6zM4 14h6v6H8v-4H4zM14 14h6v2h-4v4h-2z" };
 // each key names its keyboard key too (replayKey below), as Showdown's replays answer to theirs
 const Key = ({ d, label, keys, hint, ...rest }) => <button type="button" className="bt-rkey" aria-label={label} title={`${label} (${hint})`} aria-keyshortcuts={keys} {...rest}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg></button>;
@@ -31,32 +31,33 @@ export function ReplayBar({ stops, at, playing, onJump, onStep, onPlay, sound, a
   const last = stops.length - 1;
   const following = live === true;
   const prev = at > stops[i].at ? i : Math.max(0, i - 1);
+  const turn = stops[i].turn, turns = Math.max(...stops.map(s => s.turn || 0));
   return (
     <div className="bt-replay" role="group" aria-label="리플레이">
-      {/* 처음 and 끝 stand back on a phone (bt-rend): the track's ends are a drag away there, and the five keys left it 66 wide */}
-      <Key d={KEY.first} label="처음" keys="Home" hint="Home" onClick={() => onJump(stops[0].at)} disabled={at <= stops[0].at} className="bt-rkey bt-rend" />
-      <Key d={KEY.prev} label="이전 턴" keys="ArrowLeft" hint="←" onClick={() => onJump(stops[prev].at)} disabled={at <= stops[0].at} />
-      <Key d={playing ? KEY.pause : KEY.play} label={playing ? "일시정지" : live !== undefined ? "재생" : i >= last ? "처음부터 재생" : "재생"} keys="Space" hint="Space" aria-pressed={playing} onClick={onPlay}
-        disabled={following} className={"bt-rkey main" + (playing ? " on" : "")} />
-      <Key d={KEY.next} label="다음 턴" keys="ArrowRight" hint="→" onClick={onStep} disabled={following || i >= last} />
-      {live === undefined ? <Key d={KEY.last} label="끝" keys="End" hint="End" onClick={() => onJump(stops[last].at)} disabled={i >= last} className="bt-rkey bt-rend" />
-        : <button type="button" className={"bt-rkey bt-rlive" + (following ? " on-air" : " main")} onClick={following ? undefined : onLive} aria-pressed={following} title="실시간 (End)">
-          {following && <i className="lamp sig" aria-hidden="true" />}실시간</button>}
-      {/* where the replay stands, as a timeline of its turns (2026-11-18, the owner's pick): a tick a stop, a red square over a turn
-          in which a Pokémon fell and a gold diamond under one with a Mega Evolution, so the turns that mattered can be found and jumped
-          to; a rail lit as far as it has played and a handle with the turn's number where it stands, dragged to any turn */}
+      {/* where the replay stands is the stage's own foot (2026-11-24, the owner's draft C: the timeline of ticks, faint squares, Mega
+          diamonds and a numbered handle was too much to read): its hairline lit as far as the replay has played, dragged to any turn
+          (the range input lies over it unseen) */}
       <span className="bt-replay-track" style={{ "--p": last ? i / last : 1 }}>
-        <span className="bt-replay-rail" aria-hidden="true"><i />
-          {stops.map((s, k) => <span key={k} className="bt-replay-tick" style={{ "--x": last ? k / last : 0 }}>{s.faints > 0 && <u className="ko" />}{s.mega && <u className="mega" />}</span>)}
-          <span className="bt-replay-at"><b>{stops[i].turn > 0 ? stops[i].turn : ""}</b></span></span>
+        <span className="bt-replay-rail" aria-hidden="true"><i /></span>
         <input type="range" min="0" max={last} step="1" value={following ? last : i} onChange={e => { const k = Number(e.target.value); if (live !== undefined && k >= last) onLive(); else onJump(stops[k].at); }}
           aria-label="리플레이 위치" aria-valuetext={stopWord(stops[i])} />
       </span>
-      {/* the sound, as Showdown's replays keep it with the playback: lit while the page is still silent and waits for a press */}
-      <Key d={sound && awake ? KEY.sound : KEY.mute} label={sound && awake ? "소리 끄기" : "소리 켜기"} keys="M" hint="m"
-        onClick={onSound} className={"bt-rkey" + (sound && !awake ? " main" : "")} />
-      {/* 전체화면 (2026-11-21, the user: "유튜브에서 배틀 영상을 보듯이"): the last key, as a video player keeps it */}
-      {onFull && <Key d={full ? KEY.unfull : KEY.full} label={full ? "전체화면 끝내기" : "전체화면"} keys="F" hint="f" aria-pressed={full} onClick={onFull} />}
+      {/* the keys under it: 이전 턴, 재생, 다음 턴 (처음 and 끝 answer Home and End), the turn as words, the sound and the full screen
+          quiet at the end */}
+      <div className="bt-replay-keys">
+        <Key d={KEY.prev} label="이전 턴" keys="ArrowLeft" hint="←" onClick={() => onJump(stops[prev].at)} disabled={at <= stops[0].at} />
+        <Key d={playing ? KEY.pause : KEY.play} label={playing ? "일시정지" : live !== undefined ? "재생" : i >= last ? "처음부터 재생" : "재생"} keys="Space" hint="Space" aria-pressed={playing} onClick={onPlay}
+          disabled={following} className={"bt-rkey main" + (playing ? " on" : "")} />
+        <Key d={KEY.next} label="다음 턴" keys="ArrowRight" hint="→" onClick={onStep} disabled={following || i >= last} />
+        {live !== undefined && <button type="button" className={"bt-rkey bt-rlive" + (following ? " on-air" : " main")} onClick={following ? undefined : onLive} aria-pressed={following} title="실시간 (End)">
+          {following && <i className="lamp sig" aria-hidden="true" />}실시간</button>}
+        <span className="bt-replay-turn" aria-hidden="true">{turn > 0 ? <><b>{turn}</b>{` / ${turns}턴`}</> : <b>선출</b>}</span>
+        {/* the sound, as Showdown's replays keep it with the playback: lit while the page is still silent and waits for a press */}
+        <Key d={sound && awake ? KEY.sound : KEY.mute} label={sound && awake ? "소리 끄기" : "소리 켜기"} keys="M" hint="m"
+          onClick={onSound} className={"bt-rkey bt-rsound" + (sound && !awake ? " main" : "")} />
+        {/* 전체화면 (2026-11-21, the user: "유튜브에서 배틀 영상을 보듯이"): the last key, as a video player keeps it */}
+        {onFull && <Key d={full ? KEY.unfull : KEY.full} label={full ? "전체화면 끝내기" : "전체화면"} keys="F" hint="f" aria-pressed={full} onClick={onFull} />}
+      </div>
     </div>
   );
 }

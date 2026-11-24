@@ -373,7 +373,9 @@ const leavers = (el, keep = KEEP) => [...el.children].flatMap(c => (c.matches(ke
 let headStays = false;
 // the court a key was pressed on is going dim (goIn), so it stands to the swap
 let courtDim = false;
-export const goingIn = scope => {
+/* court false: the court stands lit as it is and the tower comes up over it (a watcher following a run into its next game, as the
+   player goes from the break: 2026-11-24, the owner: "관전에서는 여전히 탑 진입 애니메이션이 옛날 것") */
+export const goingIn = (scope, court = true) => {
   const page = document.querySelector(scope)?.closest(".bt-page");
   headStays = Boolean(page?.classList.contains("bt-match"));
   /* a run's break already stands the tower in the stage's place (Streak.jsx BreakTower): the camera goes on from there into the door,
@@ -386,8 +388,8 @@ export const goingIn = scope => {
      stage first, so the court is seen going dark and the floor called on it (2026-11-09) */
   const stage = document.querySelector(`${scope} .bs-stage`);
   if (stage && stage.getBoundingClientRect().top < 0) window.scrollTo(0, 0);
-  courtDim = Boolean(stage);
-  return goIn(stage).catch(() => {});
+  courtDim = court && Boolean(stage);
+  return court ? goIn(stage).catch(() => {}) : Promise.resolve();
 };
 export const standUp = () => {
   dimmed.forEach(a => a.cancel()); dimmed = []; headStays = false; courtDim = false; leftBehind();
@@ -1654,7 +1656,8 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   const gameAt = row.kind !== "streak" ? null : seat?.game ? seat.game - 1 : runAt;
   /* 중계 of a run (2026-11-09, the user: "연승 도전 같은 경우는 계속해서 볼 수 있게 해주고. 지기 전까지"): an ended game stands on its
      end until its player opens the next one (다음 판, or the lost game again while a lamp is left, 2026-11-10), and the watcher goes
-     into it as the player does, the court going dark and the floor called on it. The game that puts out the last lamp ends the run
+     into it as the player does from the break: the tower comes up over the court as it stands and walks in at the door (2026-11-24;
+     the court went dark calling its Pokémon back first, the old going in). The game that puts out the last lamp ends the run
      and the watching with it (runGames over); a run resting longer than ten minutes is let go */
   const following = !seat && ended && row.kind === "streak" && Boolean(row.run_id && onOpen);
   const [followed, setFollowed] = useState(false);
@@ -1672,7 +1675,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
       if (state) games.over = state.status !== "active";
       if (next) {
         await settle();
-        const ride = floorCall(goingIn(".bt-main"), ".bt-main", next.at, leaveNow);
+        const ride = floorCall(goingIn(".bt-main", false), ".bt-main", next.at, leaveNow);
         const read = await enterBattle(next.id, ride.shown).then(() => true, () => false);
         if (read && on) { await ride.leave(); onOpen(next.id); } else towerDrop();
       } else if (games?.over || Date.now() - from >= 600_000) setFollowed(true);

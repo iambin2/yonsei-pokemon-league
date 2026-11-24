@@ -281,42 +281,30 @@
 @media (min-width: 860px) { .bt-deck .dock > .toast-panel { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s3)); z-index: var(--z-sticky); margin: 0; } }
 @media (min-width: 860px) { .bt-deck .dock { margin-top: 0; } }
 
-/* the replay under the stage stands back: small square keys with their signs, a thin track to drag to any turn (the range input lies
-   over it unseen), and where it stands */
-.bt-replay { display: flex; align-items: center; gap: var(--seam); min-width: 0; }
+/* the replay under the stage stands back (2026-11-24, the owner's draft C): the stage's foot is the track, a hairline lit as far as the
+   replay has played and dragged to any turn (the range input lies over it unseen); under it the keys with their signs, the turn as
+   words, and the sound and the full screen at the end. The track takes the room the deck's top space had, so the deck keeps its height */
+.bt-replay { display: grid; min-width: 0; }
+.bt-replay-keys { display: flex; align-items: center; gap: var(--seam); min-width: 0; }
 .bt-rkey { display: grid; place-items: center; flex: none; width: var(--h-control); height: var(--h-control); color: var(--dim); background: none; transition: color var(--move-tone), background-color var(--move-tone); }
 .bt-rkey svg { width: 16px; height: 16px; fill: currentColor; }
 @media (max-width: 859px) { .bt-rkey { width: var(--h-row); height: var(--h-row); } .bt-rkey svg { width: 20px; height: 20px; } }
-/* on a phone six keys of 52 left the track 18 wide, a handle with nowhere to go (2026-11-10, measured at 390): the keys keep their 52
-   of height and stand 44 wide, a finger's width, so the rail has room to be dragged along */
+/* on a phone the keys keep their 52 of height and stand 44 wide, a finger's width */
 @media (max-width: 600px) { .bt-rkey:not(.bt-rlive) { width: var(--h-control); } }
-/* and 처음 and 끝 stand back there (2026-11-18: with five keys and the sound the timeline was 66 wide at 390, its turns' ticks
-   touching): the track's two ends are a drag away, and Home and End still answer */
-@media (max-width: 600px) { .bt-rend { display: none; } }
-/* play is the lit key among dim ones, its mark alone saying play or pause: no rule under it (2026-11-24, the owner: the replay's play
-   key stood in a box of its own) */
+/* play is the lit key among dim ones, its mark alone saying play or pause */
 .bt-rkey.main { color: var(--lit); }
 .bt-rkey:disabled { color: var(--mute); cursor: default; }
 @media (hover: hover) { .bt-rkey:hover:not(:disabled) { color: var(--lit); background: var(--tint); } }
 .bt-rkey:focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
-/* the track, as a player's scrubber (2026-11-06: a row of cells, one a stop, did not read as a position): a rail, lit as far as the
-   replay has played, and a square handle where it stands. It fills what the keys leave */
-.bt-replay-track { position: relative; flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; margin: 0 var(--s3); }
-.bt-replay-rail { position: relative; width: 100%; height: var(--line); background: var(--rule); }
+.bt-rsound { margin-left: auto; }
+.bt-replay-turn { padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 700; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bt-replay-turn > b { color: var(--lit); }
+.bt-replay-track { position: relative; height: var(--s3); margin-top: calc(var(--s3) * -1); }
+.bt-replay-rail { position: absolute; left: 0; right: 0; top: 0; height: var(--line); background: var(--rule); }
 .bt-replay-rail > i { position: absolute; inset: 0; background: var(--lit); transform: scaleX(var(--p)); transform-origin: 0 50%; transition: transform var(--move-tone); }
-/* the handle moves by transform only: its holder spans the rail and slides by the share played */
-/* the handle's layer is the rail's width moved along it: at the end it lay over the keys to its right and took their presses (2026-11-21:
-   the sound key of a match watched 실시간 did nothing), so it takes none; the range input under it is what is dragged */
-.bt-replay-at { position: absolute; inset: 0; pointer-events: none; transform: translateX(calc(var(--p) * 100%)); transition: transform var(--move-tone); }
-.bt-replay-at > b { position: absolute; top: 50%; left: 0; display: grid; place-items: center; min-width: var(--s5); height: var(--s5); padding: 0 var(--s1); background: var(--ground); color: var(--lit); box-shadow: none; font-family: var(--font-fig); font-size: var(--t12); line-height: var(--l12); font-weight: 600; font-variant-numeric: tabular-nums; translate: -50% -50%; }
-/* the timeline's marks (2026-11-18): a tick a stop on the rail; over a turn in which a Pokémon fell a square in the HP bar's red, under
-   one with a Mega Evolution a gold diamond. The handle stands over its own tick */
-.bt-replay-tick { position: absolute; top: 50%; left: calc(var(--x) * 100%); width: var(--seam); height: var(--s2); background: var(--mute); translate: -50% -50%; }
-.bt-replay-tick > u { position: absolute; left: 50%; width: var(--s2); height: var(--s2); translate: -50% 0; }
-.bt-replay-tick > .ko { bottom: calc(100% + var(--s1)); background: var(--type-fire); }
-.bt-replay-tick > .mega { top: calc(100% + var(--s1)); background: var(--gold); rotate: 45deg; }
-/* on a phone the rail is some 60 wide and a stop some 8 apart: the marks are 4, so two turns side by side stay two marks */
-@media (max-width: 600px) { .bt-replay-tick > u { width: var(--s1); height: var(--s1); } }
+/* the line is dragged from a finger's height: the input reaches 8 up over the stage's foot */
+.bt-replay-track > input[type="range"] { position: absolute; left: 0; right: 0; top: calc(var(--s2) * -1); bottom: 0; width: 100%; height: auto; margin: 0; opacity: 0; cursor: pointer; }
+.bt-replay-track:has(:focus-visible) .bt-replay-rail { outline: var(--line) solid var(--lit); outline-offset: var(--s1); }
 /* 중계: the last key of a battle still being played. While the stage follows the battle it stands lit with the amber lamp, on air;
    once the watcher went back it is the main key, to come back */
 .bt-rkey.bt-rlive { display: flex; gap: var(--s1); width: auto; padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 700; white-space: nowrap; }
@@ -325,8 +313,6 @@
 .bt-others .bt-strip { --ball: 32px; }
 /* in the 400 column a card is the column's width: the event's name gives way, never the column */
 .bt-others > .stack, .bt-others .bt-live { grid-template-columns: minmax(0, 1fr); }
-.bt-replay-track > input[type="range"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.bt-replay-track:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: var(--s1); }
 
 /* finding a battle again: the ones being played now and this device's, as rows */
 .bt-list { display: grid; gap: var(--s3); }
@@ -578,9 +564,9 @@
 @media (prefers-reduced-motion: reduce) { .bt-say.bt-result { animation: none; } }
 @media (min-width: 860px) { .bt-say > p { font-size: var(--t20); line-height: var(--l20); } }
 
-/* the clock: the seconds as a thin figure on a square in the message window's corner, a line under them emptying as they run out;
-   amber under 30 (it is live), red for the last 10 */
-.bt-clock { position: absolute; right: 0; bottom: 0; display: grid; justify-items: center; align-content: center; gap: var(--s1); width: var(--say-h); height: var(--say-h); background: var(--ground); box-shadow: inset var(--hair) 0 0 var(--rule); pointer-events: none; }
+/* the clock: the seconds as a thin figure in the message window's corner, on the window itself (no square or line of its own,
+   2026-11-24), a line under them emptying as they run out; amber under 30 (it is live), red for the last 10 */
+.bt-clock { position: absolute; right: 0; bottom: 0; display: grid; justify-items: center; align-content: center; gap: var(--s1); width: var(--say-h); height: var(--say-h); pointer-events: none; }
 .bt-clock > i { display: block; width: 70%; height: var(--line); background: var(--rule); }
 .bt-clock > i > b { display: block; height: 100%; background: var(--dim); transform-origin: 0 50%; transform: scaleX(var(--f)); transition: transform 1s linear; }
 .bt-clock.warm > i > b { background: var(--signal); }

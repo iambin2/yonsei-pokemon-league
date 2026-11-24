@@ -500,6 +500,10 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
     sfx("turn");
   } else {
     drawTower(el, before);
+    /* the box comes up with the scene, over a court still lit: a watcher following a run goes from the ended game straight to the
+       tower as the player does from the break, the court never calling its Pokémon back (2026-11-24), and the box's ground stood
+       over it in one frame */
+    void fade(el, 0, 1, DUR.leave);
     await arrive(el);
   }
   const mine = () => scene?.el === el;
