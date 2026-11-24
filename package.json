@@ -21,16 +21,16 @@
   },
   "dependencies": {
     "@smogon/calc": "^0.12.0",
-    "@supabase/postgrest-js": "^2.107.0",
+    "@supabase/postgrest-js": "^2.119.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.16",
+    "@electric-sql/pglite": "^0.5.17",
     "@pkmn/mods": "0.10.13",
     "@pkmn/sim": "0.10.13",
     "@vitejs/plugin-react": "^4.3.1",
-    "esbuild": "0.21.5",
+    "esbuild": "0.28.2",
     "vite": "^5.4.0"
   },
   "engines": {
