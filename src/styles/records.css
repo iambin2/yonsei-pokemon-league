@@ -6,7 +6,8 @@
 /* 이름 링크: 글자 그대로, 누를 수 있다는 것은 호버의 밑줄로만 알린다(무채색, 같은 종류는 같은 반응). */
 .rc-name-link { position: relative; padding: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; color: inherit; text-align: inherit; cursor: pointer; }
 /* the word keeps its own line box, so a row's title and grey line stay 4 apart; the finger gets 44px from a box laid around it */
-.rc-name-link::after { content: ""; position: absolute; inset: -12px -4px; }
+/* sideways it reaches half the 12 between two names (.r2-names), so two names on one line (4강) meet and never overlap, each over 44 wide */
+.rc-name-link::after { content: ""; position: absolute; inset: calc(var(--s3) * -1) calc(var(--s3) / -2); }
 @media (hover: hover) {
   .rc-name-link:hover { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: 4px; }
 }

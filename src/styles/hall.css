@@ -44,7 +44,9 @@
 .hof-cell { --floor: var(--h-control); aspect-ratio: 1; }
 .hof-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
 /* the seal on top of the sheet: the one inverted panel, the generation lit at 84; the party joins it by the seam */
-.hof-seal { display: grid; justify-items: start; gap: var(--s3); margin-bottom: var(--seam); padding: var(--pad); }
+/* the seal is as wide as what it holds (Composing a screen 29; 2026-11-23 audit, T-72): across the sheet it stood as a band of 925
+   without ink beside one number; it ends short, its foot on the party's top edge */
+.hof-seal { display: grid; justify-items: start; gap: var(--s3); width: fit-content; margin-bottom: var(--seam); padding: var(--pad); }
 .hof-sheet-note { margin-top: var(--s3); }
 /* a plaque per member when the day's sets were kept: the picture on its floor and the facts split 1 to 1.618, the four moves under
    both at the plaque's width, two by two, each one step up with its type tag under its name */

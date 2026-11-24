@@ -9,6 +9,9 @@
 /* a line runs to its column's edge (DESIGN.md "Type"); the column is the measure */
 .prose { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s8); }
 .prose p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--t15); line-height: var(--l-read); color: var(--lit); }
+/* a paragraph of items (Prose.jsx): each line its own block, an item's marker in a column of its own so its words wrap under its words */
+.prose :is(.prose-li, .prose-line) { display: block; }
+.prose .prose-li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s1); }
 .prose h3 + p { margin-top: calc(var(--s5) - var(--s8)); }
 .prose a { color: var(--lit); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--mute); }
 .prose strong { font-weight: 600; }

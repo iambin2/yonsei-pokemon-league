@@ -1,6 +1,15 @@
 import React from "react";
 import { blocksOf, groupsOf, headingOf, inlineOf } from "../../services/prosePresentation.js";
 
+/* a numbered or dashed line (1. …, - …) hangs: its marker stands before it and every wrapped line starts where its words start
+   (2026-11-23 audit, T-38: the privacy page's items wrapped back under their numbers). Other lines stay as they were. */
+const ITEM = /^(\d+\.|[-•])\s+/;
+const lines = text => text.split("\n").map((line, i) => {
+  const m = line.match(ITEM);
+  return m ? <span className="prose-li" key={i}><span className="prose-mk">{m[1]}</span><span>{inline(line.slice(m[0].length))}</span></span>
+    : <span className="prose-line" key={i}>{inline(line)}</span>;
+});
+const paragraph = text => text.split("\n").some(l => ITEM.test(l)) ? lines(text) : inline(text);
 const inline = text => inlineOf(text).map((s, i) => s.href ? <a key={i} href={s.href} target="_blank" rel="noopener noreferrer">{s.text}</a> : s.bold ? <strong key={i}>{s.text}</strong> : s.text);
 
 /* 공지와 게시판 본문(N6). 문단은 한 줄씩 쌓고, 목록인 부분(팀 편성 등)은 칸으로 나란히 놓아 넓은 화면을 채운다. */
@@ -12,7 +21,7 @@ export default function Prose({ text }) {
       {groups.map((g, i) => g.grid
         ? <div className="prose-grid" key={i}>{g.items.map((b, k) => <p key={k}>{inline(b)}</p>)}</div>
         : g.items.map((b, k) => { const { heading, body } = headingOf(b);
-          return <React.Fragment key={i + "-" + k}>{heading && <h3 className="t20">{inline(heading)}</h3>}{body && <p>{inline(body)}</p>}</React.Fragment>; }))}
+          return <React.Fragment key={i + "-" + k}>{heading && <h3 className="t20">{inline(heading)}</h3>}{body && <p>{paragraph(body)}</p>}</React.Fragment>; }))}
     </div>
   );
 }
