@@ -259,12 +259,6 @@ function databaseUuid() {
   return globalThis.crypto.randomUUID();
 }
 
-function nextPowerOfTwo(value) {
-  let result = 1;
-  while (result < value) result *= 2;
-  return result;
-}
-
 export function buildNormalizedSingleCreateAttempt(participants = [], { plan = null } = {}) {
   const input = (participants || []).map((participant, index) => ({
     participant_key: participant.id || `participant-${index + 1}`,
@@ -317,19 +311,6 @@ async function assertChampionshipFinalRuntimePreflight(eventId) {
     runtimeCount: (runtimes.data || []).length,
   });
   if (!state.ok) throw new Error(state.error);
-}
-
-export async function createNormalizedSingleBracketRuntime({ runtimeId, eventId, participants, slots } = {}) {
-  await assertChampionshipFinalRuntimePreflight(eventId);
-  const { data, error } = await db().rpc("create_selected_bracket_runtime", {
-    p_topology_kind: "single_elimination",
-    p_runtime_id: runtimeId,
-    p_event_id: eventId,
-    p_participants: participants,
-    p_slots: slots,
-  });
-  if (error) fail(error, "싱글 토너먼트 대진표를 생성하지 못했습니다.");
-  return Array.isArray(data) ? data[0] || null : data || null;
 }
 
 export async function listSameRoundRookieChampions(eventId) {
@@ -2168,57 +2149,6 @@ async function writeEventParticipantIdentities(eventId, plans, { createEntries =
   }
 
   return resolved;
-}
-
-export async function addBracketManualRegistration(eventId, name) {
-  const { data, error } = await db().rpc("add_bracket_manual_registration", { p_event_id: eventId, p_name: name });
-  if (error) fail(error, "참가자를 추가하지 못했습니다.");
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row?.id || row.event_id !== eventId) throw new Error("추가한 참가자의 대회 소속을 확인하지 못했습니다.");
-  return row;
-}
-
-export async function confirmEventParticipantsForBracket(eventId, participants = []) {
-  if (!eventId) throw new Error("연결된 대회가 없습니다.");
-
-  const { event, actualParticipants, plans } = await preflightEventParticipantIdentities(
-    eventId,
-    participants,
-    { requireEmptyEntries: true }
-  );
-  const resolved = await writeEventParticipantIdentities(eventId, plans, { createEntries: true });
-
-  if (
-    resolved.length !== actualParticipants.length ||
-    resolved.some(row => !row.playerId || !row.registrationId || !row.entryId || !row.entryParticipantId)
-  ) {
-    const error = new Error("모든 실제 참가자의 선수, 참가 신청, 출전 정보를 확정하지 못했습니다.");
-    try {
-      await rollbackEventParticipantIdentityChanges(eventId, resolved);
-    } catch (rollbackError) {
-      throw rollbackFailure(error, rollbackError.rollbackErrors || [rollbackError]);
-    }
-    throw error;
-  }
-
-  return {
-    eventId,
-    previousEventStatus: event.status,
-    confirmedAt: new Date().toISOString(),
-    participants: resolved,
-    identityChanges: resolved.map(row => ({
-      participantId: row.id,
-      name: row.name,
-      registrationId: row.registrationId,
-      playerId: row.playerId,
-      entryId: row.entryId,
-      entryParticipantId: row.entryParticipantId,
-      playerWasCreated: !!row.playerWasCreated,
-      registrationWasCreated: !!row.registrationWasCreated,
-      registrationPlayerWasLinked: !!row.registrationPlayerWasLinked,
-      entryWasCreated: !!row.entryWasCreated,
-    })),
-  };
 }
 
 export async function confirmEventTeamsForBracket(eventId, participants = []) {

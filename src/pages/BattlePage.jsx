@@ -757,11 +757,12 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
       try { return await run(...args); } finally { o.busy -= 1; o.n += 1; }
     };
     /* a refusal because the battle moved on (the request answered is old, or the battle ended) brings the screen up to date at once,
-       so the new choices or the result stand there instead of the old keys waiting for the next poll */
+       so the new choices or the result stand there instead of the old keys waiting for the next poll. So does an answer lost on the
+       way (status 0): the server may have taken the choice all the same */
     const catchUp = run => async (...args) => {
       try { return await run(...args); }
       catch (e) {
-        if (e.status === 409) { viewBattle(id).then(show, () => {}); refresh().catch(() => {}); }
+        if (e.status === 409 || e.status === 0) { viewBattle(id).then(show, () => {}); refresh().catch(() => {}); }
         throw e;
       }
     };

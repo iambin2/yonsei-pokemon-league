@@ -8,7 +8,6 @@
 //  연승 도전의 시작만 Google 로그인이 필요해서, 그 요청의 Authorization을 이 함수가 직접 확인한다.)
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { AsyncLocalStorage } from "node:async_hooks";
-import postgres from "npm:postgres@3.4.5";
 import {
   ENGINE, formatId, validateTeam, randomTeam, startBattle, loadBattle, choose, forfeit, readout, readCpuRecord, replay, CPU_NAME,
   planMatchWinner, planTeamSeries, projectRuntimeFacts, seriesWins, winsNeeded, parseBoutKey, seriesFromBouts, teamBouts, STREAK_FORMAT, STREAK_REGULATION, computerTurns, streakGame,
@@ -33,7 +32,7 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
    Auth is timed into the request's own tally, and one line per request goes to the function's log ({"timing": action, ...}), so
    function_logs tells the waits on the network from the engine's own work. cold: the first request on a new worker. The tally rides
    AsyncLocalStorage because one worker serves several requests at once; work left for later() is not counted (the line is already out). */
-type Spent = { db: number; dbN: number; sqlN: number; auth: number; authN: number };
+type Spent = { db: number; dbN: number; auth: number; authN: number };
 const spent = new AsyncLocalStorage<Spent>();
 const timedFetch: typeof fetch = async (input, init) => {
   const tally = spent.getStore(), started = performance.now();
@@ -49,28 +48,9 @@ const timedFetch: typeof fetch = async (input, init) => {
 let served = 0;
 const db = createClient(URL_BASE, SERVICE_KEY, { global: { fetch: timedFetch } });
 
-/* The battle's own read and save go to Postgres directly (2026-11-19): through the REST API each took about 90 ms though the SQL runs
-   in 4 to 9, and every choice makes both. Only these two: everything else still goes through `db`. A worker keeps its connection for
-   its life. When the database cannot be reached this way (no SUPABASE_DB_URL, or the connection is refused) the worker goes back to the
-   REST API for good; an error the database itself raises is thrown as the REST API's would be. */
-const DB_URL = Deno.env.get("SUPABASE_DB_URL");
-let pg: ReturnType<typeof postgres> | null = DB_URL ? postgres(DB_URL, { prepare: false, max: 2, idle_timeout: 60, connect_timeout: 5 }) : null;
-const unreached = (error: any) => !(error instanceof postgres.PostgresError)
-  && /CONNECT_TIMEOUT|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EHOSTUNREACH|EADDRNOTAVAIL/.test(`${error?.code ?? ""} ${error?.message ?? ""}`);
-async function direct<T>(query: (sql: ReturnType<typeof postgres>) => Promise<T>, rest: () => Promise<T>): Promise<T> {
-  if (!pg) return rest();
-  const tally = spent.getStore(), started = performance.now();
-  try {
-    const result = await query(pg);
-    if (tally) { tally.db += performance.now() - started; tally.dbN += 1; tally.sqlN += 1; }
-    return result;
-  } catch (error) {
-    if (!unreached(error)) throw error;
-    console.error("the database cannot be reached directly: back to the REST API", error);
-    pg = null;
-    return rest();
-  }
-}
+/* Every read and save goes through the REST API. From 2026-11-19 to 11-24 the battle's read and save went to Postgres directly
+   (about 90 ms less each), but a new worker's first connection stalled: 8% of first requests waited 3 to 75 s (function_logs,
+   2026-11-23), and a choice that waited past the screen's 20 s came back as 연결이 끊겼습니다. Over REST no choice took 10 s. */
 
 /* Work that finishes after the answer has gone, so the player is not kept waiting on it. The runtime keeps the worker alive until it
    is done (EdgeRuntime.waitUntil); where there is no such runtime (a local run) it simply runs on. */
@@ -113,17 +93,9 @@ function checkTeam(formatid: string, team: unknown) {
    version after it, the state before it) and a choice would then be applied to the old state under the new version.
    Only the columns the actions use; the logs stay in the database. */
 async function read(id: string) {
-  // the same object the REST API gave (json_build_object writes times as it does, ISO with T)
-  const data: any = await direct(async sql => (await sql`
-    select json_build_object('id', b.id, 'kind', b.kind, 'status', b.status, 'version', b.version, 'format_id', b.format_id,
-      'regulation', b.regulation, 'p1_name', b.p1_name, 'winner', b.winner, 'room', b.room, 'run_id', b.run_id, 'deadline_at', b.deadline_at,
-      'battle_secrets', (select to_json(s) from public.battle_secrets s where s.battle_id = b.id)) as row
-      from public.battles b where b.id = ${id}::text`)[0]?.row ?? null, async () => {
-    const { data, error } = await db.from("battles")
-      .select("id, kind, status, version, format_id, regulation, p1_name, winner, room, run_id, deadline_at, battle_secrets(*)").eq("id", id).maybeSingle();
-    if (error) throw error;
-    return data;
-  });
+  const { data, error } = await db.from("battles")
+    .select("id, kind, status, version, format_id, regulation, p1_name, winner, room, run_id, deadline_at, battle_secrets(*)").eq("id", id).maybeSingle();
+  if (error) throw error;
   const secret = Array.isArray(data?.battle_secrets) ? data.battle_secrets[0] : data?.battle_secrets;
   if (!data || !secret) refuse(404, "배틀을 찾을 수 없습니다.");
   return { battle: data, secret };
@@ -142,18 +114,7 @@ async function save(id: string, version: number, fields: Record<string, unknown>
     p_spectator_log: null, p_log: null, p_input_log: null, p_p2_token_hash: null, p_state: null, p_pending: null,
     ...fields,
   };
-  const data = await direct(async sql => {
-    // the driver writes a jsonb parameter as JSON itself: an object goes in as it is (a string here would be stored as a JSON string)
-    const json = (value: unknown) => (value == null ? null : sql.json(value as any));
-    return (await sql`
-    select public.battle_save(${args.p_id}::text, ${args.p_version}::integer, ${args.p_status}::text, ${args.p_p2_name}::text, ${args.p_turn}::integer,
-      ${args.p_winner}::text, ${args.p_ended_by}::text, ${args.p_spectator_log}::text, ${args.p_log}::text, ${args.p_input_log}::text, ${args.p_p2_token_hash}::text,
-      ${json(args.p_state)}::jsonb, ${json(args.p_pending)}::jsonb) as ok`)[0]?.ok;
-  }, async () => {
-    const { data, error } = await db.rpc("battle_save", args);
-    if (error) throw error;
-    return data;
-  });
+  const data = await rpc("battle_save", args);
   if (data === true) signal(id, version + 1, fields.p_spectator_log != null);
   return data === true;
 }
@@ -500,7 +461,7 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
 
   /* A seat's screen asks this while its player thinks (src/pages/BattlePage.jsx). A worker of this function lives about 75 seconds
      (measured 2026-11-07: shut down 75 s after boot whatever the traffic), and the first request on a new one took 0.6 to 1.5 s
-     against 0.2 to 0.3 s warm. This request pays that instead of a choice: it starts the worker, opens its database connection and
+     against 0.2 to 0.3 s warm. This request pays that instead of a choice: it starts the worker and
      loads the battle's engine state, and answers nothing. */
   async warm({ id }) {
     const found = id ? await readOr(String(id)) : null;
@@ -951,7 +912,7 @@ Deno.serve(async req => {
   try { body = await req.json(); } catch { return reply(400, { error: "요청을 읽지 못했습니다." }); }
   const action = actions[String(body?.action)];
   if (!action) return reply(400, { error: "알 수 없는 요청입니다." });
-  const tally: Spent = { db: 0, dbN: 0, sqlN: 0, auth: 0, authN: 0 };
+  const tally: Spent = { db: 0, dbN: 0, auth: 0, authN: 0 };
   const res = await spent.run(tally, async () => {
     try {
       return reply(200, await action(body, undefined, req));
@@ -963,7 +924,7 @@ Deno.serve(async req => {
   });
   const total = performance.now() - started;
   console.log(JSON.stringify({
-    timing: String(body.action), status: res.status, cold, total: Math.round(total), db: Math.round(tally.db), dbN: tally.dbN, sqlN: tally.sqlN,
+    timing: String(body.action), status: res.status, cold, total: Math.round(total), db: Math.round(tally.db), dbN: tally.dbN,
     auth: Math.round(tally.auth), authN: tally.authN, work: Math.round(total - tally.db - tally.auth),
   }));
   return res;

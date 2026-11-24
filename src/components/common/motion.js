@@ -253,12 +253,6 @@ export function fall(mon) {
   if (!mon?.animate || reduced()) return Promise.resolve();
   return settled(mon.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(12px)" }], { duration: DUR.leave, easing: EASE_IN, fill: "forwards" }));
 }
-/* the page being left dims (DESIGN.md "Motion", Page change) while what it waits on is read; returns the animations, so a refusal can
-   cancel them and stand the page up again */
-export function dimAway(els) {
-  if (reduced()) return [];
-  return [].concat(els).filter(Boolean).map(el => el.animate([{ opacity: 1 }, { opacity: .382 }], { duration: DUR.leave, easing: EASE_IN, fill: "forwards" }));
-}
 /* the screen being left goes all the way out, from wherever its dimming stands, the moment before the next one takes its place (the
    battle's going in and going back, 2026-11-09): returns the animations, so the next screen can let them go as it lights */
 export function goOut(els) {

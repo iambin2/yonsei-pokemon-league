@@ -65,7 +65,6 @@ const realFetch = globalThis.fetch;
 globalThis.fetch = async () => new Response("{}");
 const source = readFileSync(file("supabase/functions/battle/index.ts"), "utf8")
   .replace('import { createClient } from "npm:@supabase/supabase-js@2";', "const createClient = () => globalThis.__db;")
-  .replace('import postgres from "npm:postgres@3.4.5";', "const postgres = () => null;")
   .replace('from "./engine.bundle.mjs"', `from "${file("supabase/functions/battle/engine.bundle.mjs").href}"`);
 const { code } = await transform(source, { loader: "ts", format: "esm" });
 const built = join(tmpdir(), `battle-function-harness-${process.pid}.mjs`);

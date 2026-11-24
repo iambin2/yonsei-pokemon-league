@@ -76,8 +76,6 @@ globalThis.fetch = async () => new Response("{}"); // Realtime signals go nowher
 // ---- the function itself
 const source = readFileSync(file("supabase/functions/battle/index.ts"), "utf8")
   .replace('import { createClient } from "npm:@supabase/supabase-js@2";', "const createClient = () => globalThis.__db;")
-  // the direct connection needs SUPABASE_DB_URL, which the stand-in Deno.env never gives: every read goes through the stand-in client
-  .replace(/import postgres from "npm:postgres@[^"]+";/, "const postgres = Object.assign(() => null, { PostgresError: class extends Error {} });")
   .replace('from "./engine.bundle.mjs"', `from "${file("supabase/functions/battle/engine.bundle.mjs").href}"`);
 const { code } = await transform(source, { loader: "ts", format: "esm" });
 const built = join(tmpdir(), `battle-function-${process.pid}.mjs`);
