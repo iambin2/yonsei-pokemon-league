@@ -95,7 +95,7 @@ Client-side checks are UX guards only. The RPC/DB layer is the integrity boundar
 
 ## Product and design constraints
 
-When changing or adding UI, read `DESIGN.md` first and use only its tokens and the existing components. Its "Composing a screen" chapter (and "Judging the stage", "Judging the play screen" and "Judging a game" in Battle) is the owner's eye written down: every screen is checked against it at 390 and 1440 in both themes before it is shown. If a new value or pattern seems needed, propose updating `DESIGN.md` first; never invent one in place.
+When changing or adding UI, read `DESIGN.md` first and use only its tokens and the existing components. Its "The cover is the standard" chapter keeps the founding owner's philosophy for whoever runs the site after the handover. The owner called the home (`src/pages/HomePage.jsx`, the league's cover) the site at its best on 2026-11-24, and every new feature is placed and judged beside it. The chapter asks for how a screen is set over how much it holds, reduction rebuilt from zero, YPL's own name and marks as the hero, functions as small keys on the home, the same cover on phone and desktop, a finished screen, and forms that hold more seasons without a new layout. Its "Composing a screen" chapter (and "Judging the stage", "Judging the play screen" and "Judging a game" in Battle) is the owner's eye written down: every screen is checked against it at 390 and 1440 in both themes before it is shown. If a new value or pattern seems needed, propose updating `DESIGN.md` first; never invent one in place.
 
 `PRODUCT.md` and `DESIGN.md` are binding, not background reading, and a frontend change must not alter data behavior.
 
@@ -111,6 +111,7 @@ The visual system is **YPL League Almanac**, which replaced the YPL Scoreboard o
 - Korean copy follows the Voice and tone chapter of `DESIGN.md`: 합니다체, noun labels, no exclamation marks, no em dashes, **no middle-dot (·) separators**.
 - `tests/designLaw.test.mjs` enforces the measurable rules on all CSS and inline styles. When it fails, fix the value; add to its `EXCEPT` only with a real reason from DESIGN.md, never to silence it.
 - Phone-first: the venue phone is the primary screen.
+- The home holds nothing but the cover: the masthead, the three words with their facts, and the keys on the League line. A new function reaches the home only as one more key there; rankings, notices and champions stay on their own pages. `coverOpen` in `motion.js` is the site's one staged entrance.
 
 ## Working with the owner
 
