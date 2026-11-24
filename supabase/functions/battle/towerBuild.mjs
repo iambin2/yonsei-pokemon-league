@@ -22,7 +22,9 @@ export const wholePool = (ban = STREAK_BAN) => fairPool(STREAK_FORMAT_ID, ban);
 const pools = new Map();
 export function towerPool(ban = STREAK_BAN) {
   if (!pools.has(ban)) {
-    const tiered = wholePool(ban).map(e => ({ ...e, sets: e.sets.filter(set => setKey(e.species, set) in TOWER_TIERS) })).filter(e => e.sets.length);
+    // a tier is a measured sample set's: a set the weekly learning added (ypl) is never measured, even when its item and moves match one
+    // that is (2026-11-24, four such sets doubled their measured twins and broke the six even tiers)
+    const tiered = wholePool(ban).map(e => ({ ...e, sets: e.sets.filter(set => !set.ypl && setKey(e.species, set) in TOWER_TIERS) })).filter(e => e.sets.length);
     pools.set(ban, new Map(tiered.map(e => [e.species, e])));
   }
   return pools.get(ban);
