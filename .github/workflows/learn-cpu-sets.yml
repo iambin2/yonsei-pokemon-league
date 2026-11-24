@@ -57,6 +57,14 @@ jobs:
       - if: steps.diff.outputs.changed == 'true'
         run: npm test
 
+      # the learned file that failed the tests, kept a week so the failure can be read without the service key
+      - if: failure() && steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: learned-random-sets
+          path: src/data/random-sets.json
+          retention-days: 7
+
       - if: steps.diff.outputs.changed == 'true'
         name: Open or update the pull request
         env:
