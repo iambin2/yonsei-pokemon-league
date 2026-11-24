@@ -17,6 +17,10 @@ updates:
     open-pull-requests-limit: 2
     ignore:
       - dependency-name: "@pkmn/*"
+      # a major version (React 19, a new Vite plugin) changes how the site is built and needs someone who reads code; minor and patch
+      # releases only, so a successor who merges what passes the tests cannot break the site
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm:
         patterns: ["*"]

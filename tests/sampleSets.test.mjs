@@ -23,4 +23,6 @@ test("the checks catch what they are for", () => {
   assert.deepEqual(faults("Klefki", set(["Light Clay"], ["Light Screen", "Reflect", "Thunder Wave", "Draining Kiss"])), []);
   assert.ok(faults("Castform", set(["Life Orb"], ["Weather Ball", "Thunder", "Ice Beam", "Energy Ball"], "Forecast", "Modest")).length);
   assert.ok(faults("Wigglytuff", set(["Leftovers"], ["Calm Mind", "Nasty Plot", "Moonblast", "Flamethrower"], "Competitive", "Calm")).length);
+  // a player's set as scripts/learn-cpu-sets.mjs reads it has one item, not a list (that threw from 2026-11-09 to 11-23)
+  assert.ok(faults("Klefki", { item: "Life Orb", moves: ["Thunder Wave", "Spikes", "Reflect", "Light Screen"], ability: "Prankster" }).length);
 });

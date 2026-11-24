@@ -43,7 +43,7 @@ const ATE = { pixilate: "Fairy", aerilate: "Flying", refrigerate: "Ice", galvani
 /* why a set makes no sense, one line a fault (none: it does). species: the set's Pokémon; kind: singles or doubles (in doubles a partner
    may call the weather, so the moves that want one are left alone there) */
 export function faults(species, set, kind = "singles") {
-  const out = [], item = toID(set.items?.[0] ?? set.item ?? ""), it = dex.items.get(item);
+  const out = [], name = set.items?.[0] ?? set.item ?? "", item = toID(name), it = dex.items.get(item);
   // the set's ability and, holding its Mega Stone, the Mega's (Charizard Y's Drought calls the sun)
   const own = toID(set.ability || ""), mega = it.megaStone ? toID(dex.species.get(Object.values(it.megaStone)[0]).abilities[0]) : "";
   const ab = s => s.has(own) || s.has(mega), ability = own;
@@ -51,12 +51,12 @@ export function faults(species, set, kind = "singles") {
   const has = s => mv.some(m => s.has(m.id)), status = mv.filter(m => m.category === "Status"), attacks = mv.filter(m => m.category !== "Status");
   const phys = attacks.filter(m => m.category === "Physical" && !["bodypress", "foulplay"].includes(m.id)), spec = attacks.filter(m => m.category === "Special");
   if (item === "lightclay" && !has(SCREENS)) out.push("빛의점토인데 벽 기술이 없음");
-  if (WEATHER[item]) { const [m, a] = WEATHER[item]; if (!has(m) && !ab(a)) out.push(`${set.items[0]}인데 그 날씨를 부르지 않음`); }
+  if (WEATHER[item]) { const [m, a] = WEATHER[item]; if (!has(m) && !ab(a)) out.push(`${name}인데 그 날씨를 부르지 않음`); }
   if (item === "terrainextender" && !has(TERRAINS) && !ab(SURGES)) out.push("그라운드코트인데 필드를 깔지 않음");
   if (item === "powerherb" && !has(CHARGE)) out.push("파워풀허브인데 모으는 기술이 없음");
   if (item === "bigroot" && !has(DRAIN)) out.push("큰뿌리인데 흡수 기술이 없음");
-  if ((item === "bindingband" || item === "gripclaw") && !has(BIND)) out.push(`${set.items[0]}인데 조이는 기술이 없음`);
-  if (ORB_ABILITY[item] && !ORB_ABILITY[item].has(ability) && !has(FLING)) out.push(`${set.items[0]}인데 그 상태를 살리는 특성이나 기술이 없음`);
+  if ((item === "bindingband" || item === "gripclaw") && !has(BIND)) out.push(`${name}인데 조이는 기술이 없음`);
+  if (ORB_ABILITY[item] && !ORB_ABILITY[item].has(ability) && !has(FLING)) out.push(`${name}인데 그 상태를 살리는 특성이나 기술이 없음`);
   if (item === "throatspray" && !attacks.some(m => m.flags?.sound)) out.push("목스프레이인데 소리 기술이 없음");
   if (item.startsWith("choice") && status.some(m => !TRICK.has(m.id))) out.push("구애 도구인데 변화 기술이 있음");
   if (item === "assaultvest" && status.length) out.push("돌격조끼인데 변화 기술이 있음");
@@ -64,10 +64,10 @@ export function faults(species, set, kind = "singles") {
   if (item === "choicespecs" && !spec.length) out.push("구애안경인데 특수 기술이 없음");
   if (item === "muscleband" && !phys.length) out.push("힘의머리띠인데 물리 기술이 없음");
   if (item === "wiseglasses" && !spec.length) out.push("박식안경인데 특수 기술이 없음");
-  if ((item === "lifeorb" || item === "expertbelt") && !attacks.length) out.push(`${set.items[0]}인데 공격 기술이 없음`);
-  if (TYPE_ITEM[item] && !attacks.some(m => m.type === TYPE_ITEM[item])) out.push(`${set.items[0]}인데 그 타입 기술이 없음`);
-  if (it.megaStone && !Object.keys(it.megaStone).map(toID).includes(toID(species))) out.push(`${set.items[0]}은 이 포켓몬의 메가스톤이 아님`);
-  if (it.onPlate && !attacks.some(m => m.type === it.onPlate)) out.push(`${set.items[0]}인데 그 타입 기술이 없음`);
+  if ((item === "lifeorb" || item === "expertbelt") && !attacks.length) out.push(`${name}인데 공격 기술이 없음`);
+  if (TYPE_ITEM[item] && !attacks.some(m => m.type === TYPE_ITEM[item])) out.push(`${name}인데 그 타입 기술이 없음`);
+  if (it.megaStone && !Object.keys(it.megaStone).map(toID).includes(toID(species))) out.push(`${name}은 이 포켓몬의 메가스톤이 아님`);
+  if (it.onPlate && !attacks.some(m => m.type === it.onPlate)) out.push(`${name}인데 그 타입 기술이 없음`);
   if (kind === "singles" && has(ids(["Weather Ball"])) && !has(ANY_WEATHER_MOVE) && !ab(ANY_WEATHER_ABILITY)) out.push("웨더볼인데 날씨를 부르지 않음");
   if (kind === "singles" && has(ids(["Solar Beam", "Solar Blade"])) && !has(SUN) && !ab(DROUGHT) && item !== "powerherb") out.push("솔라빔인데 쾌청도 파워풀허브도 없음");
   if (has(ids(["Dream Eater"])) && !has(SLEEP)) out.push("꿈먹기인데 재우는 기술이 없음");
@@ -82,10 +82,10 @@ export function faults(species, set, kind = "singles") {
   if (item === "punchingglove" && !attacks.some(m => m.flags?.punch)) out.push("펀치글러브인데 펀치 기술이 없음");
   if (item === "roomservice" && kind === "singles" && !has(ids(["Trick Room"]))) out.push("룸서비스인데 트릭룸이 없음");
   if (item === "blunderpolicy" && !attacks.some(m => m.accuracy !== true && m.accuracy < 100)) out.push("허탕보험인데 빗나갈 기술이 없음");
-  if ((item === "scopelens" || item === "razorclaw") && !ab(ids(["Super Luck", "Sniper"])) && !attacks.some(m => m.critRatio > 1)) out.push(`${set.items[0]}인데 급소를 노리지 않음`);
+  if ((item === "scopelens" || item === "razorclaw") && !ab(ids(["Super Luck", "Sniper"])) && !attacks.some(m => m.critRatio > 1)) out.push(`${name}인데 급소를 노리지 않음`);
   if (kind === "singles" && /^(electric|grassy|psychic|misty)seed$/.test(item)) {
     const t = item.replace("seed", "");
-    if (!mv.some(m => m.terrain === `${t}terrain`) && !ab(new Set([`${t}surge`, ...(t === "electric" ? ["hadronengine"] : []), ...(t === "grassy" ? ["seedsower"] : [])]))) out.push(`${set.items[0]}인데 그 필드를 깔지 않음`);
+    if (!mv.some(m => m.terrain === `${t}terrain`) && !ab(new Set([`${t}surge`, ...(t === "electric" ? ["hadronengine"] : []), ...(t === "grassy" ? ["seedsower"] : [])]))) out.push(`${name}인데 그 필드를 깔지 않음`);
   }
   if (has(TRICK) && !item.startsWith("choice") && !["flameorb", "toxicorb", "ironball", "laggingtail", "stickybarb", "ringtarget", "blacksludge"].includes(item) && toID(species) !== "ditto") out.push("트릭인데 넘길 도구가 없음");
   // a move that wants something the set does not have
@@ -129,7 +129,7 @@ export function faults(species, set, kind = "singles") {
   // a Choice Scarf with nothing in speed, an attacking item with nothing in either attacking stat
   const ev = set.evs || {};
   if (item === "choicescarf" && (ev.spe || 0) < 10 && toID(species) !== "ditto" && !has(ids(["Final Gambit"]))) out.push("구애스카프인데 스피드에 노력치가 없음");
-  if (["lifeorb", "choiceband", "choicespecs", "expertbelt"].includes(item) && (ev.atk || 0) < 10 && (ev.spa || 0) < 10) out.push(`${set.items[0]}인데 공격에도 특공에도 노력치가 없음`);
+  if (["lifeorb", "choiceband", "choicespecs", "expertbelt"].includes(item) && (ev.atk || 0) < 10 && (ev.spa || 0) < 10) out.push(`${name}인데 공격에도 특공에도 노력치가 없음`);
   if (kind === "singles" && has(ids(["Rising Voltage"])) && !mv.some(m => m.terrain === "electricterrain") && !ab(ids(["Electric Surge", "Hadron Engine"]))) out.push("라이징볼트인데 일렉트릭필드를 깔지 않음");
   // four attacks and nothing behind them: neither nature nor points raise the stat three of them hit with (a bulky set has a status
   // move or a recovery beside its attacks; this one only hits, and hits weakly)

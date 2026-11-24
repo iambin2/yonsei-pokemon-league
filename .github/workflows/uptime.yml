@@ -3,7 +3,9 @@ name: Uptime check
 # Every hour: the site answers with its build (version.json), the battle function answers a warm call, and the database answers a
 # read. A failure opens an issue through failure-alert.yml, and the next good hour closes it.
 # The database read also keeps the free-tier project from pausing after 7 days without activity (this was supabase-keepalive.yml).
-# GitHub disables schedules in a public repo after 60 days without commits, so each run re-enables itself.
+# GitHub disables schedules in a public repo after 60 days without commits, so each run re-enables every scheduled workflow (a site
+# nobody commits to must keep its weekly backup); a new scheduled workflow joins the list below. GitHub also runs this hourly schedule
+# late when busy, often hours apart, which is still far inside the 7 days.
 on:
   schedule:
     - cron: "17 * * * *"
@@ -34,7 +36,10 @@ jobs:
             -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
             -d '{"action":"warm"}' "$VITE_SUPABASE_URL/functions/v1/battle"
       - if: always()
-        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/uptime.yml/enable"
+        run: |
+          for w in uptime.yml push-sweep.yml backup.yml learn-cpu-sets.yml refresh-champions-data.yml; do
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$w/enable"
+          done
         env:
           GH_TOKEN: ${{ github.token }}
       - if: always()
