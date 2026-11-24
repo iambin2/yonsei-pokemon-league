@@ -18,13 +18,18 @@ export const LOCKS = /^Choice (Band|Specs|Scarf)$/;
 export const statusMove = set => set.moves.some(m => Dex.moves.get(m).category === "Status");
 // the whole random pool under a ban (15장: the foes' material), and the sets of the ladder's species in it (14장: the draft's; the
 // tiers hold sets since 19장, so an entry keeps only its sets the tiers name)
-export const wholePool = (ban = STREAK_BAN) => fairPool(STREAK_FORMAT_ID, ban);
+// The tower is practice on measured sets: a set the weekly learning added (ypl) is never measured, so it stays out of the draft, the
+// tiers and the foes and plays only in the computer's ordinary battles (2026-11-24: four learned sets doubled their measured twins and
+// broke the six even tiers, and the rest tipped the foes' spread past its bound)
+const wholes = new Map();
+export function wholePool(ban = STREAK_BAN) {
+  if (!wholes.has(ban)) wholes.set(ban, fairPool(STREAK_FORMAT_ID, ban).map(e => ({ ...e, sets: e.sets.filter(set => !set.ypl) })).filter(e => e.sets.length));
+  return wholes.get(ban);
+}
 const pools = new Map();
 export function towerPool(ban = STREAK_BAN) {
   if (!pools.has(ban)) {
-    // a tier is a measured sample set's: a set the weekly learning added (ypl) is never measured, even when its item and moves match one
-    // that is (2026-11-24, four such sets doubled their measured twins and broke the six even tiers)
-    const tiered = wholePool(ban).map(e => ({ ...e, sets: e.sets.filter(set => !set.ypl && setKey(e.species, set) in TOWER_TIERS) })).filter(e => e.sets.length);
+    const tiered = wholePool(ban).map(e => ({ ...e, sets: e.sets.filter(set => setKey(e.species, set) in TOWER_TIERS) })).filter(e => e.sets.length);
     pools.set(ban, new Map(tiered.map(e => [e.species, e])));
   }
   return pools.get(ban);

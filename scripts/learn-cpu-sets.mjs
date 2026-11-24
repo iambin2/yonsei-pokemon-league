@@ -17,7 +17,7 @@
 // Under MIN_PLAYERS players nothing is written.
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { Teams, toID } from "@pkmn/sim";
+import { Dex, Teams, toID } from "@pkmn/sim";
 import { formatId, validateTeam } from "../supabase/functions/battle/engine.mjs";
 import { idleMoves } from "./setFit.mjs";
 import { faults } from "./check-sets.mjs";
@@ -126,7 +126,7 @@ export function learn(sets, records, { validate = (formatid, set) => !validateTe
         // Clay without a screen, scripts/check-sets.mjs)
         .filter(({ set }) => validate(formatid, set) && !idleMoves({ kind, ...set }).length && !faults(set.species, set, kind).length).slice(0, NEW_PER_SPECIES);
       for (const { v, set } of joining) entry.sets.push({
-        weight: alpha * share(v), baseWeight: 0, ypl: true, ability: set.ability, items: [set.item],
+        weight: alpha * share(v), baseWeight: 0, ypl: true, ability: set.ability, items: [set.item], ...(Dex.items.get(set.item).megaStone ? { mega: true } : {}),
         moves: set.moves, nature: set.nature, evs: set.evs, ...(set.ivs ? { ivs: set.ivs } : {}),
       });
       const total = entry.sets.reduce((sum, s) => sum + s.weight, 0) || 1;
