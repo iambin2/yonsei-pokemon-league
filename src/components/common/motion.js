@@ -121,7 +121,7 @@ export function light(root, { still = false, kept = false } = {}) {
 }
 
 /* the home's cover on the first open of the site, its one scene of its own (DESIGN.md "Motion", The cover; the owner's draft A,
-   2026-11-24): the masthead lights, the three rules draw in from the start edge three beats apart, the three words rise from the ninth
+   2026-11-24): the three rules draw in from the start edge three beats apart, the three words rise from the ninth
    beat, then the facts and keys light at the ends of their lines, and the Wing Y comes last. All on the 38 beat, by transform and opacity.
    A return to the home is an ordinary page change (light). */
 export function coverOpen(root) {

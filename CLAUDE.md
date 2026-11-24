@@ -111,7 +111,7 @@ The visual system is **YPL League Almanac**, which replaced the YPL Scoreboard o
 - Korean copy follows the Voice and tone chapter of `DESIGN.md`: 합니다체, noun labels, no exclamation marks, no em dashes, **no middle-dot (·) separators**.
 - `tests/designLaw.test.mjs` enforces the measurable rules on all CSS and inline styles. When it fails, fix the value; add to its `EXCEPT` only with a real reason from DESIGN.md, never to silence it.
 - Phone-first: the venue phone is the primary screen.
-- The home holds nothing but the cover: the masthead, the three words with their facts, and the keys on the League line. A new function reaches the home only as one more key there; rankings, notices and champions stay on their own pages. `coverOpen` in `motion.js` is the site's one staged entrance.
+- The home holds nothing but the cover: the three words with their facts, and the keys on the League line. A new function reaches the home only as one more key there; rankings, notices and champions stay on their own pages. `coverOpen` in `motion.js` is the site's one staged entrance.
 
 ## Working with the owner
 

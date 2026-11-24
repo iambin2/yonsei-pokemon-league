@@ -1,6 +1,6 @@
 /* =============================================================================
    YPL League Almanac: home (HomePage.jsx), the league's cover (DESIGN.md "Layout and pages", Home; the owner's draft A, 2026-11-24).
-   One screen: a masthead line, then Yonsei, Pokémon and League, each standing on its own rule and filling the column, a fact of the
+   One screen: Yonsei, Pokémon and League, each standing on its own rule and filling the column, a fact of the
    league at the end of each line (on a phone under the word, over its rule). The cover is exactly the first screen between the bars.
    ========================================================================== */
 
@@ -10,10 +10,6 @@
 }
 .is-admin .ho { min-height: calc(100svh - env(safe-area-inset-top, 0px) - var(--nav-height) - var(--s8) - var(--tab-height) - var(--admin-height) - env(safe-area-inset-bottom, 0px)); }
 
-/* the masthead: the league's name and today, dim, closed by a hairline */
-.ho-mast { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); padding-bottom: var(--s3); box-shadow: inset 0 -1px 0 var(--rule); color: var(--dim); font-weight: 600; }
-.ho-mast b { margin-right: var(--s2); color: var(--lit); font-family: var(--font-fig); }
-.ho-mast .num { font-family: var(--font-fig); }
 .ho > .error-note { padding-bottom: 0; }
 
 /* the name: the words stand at the foot of the room, each on its own rule */
@@ -34,7 +30,7 @@
 .ho-champ { color: var(--dim); }
 .ho-champ b { color: var(--lit); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
 .ho-keys { gap: var(--s2) var(--s8); }
-.ho-key { display: inline-flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; box-shadow: inset 0 -1px 0 var(--rule); color: var(--lit); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-align: left; }
+.ho-key { display: inline-flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; color: var(--lit); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-align: left; }
 .ho-key.done { color: var(--dim); }
 .ho-key-sub { color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 400; }
 .ho-key > b { font-weight: 400; transition: transform var(--move-tone); }

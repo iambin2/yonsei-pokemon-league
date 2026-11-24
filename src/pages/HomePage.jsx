@@ -56,7 +56,6 @@ export function todayEvent(announcements) {
 let firstOpen = true;
 const opening = () => firstOpen;
 
-const WEEKDAY = "일월화수목금토";
 
 /* 지난 대회: 다음 대회가 없는 날의 첫 자리. 기록 화면과 같은 정규 기록 읽기(캐시 "records")에서 찾고, 지난 방문의 답을 첫 그림부터 쓴다. */
 const LAST_KEY = "ypl-home-last";
@@ -207,7 +206,6 @@ export default function HomePage({ data, go, admin, siteFailed = false, onRetryS
   }, [!now, data]);
   const lastWait = !now && last === undefined;
   const reigning = champions?.[0] || null;
-  const t = new Date();
 
   /* 지금 할 일의 키들: 첫 키가 오늘의 일이고, 공지가 늘 끝에 선다 */
   const keys = [];
@@ -231,10 +229,6 @@ export default function HomePage({ data, go, admin, siteFailed = false, onRetryS
   useFit(root, name, [champions, last, now, myNext, myWhere, liveMatch?.id, liveBattles.length, checkin, siteFailed, champsFailed]);
 
   return (<div className="ho" ref={root}>
-    <div className="ho-mast t12">
-      <span><b>YPL</b> 포켓몬 센터 연세점 배틀 리그</span>
-      <span className="num">{t.getFullYear()}. {t.getMonth() + 1}. {t.getDate()}. {WEEKDAY[t.getDay()]}</span>
-    </div>
     {/* a failed read is said, not left as an empty place (DESIGN.md "Errors and empty") */}
     {(champsFailed || siteFailed) && <ErrorNote action="다시 불러오기" onRetry={() => { if (champsFailed) { setChampsFailed(false); setChampsTry(n => n + 1); } if (siteFailed) onRetrySite?.(); }}>리그 기록을 불러오지 못했습니다.</ErrorNote>}
     <div className="ho-name" ref={name}>
