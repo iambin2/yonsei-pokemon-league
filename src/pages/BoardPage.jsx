@@ -268,28 +268,17 @@ function FreeBoard({ admin, flash, tabs }){
   if(p){ const cc=(p.comments||[]).length;
     return (<section className="bd">
       <article className="bd-free">
-        <BackLink to="게시판" onClick={closePost}/>
-        <h1 className="t32 bd-title-h" data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</h1>
-        {/* the body in the 709 and the post's facts with its keys in the 439 beside it (2026-11-23, the owner's draft A: the right half
-            stood empty and 수정 and 삭제 were two words at a date line's end) */}
-        <div className="bd-free-top">
-          <div className="bd-body">
-            {p.body&&<Prose text={p.body}/>}
-            {p.link&&<MediaEmbed url={p.link}/>}
-          </div>
-          <aside className="stack bd-free-side">
-            <div className="pn bd-free-who">
-              <span className="t12 dim">{p.secret?"관리자 전용, 글쓴이":"글쓴이"}</span><b className="t20">{p.nick}</b>
-              {p.createdAt&&<span className="t12 dim reg"><DT iso={p.createdAt}/><Edited at={p.editedAt}/></span>}
-            </div>
-            <div className="pn bd-free-count"><span className="t12 dim">댓글</span><b className="t20 num">{cc}</b></div>
-            <div className="bd-free-keys">
-              <button type="button" className="pn" onClick={()=>editPost(p)}>수정</button>
-              <button type="button" className="pn" onClick={()=>delPost(p)}>삭제</button>
-              {reportOn&&<button type="button" className="pn quiet" onClick={()=>setReporting(p)}>신고</button>}
-            </div>
-          </aside>
-        </div>
+        {/* the writer, the date and the keys are the title's grey line, as on a sample or party post (2026-11-24, the owner: the 439
+            side panel kept the body from the page's width) */}
+        <header className="bd-art-head">
+          <BackLink to="게시판" onClick={closePost}/>
+          <h1 className="t32 bd-title-h" data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</h1>
+          <p className="t12 dim reg bd-date-line bd-cmt-top"><span>{[p.secret&&"관리자 전용",p.nick].filter(Boolean).join(", ")}{p.createdAt&&<>, <DT iso={p.createdAt}/></>}<Edited at={p.editedAt}/></span><button className="bd-act t12" onClick={()=>editPost(p)}>수정</button><button className="bd-act t12" onClick={()=>delPost(p)}>삭제</button>{reportOn&&<button className="bd-act t12" onClick={()=>setReporting(p)}>신고</button>}</p>
+        </header>
+        {(p.body||p.link)&&<div className="bd-body">
+          {p.body&&<Prose text={p.body}/>}
+          {p.link&&<MediaEmbed url={p.link}/>}
+        </div>}
         <div className="bd-cmts">
           <SectionHead title={cc>0?`댓글 ${cc}`:"댓글"}/>
           <Comments comments={p.comments} onAdd={c=>addComment(c,p)} onEdit={c=>editComment(p,c)} onDel={c=>delComment(p,c)}/>

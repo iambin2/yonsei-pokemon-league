@@ -73,18 +73,10 @@
 @media (min-width: 860px) {
   .bd-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .bd-bar { grid-template-columns: minmax(0, 1.618fr) repeat(2, minmax(0, 1fr)); }
-  .bd-art.many .bd-cmts { max-width: 709px; }
-  /* a free post (draft A, 2026-11-23): the body reads in the 709 with the post's facts and keys in the 439 beside it; the comments run the
-     whole 1200, their form one line */
-  .bd-free-top { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: start; }
-  .bd-free .bd-cform-grid:not(.as) { grid-template-columns: minmax(0, 1fr) minmax(0, .618fr) minmax(0, 2.618fr) auto; grid-template-areas: "nick pin body key"; }
-  /* a sample (draft A, 2026-11-23): the Pokémon 439 and its set 709 from one top line to one foot, then the writer's words at the left
-     and the comments at the right; with no words the comments take the whole width */
-  .bd-art.one { display: grid; grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: start; }
-  .bd-art.one > :is(.bd-art-head, .sc-one, .error-note) { grid-column: 1 / -1; }
-  .bd-art.one > .bd-body { grid-column: 1; }
-  .bd-art.one > .bd-cmts { grid-column: 2; }
-  .bd-art.one:not(:has(> .bd-body)) > .bd-cmts { grid-column: 1 / -1; }
+  /* every post (2026-11-24, the owner: the words and the comments sat shut in a 439 and a 709 for nothing): the body, the writer's
+     words and the comments run the whole 1200, the comment form one line */
+  :is(.bd-free, .bd-art) .bd-cform-grid:not(.as) { grid-template-columns: minmax(0, 1fr) minmax(0, .618fr) minmax(0, 2.618fr) auto; grid-template-areas: "nick pin body key"; }
+  /* a sample: the Pokémon 439 and its set 709 from one top line to one foot */
   .sc-one { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: stretch; }
 }
 
@@ -97,18 +89,16 @@
 .dt-short { display: none; }
 @media (max-width: 639px) { .dt-long { display: none; } .dt-short { display: inline; } div.bd-cmt-top > .num { white-space: nowrap; } }
 .bd-cmt-body { margin-top: var(--s2); white-space: pre-wrap; overflow-wrap: anywhere; }
-/* a free post's facts and keys: the writer at 20 over the date, the count, then 수정, 삭제 and 신고 as three keys on the seam */
-.bd-free-top { margin-top: var(--s8); display: grid; gap: var(--s8); }
-.bd-free-top > .bd-body { margin-top: 0; }
-.bd-free-top > .bd-body:empty { display: none; }
-.bd-free-who { display: grid; gap: var(--s1); padding: var(--s5) var(--pad); }
-.bd-free-count { display: flex; align-items: center; justify-content: space-between; min-height: var(--h-row); padding: 0 var(--pad); }
-.bd-free-keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--seam); }
-.bd-free-keys > button { min-height: var(--h-control); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
-.bd-free-keys > .quiet { color: var(--dim); }
-@media (hover: hover) { .bd-free-keys > button:hover { background: var(--panel-2); } }
 .bd-act { min-width: var(--h-control); min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); padding: 0 var(--s1); text-align: center; font-weight: 600; color: var(--dim); }
 .bd-act:first-of-type { margin-left: auto; }
+/* on a post the keys are a line of their own under the writer and the date, spaced as words (2026-11-24, the owner: at the line's far
+   end they floated, and their 44 tap boxes spread them apart) */
+.bd-date-line { flex-wrap: wrap; column-gap: var(--s3); row-gap: var(--s1); }
+.bd-date-line > span { flex-basis: 100%; }
+.bd-date-line .bd-act { min-width: 0; padding: 0; text-align: left; }
+.bd-date-line .bd-act:first-of-type { margin-left: 0; }
+/* a touch screen keeps each key's 44 box (components.css); the words sit at its left, so the box's rest is the space between them */
+@media (max-width: 639px), (pointer: coarse) { .bd-date-line { column-gap: 0; } }
 @media (hover: hover) { .bd-act:hover { color: var(--lit); } }
 /* a reply stands 32 in under the comment it answers, its form in the same column */
 /* a reply stands the comment's full width, its words 32 further in after a small corner that says it answers the one above (2026-11-23,

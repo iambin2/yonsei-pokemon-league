@@ -200,7 +200,7 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
       const link=document.createElement("a"); link.href=url; link.download=`${String(a.form?.eventDraft?.name||a.title||"YPL").replace(/[\\/:*?"<>|]/g,"_")}.ics`;
       document.body.appendChild(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
     };
-    // 데스크톱은 709와 439 두 단: 왼쪽은 본문, 오른쪽은 대회의 사실과 행동, 그 아래 다른 공지. 폰은 지금 순서 그대로 한 단.
+    // 한 단 (2026-11-24, 운영자: 반반 나눈 오른쪽 고정 칸이 답답하다). 데스크톱은 제목, 사실, 행동 한 줄, 본문, 다른 공지 순.
     return (<section className="nw nw-art">
       <header className="nw-art-head">
         <BackLink to="공지" onClick={closeArticle}/>
@@ -217,7 +217,9 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
         {facts?.rows.length>0&&<div className={"stack nw-spec"+(next||counting?" joined":"")}>
           {facts.rows.map(([k,v])=><div className="pn spec-row" key={k}><span className="t12 dim">{k}</span><span className="t15">{v}</span></div>)}
         </div>}
-        {/* two ranks of keys (Composing a screen 28): what an entrant does next as 52 keys, what is used now and then as a row of 44 */}
+        {/* two ranks of keys (Composing a screen 28): what an entrant does next as 52 keys, what is used now and then as a row of 44;
+            on desktop all of them are one bar under the facts, the main one 1.618 wide */}
+        <div className="nw-keys">
         {(editable||seconds.length>0)&&<div className="stack nw-more nw-apply">
           {editable&&<Button variant="second" onClick={()=>openForm(a.id,true)}>신청 수정</Button>}
           {seconds.map(([label,id])=><Button variant="second" key={label} onClick={()=>openBuilder(id)}>{label}</Button>)}
@@ -228,11 +230,12 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
           {a.link&&<Button variant="second" size="sm" href={href(a.link)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.linkLabel||"링크 바로가기"}</Button>}
           {a.link2&&<Button variant="second" size="sm" href={href(a.link2)} target="_blank" rel="noopener noreferrer"><Icon n="ext" size={16}/>{a.link2Label||"링크 바로가기"}</Button>}
         </div>
+        {main&&<div className="nw-main-act"><Dock><Button variant="main" onClick={main[1]||undefined} disabled={!main[1]}>{main[0]}</Button></Dock></div>}
+        </div>
         {admin&&<div className="stack nw-admin">
           {(hasForm||a.form?.eventId)&&<Button variant="second" onClick={()=>setRespId(a.id)}>응답 보기 {a.form.eventId?(eventResponses[a.id]||[]).length:(a.form.responses||[]).length}</Button>}
           <Button variant="second" onClick={()=>setModal({type:"ann",item:a})}>수정</Button>
         </div>}
-        {main&&<div className="nw-main-act"><Dock><Button variant="main" onClick={main[1]||undefined} disabled={!main[1]}>{main[0]}</Button></Dock></div>}
         {others.length>0&&<section className="nw-others" aria-labelledby="nw-others">
           <SectionHead id="nw-others" title="다른 공지"/>
           <div className="stack">{others.map(x=><NoticeRow key={x.id} a={x} onOpen={()=>openArticle(x.id)}/>)}</div>
