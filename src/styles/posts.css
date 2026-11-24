@@ -1,6 +1,6 @@
 /* =============================================================================
-   YPL Scoreboard: board (BoardPage.jsx). The list and a post keep the notices' rules:
-   rows of 64, a back link, the date line, the title; a party post stands as six cells on their floors; comments are panels.
+   The almanac: board (BoardPage.jsx). The list and a post keep the notices' rules:
+   entries under a 2px rule, a back link, the date line, the title; a party post stands as six on their floors; comments are entries.
    ========================================================================== */
 
 .bd-tabs { margin-top: var(--s5); }
@@ -12,15 +12,18 @@
 
 /* a party or a sample in the list: the records' party row. The title and its grey line, then the pictures; on desktop the six stand
    at the right in 64 cells; a sample's one picture leads its row */
-/* the comment count is the row's value at its right end, as on 자유 (Row); the date ends the grey line on all three tabs */
-.bd-post { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); row-gap: var(--s2); width: 100%; padding: var(--s3) var(--pad); text-align: left; }
+/* the comment count is the row's value at its right end, as on 자유 (Row); the date ends the grey line on all three tabs.
+   An operators' post says 관리자 전용 in lit words at the same end, never with a mark */
+.bd-secret { font-weight: 700; color: var(--lit); white-space: nowrap; }
+.bd-ends { display: flex; align-items: baseline; gap: var(--s3); }
+.bd-post { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); row-gap: var(--s2); width: 100%; padding: var(--s3) 0; text-align: left; }
 .bd-post-top { grid-column: 1; grid-row: 1; display: grid; gap: var(--s1); min-width: 0; }
 .bd-post-top > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bd-post-cc { grid-column: -2; grid-row: 1; align-self: center; white-space: nowrap; }
 .bd-minis { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); }
 .bd-mini { height: var(--h-row); }
 .bd-mini .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
-.bd-post.one { grid-template-columns: var(--h-row2) minmax(0, 1fr) auto; align-items: center; padding-left: var(--s3); }
+.bd-post.one { grid-template-columns: var(--h-row2) minmax(0, 1fr) auto; align-items: center; }
 .bd-post.one .bd-post-top { grid-column: 2; }
 .bd-post.one .bd-minis { grid-row: 1; grid-column: 1; grid-template-columns: minmax(0, 1fr); }
 .bd-post.one .bd-mini { height: var(--h-row2); }
@@ -54,15 +57,15 @@
 .sc-one { display: grid; gap: var(--s8); margin-top: var(--s8); }
 .sc-one-hero { --floor: var(--h-row); min-height: calc(var(--s21) * 4); }
 .sc-one-hero > .mon { left: 0; right: 0; height: min(calc(100% - var(--floor) - var(--s8)), calc(var(--s21) * 4)); margin-inline: auto; bottom: calc(var(--floor) + var(--s5)); }
-.sc-one-band { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: 0 var(--pad); background: var(--panel-2); }
+.sc-one-band { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: 0; box-shadow: inset 0 var(--line) 0 var(--lit); }
 .sc-one-who { display: flex; align-items: baseline; gap: var(--s2); min-width: 0; }
-.sc-one-band .tb-types { flex-wrap: nowrap; --tag-bg: var(--panel); }
+.sc-one-band .tb-types { flex-wrap: nowrap; }
 .sc-one-set { display: grid; gap: var(--s5); align-content: start; min-width: 0; }
 .sc-one-set > .bd-bar { margin-top: 0; }
 .sc-one-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sc-one-facts .cell > b small { font-weight: 400; }
 .sc-one-moves { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); margin: 0; padding: 0; list-style: none; }
-.sc-one-moves > li { display: grid; gap: var(--s2); align-content: center; min-height: var(--h-row2); padding: var(--s3) var(--pad); }
+.sc-one-moves > li { display: grid; gap: var(--s2); align-content: center; min-height: var(--h-row2); padding-block: var(--s3); }
 .bd-art.one > .bd-body { margin-top: var(--s13); }
 .bd-words-h { margin-bottom: var(--s2); }
 @media (max-width: 639px) { .sc-one-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sc-one-facts > .cell:last-child { grid-column: 1 / -1; } }
@@ -80,11 +83,11 @@
   .sc-one { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); align-items: stretch; }
 }
 
-/* comments: panels, the name 12 bold with its time dim, the words read at 15 */
+/* comments: entries closed by their hairline, the name 15 bold with its time dim, the words read at 15 */
 .bd-cmts { margin-top: var(--s13); display: grid; gap: var(--seam); }
-/* the seam is already under the title: together they are the 12 (as .stack > .sh) */
-.bd-cmts > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }
-.bd-cmt { padding: var(--s5) var(--pad); }
+/* the comments open under the title's 2px rule, as every section of the almanac */
+.bd-cmts > .sh { margin-bottom: 0; padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.bd-cmt { padding-block: var(--s5); }
 .bd-cmt-top { display: flex; align-items: center; gap: var(--s2); }
 .dt-short { display: none; }
 @media (max-width: 639px) { .dt-long { display: none; } .dt-short { display: inline; } div.bd-cmt-top > .num { white-space: nowrap; } }
@@ -103,8 +106,8 @@
 /* a reply stands 32 in under the comment it answers, its form in the same column */
 /* a reply stands the comment's full width, its words 32 further in after a small corner that says it answers the one above (2026-11-23,
    the owner: indented 32, the ground showed as an empty square beside it, "트레이너 옆에 네모 있는 거 너무 부자연스러운데") */
-.bd-cmt.reply { position: relative; padding-left: calc(var(--pad) + var(--s8)); }
-.bd-cmt.reply::before { content: ""; position: absolute; left: calc(var(--pad) + var(--s2)); top: var(--s5); width: var(--s3); height: var(--s3); box-shadow: inset var(--line) calc(var(--line) * -1) 0 var(--mute); }
+.bd-cmt.reply { position: relative; padding-left: var(--s8); }
+.bd-cmt.reply::before { content: ""; position: absolute; left: var(--s2); top: var(--s5); width: var(--s3); height: var(--s3); box-shadow: inset var(--line) calc(var(--line) * -1) 0 var(--mute); }
 .bd-reply-form { margin-left: var(--s8); }
 .bd-reply-form > .bd-cform { margin-block: var(--s2) var(--s3); }
 .bd-cform { margin-top: var(--s5); }
@@ -114,10 +117,12 @@
 .bd-cform-nick { grid-area: nick; } .bd-cform-pin { grid-area: pin; } .bd-cform-body { grid-area: body; } .bd-cform-grid > .btn { grid-area: key; }
 /* what is missing is said under its own row, 8 from it as under any field */
 .bd-cform > .form-error { margin-block: var(--s2); }
-.bd-cform .cell { flex: 1; min-height: var(--h-row2); cursor: text; }
+/* each field a solid --tint block (2026-11-24, the owner: the comment box filled by its outline on a click read 너무너무 어색해); focus lays
+   the 2px --lit line along its bottom */
+.bd-cform .cell { flex: 1; min-height: var(--h-row2); padding-inline: var(--pad); background: var(--tint); box-shadow: none; cursor: text; }
 .bd-cform .cell input { width: 100%; min-width: 0; height: auto; min-height: 0; padding: 0; background: none; box-shadow: none; font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
-.bd-cform .cell input:focus-visible { outline: none; box-shadow: none; }
-.bd-cform .cell:has(input:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
+.bd-cform .cell input:focus { outline: none; box-shadow: none; }
+.bd-cform .cell:has(input:focus), .bd-cform .cell:has(input[aria-invalid="true"]) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 /* 등록 stands the full height of the comment's cell beside it (board.css fixes a small main key at the control's height, which left
    a gap under it in this row); on a sample or party post it is a second action, the post's main action being 팀 빌더에서 열기 */
 .bd-cform .btn.btn--sm { width: auto; min-width: var(--s21); height: auto; align-self: stretch; }
@@ -127,10 +132,11 @@
 .bd-yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bd-img { display: inline-block; margin-top: var(--s5); }
 .bd-img img { max-height: 576px; width: auto; }
-.bd-preview { margin-top: var(--s3); padding: var(--s3); background: var(--panel-2); }
+.bd-preview { margin-top: var(--s3); padding-block: var(--s3); box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--rule); }
 .bd-preview-h { margin-bottom: var(--s1); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
-/* an admin's small action in a row (비밀번호 초기화) */
-.bd-del { display: inline-flex; align-items: center; height: var(--h-strip); padding: 0 var(--s3); background: var(--panel-2); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
+/* an admin's small action in a row (비밀번호 초기화, BracketsPage.jsx): a word key at the strip's height, no box; a pointer lays --tint */
+.bd-del { display: inline-flex; align-items: center; height: var(--h-strip); padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
+@media (hover: hover) { .bd-del:hover { background: var(--tint); } }
 /* the search and 글쓰기 share one row: the field takes the rest, the main action its word */
 .bd-tools { grid-template-columns: minmax(0, 1fr) auto; }
 .bd-tools .btn--main { width: auto; }

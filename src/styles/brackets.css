@@ -1,18 +1,18 @@
 /* =============================================================================
-   YPL Scoreboard: brackets (BracketsPage.jsx, the parts a visitor sees).
-   A list is rows of 64 with the amber lamp on what runs; a bracket is a tree of
-   match boxes (two rows of 36 and a seam) joined by lines: a decided road is a 2px lit line, the rest a 1px rule.
-   The tree's geometry is in BracketsPage.jsx (BK_ROW_H, BK_PITCH0); the lines here meet the box at its middle.
+   The league almanac: brackets (BracketsPage.jsx, the parts a visitor sees).
+   A list is entries on hairlines with the amber lamp on what runs; a bracket is a draw sheet: a match is two names on either side of
+   one line, its spine, and the spines are joined by roads: a decided spine and road a 2px lit line, the rest a hairline.
+   The tree's geometry is in BracketsPage.jsx (BK_ROW_H, BK_PITCH0, sheetLayout); the roads meet each match at its spine.
    ========================================================================== */
 
 .bk-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .bk-tabs { margin-top: var(--s5); }
-.bk-list, .bk-new { margin-top: var(--s5); }
-.bk-search, .bk-rows, .bk-private-note { margin-top: var(--s5); }
+.bk-list { margin-top: var(--s5); }
+.bk-rows, .bk-private-note { margin-top: var(--s5); }
 .bk-rows .row { height: var(--h-row2); }
 
 /* an open bracket: the back link 20 under the bar, the live strip, its name at 20, a grey line */
-.bk-strip { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-strip); margin-top: var(--s5); padding: 0 var(--s3); }
+.bk-strip { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-strip); margin-top: var(--s5); padding: 0; }
 .bk-strip > .dim { margin-left: auto; }
 .bk-open-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s5); }
 .bk-open-copy { min-width: 0; }
@@ -24,7 +24,7 @@
 /* an odd one out takes the row: with five keys 수정 stood in half a row beside an empty half (2026-11-10) */
 .bk-actions > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 .bk-board { display: grid; gap: var(--s8); margin-top: var(--s8); }
-/* the whole tree comes first and its 우승 panel names the winner at every width (a phone's swipe stops on it), so the result below
+/* the whole tree comes first and its 우승 line names the winner at every width (a phone's swipe stops on it), so the result below
    keeps the places and the images and does not say 우승 a second time (2026-11-19: a phone named the winner twice) */
 .bk-board > .bk-result { order: 1; }
 .bk-board:has(.bk-champ-node) .bk-winner { display: none; }
@@ -37,16 +37,13 @@
 .bk-gs { gap: var(--s8); }
 .bk-gs-group { display: grid; gap: var(--s3); }
 .bk-gs-group > h2 { margin: 0; }
+/* the standing and the games each open on a 2px lit rule; a standing's place is a figure at its left */
+.bk-gs-rank, .bk-gs-games { box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bk-gs-rank .row-lead { width: var(--s13); }
 @media (min-width: 860px) {
   .bk-gs-group { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: start; }
   .bk-gs-group > h2 { grid-column: 1 / -1; }
 }
-/* the 우승 panel is a trophy's panel, 180, taller than a match, centred on the final */
-.bk-champ-pos { translate: 0 calc((var(--mb) - var(--s21) * 2 - var(--s3)) / 2); }
-.bk-champ-col .bk-champ-node { height: calc(var(--s21) * 2 + var(--s3)); align-items: center; justify-content: center; text-align: center; }
-/* a tree of one round (the final and 우승, after the lines' svg) is one card high: the 180 panel stood past it, cut above and below */
-.bk-tree:has(> .bk-col2:nth-child(2) + .bk-champ-col:last-child) .bk-champ-node { height: var(--mb); }
-.bk-tree:has(> .bk-col2:nth-child(2) + .bk-champ-col:last-child) .bk-champ-pos { translate: none; }
 /* draft 5B (2026-11-19): on a phone the decided winner is the first thing under the bracket's head, at 32 (Composing a screen 4), and
    the tree's own 우승 column goes, so the winner is named once; the places and the images still follow the tree */
 @media (max-width: 859px) {
@@ -67,125 +64,127 @@
 /* 내 경기로: a phone shows it over the share key, a desktop under the tree's head (BracketsPage.jsx MyMatchKey) */
 @media (max-width: 859px) { .bk-mine-wide { display: none; } .bk-mine-phone { margin-top: var(--s5); } }
 
-/* the decided result: 우승 inverted, the places as spec rows, the images */
-.bk-winner { display: grid; gap: var(--s1); padding: var(--pad); }
+/* the decided result: 우승 at 32 on its 2px rule, the places as spec rows, the images */
+.bk-winner { display: grid; gap: var(--s1); padding: 0 0 var(--s3); }
 .bk-places { margin: var(--seam) 0 0; }
+/* the places open their own section under the tree, each on a hairline */
+.bk-places { box-shadow: inset 0 var(--line) 0 var(--lit); }
+/* where 우승 stands right over them (a desktop's 목록 view) its own 2px rule opens them */
+@media (min-width: 860px) { .bk-board:not(:has(.bk-champ-node)) .bk-places { box-shadow: none; } }
 .bk-places dd { margin: 0; }
 .bk-cb-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); margin-top: var(--s5); }
 .bk-cb-actions > .btn--main, .bk-cb-actions > .dock { grid-column: 1 / -1; }
 .bk-delete { margin-top: var(--s13); }
 /* desktop: one rare key at the end edge, as wide as its word (Composing a screen 27, 28) */
 @media (min-width: 860px) { .bk-delete { display: flex; justify-content: flex-end; } .bk-delete > .btn { width: auto; } }
-/* the operators' block (2026-11-24): 기록 반영됨 lit on its panel, the acts as keys of one row joined on the seam under it */
+/* the operators' block (2026-11-24): 기록 반영됨 lit on its hairline, the acts as keys of one row joined on the seam under it */
 .bk-ops { grid-column: 1 / -1; display: grid; gap: var(--seam); margin-top: var(--s5); }
-.bk-ops-state { display: flex; align-items: center; gap: var(--s2); min-height: var(--h-row); margin: 0; padding: 0 var(--pad); font-weight: 700; color: var(--lit); }
+.bk-ops-state { display: flex; align-items: center; gap: var(--s2); min-height: var(--h-row); margin: 0; padding: 0; font-weight: 700; color: var(--lit); }
 .bk-ops-keys { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 /* 목록 보기: a round a section, sections apart as the page's sections are */
 .bk-rounds { display: grid; gap: var(--s5); }
 
-/* ---------- the tree: column heads 12 dim, 12 above their boxes ---------- */
-.bk-scroll { --bk-gap: var(--s5); --bk-w: calc(var(--s21) + var(--s13)); --mb: calc(36px * 2 + var(--seam)); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin-inline: calc(var(--gutter) * -1); padding: 0 var(--gutter) var(--s5); }
+/* ---------- the tree: a section's rounds as columns, heads 12 dim 12 above their matches ---------- */
+.bk-scroll { --bk-gap: 0px; --bk-w: calc(var(--s21) + var(--s13)); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin-inline: calc(var(--gutter) * -1); padding: 0 var(--gutter) var(--s5); }
 .bk-scroll::-webkit-scrollbar { display: none; }
-.bk-tree { display: flex; align-items: flex-start; gap: var(--bk-gap); width: max-content; }
+.bk-tree { position: relative; display: flex; align-items: flex-start; gap: var(--bk-gap); width: max-content; }
 .bk-col2 { position: relative; width: var(--bk-w); display: flex; flex-direction: column; }
+/* columns abut, so a match's joining line at its column's right end is where the next round's lines begin; from the second column on
+   the heads and names stand 12 in from their line's start, clear of the join they leave */
+.bk-col2 + .bk-col2 > .bk-col-h, .bk-col2 + .bk-col2 :is(.mb-row, .mb-strip, .bk-champ-node) { padding-left: var(--s3); }
 /* a round's head names it at the left and, once the schedule is set (docs/db/match_schedule.sql), its start at the right end (13:00) */
 .bk-col-h { display: flex; justify-content: space-between; gap: var(--s2); margin-bottom: var(--s3); }
 /* an operator presses a round's head to set the schedule: a finger's 44 round the same 12 line, so the tree does not move */
 .bk-col-set { align-items: center; width: 100%; min-height: var(--h-control); padding: 0; margin-top: calc((var(--l12) - var(--h-control)) / 2); margin-bottom: calc(var(--s3) + (var(--l12) - var(--h-control)) / 2); text-align: left; transition: color var(--move-tone); }
 @media (hover: hover) { .bk-col-set:hover { color: var(--lit); } }
+/* the tree's end (그랜드 파이널, 리셋 결승, 우승) is named lit */
 .bk-col-h.gf { font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
 .bk-col-body { position: relative; width: 100%; }
 .bk-mpos { position: absolute; left: 0; right: 0; }
-/* a phone shows two rounds at a time, names whole: two columns share the content width, the boxes drop the seed to keep the names,
-   and the tree stops round by round as it is swiped (the browser's own scroll, snapping) */
+/* a phone shows two rounds at a time, names whole: two columns share the content width, the matches drop the seed to keep the names,
+   and the tree stops round by round as it is swiped (the browser's own scroll, snapping), the losers' rounds as well */
 @media (max-width: 639px) {
-  .bk-scroll { --bk-w: calc((100vw - var(--gutter) * 2 - var(--bk-gap)) / 2); scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); }
-  /* the losers' columns stop as the winners' do (2026-11-10: only the tree's columns were stops, so a double's 그랜드 파이널 and 우승
-     sprang back out of view when the finger lifted), and the last column keeps the gutter at the scroll's end */
-  .bk-scroll :is(.bk-col2, .bk-col) { scroll-snap-align: start; }
-  .bk-scroll :is(.bk-tree, .bk-cols) { padding-right: var(--gutter); }
+  /* two columns fill the window from the left gutter to the screen's edge, so the next round starts exactly at the edge and no name
+     peeks in cut */
+  .bk-scroll { --bk-w: calc((100vw - var(--gutter)) / 2); scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); }
+  .bk-scroll .bk-col2 { scroll-snap-align: start; }
+  .bk-scroll .bk-tree { padding-right: var(--gutter); }
   .bk-scroll .mb-seed { display: none; }
 }
 @media (min-width: 860px) {
-  .bk-scroll { --bk-gap: var(--s8); --bk-w: 216px; margin-inline: 0; padding-inline: 0; }
-  /* a short tree runs the full 1200: its columns share what is left, so the tree ends on the bar's right edge like every row */
-  .bk-scroll > .bk-tree { min-width: 100%; }
-  /* five rounds at 216 and 32 between are 1208, past the 1200: the columns share the width down to 200 (five 1128), and from six the tree scrolls */
-  /* each column is a whole pixel wide (a column of 214.4 drew its cards' edges on half pixels): the scroller is the measure (cqw), every
-     column takes the share rounded down and the last one takes what is left, so the tree still ends on the bar's right edge */
+  .bk-scroll { --bk-w: 240px; margin-inline: 0; padding-inline: 0; }
+  /* a short tree runs the full 1200: its columns share it (--n, the same for the winners', the losers' and the 3위 rows, so a round
+     stands on the same share in each), and from a share under 200 the tree scrolls */
+  /* each column is a whole pixel wide (a column of 214.4 drew its lines on half pixels): the scroller is the measure (cqw), every
+     column takes the share rounded down and the winners' last one takes what is left, so the tree ends on the bar's right edge */
   .bk-scroll { container-type: inline-size; }
+  .bk-scroll > .bk-tree { min-width: 100%; }
   .bk-tree > .bk-col2 { flex: 0 0 max(calc(var(--s21) * 2 + var(--s8)), round(down, calc((100cqw - (var(--n) - 1) * var(--bk-gap)) / var(--n)), 1px)); width: auto; }
-  .bk-tree > .bk-col2:last-child { flex-grow: 1; }
-  /* a double's losers' rounds, its 그랜드 파이널 and its 우승 share the 1200 too (2026-11-10: at 216 each the 우승 stood past the
-     board's edge in a scroller with no bar, so a finished double named no champion in view) */
-  .bk-lb > .bk-cols { width: auto; min-width: 100%; }
-  .bk-cols > .bk-col { flex: 0 0 max(calc(var(--s21) + var(--s8)), round(down, calc((100cqw - (var(--n) - 1) * var(--bk-gap)) / var(--n)), 1px)); width: auto; }
-  .bk-lb:not(.bk-gf-row) > .bk-cols:not(.bk-third) > .bk-col:last-child { flex-grow: 1; }
-  /* the 3위 결정전 keeps the width of one of the tree's columns above it (--bk-n: the tree's columns) */
-  .bk-third > .bk-col { flex: 0 0 round(down, calc((100cqw - (var(--bk-n) - 1) * var(--bk-gap)) / var(--bk-n)), 1px); }
+  .bk-tree:not(.bk-narrow) > .bk-col2:last-child { flex-grow: 1; }
 }
 
-/* a match box: two rows of 36 with the seam between; the winner inverts, the loser mutes, a waiting slot is muted words */
-/* one column the width of the tree's column: a long name ends in an ellipsis instead of widening the box over the lines */
-.mb { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--seam); width: 100%; text-align: left; }
+/* a match: its two names, each standing on its own line (the lines are the section's drawing, BracketsPage sheetRects); the rows are
+   32 and the lines --d apart (40 in the first round), so a match's two names read as a pair and pairs stand 64 apart */
+/* one column the width of the tree's column: a long name ends in an ellipsis, 12 clear of the join at the column's right end */
+.mb { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--h-strip) var(--h-strip); row-gap: calc(var(--d, var(--s8)) - var(--h-strip)); width: 100%; text-align: left; }
 .mb-row {
-  display: flex; align-items: center; gap: var(--s2); width: 100%; height: 36px; min-height: 0; padding: 0 var(--s3) 0 var(--s2);
-  background: var(--panel); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit);
+  display: flex; align-items: flex-end; gap: var(--s2); width: 100%; height: var(--h-strip); min-height: 0; padding: 0 var(--s3) var(--s2) 0;
+  text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 700; color: var(--lit);
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
-.mb-row.inv { background: var(--lit); color: var(--ground); }
-.mb-row.lost, .mb-row.wait { color: var(--mute); }
-.mb-row.wait { font-weight: 600; }
-.mb-seed { flex: none; width: var(--s5); color: var(--mute); white-space: nowrap; }
-.mb-row.inv .mb-seed { color: var(--ground); }
+/* the line under the winner's name is the lit 2px one in the drawing, so the row itself carries no rule */
+.mb-row.inv { color: var(--lit); box-shadow: none; }
+/* a group's names in the draw: a list, each on its hairline */
+.mb-list { grid-template-rows: none; row-gap: 0; }
+.mb-list > .mb-row { align-items: center; padding: 0 var(--s1) 0 0; box-shadow: inset 0 -1px 0 var(--rule); }
+.mb-row.lost, .mb-row.wait { color: var(--mute); font-weight: 400; }
+.mb-seed { flex: none; width: var(--s5); color: var(--mute); white-space: nowrap; font-style: normal; font-family: var(--font-fig); font-variant-numeric: tabular-nums; }
+.mb-row.inv .mb-seed { color: var(--lit); }
 /* a bye's winner cannot be pressed in the operators' tree, and the site's grey for a disabled button outranked the lit row: the winner
-   keeps the inverted ink (2026-11-23 audit, Q-04) */
-.ypl .mb-row.inv:disabled { color: var(--ground); }
+   keeps the lit ink (2026-11-23 audit, Q-04) */
+.ypl .mb-row.inv:disabled { color: var(--lit); }
 .mb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mb-score { flex: none; font-size: var(--t15); font-weight: 700; }
+/* a score is a figure: Albert Sans, tabular, light, in the row's own ink, on the name's line */
+.mb-score.num { font-family: var(--font-fig); font-size: var(--t15); line-height: var(--l15); font-weight: 400; letter-spacing: var(--ls-fig); font-variant-numeric: tabular-nums; }
 .mb-row:disabled { cursor: default; opacity: 1; }
 .can-pick .mb-row:not(:disabled) { cursor: pointer; }
-@media (hover: hover) { .can-pick .mb-row:not(:disabled):not(.inv):hover, .mb:is(.team-click, .can-open):hover .mb-row:not(.inv) { background: var(--panel-2); } }
+@media (hover: hover) { .can-pick .mb-row:not(:disabled):not(.inv):hover, .mb:is(.team-click, .can-open):hover .mb-row:not(.inv) { background: var(--tint); } }
 .mb.team-click { cursor: pointer; }
 /* a visitor's match sheet: the bouts of a team match stand 20 under the two sides */
 .mb-bouts { margin-top: var(--s5); }
-/* a match played as a site battle: the amber lamp in its box's corner, and in its sheet the battle and its one action */
-/* a match's table: the box's 32 head strip on the seam over its two rows (DESIGN.md "Panels" 5); 테이블 미정 muted */
-.mb-strip { display: flex; align-items: center; height: var(--h-strip); margin-bottom: var(--seam); padding: 0 var(--s3) 0 var(--s2); background: var(--panel); font-weight: 700; color: var(--lit); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a match's table: a 32 line of type over its two names; 테이블 미정 muted */
+.mb-strip { display: flex; align-items: center; height: var(--h-strip); margin-bottom: var(--seam); padding: 0; font-weight: 700; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-strip.wait { font-weight: 600; color: var(--mute); }
 .stack > .mb-strip { margin-bottom: 0; }
-/* 나: the records' league tag after a name (records-board.css .rc-league), its square lit; on the inverted winner's row it stands on the ground */
+/* 나: the records' league tag after a name (records-board.css .rc-league); on the winner's line it stands on no ground */
 .mb-me { flex: none; --type: var(--lit); }
-:is(.mb-row, .row).inv .mb-me { --tag-bg: var(--ground); }
+:is(.mb-row, .row).inv .mb-me { --tag-bg: transparent; }
 .row-main .mb-me { margin-left: var(--s2); vertical-align: middle; }
 /* the sheet's start and table: a clock and a counter on the seam, split 1.618 to 1 */
 .mb-when { margin-top: var(--s5); }
 .mb-when.two { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr); }
+/* a match played as a site battle: the amber lamp at its top right corner, and in its sheet the battle and its one action */
 .mb-lamp { position: absolute; top: var(--s1); right: var(--s1); z-index: var(--z-raised); }
 .mb-battle { margin-top: var(--s5); }
 
 /* the operators' schedule sheet: the rounds' starts two across, then each match's table as a choice */
 .bk-sched-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--seam); }
 
-/* the lines: one svg over the tree (BracketsPage ElimBoard), measured from the boxes. A road not yet decided is a 1px muted line,
-   a decided one a 2px lit line laid over it, square-capped so its corners close */
-.bk-tree { position: relative; }
+/* the lines: one svg laid over each section, every line a filled rectangle on whole pixels (BracketsPage sheetRects), so every join
+   meets to the pixel; hairlines --rule, the winners' lines --lit */
 .bk-wires { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.bk-wires path { fill: none; stroke-linejoin: miter; }
-.bk-wires .dim { stroke: var(--mute); stroke-width: 1; }
-.bk-wires .lit { stroke: var(--lit); stroke-width: 2; stroke-linecap: square; }
+.bk-wires .dim { fill: var(--rule); }
+.bk-wires .lit { fill: var(--lit); }
 
-/* the champion: an inverted panel the size of a match box */
-.bk-champ-node { height: var(--mb); display: flex; flex-direction: column; justify-content: center; gap: var(--s1); padding: 0 var(--s3); }
-.bk-champ-node b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.bk-champ-node.wait { color: var(--mute); }
+/* the champion: the name at 32 standing on the sheet's last line, the final's join running on into it; waiting, muted words on it */
+.bk-champ-node { height: var(--h-control); display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: var(--s1); }
+.bk-champ-node b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--lit); }
+.bk-champ-node.wait { padding-bottom: var(--s2); color: var(--mute); }
 
-/* double elimination: the losers' rounds as columns under the tree */
-.bk-lb { margin-top: var(--s8); }
-.bk-lb-h { margin-bottom: var(--s3); font-weight: 700; }
-.bk-cols { display: flex; gap: var(--bk-gap); align-items: flex-start; width: max-content; }
-.bk-col { width: var(--bk-w); display: flex; flex-direction: column; gap: var(--s3); }
-.bk-col .bk-col-h { margin-bottom: 0; }
+/* a double's losers' rounds and the 3위 결정전: sections under the tree, each opening on a 2px lit rule */
+.bk-lb { margin-top: var(--s8); padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bk-lb-h { margin-bottom: var(--s5); font-weight: 700; }
 /* QR: navy squares on white in both themes, as a camera reads them best (the raw palette, not the theme tokens) */
 .bk-qr { display: block; width: 100%; background: var(--white); }
 .bk-qr path { fill: var(--navy); }

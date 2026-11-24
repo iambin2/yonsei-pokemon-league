@@ -376,6 +376,8 @@ class Engine {
     this.moveK = 1; this.lifeK = 1;
     this.light = document.documentElement.dataset.theme === "light" ? 1 : 0;
     this.lightK = this.light;
+    // 고대비 (<html data-contrast="more">): the court is painted black and white (arena.js), with no reflection and no navy night
+    this.hc = document.documentElement.dataset.contrast === "more";
     this.actors = new Map();
     this.warmed = new Map(); // src → a picture already on the GPU, waiting for the actor that shows it (warm)
     this.tweens = []; this.timers = []; this.strips = []; this.sprites = []; this.decals = [];
@@ -388,8 +390,11 @@ class Engine {
     this.measure(true);
     this.ro = new ResizeObserver(() => this.measure());
     this.ro.observe(stage);
-    this.mo = new MutationObserver(() => { const l = document.documentElement.dataset.theme === "light" ? 1 : 0; if (l !== this.light) { this.light = l; this.paint?.(); } });
-    this.mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    this.mo = new MutationObserver(() => {
+      const d = document.documentElement.dataset, l = d.theme === "light" ? 1 : 0, hc = d.contrast === "more";
+      if (l !== this.light || hc !== this.hc) { this.light = l; this.hc = hc; this.paint?.(); }
+    });
+    this.mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-contrast"] });
     this.last = performance.now();
     this.frame = requestAnimationFrame(t => this.tick(t));
   }
@@ -782,7 +787,7 @@ class Engine {
     if (this.arena) this.drawQuad(this.arena.tex, this.arena.rect, view, { bright: g.dim });
     const sp = P.sprite;
     // reflections on the floor
-    for (const a of this.ordered()) this.drawActor(a, view, true);
+    if (!this.hc) for (const a of this.ordered()) this.drawActor(a, view, true);
     // the field's painted pieces (a web on the floor, caltrops, a wall round a side), crisp at any size, behind the Pokémon;
     // a decal marked front (the foe's wall, glass between them and us) is drawn over them
     const decals = front => { for (const d of this.decals.slice()) {
@@ -847,7 +852,7 @@ class Engine {
     gl.uniform1f(c.u.uCA, g.ca); gl.uniform1f(c.u.uVig, 0); gl.uniform1f(c.u.uSat, g.sat);
     /* a stage with its lamps down goes to the site's navy in the light theme: its pale court times the lamps alone stood as a
        neutral charcoal box on a white page (2026-11-10). Only under the dim a fall lays (.7), so a faint keeps its colours */
-    const night = this.lightK * clamp((.7 - g.dim) / .52);
+    const night = this.hc ? 0 : this.lightK * clamp((.7 - g.dim) / .52);
     gl.uniform3f(c.u.uMul, g.mR * lerp(1, .3, night), g.mG * lerp(1, .75, night), g.mB * lerp(1, 1.45, night)); gl.uniform3f(c.u.uAdd, g.aR, g.aG, g.aB); gl.uniform3f(c.u.uFlash, g.fR, g.fG, g.fB); gl.uniform1f(c.u.uFlashA, clamp(g.flashA));
     gl.uniform2f(c.u.uAspect, 1, this.H / this.W);
     gl.bindVertexArray(this.quadVao); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.bindVertexArray(null);

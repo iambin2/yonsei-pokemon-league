@@ -11,7 +11,7 @@
 
 /* ---------- Button: one component (Button.jsx). Hierarchy is the variant, height the size. ---------- */
 .btn {
-  --btn-bg: var(--panel-2); --btn-bg-hover: var(--panel-2); --btn-fg: var(--lit);
+  --btn-bg: transparent; --btn-bg-hover: var(--tint); --btn-fg: var(--lit);
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   border: 0; background: var(--btn-bg); color: var(--btn-fg);
   font-size: var(--t15); line-height: 1; font-weight: 600; white-space: nowrap; user-select: none;
@@ -26,9 +26,9 @@
 /* loading keeps the width: the words stay and turn clear under the busy cell (DESIGN.md "Busy": a sending main action shows it in place of its word) */
 .btn[aria-busy="true"] { color: transparent; }
 .btn[aria-busy="true"]:disabled { opacity: 1; }
-.btn > .y-busy { position: absolute; inset: 0; width: fit-content; height: fit-content; margin: auto; color: var(--btn-fg); }
-/* the cell's own colour (.seg is lit) would stand lit on the lit main action: a blank white key while it sends (2026-11-10) */
-.btn > .y-busy .seg { color: inherit; }
+.btn > .y-busy { position: absolute; inset: 0; margin: auto; color: var(--btn-fg); }
+/* on the lit main action the line runs in the ground's colour over a track of the dim (2026-11-10: lit on lit read as a blank key) */
+.btn--main > .y-busy { background: var(--dim); }
 .form-error { display: flex; align-items: flex-start; gap: var(--s2); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--lit); }
 /* section and whole-page errors: what went wrong, and one way to try again */
 /* .field (below) has the same weight and comes later, so the flush form names both or it never applies */
@@ -41,8 +41,8 @@
 /* a count is a number */
 .fold-badge { min-width: 20px; height: 20px; padding: 0 var(--s2); display: inline-grid; place-items: center; color: var(--lit); font-size: var(--t12); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
 
-/* ---------- Segmented is a choice (DESIGN.md "Controls"): a few options as 44 panels in a row joined by the seam, the chosen one
-   inverted, spanning the width so its edges line up with what is under it; past the width the row scrolls with no bar. Page tabs are TabsLine. ---------- */
+/* ---------- Segmented is a choice (DESIGN.md "Controls"): a few options as 44 entries in a row, the chosen one lit over the 2px line
+   that slides to it (board.css, motion.js slideLine), spanning the width so its edges line up with what is under it; past the width the row scrolls with no bar. Page tabs are TabsLine. ---------- */
 .ypl-seg { position: relative; display: flex; width: 100%; max-width: 100%; vertical-align: top; }
 .seg-track {
   position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--seam); width: 100%; max-width: 100%; padding: 0;
@@ -51,11 +51,11 @@
 .seg-track::-webkit-scrollbar { display: none; }
 .seg-track > button {
   position: relative; display: inline-flex; align-items: center; justify-content: center; height: var(--h-control); padding: 0 var(--s3);
-  background: var(--field-bg, var(--panel)); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); white-space: nowrap;
+  background: transparent; box-shadow: inset 0 -1px 0 var(--rule); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); white-space: nowrap;
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
-.seg-track > button[aria-selected="true"] { background: var(--lit); color: var(--ground); font-weight: 700; }
-@media (hover: hover) { .seg-track > button:not([aria-selected="true"]):hover { background: var(--panel-2); color: var(--lit); } }
+.seg-track > button[aria-selected="true"] { color: var(--lit); font-weight: 700; }
+@media (hover: hover) { .seg-track > button:not([aria-selected="true"]):hover { background: var(--tint); color: var(--lit); } }
 
 /* ---------- Picker rows ---------- */
 .pick-row {
@@ -75,14 +75,17 @@
 
 :where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea) {
   width: 100%; min-height: var(--h-row); padding: 0 var(--pad); border: 0;
-  background: var(--field-bg, var(--panel)); box-shadow: none; color: var(--lit); font-size: var(--t15); line-height: var(--l15);
+  background: transparent; box-shadow: inset 0 -1px 0 var(--dim); color: var(--lit); font-size: var(--t15); line-height: var(--l15);
   -webkit-appearance: none; appearance: none;
 }
 /* a field is a 52 panel (DESIGN.md "Controls"); inside a sheet or a panel it is one tone up. Focus draws a 2px line along the bottom. */
 :where(.sheet, .pn, .plate, .tb-panel, .tb-validation, .tb-library-save, .tb-saved-list, .fb-wrap, .ed-round, .bk-submission, .bk-group) { --field-bg: var(--panel-2); }
-/* keyboard focus is the one ring, a field's included (2026-11-16: a field drew a line under it instead); the line under a field says an error */
-:where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); box-shadow: none; }
-:where(.ypl) textarea { min-height: calc(var(--s21) + var(--s13)); resize: vertical; line-height: var(--l-read); padding: var(--s3) var(--pad); }
+/* a field never draws a ring (2026-11-24, the owner: a box filled by an outline on a click read 너무너무 어색해): focus by click or key
+   thickens its line to 2px --lit, the same line that says an error */
+:where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus { outline: none; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+/* a long text (댓글 쓰기, 글 쓰기, a form's answer) is a solid --tint block with no outline; focus lays the 2px --lit line along its bottom */
+:where(.ypl) textarea { min-height: calc(var(--s21) + var(--s13)); resize: vertical; line-height: var(--l-read); padding: var(--s3) var(--pad); background: var(--tint); box-shadow: none; }
+:where(.ypl) textarea:focus { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 :where(.ypl) :where(input[type="number"]) { font-variant-numeric: tabular-nums; }
 :where(.ypl) :is(input, textarea)[aria-invalid="true"] { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 :where(.ypl) input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
@@ -98,7 +101,7 @@
 .bk-hint, .hint { font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
 .row-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .row-actions > div { display: flex; gap: var(--s2); flex-wrap: wrap; }
-.pts-note { padding: var(--s5) var(--pad); background: var(--panel-2); font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
+.pts-note { padding: var(--s3) 0; box-shadow: inset 0 1px 0 var(--rule); font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
 .pts-note b { color: var(--lit); font-weight: 600; }
 
 /* ---------- Dropdown: a 52 field panel like the inputs, the chosen value and a chevron; desktop opens a menu under it, a phone a sheet ---------- */
@@ -106,17 +109,18 @@
 .dd-btn {
   position: relative; width: 100%; min-height: var(--h-row); display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
   padding: 0 var(--pad); border: 0;
-  background: var(--field-bg, var(--panel)); box-shadow: none;
+  background: transparent; box-shadow: inset 0 -1px 0 var(--dim);
   color: var(--lit); text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
   transition: scale var(--move-press), background-color var(--move-tone);
 }
+/* open, the field's one line is the 2px --lit, never the 1px and the 2px together */
 .dd.open .dd-btn { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .dd-btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dd-btn.ph > span { color: var(--mute); }
 /* a select answers a pointer as a panel does, one step up (a sheet's on --rule); in a cell the cell answers (board.css) */
 @media (hover: hover) {
-  .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--panel-2); }
-  .sheet .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--rule); }
+  .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--tint); }
+  .sheet .dd-btn:hover:not(:disabled):not(.cell .dd-btn) { background: var(--tint); }
 }
 .dd-chev { color: var(--mute); transition: transform var(--move-light); }
 .dd.open .dd-chev { transform: rotate(180deg); }
@@ -124,17 +128,17 @@
   position: absolute; z-index: var(--z-popover); top: calc(100% + var(--s2)); left: 0; right: 0; min-width: calc(var(--s21) * 2 + var(--s13));
   max-height: min(calc(var(--s21) * 4 + var(--s5)), 61.8vh); overflow-y: auto; overscroll-behavior: contain; padding: 0; transform-origin: top center;
   animation: y-fade var(--move-tone);
-  /* a floating plane keeps its edge as a sheet does, by a hairline inside it: one tone over the panel under it ran into it in light */
-  box-shadow: inset 0 0 0 var(--hair) var(--rule);
+  /* a menu is a solid --tint plane with no outline (2026-11-24); the row under the pointer steps to --rule, the chosen one is lit 700 with its check */
+  background: var(--tint);
 }
 .dd-opt {
   width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
   padding: var(--s2) var(--pad); border: 0; background: transparent; text-align: left; font-size: var(--t15); line-height: var(--l15); font-weight: 600;
   transition: scale var(--move-press), background-color var(--move-tone);
 }
-@media (hover: hover) { .dd-opt:hover:not(:disabled):not(.sel) { background: var(--panel-2); } }
-.dd-opt.sel { background: var(--panel-2); }
-.dd-opt:focus-visible { outline-offset: calc(2px * -1); background: var(--panel-2); }
+@media (hover: hover) { .dd-opt:hover:not(:disabled) { background: var(--rule); } }
+.dd-opt.sel { font-weight: 700; color: var(--lit); }
+.dd-opt:focus-visible { outline: none; background: var(--rule); }
 .dd-tick { display: flex; color: var(--lit); }
 .dd-none { padding: var(--s3); font-size: var(--t15); color: var(--dim); }
 .modal > .dd-none { padding-inline: 0; }
@@ -151,11 +155,12 @@
 .mi > .ic:first-child { color: var(--dim); }
 .mi .check, .mi .mi-end { margin-left: auto; color: var(--lit); }
 .mi .mi-end { color: var(--mute); }
-.mi.on { background: var(--panel-2); }
-@media (hover: hover) { .mi:hover:not(.on) { background: var(--panel-2); } }
-.mi:focus-visible { outline-offset: calc(2px * -1); background: var(--panel-2); }
+.mi.on { font-weight: 700; }
+@media (hover: hover) { .mi:hover { background: var(--tint); } .popover .mi:hover { background: var(--rule); } }
+.mi:focus-visible { outline: none; background: var(--tint); }
+.popover .mi:focus-visible { background: var(--rule); }
 .mi-sep { height: var(--seam); background: var(--ground); }
-.popover { position: fixed; z-index: var(--z-popover); min-width: calc(var(--s21) * 2 + var(--s13)); padding: 0; box-shadow: inset 0 0 0 var(--hair) var(--rule); }
+.popover { position: fixed; z-index: var(--z-popover); min-width: calc(var(--s21) * 2 + var(--s13)); padding: 0; background: var(--tint); }
 .popover .mi { height: 44px; font-size: var(--t15); }
 
 /* ---------- search field: a 48px line with the magnifier on it ---------- */
@@ -200,11 +205,8 @@
 .grip::after { content: ""; width: var(--s8); height: var(--s1); background: var(--mute); }
 /* the sheet is itself a panel, so every panel on it stands one tone up, a Pokémon's cell included (nothing is painted under a
    Pokémon, so its cell is the only thing it stands in), and a hover lifts to the hairline tone. An inverted row stays inverted. */
-.sheet .pn:not(.inv) { background: var(--panel-2); --field-bg: var(--rule); }
-/* each step in stands one tone up: a switch's track and a second action on the sheet's panels */
-.sheet .pn .sw:not(.on) { background: var(--rule); }
-.sheet .btn.btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }
-@media (hover: hover) { .sheet button.pn:not(.inv):not(:disabled):hover, .sheet .pn.search-in:hover { background: var(--rule); } }
+.sheet { background: var(--ground); }
+@media (hover: hover) { .sheet button.pn:not(.inv):not(:disabled):hover, .sheet .pn.search-in:hover { background: var(--tint); } }
 /* a sheet only scrolls down: nothing in it may push it sideways, and its rows of chips wrap instead of running off */
 .modal {
   position: relative; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
@@ -220,14 +222,16 @@
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 @media (hover: hover) { .modal-x:hover { color: var(--lit); } }
-/* actions are planes on the sheet's bottom edge: they meet each other and stay reachable while the body scrolls; the primary sits on the right.
-   A sticky box stops at its scroller's padding, so its bottom offset reaches back over that padding, and a hairline past the edge:
-   a phone at 2.625 scrolls by fractions and rounds the sticky box apart from the clip, which left one device row of the body under it. */
+/* actions stand along the sheet's foot and stay reachable while the body scrolls; the primary sits on the right. They stand inside the sheet
+   on the content's own edges (2026-11-24, the owner: keys narrower than the sheet yet flush on its bottom edge "크기가 안 맞는"): the same
+   --pad from the sheet's left, right and bottom edges as everything in it, the strip's ground running under that bottom --pad so nothing
+   scrolls through it. A sticky box stops at its scroller's padding, so its bottom offset reaches back over that padding, and a hairline
+   past the edge: a phone at 2.625 scrolls by fractions and rounds the sticky box apart from the clip. */
 .modal-actions {
   position: sticky; bottom: calc((var(--s8) + env(safe-area-inset-bottom, 0px)) * -1 - var(--hair)); z-index: var(--z-raised);
   display: flex;
-  margin: var(--s8) calc(var(--pad) * -1) calc((var(--s8) + env(safe-area-inset-bottom, 0px)) * -1);
-  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  margin: var(--s8) 0 calc((var(--s8) + env(safe-area-inset-bottom, 0px)) * -1);
+  padding: 0 0 calc(var(--pad) + env(safe-area-inset-bottom, 0px));
   gap: var(--seam); background: var(--ground);
 }
 .modal-actions .btn { flex: 1 1 0; }
@@ -238,8 +242,9 @@
 .sheet .chips { flex-wrap: wrap; overflow-x: visible; }
 /* on desktop a sheet's one utility key (링크 공유) is as wide as its word, at the sheet's end edge (Sheets, dialogs, toasts) */
 @media (min-width: 860px) { .share-here { display: flex; justify-content: flex-end; } .share-here > .btn.btn--second { width: auto; } }
-/* in a sheet's bottom strip every action is a plane: a word action (취소, 나중에 within forms) stands as a second action panel */
-.modal-actions .btn.btn--link { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); --btn-fg: var(--lit); justify-content: center; height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none; }
+/* in a sheet's bottom strip a word action (취소, 나중에) stands as a second action does: lit 700 words centred over its own hairline
+   across its share of the strip, beside the filled main key of the same 52, a pointer laying --tint on it */
+.modal-actions .btn:is(.btn--link, .btn--second) { --btn-bg: transparent; --btn-bg-hover: var(--tint); --btn-fg: var(--lit); justify-content: center; box-shadow: inset 0 -1px 0 var(--rule); height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none; }
 /* between a phone and the desktop a sheet still rises from the bottom, on the content's 576 column (tokens.css) */
 @media (min-width: 640px) and (max-width: 859px) { .sheet { left: 50%; right: auto; width: var(--content); translate: -50% 0; } }
 @media (min-width: 860px) {
@@ -252,20 +257,20 @@
   /* the body scrolls and clips, so the close button sits inside it, centred on the title's first line */
   .modal { padding: var(--s2) var(--pad) var(--s8); }
   .modal-x { right: 0; top: 0; }
-  .modal-actions { bottom: calc(var(--s8) * -1 - var(--hair)); margin-bottom: calc(var(--s8) * -1); padding-bottom: 0; }
+  .modal-actions { bottom: calc(var(--s8) * -1 - var(--hair)); margin-bottom: calc(var(--s8) * -1); padding-bottom: var(--pad); }
 }
 
 /* ---------- fold (collapsible) ---------- */
-.fold { margin: var(--s5) 0; background: var(--panel-2); }
+.fold { margin: var(--s5) 0; box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--rule); }
 .fold-head {
-  width: 100%; min-height: 52px; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s5);
+  width: 100%; min-height: 52px; display: flex; align-items: center; gap: var(--s3); padding: 0;
   border: 0; background: transparent; text-align: left; font-size: var(--t15); font-weight: 600;
 }
 .fold-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .fold-note { font-size: var(--t12); font-weight: 400; color: var(--mute); }
 .fold-chev { display: flex; color: var(--mute); transition: transform var(--move-light); }
 .fold.open .fold-chev { transform: rotate(180deg); }
-.fold-body { padding: 0 var(--s5) var(--s5); }
+.fold-body { padding: 0 0 var(--s5); }
 
 /* Compact desktop controls keep a full touch target on phones and touch screens.
    The floor's height has no weight (:where), so it raises a 36px control to 44 but never lowers a 48px field or a 60px row. */
@@ -281,12 +286,12 @@
 .pick-list { display: flex; flex-direction: column; gap: var(--s1); }
 .pick-row {
   width: 100%; display: flex; align-items: center; gap: var(--s3);
-  min-height: var(--h-row); padding: var(--s1) var(--s3); border: 0; background: transparent; color: inherit; text-align: left;
+  min-height: var(--h-row); padding: var(--s1) var(--band); border: 0; background: transparent; color: inherit; text-align: left;
   content-visibility: auto; contain-intrinsic-size: auto 52px;
 }
-@media (hover: hover) { .pick-row:hover:not(:disabled):not(.sel) { background: var(--panel-2); } }
-.pick-row.sel { background: var(--panel-2); }
-.pick-row.cursor { background: var(--panel-2); }
+@media (hover: hover) { .pick-row:hover:not(:disabled):not(.sel) { background: var(--tint); } }
+.pick-row.sel { background: var(--tint); }
+.pick-row.cursor { background: var(--tint); }
 .pick-row img, .pick-blank { flex: none; width: 44px; height: 44px; object-fit: contain; }
 .pick-row > .check { flex: none; color: var(--lit); }
 .pick-group { margin-top: var(--s5); padding-inline: var(--s3); }
@@ -308,25 +313,27 @@
 
 /* ---------- the case: a record on the plane, two flush planes with no frame: a light label over one navy window ---------- */
 .case { display: flex; flex-direction: column; width: 100%; height: 100%; color: var(--lit); text-align: left; }
-.case-label { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); min-height: var(--h-row); padding: calc((var(--h-row) - 1.333rem) / 2) var(--s5); background: var(--panel-2); color: var(--lit); transition: background-color var(--move-tone); }
+.case-label { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); min-height: var(--h-row); padding: calc((var(--h-row) - 1.333rem) / 2) 0; box-shadow: inset 0 -1px 0 var(--rule); color: var(--lit); transition: background-color var(--move-tone); }
 .case-who { flex: 1; min-width: 0; }
 .case-who b { display: block; overflow: hidden; font-size: var(--t15); font-weight: 700; line-height: var(--l15); text-overflow: ellipsis; white-space: nowrap; }
 .case-who > span { display: block; margin-top: var(--s1); overflow: hidden; font-size: var(--t12); font-weight: 600; line-height: var(--l12); color: var(--dim); text-overflow: ellipsis; white-space: nowrap; }
-.case-win { position: relative; display: block; flex: 1; overflow: hidden; min-height: 0; padding: var(--s5); background: var(--panel); color: var(--lit); }
+.case-win { position: relative; display: block; flex: 1; overflow: hidden; min-height: 0; padding: var(--s5) 0; color: var(--lit); }
 .case-win img { position: relative; z-index: var(--z-raised); display: block; width: 100%; height: 100%; object-fit: contain; }
 
-/* ---------- a native checkbox is the board's check: a 20 square, off panel-2, on inverted with its mark ---------- */
-:where(.ypl) input[type="checkbox"]:not(.sr-only) { appearance: none; -webkit-appearance: none; display: inline-grid; place-items: center; background: var(--panel-2); cursor: pointer; transition: background-color var(--move-tone); }
-:where(.ypl) :is(.pn, .sheet, .bk-pin) input[type="checkbox"]:not(.sr-only):not(:checked) { background: var(--rule); }
+/* ---------- a native checkbox is the board's check: a solid 20 square, off --rule, on filled --lit with its mark in --on-lit; no outline.
+   A keyboard's focus and a pointer step the empty square to --mute ---------- */
+:where(.ypl) input[type="checkbox"]:not(.sr-only) { appearance: none; -webkit-appearance: none; display: inline-grid; place-items: center; background: var(--rule); box-shadow: none; cursor: pointer; transition: background-color var(--move-tone); }
 :where(.ypl) input[type="checkbox"]:not(.sr-only):checked { background: var(--lit); }
-:where(.ypl) input[type="checkbox"]:not(.sr-only):checked::after { content: ""; width: var(--s3); height: var(--s3); background: var(--ground); clip-path: polygon(14% 44%, 0 58%, 38% 92%, 100% 22%, 86% 8%, 38% 64%); }
-:where(.ypl) input[type="checkbox"]:not(.sr-only):focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
-:where(.ypl) input[type="checkbox"]:not(.sr-only):disabled { background: var(--panel); cursor: default; }
+:where(.ypl) input[type="checkbox"]:not(.sr-only):checked::after { content: ""; width: var(--s3); height: var(--s3); background: var(--on-lit); clip-path: polygon(14% 44%, 0 58%, 38% 92%, 100% 22%, 86% 8%, 38% 64%); }
+:where(.ypl) input[type="checkbox"]:not(.sr-only):not(:checked):focus-visible { outline: none; background: var(--mute); }
+@media (hover: hover) { :where(.ypl) input[type="checkbox"]:not(.sr-only):not(:checked):not(:disabled):hover { background: var(--mute); } }
+:where(.ypl) input[type="checkbox"]:not(.sr-only):disabled { background: var(--tint); cursor: default; }
+:where(.ypl) input[type="checkbox"]:not(.sr-only):checked:disabled { background: var(--mute); }
 
 /* recently picked: up to six square cells over the list, the Pokémon standing on the cell's floor */
 .pick-recent { display: grid; gap: var(--s2); margin-top: var(--s5); }
 .pick-recent-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .pick-recent-one { position: relative; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; transition: scale var(--move-press), background-color var(--move-tone); }
 .pick-recent-one .mon { position: absolute; inset: var(--s1) var(--s1) 0; width: calc(100% - var(--s2)); height: calc(100% - var(--s1)); object-fit: contain; object-position: bottom; }
-@media (hover: hover) { .pick-recent-one:hover { background: var(--panel-2); } }
+@media (hover: hover) { .pick-recent-one:hover { background: var(--tint); } }
 .toast .toast-act { margin-left: auto; }

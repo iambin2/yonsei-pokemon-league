@@ -1,29 +1,29 @@
 /* =============================================================================
-   YPL Scoreboard: the calculator (대미지, 스피드, 도감).
-   The two Pokémon stand in cells on their floors; the chosen move's damage is lit as a segment board over its bar; fields
-   are cells; the speed line is rows with the basis inverted; the dex is a head panel, bars and rows.
+   The league almanac: the calculator (대미지, 스피드, 도감).
+   The two Pokémon stand on their lines; the chosen move's damage is set as a large thin figure over its bar; fields are underlined;
+   the speed line is ruled rows with the basis bold on the thick rule; the dex is a head, bars and ruled rows. Nothing has a panel.
    Bars, cells and the stat rows are the team builder's (builder.css, board.css).
    ========================================================================== */
 
 .calc-body, .calc-swap { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
 
-/* ---------- toggles: 32 panels, an active one inverted ---------- */
-/* the conditions: a board of equal cells joined by the seam, four across (three on a phone), each one 44 at 15 so it reads as a key,
-   the one on inverted (2026-11-23, the owner: chips at 12 "의미 없이 딸려 있는 느낌") */
+/* ---------- toggles ---------- */
+/* the conditions: equal cells on hairlines, four across (three on a phone), each one 44 at 15 so it reads as a key, the one on bold
+   on the thick lit rule (2026-11-23, the owner: chips at 12 "의미 없이 딸려 있는 느낌") */
 .calc-toggles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .calc-toggle { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--dim); font-size: var(--t15); line-height: var(--l15); font-weight: 600; text-align: center; overflow-wrap: anywhere; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
-.calc-toggle.inv { color: var(--ground); font-weight: 700; }
+.calc-toggle.inv { color: var(--lit); font-weight: 700; }
 @media (min-width: 640px) { .calc-toggles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (hover: hover) { .calc-toggle.pn:hover { background: var(--panel-2); color: var(--lit); } }
+@media (hover: hover) { .calc-toggle.pn:hover { background: var(--tint); color: var(--lit); } }
 
-/* ---------- who faces whom: two cells, each Pokémon on its name band ---------- */
+/* ---------- who faces whom: two places, each Pokémon on its line with its name under it ---------- */
 .calc-versus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .calc-vs { --floor: var(--h-row); position: relative; display: block; width: 100%; height: calc(var(--h-counter) + var(--h-row2) + var(--h-row)); text-align: left; }
 .calc-vs .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s5)); margin-inline: auto; }
-.calc-vs-label { position: absolute; left: var(--pad); top: var(--s2); z-index: var(--z-raised); }
+.calc-vs-label { position: absolute; left: 0; top: var(--s2); z-index: var(--z-raised); }
 /* an empty side: the + stands in the middle of the whole panel, its words on the band below */
 .calc-vs-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mute); }
-.calc-vs-band { display: grid; align-content: start; gap: var(--s1); padding: var(--s2) var(--pad) 0; }
+.calc-vs-band { display: grid; align-content: start; gap: var(--s1); padding: var(--s2) 0 0; }
 /* the x that empties a side stands in the panel's top corner, beside its label */
 .calc-vs-slot { position: relative; min-width: 0; }
 .calc-vs-x { top: 0; translate: none; z-index: var(--z-raised); }
@@ -33,19 +33,24 @@
 .calc-speed-row > .btn { margin-left: auto; flex: none; }
 .calc-speed-line b { color: var(--lit); font-variant-numeric: tabular-nums; }
 
-/* ---------- damage: the chosen move lit as a board, the other moves as rows ---------- */
+/* ---------- damage: the chosen move as a large figure, the other moves as ruled rows ---------- */
 .calc-directions { display: grid; gap: var(--s5); align-items: start; }
 .calc-direction { display: grid; gap: var(--s3); min-width: 0; }
-.calc-direction > p { margin: 0; }
-.calc-board { display: grid; gap: var(--s2); padding: var(--s3) var(--pad) var(--s5); }
-.calc-board-seg { display: flex; align-items: flex-end; gap: var(--s2); margin-top: var(--s1); }
-.calc-board-seg > .t20 { line-height: 1; }
+.calc-direction > p { margin: 0; padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
+.calc-board { display: grid; gap: var(--s2); padding: var(--s3) 0 var(--s5); }
+/* the range in Albert Sans's thin weight: 84 tall on a wide screen, 52 on a phone; the ~ thin and dim, the % at 32 */
+.calc-board-fig { display: flex; align-items: baseline; gap: var(--s3); margin-top: var(--s3); }
+.calc-board-tilde { font-family: var(--font-fig); letter-spacing: var(--ls-fig); font-size: var(--t32); font-weight: 200; color: var(--dim); }
+.calc-board-unit { font-family: var(--font-fig); letter-spacing: var(--ls-fig); font-size: var(--t32); font-weight: 300; }
+@media (max-width: 639px) { .calc-board-fig .fig, .calc-speed-board .fig { font-size: calc(var(--s13) / .72); line-height: var(--s13); } }
 .calc-board-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-top: var(--s2); }
 .calc-rolls { font-variant-numeric: tabular-nums; word-break: keep-all; }
 .calc-results { margin-top: var(--seam); }
+/* the rows stand on the page's edge like every ruled entry, not inset as on a panel */
+.calc-result .row-main:first-child { padding-left: 0; }
+.calc-result .row-value { padding-right: 0; }
 .calc-result .row-value { font-size: var(--t15); line-height: var(--l15); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .calc-result.quiet .row-value { font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--mute); }
-.calc-result.inv .row-value, .calc-result.inv .dim { color: var(--ground); }
 
 /* the bar: lit is what the lowest roll takes, dim is the roll window, the track is the HP that stays */
 .calc-hpbar { margin-top: var(--s2); }
@@ -77,26 +82,26 @@
 @media (hover: hover) { .calc-stat-key:hover { color: var(--lit); } }
 .calc-final { justify-self: end; font-variant-numeric: tabular-nums; }
 
-.calc-stepper { display: grid; grid-template-columns: var(--h-strip) minmax(0, 1fr) var(--h-strip); align-items: center; height: var(--h-strip); background: var(--panel); }
+.calc-stepper { display: grid; grid-template-columns: var(--h-strip) minmax(0, 1fr) var(--h-strip); align-items: center; height: var(--h-strip); box-shadow: inset 0 -1px 0 var(--rule); }
 .calc-stepper button { display: grid; place-items: center; width: var(--h-strip); height: var(--h-strip); color: var(--dim); transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .calc-stepper button:hover:not(:disabled) { background: var(--panel-2); color: var(--lit); } }
-.calc-stepper button:disabled { color: var(--off); }
+@media (hover: hover) { .calc-stepper button:hover:not(:disabled) { background: var(--tint); color: var(--lit); } }
+.calc-stepper button:disabled { color: var(--mute); opacity: var(--opacity-disabled); }
 .calc-stepper output { text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
 .calc-stepper output.on { color: var(--lit); font-weight: 700; }
 
-/* ---------- speed: the basis lit, the line as rows ---------- */
-.calc-speed-me { display: grid; grid-template-columns: calc(var(--s21) + var(--s13)) minmax(0, 1fr) auto; align-items: stretch; gap: var(--s3); padding-right: var(--pad); }
+/* ---------- speed: the basis as a large figure, the line as ruled rows ---------- */
+.calc-speed-me { display: grid; grid-template-columns: calc(var(--s21) + var(--s13)) minmax(0, 1fr) auto; align-items: stretch; gap: var(--s3); }
 .calc-speed-me > .btn { align-self: center; }
 .calc-speed-board { display: grid; gap: var(--s1); padding: var(--s3) 0; }
-.calc-speed-none { display: grid; gap: var(--s3); justify-items: start; padding: var(--s5) var(--pad); }
+.calc-speed-none { display: grid; gap: var(--s3); justify-items: start; padding: var(--s5) 0; }
 .calc-speed-controls { display: grid; gap: var(--seam); }
 /* the modifier: the same cells as the spread above it, the factor at 15 and its cause at 12 under it */
 .calc-mod .seg-track > button { flex-direction: column; gap: 0; height: var(--h-row2); padding: 0 var(--s1); }
 .calc-mod .seg-track > button > .t12 { font-weight: 600; }
-.calc-tier-wrap { display: grid; gap: var(--s3); }
-.calc-tiers { list-style: none; display: grid; gap: var(--seam); margin: 0; padding: 0; }
+.calc-tier-wrap { display: grid; gap: 0; }
+.calc-tiers { list-style: none; display: grid; gap: 0; margin: 0; padding: 0; box-shadow: inset 0 var(--line) 0 var(--lit); }
 /* a line of the speed line: the speed, the Pokémon's picture, its name, its base */
-.calc-tier { display: grid; grid-template-columns: var(--s13) var(--h-control) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: 0 var(--pad); content-visibility: auto; contain-intrinsic-size: auto 52px; }
+.calc-tier { display: grid; grid-template-columns: var(--s13) var(--h-control) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: 0; content-visibility: auto; contain-intrinsic-size: auto 52px; }
 .calc-tier-mon { width: var(--h-control); height: var(--h-control); }
 .calc-tier-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
 .calc-tier > b { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -104,40 +109,43 @@
 .calc-tier-copy strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calc-tier.slower { color: var(--dim); }
 .calc-tier.inv { content-visibility: visible; }
+.calc-tier.inv > b, .calc-tier.inv strong { font-weight: 700; }
 
-/* ---------- dex: the head panel, bars, matchups ---------- */
+/* ---------- dex: the head, bars, matchups ---------- */
 .calc-dex-empty { justify-items: start; }
 .calc-dex-empty .btn { margin-top: var(--s3); }
 .calc-dex-head { grid-template-columns: calc(var(--s21) + var(--s13)) minmax(0, 1fr); }
 /* a figure cell: the Pokémon on a 20 floor band, 136 tall */
 .calc-fig { --floor: var(--s5); position: relative; display: block; min-height: calc(var(--s21) + var(--s13)); }
 .calc-fig .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s3)); margin-inline: auto; }
-.calc-dex-copy { display: grid; align-content: center; gap: var(--s1); padding: var(--s3) var(--pad); }
+.calc-dex-copy { display: grid; align-content: center; gap: var(--s1); padding: var(--s3) 0; }
 .calc-dex-copy h2 { margin: 0; }
 .calc-dex-actions { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
 .calc-dex-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s8); align-items: start; }
 .calc-dex-block { display: grid; gap: var(--s3); min-width: 0; }
+.calc-dex-block > .tb-subhead { padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
+/* the base stats' total, the dex's one figure */
+.calc-dex-block > .calc-total { align-items: flex-end; }
 .calc-base { display: grid; }
 .calc-base-row { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) calc(var(--s21) - var(--s5)); align-items: center; gap: var(--s3); min-height: var(--h-strip); }
 /* on desktop the range (183 ~ 215) keeps one line */
 @media (min-width: 860px) { .calc-base-row { grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) var(--s21); } .calc-base-row > :last-child { white-space: nowrap; } }
 .calc-base-row > b { text-align: right; font-variant-numeric: tabular-nums; }
 .calc-base-row > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-.calc-matchup { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s2) var(--pad); }
+.calc-matchup { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s2) 0; }
 .calc-matchup > b { font-variant-numeric: tabular-nums; }
-/* an inverted panel inverts what is in it: the tags step to the ground (Composing a screen 13) */
-.calc-matchup.inv .tb-type { --tag-bg: var(--ground); }
 
 .calc-move-tools { display: grid; grid-template-columns: minmax(0, 1.618fr) repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .calc-move-tools .tb-search-row { margin: 0; }
 .calc-table-wrap { overflow-x: auto; }
-/* the moves: rows of 52 panels joined by the seam, as every list on the board */
-.calc-table { width: 100%; border-collapse: separate; border-spacing: 0 var(--seam); margin-top: calc(var(--seam) * -1); font-size: var(--t15); }
-.calc-table th { padding: var(--s2); font-size: var(--t12); font-weight: 600; color: var(--mute); text-align: left; white-space: nowrap; }
-.calc-table td { padding: var(--s2); height: var(--h-row); vertical-align: middle; white-space: nowrap; content-visibility: auto; }
-.calc-table td { background: var(--panel); }
-.calc-table :is(th, td):first-child { padding-left: var(--pad); }
-.calc-table :is(th, td):last-child { padding-right: var(--pad); }
+/* the moves: a ruled table opened by the 2px lit rule, the heads under it on a hairline and every row of 52 on a hairline */
+.calc-table { width: 100%; border-collapse: collapse; font-size: var(--t15); }
+.calc-table th { padding: var(--s2); font-size: var(--t12); font-weight: 600; color: var(--dim); text-align: left; white-space: nowrap; height: var(--h-control); box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.calc-table td { padding: var(--s2); height: var(--h-row); vertical-align: middle; white-space: nowrap; content-visibility: auto; box-shadow: inset 0 -1px 0 var(--rule); }
+.calc-table :is(th, td):first-child { padding-left: 0; }
+/* under the tools that filter it the table keeps no opening rule of its own: the tools' lines are its opening (one line, board.css) */
+.calc-move-tools + .calc-table-wrap .calc-table th { box-shadow: inset 0 -1px 0 var(--rule); }
+.calc-table :is(th, td):last-child { padding-right: 0; }
 .calc-table td strong { display: block; font-weight: 600; }
 .calc-table td small { display: block; font-size: var(--t12); color: var(--mute); }
 .calc-table .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -175,5 +183,5 @@
 
 /* the damage page reads as three parts: who faces whom, the battle's conditions, each side's settings. Sections stand 52 apart
    (the stack's 20 and 32 more), a title 12 over its stack (.sh) */
-.calc-sec > .sh { margin-top: var(--s8); }
+.calc-sec > .sh { margin-top: var(--s8); padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
 @media (max-width: 859px) { .calc-side-switch { margin-bottom: var(--s5); } }

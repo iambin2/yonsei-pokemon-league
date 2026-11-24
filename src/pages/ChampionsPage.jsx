@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { normTeam as normalizeLegacyParty } from "../services/legacyPartyImages.js";
 import { Empty, ErrorNote, Loader } from "../components/index.js";
 import { Mon, SectionHead } from "../components/common/Board.jsx";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import Button from "../components/common/Button.jsx";
 import ChampionSheet from "../components/common/ChampionSheet.jsx";
 import { championsOperationsEnabled, fetchNormalizedChampionsHallOfFame } from "../services/index.js";
@@ -17,9 +17,9 @@ import { CHAMPIONS_MAX_AGE_MS } from "../components/home/homeFacts.js";
 import { useItemTitle } from "../components/layout/title.js";
 
 /* ============================== CHAMPIONS ==============================
-   (DESIGN.md "Titles and hall of fame") 전당은 계보다(2026-11-24, 시안 A). 위: 현 챔피언의 대형 스크린, 반전된 한 판에 세대가 240(폰 120)
-   세그먼트로 켜지고 이름, 시즌, 두 링크가 같은 단에, 여섯 마리가 이름 띠와 함께 709에 선다. 아래: 계보, 이전 챔피언이 최신부터 한 줄씩
-   1200을 받는다(세대 84, 이름 20, 시즌, 여섯 마리). 챔피언이 늘면 줄이 하나 느는 것뿐이다. 줄을 누르면 파티 시트가 열린다. */
+   (DESIGN.md "Titles and hall of fame") 전당은 계보다(2026-11-24, 연감). 위: 현 챔피언의 항목, 세대가 356(폰 136)의 가는 숫자로 서고
+   굵은 줄 아래 이름, 시즌, 두 링크가 같은 단에, 여섯 마리가 한 줄 위에 이름과 함께 709에 선다. 아래: 계보, 이전 챔피언이 최신부터 한 줄씩
+   1200을 받는다(세대 84, 이름, 시즌, 여섯 마리). 챔피언이 늘면 줄이 하나 느는 것뿐이다. 줄을 누르면 파티 시트가 열린다. */
 // desktop or a phone, as the stylesheet's 860 parts them (the displays' heights are attributes, not CSS)
 const WIDE = "(min-width: 860px)";
 function useWide() {
@@ -88,21 +88,21 @@ export default function ChampionsPage({ data, admin, setModal, normTeam = normal
   const sameReign = (a, b) => Boolean(a && b) && a.generationNumber === b.generationNumber && a.name === b.name && a.format === b.format;
   const past = champs.slice(0, -1).reverse();
   const plate = (c, h, unit) => genNo(c) > 0
-    ? <span className="hof-gen"><Seg value={String(genNo(c))} h={h} cells={Math.max(2, String(genNo(c)).length)} label={`${genNo(c)}대`} /><span className={unit}>대</span></span>
+    ? <span className="hof-gen"><Fig value={String(genNo(c))} h={h} label={`${genNo(c)}대`} /><span className={unit}>대</span></span>
     : <span className="t20">{generationText(c.gen)}</span>;
-  // the hero's display is 240 on desktop and 120 on a phone (DESIGN.md "The golden law"), the lineage's 84 and 40; a cell of the six over 64 takes the large picture
+  // the hero's figure is 356 on desktop and 136 on a phone (DESIGN.md "The golden law"), the lineage's 84 and 40; a cell of the six over 64 takes the large picture
   const wide = useWide();
 
   return (<section className="hof">
-    <header className="hof-head"><h1 className="t32">명예의 전당</h1>{admin && <Button variant="link" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button>}</header>
+    <header className="hof-head"><h1 className="page-title">명예의 전당</h1>{admin && <Button variant="link" onClick={() => setModal({ type: "champion" })}>이전 챔피언 추가</Button>}</header>
     {failed && <ErrorNote action="다시 불러오기" onRetry={() => { setFailed(false); setTries(n => n + 1); }}>챔피언 기록을 불러오지 못했습니다.</ErrorNote>}
     {!reigning && (reading ? <Loader /> : !failed && <Empty title="등록된 챔피언이 없습니다." />)}
-    {reigning && <section className="inv hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
+    {reigning && <section className="hof-crown" aria-label={`현 챔피언 ${reigning.name}`}>
       <div className="hof-crown-who">
-        <span className="hof-crown-top"><span className="t12">현 챔피언</span>{plate(reigning, wide ? 240 : 120, "t32")}</span>
+        <span className="hof-crown-top"><span className="t15 dim">현 챔피언</span>{plate(reigning, wide ? 356 : 136, "t32")}</span>
         <span className="hof-crown-end">
           <h2 className="t32 hof-crown-name">{reigning.name}</h2>
-          <span className="t15">{title(reigning)}</span>
+          <span className="t15 dim">{title(reigning)}</span>
           <span className="hof-crown-act">
             {go && <Button variant="link" size="lg" onClick={() => go("records", { trainer: reigning.name })}>{reigning.name} 기록 보기</Button>}
             <Button variant="link" size="lg" onClick={() => setPop(reigning)}>파티 보기</Button>

@@ -66,7 +66,7 @@ export function usePush(title) {
   return { mode, on, busy, checked, press, sheet, kinds, pressKind };
 }
 
-/* a switch row: 52 by 32, off a muted square in panel-2, on inverted with the square at the right */
+/* a switch row: the switch, 52 by 32, at the row's end: a --tint track with a --dim square, on a --lit track with the square at the right */
 const SwitchRow = ({ label, on, disabled, onClick }) => (
   <button type="button" className="pn row switch-row" role="switch" aria-checked={on} disabled={disabled} onClick={onClick}>
     <span className="row-main"><b className="t15">{label}</b></span>
@@ -74,22 +74,24 @@ const SwitchRow = ({ label, on, disabled, onClick }) => (
   </button>
 );
 
-/* 알림 화면의 설정(draft B, 2026-11-19): 이 기기의 스위치, 그 아래 받을 알림의 판. 켜진 종류는 반전된 칸이고, 묶음 이름이 칸의 회색 줄이다.
-   꺼진 기기의 칸은 모두 꺼져 서 있고 누르면 켜는 시트가 뜬다. 계정이 없는 기기의 개인 알림도 꺼져 서 있고 누르면 이유를 말한다. */
+/* 알림 화면의 설정(2026-11-24, 다시 짬): 이 기기의 스위치 한 줄, 그 아래 받을 알림의 목록. 한 줄이 한 종류로, 이름이 15/700으로 밝고 묶음
+   이름이 회색 줄이며, 줄 끝의 네모가 받는지를 말한다(켜지면 채워지고 표시). 데스크톱은 두 단이다.
+   꺼진 기기의 줄은 모두 비어 서 있고 누르면 켜는 시트가 뜬다. 계정이 없는 기기의 개인 알림도 비어 서 있고 누르면 이유를 말한다. */
 export function PushBoard({ push }) {
   const { mode, on, busy, press, sheet, kinds, pressKind } = push;
   if (mode === "none") return null;
   const board = !on || kinds;
   return <>
-    <div className="stack"><SwitchRow label="이 기기 알림" on={on} disabled={busy} onClick={press} /></div>
+    <div className="stack opens"><SwitchRow label="이 기기 알림" on={on} disabled={busy} onClick={press} /></div>
     {board && <div className="push-group">
       <p className="t12 dim push-label">받을 알림</p>
-      <div className="stack push-board">
+      <div className="stack opens push-board">
         {PUSH_KINDS.map(k => {
           const lit = on && kinds.kinds.includes(k.kind) && (!k.personal || kinds.linked);
-          return <button type="button" key={k.kind} role="switch" aria-checked={lit} disabled={busy} className={(lit ? "inv" : "pn") + " push-cell"}
+          return <button type="button" key={k.kind} role="checkbox" aria-checked={lit} disabled={busy} className="pn row row--2 push-kind"
             onClick={on ? () => pressKind(k) : press}>
-            <b className="t15">{k.label}</b><span className={"t12 reg" + (lit ? "" : " dim")}>{k.group}</span>
+            <span className="row-main"><b className="t15">{k.label}</b><span className="t12 dim reg">{k.group}</span></span>
+            <span className={"box" + (lit ? " on" : "")} aria-hidden="true">{lit && <Icon n="check" size={16} />}</span>
           </button>;
         })}
       </div>

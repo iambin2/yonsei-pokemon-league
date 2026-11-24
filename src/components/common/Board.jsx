@@ -1,8 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import Icon from "./Icon.jsx";
-import Seg from "./Seg.jsx";
+import Fig from "./Fig.jsx";
 import { standInk } from "./inkCentre.js";
-import { DUR, forgetLine, light, lightAfter, place, slideLine } from "./motion.js";
+import { drawRule, forgetLine, light, lightAfter, place, slideLine } from "./motion.js";
 
 /* a number with its thousands marked (12,345), from one formatter: toLocaleString makes a new one for every number, 43 ms of the frame a
    ranking stood up in at a phone's speed (2026-11-18, the 도전의 탑 tab) */
@@ -21,7 +21,7 @@ export function useSlideLine(key, lights = false) {
    was already there when the page lit is left alone, so nothing lights twice. Returns the ref for the part that waits. */
 export function useArrival(ready) {
   const ref = useRef(null), waited = useRef(!ready);
-  useLayoutEffect(() => { if (ready && waited.current) { waited.current = false; light(ref.current, DUR.leave); } }, [ready]);
+  useLayoutEffect(() => { if (ready && waited.current) { waited.current = false; light(ref.current); } }, [ready]);
   return ref;
 }
 /* the first page of a visit lights when its code and content are actually in place (inside the lazy boundary), not when the site's
@@ -36,9 +36,15 @@ function useLightOnChange(ref, value) {
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } lightAfter(ref.current); }, [value]);
 }
+/* after the first render, a change of choice draws the chosen one's rule in (motion.js drawRule) */
+function useDrawChosen(value) {
+  const ref = useRef(null), first = useRef(true);
+  useLayoutEffect(() => { if (first.current) { first.current = false; return; } drawRule(ref.current?.querySelector(":scope > .inv")); }, [value]);
+  return ref;
+}
 
-/* The scoreboard's shared parts (DESIGN.md). A screen is built from these, board.css and the
-   panel classes of tokens.css (.pn, .pn2, .stack, .inv, .lamp). A panel is a door: given onClick it is a button. */
+/* The almanac's shared parts (DESIGN.md). A screen is built from these, board.css and the entry classes of tokens.css (.pn, .pn2,
+   .stack, .inv, .lamp). An entry is a door: given onClick it is a button. */
 /* A door with an address (href) is a link, so it opens in a new tab, copies by a long press and is found by a search engine;
    a plain click on it is still the site's own move (follow). */
 export const follow = fn => e => {
@@ -74,23 +80,23 @@ export function SectionHead({ id, title, link, onLink }) {
   );
 }
 
-/* A counter: a 84 panel, its label 12 on top, a 40 display under it. value null is the board switched off.
-   lamp lights the label's lamp ("sig" for amber); the unit stands in type on the display's baseline (Seven-segment displays: its unit is
-   type), and after replaces it where the words differ (/ 32). */
-export function Counter({ label, value, unit = "", cells = 2, onClick, lamp, after, h = 40 }) {
+/* A counter: an 84 entry, its label 12 on top, a figure under it (Figures). value null is a place still waiting for its figure: a
+   muted dash. lamp "sig" puts the amber mark before the label, for what is live; nothing else is marked (Marks). The unit stands in type
+   on the figure's baseline, and after replaces it where the words differ (/ 32). */
+export function Counter({ label, value, unit = "", onClick, lamp, after, h = 40 }) {
   const { as: Box, props } = door(onClick);
   const lit = value != null;
   return (
     <Box className="pn counter" {...props} aria-label={lit ? `${label} ${value}${unit}` : label}>
-      <span className="t12 dim counter-label">{lamp && <i className={"lamp" + (lamp === "sig" ? " sig" : "")} aria-hidden="true" />}{label}</span>
-      <span className="counter-board"><Seg value={lit ? value : ""} h={h} cells={cells} label={lit ? `${value}${unit}` : ""} />{after ?? (unit && <span className="t15">{unit}</span>)}</span>
+      <span className="t12 dim counter-label">{lamp === "sig" && <i className="lamp sig" aria-hidden="true" />}{label}</span>
+      <span className="counter-board"><Fig value={lit ? value : ""} h={h} label={lit ? `${value}${unit}` : ""} />{after ?? (unit && <span className="t15">{unit}</span>)}</span>
     </Box>
   );
 }
 
 /* A row of a stack: 52 for one line, 64 with a grey line. lead is the cell on the left (a rank, a date), value the figure on the right,
-   lamp the lamp column at the end (true lights it, false keeps the column dark; a word lights it and stands after it, since a lamp
-   is a word's companion: 새 글); sig makes it amber, for what is live (도전 중). className sets the columns. */
+   lamp the column at the end: a word stands there (새 글, 진행 중), and with sig the amber mark before it, for what is live (Marks); a
+   boolean keeps the column and marks it only when both it and sig are true. className sets the columns. */
 export function Row({ lead, title, line, value, lamp, sig = false, onClick, href, className = "", label }) {
   const { as: Box, props } = door(onClick, href);
   return (
@@ -98,22 +104,22 @@ export function Row({ lead, title, line, value, lamp, sig = false, onClick, href
       {lead != null && <span className="row-lead">{lead}</span>}
       <span className="row-main"><b className="t15">{title}</b>{line && <span className="t12 dim reg">{line}</span>}</span>
       {value != null && <span className="row-value">{value}</span>}
-      {typeof lamp === "string" ? <span className="row-lamp-word t12"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>
-        : lamp != null && <span className="row-lamp">{lamp && <i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />}</span>}
+      {typeof lamp === "string" ? <span className="row-lamp-word t12">{sig && <i className="lamp sig" aria-hidden="true" />}{lamp}</span>
+        : lamp != null && <span className="row-lamp">{lamp && sig && <i className="lamp sig" aria-hidden="true" />}</span>}
     </Box>
   );
 }
 
-/* A lead panel: the first of a list stands large so the list has a beat. The date as 월 and 일 displays at 32, the lamp with
-   its word at the right (sig for amber), the title at 20 in two lines, a grey line. date is "10.28" (dotDate's day). */
+/* A lead entry: the first of a list stands large so the list has a beat. The date as 월 and 일 figures at 32, the word at the right
+   (sig puts the amber mark before it), the title at 20 in two lines, a grey line. date is "10.28" (dotDate's day). */
 export function Lead({ date, title, line, lamp, sig = false, onClick, href, label }) {
   const { as: Box, props } = door(onClick, href);
   const [m, d] = String(date || "").split(".");
   return (
     <Box className="pn lead" {...props} aria-label={label}>
       <span className="lead-top">
-        {m && d ? <span className="lead-date" aria-hidden="true"><Seg value={m} h={32} cells={2} label="" /><span className="t15">월</span><Seg value={d} h={32} cells={2} label="" /><span className="t15">일</span></span> : <span />}
-        {lamp && <span className="t12 lead-lamp"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>}
+        {m && d ? <span className="lead-date" aria-hidden="true"><Fig value={m} h={32} label="" /><span className="t15">월</span><Fig value={d} h={32} label="" /><span className="t15">일</span></span> : <span />}
+        {lamp && <span className="t12 lead-lamp">{sig && <i className="lamp sig" aria-hidden="true" />}{lamp}</span>}
       </span>
       <b className="t20 lead-title">{title}</b>
       {line && <span className="t12 dim reg">{line}</span>}
@@ -122,7 +128,7 @@ export function Lead({ date, title, line, lamp, sig = false, onClick, href, labe
 }
 
 /* The live strip: on event day every page but the home and the bracket opens with it: the amber lamp, the event's name with
-   진행 중, and 대진표 → at the right. A panel, not inverted: amber on the lit fill would fall under the lamp's contrast of 3. */
+   진행 중, and 대진표 → at the right. An entry on its hairline, never filled: amber on a lit fill would fall under the mark's contrast of 3. */
 export function LiveStrip({ name, onGo }) {
   return (
     <button type="button" className="pn live-strip" onClick={onGo}>
@@ -153,42 +159,16 @@ function arrived(img) {
   if (g.over || !g.wait.size) flush(g);
 }
 
-/* A Pokémon standing in its panel (DESIGN.md "Where a Pokémon stands"): the parent is a .stand panel with a .floor band; the picture
+/* A Pokémon standing on its line (DESIGN.md "Where a Pokémon stands"): the parent is a .stand entry with a .floor place; the picture
    stands with its ink's feet on the band's top edge. Pictures that fail to load leave the floor empty. */
 export function Mon({ src, small = false, className = "", ...rest }) {
   if (!src) return null;
   // a cell at most 64 across takes the picture's small copy (192: half the bytes and a seventh of the pixels to decode; scripts/build-sprites.py writes both)
   if (small) src = src.replace("/sprites/pokemon/", "/sprites/pokemon-s/");
-  // a picture still loading when its panel lit comes on by tone once it has loaded, instead of popping in (DESIGN.md "Motion")
+  // a picture still loading when its entry lit comes on by tone once it has loaded, instead of popping in (DESIGN.md "Motion")
   const stand = img => { if (!img) return; if (img.complete && img.naturalWidth) standInk(img); else if (img.dataset.late == null) late(img); };
   const loaded = img => { standInk(img); if (img.dataset.late != null) arrived(img); };
   return <img className={"mon" + (className ? " " + className : "")} src={src} alt="" decoding="async" {...rest} ref={stand} onLoad={e => loaded(e.currentTarget)} />;
-}
-
-/* The current champion, the big screen's second half (DESIGN.md "Layout and pages", draft B): one panel, 현 챔피언, the generation lit at
-   40 with 대, the name at 32, the season dim, the champion's Pokémon standing at the right, then the six as one row of six cells across the
-   panel, then → 파티 보기. champion null is the panel switched off at its size (the six as dark cells). */
-export function ChampionPanel({ champion, onClick }) {
-  const six = champion ? champion.party : Array(6).fill(null);
-  return (
-    <button type="button" className="pn champion" onClick={champion ? onClick : undefined}
-      aria-label={champion ? `현 챔피언 ${champion.name}, ${champion.label}, ${champion.line}, 파티 보기` : "현 챔피언"}>
-      <span className="champion-head">
-        <span className="champion-who">
-          <span className="t12 dim">현 챔피언</span>
-          {champion?.generation > 0 && <span className="counter-board champion-gen"><Seg value={String(champion.generation)} h={40} cells={champion.generation >= 10 ? 2 : 1} label={champion.label} /><span className="t15">대</span></span>}
-          {champion && <b className="t32">{champion.name}</b>}
-          {champion && <span className="t12 dim reg">{champion.generation > 0 ? champion.line : `${champion.label}, ${champion.line}`}</span>}
-        </span>
-        {/* the first screen's largest picture: asked for before the rest */}
-        <span className="stand champion-stand"><i className="floor" aria-hidden="true" />{champion && <Mon src={champion.party[0]?.img} fetchpriority="high" />}</span>
-      </span>
-      {six.length > 0 && <span className="stack champion-six" aria-hidden="true">
-        {six.map((m, i) => <span className="pn2 stand" key={i}><i className="floor" aria-hidden="true" />{m && <Mon src={m.img} small />}</span>)}
-      </span>}
-      <span className="champion-more t12">{champion && <><Icon n="arrow" size={16} />파티 보기</>}</span>
-    </button>
-  );
 }
 
 /* ---------- controls (DESIGN.md "Controls") ---------- */
@@ -214,8 +194,9 @@ export function Question({ id, label, required = false, error, group = false, ch
   );
 }
 
-/* Choice: a few options as 44 panels in a row, the chosen one inverted. multiple turns it into checks: 20 squares beside their words. */
+/* Choice: a few options as 44 entries in a row, the chosen one lit over the 2px rule. multiple turns it into checks: 20 squares beside their words. */
 export function Choice({ name, options, value, onChange, multiple = false }) {
+  const chosen = useDrawChosen(multiple ? null : value);
   if (multiple) {
     const list = Array.isArray(value) ? value : [];
     return (
@@ -229,7 +210,7 @@ export function Choice({ name, options, value, onChange, multiple = false }) {
     );
   }
   return (
-    <div className="choice stack" role="radiogroup">
+    <div className="choice stack" role="radiogroup" ref={chosen}>
       {options.map((op, i) => <label className={"choice-opt " + (value === op ? "inv" : "pn")} key={i}>
         <input type="radio" className="sr-only" name={name} checked={value === op} onChange={() => onChange(op)} />{op}
       </label>)}
@@ -238,15 +219,16 @@ export function Choice({ name, options, value, onChange, multiple = false }) {
 }
 
 /* The main action's strip: on a phone it docks above the tab bar on the ground with a hairline, so it never scrolls away. toast stands
-   above it: an inverted 52 panel, an error starting with the ! square, its one action an underlined word. */
-/* a cell: a label 12 over its value 15 in a 52 panel; a dropdown or pick field inside fills the cell (spec cells, fields) */
+   above it: a filled 52 strip, an error starting with the ! square, its one action an underlined word. */
+/* a cell: a label 12 over its value 15 in a 52 entry; a dropdown or pick field inside fills the cell (spec cells, fields) */
 export function Cell({ label, wide = false, className = "", children }) {
   return <div className={"cell" + (wide ? " wide" : "") + (className ? " " + className : "")}><span className="cell-label">{label}</span>{children}</div>;
 }
-/* options as rows of 64: a title and a grey line, the chosen one inverted with a check (rules, settings) */
+/* options as rows of 64: a title and a grey line, the chosen one lit over the 2px rule with a check (rules, settings) */
 export function OptionRows({ name, options, value, onChange, disabled = false }) {
+  const chosen = useDrawChosen(value);
   return (
-    <div className="stack" role="radiogroup">
+    <div className="stack" role="radiogroup" ref={chosen}>
       {options.map(op => <label key={op.value} className={"opt-row " + (value === op.value ? "inv" : "pn") + (disabled ? " off" : "")}>
         <input type="radio" className="sr-only" name={name} checked={value === op.value} disabled={disabled} onChange={() => onChange(op.value)} />
         <span className="opt-copy"><b className="t15">{op.title}</b>{op.line && <span className="t12 reg opt-line">{op.line}</span>}</span>
@@ -279,11 +261,12 @@ export function TabsLine({ value, onChange, options, label }) {
   );
 }
 
-/* Steps of a flow (DESIGN.md "Controls"): a row of panels, 44; done dim with a check, current inverted, next muted. at is 1-based;
+/* Steps of a flow (DESIGN.md "Controls"): a row of entries, 44; done dim with a check, current lit over the 2px rule, next muted. at is 1-based;
    past the last step every step is done. */
 export function Steps({ labels, at }) {
+  const chosen = useDrawChosen(at);
   return (
-    <ol className="stack steps" style={{ "--n": labels.length }}>
+    <ol className="stack steps" style={{ "--n": labels.length }} ref={chosen}>
       {labels.map((label, i) => {
         const n = i + 1, state = n < at ? "done" : n === at ? "inv" : "next";
         return <li key={label} className={"step " + (state === "inv" ? "inv" : "pn " + state)} aria-current={state === "inv" ? "step" : undefined}>
@@ -298,9 +281,9 @@ export function Status({ live, children }) {
   return <span className={"status t12" + (live ? "" : " dim")}>{live && <i className="lamp sig" aria-hidden="true" />}{children}</span>;
 }
 
-/* Chips: filters and counts as 32 panels in a row, 12px, the applied one inverted, the count in its word (전체 59). */
+/* Chips: filters and counts as 32 entries in a row, 12px, the applied one lit over the 2px rule, the count in its word (전체 59). */
 export function Chips({ value, onChange, options, label }) {
-  const ref = useRef(null);
+  const ref = useDrawChosen(value);
   useLightOnChange(ref, value);
   return (
     <div className="chips" role="group" aria-label={label} ref={ref}>
@@ -309,7 +292,7 @@ export function Chips({ value, onChange, options, label }) {
   );
 }
 
-/* A type picker: the 18 types as cells of one size joined by the seam, each with its colour square; the chosen one inverted. all, when
+/* A type picker: the 18 types as cells of one size joined by the seam, each with its colour square; the chosen one decided. all, when
    given, is the "every type" cell (key ""), two cells wide so the board stays a full rectangle (DESIGN.md "Composing a screen" 12). */
 export function TypeGrid({ value, onChange, types, label, all, disabled = false }) {
   const ref = useRef(null);

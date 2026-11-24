@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from "react";
-import { DUR, light } from "./motion.js";
+import { light } from "./motion.js";
 import Icon from "./Icon.jsx";
 
-/* Pager (DESIGN.md "Controls"): three panels, back, the page as 1 / 2, next. */
+/* Pager (DESIGN.md "Controls"): three places, back, the page as 1 / 2, next. */
 export default function Pager({ page, pages, onGo, unit = "페이지" }) {
   const ref = useRef(null), first = useRef(true);
   // a turned page lights its rows, as a page does; the list stands just before the pager's place
-  useEffect(() => { if (first.current) { first.current = false; return; } light(ref.current?.parentElement?.previousElementSibling, DUR.leave); }, [page]);
+  useEffect(() => { if (first.current) { first.current = false; return; } light(ref.current?.parentElement?.previousElementSibling); }, [page]);
   if (pages <= 1) return null;
   return (
     <nav className="pager stack" aria-label={unit} ref={ref}>

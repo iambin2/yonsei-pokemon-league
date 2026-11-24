@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { Bang } from "../components/common/Board.jsx";
 import Button from "../components/common/Button.jsx";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import { BrandMark, Wordmark } from "../components/layout/SiteHeader.jsx";
 import { titled } from "../components/layout/title.js";
 
@@ -10,7 +10,7 @@ const LINKS = [["공지", "news"], ["대진표", "bracket"], ["기록", "records
 
 /* 앱 바깥에 서는 화면: 없는 주소(404)와 앱 전체의 오류(500). 셸을 믿을 수 없는 순간이라 갈 곳은 보통 링크다.
    주소가 사이트 루트로 돌아와야 하므로 새로 불러오는 것이 맞다. (DESIGN.md "Errors and empty")
-   없는 주소는 판에 404를 켜고, 오류는 ! 칸과 문장 뒤에 새로고침 하나를 둔다. 아래에 지름길 셋. */
+   없는 주소는 가는 큰 숫자 404를 세우고, 오류는 ! 칸과 문장 뒤에 새로고침 하나를 둔다. 아래에 지름길 셋. */
 export default function StatusPage({ title, desc, onRetry }) {
   useEffect(() => { document.title = titled(title.replace(/\.$/, "")); }, [title]);
   return (
@@ -23,7 +23,7 @@ export default function StatusPage({ title, desc, onRetry }) {
       <main className="page status-page">
         {onRetry
           ? <p className="status-label t12"><Bang />오류</p>
-          : <><p className="status-label t12 dim">찾는 페이지</p><div className="status-board"><Seg value="404" h={120} cells={3} label="404" /></div></>}
+          : <><p className="status-label t12 dim">찾는 페이지</p><div className="status-board"><Fig value="404" h={220} label="404" /></div></>}
         <h1 className={(onRetry ? "t32" : "t20") + " status-title"}>{title}</h1>
         {desc && <p className="read dim status-desc">{desc}</p>}
         <div className="status-go">

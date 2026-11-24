@@ -1,32 +1,19 @@
 /* =============================================================================
-   YPL Scoreboard: records (RecordsPage.jsx, StandTable.jsx).
-   Counters on top; page tabs; tables of 44 rows under a 32 head strip with the
-   record holder inverted at 52; filters as chips; Pokémon on their floors. records.css holds the record sheets and the name link.
+   The league almanac: records (RecordsPage.jsx, StandTable.jsx).
+   A large title, word tabs, the podium of thin rank numerals, tables under a 2px lit rule with hairlines between their rows, filters
+   as chips, Pokémon standing on their hairline. records.css holds the record sheets and the name link.
    ========================================================================== */
 
 .rc-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
+/* the title as the almanac sets it: 52 on a phone, 84 on a desktop */
 .rc-counts { margin-top: var(--s5); grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rc-tabs { margin-top: var(--s5); }
 .rc-body { margin-top: var(--s5); }
 .rc-list { display: grid; min-width: 0; }
-.rc-tour-tools { display: grid; min-width: 0; }
-.rc-tour-tools > .chips { order: -1; }
-/* desktop (Composing a screen 27): the search takes the room that is left and the controls stand beside it at their own width,
-   on one line: the trainers' search, chips and season; the events' search and kinds; the rank tab's season select 220 */
+/* the control rows (board.css .ctl-row): a phone keeps the events' kinds first, on a line of their own */
+.rc-tour-tools > .chips { order: -1; flex: 1 1 100%; }
 @media (min-width: 860px) {
-  .rc-list { grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); }
-  .rc-list > * { grid-column: 1 / -1; }
-  .rc-list > .search { grid-column: 1; }
-  .rc-list > .rc-sort { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: var(--s3); margin-top: 0; }
-  /* with no sort beside it the search runs to the board's edge, and under 내 기록 찾기 the sort stands on the search's row (2026-11-23:
-     an empty column kept the search 12 short of every panel under it) */
-  .rc-list:not(:has(> .rc-sort)) > .search { grid-column: 1 / -1; }
-  .rc-list:has(> .rc-find) > .rc-sort { grid-row: 2; }
-  .rc-sort .dd { width: calc(var(--s21) * 2 + var(--s13)); }
-  .rc-tour-tools { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3); }
-  .rc-tour-tools > .chips { order: 0; }
-  .rc-tour-tools > .rc-list-search { margin-top: 0; }
-  .rc-tour-tools > .chips:only-child { grid-column: 1 / -1; }
+  .rc-tour-tools > .chips { order: 0; flex: none; }
   .rc-season .dd { width: calc(var(--s21) * 2 + var(--s13)); }
 }
 .rc-more, .rc-pager { margin-top: var(--s5); }
@@ -62,81 +49,65 @@
 .rc-admin-links > .btn { min-height: var(--h-control); }
 .rc-season { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 860px) { .rc-season { grid-template-columns: auto minmax(0, 1fr); align-items: center; } }
-.rc-note { margin-top: var(--s8); max-width: 709px; }
 
-/* the trainers (draft B): the first three as panels in a row, 1.618, 1, 1 on desktop and stacked on a phone, the first inverted; each
-   the name at 32 and the place, and 우승, 준우승, 4강 as three cells. Then every other trainer as a 52 row: the place muted, the name and
-   its tags, the record as 8 squares under one legend, and on desktop the same figures in words at the row's end. No header row. */
-.rc-tops { margin-top: var(--s5); }
-.rc-top { display: grid; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
-.rc-top-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); min-width: 0; }
-.rc-top-head > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.rc-top-place { flex: none; font-weight: 700; }
-.rc-top-tags { display: flex; margin-top: calc(var(--s2) * -1); }
-.rc-top-tags > .rc-league:first-child { margin-left: 0; }
-.rc-top-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* the three figures stand on the panel itself, their labels on the name's start edge (no cell of their own: 2026-11-23 audit, Q-14) */
-.rc-top-cell { display: grid; gap: var(--s1); padding: var(--s2) var(--s3) var(--s2) 0; }
-.rc-top-cell > b { font-weight: 700; }
-.inv .rc-league { --tag-bg: var(--ground); }
-.rc-legend { display: flex; gap: var(--s3); margin: var(--s5) 0 var(--s3); }
-.rc-legend > span { display: inline-flex; align-items: center; gap: var(--s1); }
-.rc-mark { display: inline-block; width: var(--s2); height: var(--s2); background: var(--rule); }
-.rc-mark.win { background: var(--lit); }
-.rc-mark.ru { background: var(--dim); }
-.rc-tr { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr); align-items: center; width: 100%; height: var(--h-row); padding-right: var(--pad); text-align: left; }
-/* the places stand right-aligned so their last digits make one column, 12 before the name */
-.rc-tr-place { padding: 0 var(--s3) 0 var(--pad); text-align: right; color: var(--mute); }
-.rc-tr-main { display: grid; gap: var(--s1); min-width: 0; }
-.rc-tr-main > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.rc-marks { display: flex; flex-wrap: wrap; gap: var(--seam); height: var(--s2); overflow: hidden; }
-.rc-tr-words { display: none; white-space: nowrap; }
-.rc-tr-words > b { color: var(--lit); font-weight: 700; }
+/* the trainers (the almanac, 2026-11-24): the podium, three thin rank numerals with the name and its record line under each (stacked on a
+   phone, three columns parted by hairlines on a desktop, the first name at 52); then the almanac table, small dim column heads over a
+   2px lit rule and rows of 52 closed by hairlines: the place muted, the name, the three counts in Albert Sans at 20, a zero muted. */
+.rc-podium { display: grid; margin-top: var(--s3); }
+.rc-pod { display: grid; grid-template-columns: var(--s21) minmax(0, 1fr); grid-template-areas: "rank name" "rank line"; align-items: end; column-gap: var(--s3); width: 100%; padding: var(--s5) 0; text-align: left; box-shadow: inset 0 -1px 0 var(--rule); }
+.rc-pod-rank.fig { grid-area: rank; font-size: calc((var(--s21) - var(--s3)) / .72); line-height: .74; letter-spacing: var(--ls-fig); }
+.rc-pod-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t32); line-height: var(--l32); font-weight: 700; letter-spacing: var(--ls32); }
+.rc-pod-line { grid-area: line; font-size: var(--t15); line-height: var(--l15); font-weight: 400; color: var(--dim); }
+.rc-pod-line > b { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--lit); }
+.rc-me { margin-left: var(--s2); }
+@media (hover: hover) { :is(.rc-pod, .rc-tr):hover .rc-name { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: 4px; } }
+.rc-table { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) repeat(3, var(--s13)); margin-top: var(--s5); }
+.rc-table.under { margin-top: var(--s13); }
+.rc-th, .rc-tr { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+/* a table opens with its 2px lit rule across the whole table (2026-11-24, the owner: under the heads it read as an underline of the small
+   words, shorter than the rows, and did not part the podium from the table): the dim heads stand in a 44 band under it, closed by a hairline */
+.rc-th { min-height: var(--h-control); box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.rc-th > :nth-child(n + 3), .rc-tr > .rc-n { text-align: right; }
+.rc-tr { width: 100%; height: var(--h-row); text-align: left; }
+@media (hover: hover) { .rc-tr.pn:hover:not(:disabled) { background: none; } }
+.rc-tr-place { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t15); font-weight: 400; color: var(--mute); }
+.rc-tr > .rc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.rc-n { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t20); line-height: var(--l20); font-weight: 400; }
+.rc-n.mute { color: var(--mute); }
 @media (min-width: 860px) {
-  .rc-tops { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr) minmax(0, 1fr); }
-  .rc-tr { grid-template-columns: var(--s13) minmax(0, 1fr) auto; }
-  /* the name column is one width, so the marks start on one line in every row */
-  .rc-tr-main { grid-template-columns: calc(var(--s21) * 2 + var(--s13)) minmax(0, 1fr); align-items: center; column-gap: var(--s8); }
-  .rc-tr-words { display: block; }
+  .rc-podium { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rc-pod { grid-template-columns: minmax(0, 1fr); grid-template-areas: "rank" "name" "line"; align-items: start; row-gap: var(--s2); padding: var(--s8) var(--s8) var(--s8) 0; box-shadow: none; }
+  .rc-pod + .rc-pod { padding-left: var(--s8); box-shadow: inset 1px 0 0 var(--rule); }
+  .rc-pod-rank.fig { font-size: calc((var(--s21) + var(--s13) + var(--s3) + var(--seam)) / .72); margin-bottom: var(--s5); }
+  .rc-pod:first-child .rc-pod-name { font-size: var(--s13); line-height: calc(var(--s13) + var(--s2)); }
+  .rc-table { grid-template-columns: var(--s13) minmax(0, 1fr) repeat(3, calc(var(--s21) + var(--s8) + var(--s1))); }
 }
-/* the league after the name is the type's tag (team-builder.css .tb-type): 마스터 with its square lit, 루키 with it muted */
-.rc-league { margin-left: var(--s2); vertical-align: middle; }
-.rc-league.master { --type: var(--lit); }
-.rc-league:not(.master) { color: var(--dim); }
-/* 나 after the league: the same tag, its square lit; tags keep the seam between each other (.tb-types) */
-.rc-league + .rc-me { margin-left: var(--seam); }
-@media (hover: hover) { .rc-tr:hover .rc-league { --tag-bg: var(--ground); } }
 
 /* the ranking: one season choice, a head strip, rows of 52 (64 with the record line) */
 .rc-season { display: grid; gap: var(--s3); }
-.rc-season .dd-btn { height: var(--h-row); padding: 0 var(--pad); background: var(--panel); box-shadow: none; font-weight: 600; }
 .rank-tie { margin-top: var(--s2); }
 .rank-more { margin-top: var(--s5); }
 
-/* events: a panel each, its name and grey line, the placings as lines, the winner bold */
-.rc-list-search { margin-top: var(--s5); }
-/* the chips and the season select are two kinds: 12 apart, not joined on the seam */
-.rc-sort { margin-top: var(--s3); gap: var(--s3); }
+/* events: an entry each closed by a hairline, its name and grey line, the placings as lines, the winner's name at 20 */
 .rc-rounds { margin: var(--s5) 0 0; padding: 0; list-style: none; }
-/* a season's chapter: its name at 20 and its number of events lit at 32, 32 above it and 12 to its first event */
-.rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); padding: calc(var(--s8) - var(--seam)) 0 calc(var(--s3) - var(--seam)); }
-.rc-chapter:first-child { padding-top: 0; }
+/* a season's chapter opens with the 2px lit rule: its name at 32 and its number of events as a thin figure, 52 above it */
+.rc-chapter { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s3); margin-top: var(--s13); padding: var(--s5) 0 var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
+.rc-chapter:first-child { margin-top: 0; }
 .rc-chapter-n { display: flex; align-items: flex-end; gap: var(--s1); }
+.rc-chapter-n > .t15 { color: var(--dim); }
 /* the ranking's line score stands 20 under the season choice */
 .rc-rank > .line-score:first-child { margin-top: var(--s5); }
-.round2 { display: grid; padding: var(--pad); }
+.round2 { display: grid; padding: var(--s5) 0; }
 .r2-main { min-width: 0; }
 .r2-head { display: grid; gap: var(--s1); margin-bottom: var(--s3); }
 .r2-title { font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
 .r2-meta { font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
-/* the placings: a strip each, joined by the seam. The place is a cell of its own: 우승 inverted, 준우승 lit, 4강 dim; the names beside it,
-   the winner's at 20, a team's members after its name in the grey of a line */
-.r2-res { display: grid; gap: var(--seam); }
-.r2-line { display: grid; grid-template-columns: var(--s21) minmax(0, 1fr); gap: var(--seam); min-height: var(--h-control); }
-.r2-rk { display: flex; align-items: center; padding: 0 var(--s3); background: var(--panel-2); font-size: var(--t12); line-height: var(--l12); font-weight: 700; color: var(--lit); white-space: nowrap; }
-.r2-line.sf .r2-rk { color: var(--dim); font-weight: 600; }
-.r2-rk.inv { background: var(--lit); color: var(--ground); }
-.r2-names { display: flex; flex-wrap: wrap; align-items: baseline; align-content: center; gap: var(--s1) var(--s3); padding: var(--s2) var(--s3); background: var(--panel-2); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
+/* the placings: a line each. The place is a small dim word in its column; the names beside it, the winner's at 20, a team's members
+   on the line under its name in the grey of a line */
+.r2-res { display: grid; }
+.r2-line { display: grid; grid-template-columns: var(--s21) minmax(0, 1fr); align-items: baseline; padding: var(--s1) 0; }
+.r2-rk { font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); white-space: nowrap; }
+.r2-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
 .r2-line.win .r2-name { font-size: var(--t20); line-height: var(--l20); letter-spacing: var(--ls20); }
 .r2-line.sf .r2-name { font-weight: 600; }
 /* a team's members: the whole line under the team's name, 12 dim with commas, wrapping only inside that line */
@@ -147,13 +118,14 @@
 .records-round-chevron { flex: none; display: grid; place-items: center; width: var(--s5); height: var(--s5); color: var(--dim); transition: rotate var(--move-light); }
 .records-round-toggle[aria-expanded="true"] .records-round-chevron { rotate: 180deg; }
 .records-round-detail { margin: var(--s3) 0 0; padding: 0; list-style: none; }
-.records-round-detail .rc-party-row { background: var(--panel-2); }
 
-/* Pokémon: panels of three across, each standing on its name band */
+/* Pokémon: three across (six on a desktop), each standing on its hairline over its name; its rank a thin figure at the top left */
 .rc-mons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); margin-top: var(--s5); }
 .rc-mon { --floor: var(--h-row); display: block; height: calc(var(--s21) + var(--s13) * 2); text-align: left; }
 .rc-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s5)); margin-inline: auto; }
-.rc-mon-rank { position: absolute; top: var(--s2); left: var(--s3); z-index: var(--z-raised); }
+.rc-mon-rank { position: absolute; top: var(--s2); left: 0; z-index: var(--z-raised); font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t20); line-height: var(--l20); font-weight: 300; letter-spacing: var(--ls-fig); color: var(--dim); }
+@media (min-width: 860px) { .rc-mon-rank { font-size: var(--t32); line-height: var(--l32); font-weight: 200; } }
+.rc-mon .rc-band { padding: 0; }
 .rc-band { display: grid; align-content: center; gap: var(--s1); padding: 0 var(--s3); }
 .rc-band > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -166,13 +138,12 @@
 .rc-sec > .sh + .rc-mine-note { margin-top: calc(var(--s1) - var(--s3)); }
 .rc-mine-label { margin-top: var(--s5); }
 .rc-mine-rivals { margin-top: var(--s2); }
-.rc-seasons { margin-top: var(--s3); }
+.rc-seasons { margin-top: var(--s5); }
 .rc-sec { margin-top: var(--s13); min-width: 0; }
 /* the operators' link requests above the trainer list: a panel of facts and, joined by the seam, 거절 and 승인 at 1 to 1.618 */
 .rc-linkreq { margin: var(--s5) 0 var(--s8); }
 .rc-reqs { display: grid; gap: var(--s5); }
 @media (min-width: 860px) { .rc-reqs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.rc-req-tag { background: var(--panel-2); }
 /* side by side, a short request keeps its keys on the same line as its neighbour's */
 .rc-reqs > .stack { grid-template-rows: 1fr auto; }
 .rc-req { display: grid; align-content: start; gap: var(--s1); padding: var(--s5); }
@@ -183,6 +154,8 @@
 .rc-req-note { margin-top: var(--s3); }
 .sheet .rc-sec { margin-top: var(--s8); }
 .rc-place { display: inline-flex; align-items: center; height: var(--s5); padding: 0 var(--s2); font-weight: 700; }
+/* the decided one (우승, 승리) is lit and bold; the rest dim. No rule under a word that is not a link */
+.rc-place.inv { box-shadow: none; }
 .rc-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .rc-cell { --floor: var(--s13); height: calc(var(--s21) + var(--s13)); text-align: left; }
 .rc-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
@@ -204,14 +177,15 @@
   .rc-party-mon { height: var(--h-row2); }
 }
 
-/* the Pokémon sheet (2026-11-04). The Pokémon is the subject: it stands large at the right of the golden 709 panel, its rank lit at 84 at
-   the top left and its types on its floor; four counters are the 439 readout beside it (two by two under it on a phone). */
-.rc-pk-top { display: grid; gap: var(--seam); }
-.rc-pk-stage { --floor: var(--s13); height: 216px; }
-.rc-pk-rank { position: absolute; top: var(--pad); left: var(--pad); display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
-.rc-pk-floor { position: absolute; left: var(--pad); bottom: 0; height: var(--floor); display: flex; align-items: center; gap: var(--seam); }
-.rc-pk-stage .mon { right: var(--pad); height: calc(100% - var(--floor) - var(--s3)); }
-.rc-pk-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* the Pokémon sheet's head (redrawn 2026-11-24): one floor line runs across the sheet, and the rank's thin figure at the left and the
+   Pokémon at the right stand on it, the figure 12 over it as every counter's is, the Pokémon's feet on it (its ink, Mon). Under the line
+   the four counters stand on one shared line, no seam between them, two by two on a phone and four across from 860; the types follow. */
+.rc-pk-top { display: grid; }
+.rc-pk-stage { --floor: 0px; height: 216px; box-shadow: inset 0 -1px 0 var(--rule); }
+.rc-pk-rank { position: absolute; left: 0; bottom: var(--s3); display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.rc-pk-stage .mon { right: 0; height: calc(100% - var(--s3)); }
+.rc-pk-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rc-pk-types { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s5); }
 
 /* the statistics: groups of bars on their tracks, each a label (8 above) and a stack of 44 rows: the name, the bar, the figure.
    The name takes the golden major beside the bar; a stat's name is one short word, so its row gives the bar the room. */
@@ -226,11 +200,35 @@
 .rc-bar-fig { text-align: right; }
 /* the track steps down to the ground as a tag does on a panel; the sole leader's row inverts, its bar ground on a dim track */
 @media (min-width: 860px) {
-  .rc-pk-top { grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); align-items: stretch; }
-  .rc-pk-stage { --floor: var(--h-row2); height: auto; }
+  .rc-pk-stage { height: calc(var(--s21) * 3 + var(--s13)); }
   .rc-pk-stage .mon { right: var(--s13); }
-  .rc-pk-counts { grid-template-columns: minmax(0, 1fr); }
+  .rc-pk-counts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .rc-pk-cols { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
   /* the moves run down two columns, so the first four read as a column */
   .rc-bars.two { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), auto); grid-auto-flow: column; }
 }
+
+/* a ranking (StandTable.jsx) as the almanac's table: the 2px lit rule, small dim heads in a 44 band under it, rows of 52 closed by hairlines, the place
+   muted, the points in Albert Sans at the row's end; a sole leader's row 84, its name at 32 and its points a thin figure */
+.st { display: grid; grid-template-columns: var(--s13) minmax(0, 1fr) auto; column-gap: var(--s3); }
+.st-head, .st-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+.st-head { min-height: var(--h-control); box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.st-head > :last-child { text-align: right; }
+.st-row { width: 100%; min-height: var(--h-row); text-align: left; }
+.st-row.two { min-height: var(--h-row2); }
+.st-row.st-first { min-height: var(--h-counter); }
+@media (hover: hover) { button.st-row.pn:hover:not(:disabled) { background: none; } button.st-row:hover .st-main > b { text-decoration: underline; text-decoration-thickness: var(--hair); text-underline-offset: 4px; } }
+.st-place { display: flex; align-items: center; gap: var(--s2); font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t15); color: var(--mute); white-space: nowrap; }
+.st-main { display: grid; gap: var(--s1); min-width: 0; }
+.st-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-main > b { font-weight: 700; }
+.st-live { font-weight: 600; }
+.st-pts { display: flex; align-items: baseline; justify-content: flex-end; gap: var(--s1); white-space: nowrap; }
+.st-n { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t20); line-height: var(--l20); font-weight: 400; }
+.st-pts.mute .st-n { color: var(--mute); }
+/* the counts on a trainer's or a Pokémon's sheet: a label over a thin figure of 52, closed by a hairline */
+.rc-profile .counter { height: auto; gap: var(--s2); padding: var(--s3) 0 var(--s5); }
+.rc-profile .counter-board > .t15 { color: var(--dim); }
+/* a Pokémon stands on its hairline: the line runs at its feet, the top of its floor, with its name under it */
+:is(.rc-mon, .rc-cell).pn { box-shadow: none; }
+:is(.rc-mon, .rc-cell, .rc-pk-stage) > .floor { box-shadow: inset 0 1px 0 var(--rule); }

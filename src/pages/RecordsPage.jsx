@@ -22,7 +22,7 @@ import { TrainerTitles } from "../components/TitleFaces.jsx";
 import Button from "../components/common/Button.jsx";
 import LinkRequests from "../components/LinkRequests.jsx";
 import { popHandlers } from "../components/layout/history.js";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import { battleHref, endedByLine, handoverReady, listOfficialBattleLogs, listPlayerBattles } from "../services/battleService.js";
 import { mergePlayers, renameInSiteData, renamePlayer } from "../services/playerRename.js";
 import { db as normalizedDb, listPublicMatchPicks } from "../services/normalizedCompetitionService.js";
@@ -233,13 +233,10 @@ export default function RecordsPage({ data, admin, setModal, save, go }) {
   // the tab names the trainer or the Pokémon open (a trainer's key may be an id: its name is read from the record)
   useItemTitle(sheet ? profileOf(snapshot, sheet.key)?.name : pokemonName);
 
-  const dated = (snapshot.archives || []).map((a) => String(a.date || "").match(/\d+/g)).filter((n) => n?.length >= 2).sort((a, b) => (a[0] + a[1].padStart(2, "0")).localeCompare(b[0] + b[1].padStart(2, "0")));
-  const since = dated[0] ? `${dated[0][0]}년 ${+dated[0][1]}월부터` : "";
-
   const arrived = useArrival(!normalizedRead.loading);
   return (
     <section className="rc">
-      <header className="rc-head"><h1 className="t32">기록</h1>{since && <span className="t12 dim">{since}</span>}</header>
+      <header className="rc-head"><h1 className="page-title">기록</h1></header>
       {normalizedRead.error && (
         <ErrorNote onRetry={() => setReloadKey((value) => value + 1)}>공식 기록을 읽지 못해 아래에는 기존 기록만 표시됩니다. 다시 시도해 주세요.</ErrorNote>
       )}
@@ -302,7 +299,7 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
   const [query, setQuery] = useState("");
   const [all, setAll] = useState(false);
   /* 정렬과 시즌 (2026-11-22, the owner's draft A): chips under the search, a season under them. A season counts only that season's
-     results; 출전순 counts events entered. The first three stand as panels only in the medal order, the board's own ranking. */
+     results; 출전순 counts events entered. The first three stand as the podium only in the medal order, the records' own ranking. */
   const [order, setOrder] = useState("wins");
   const [season, setSeason] = useState("");
   const seasons = useMemo(() => [...new Set(Object.values(snapshot.profiles || {}).flatMap(p => (p.participations || []).map(x => x.season)).filter(Boolean))]
@@ -323,63 +320,60 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
 
   const visible = ranked.filter((t) => t.name.includes(query.trim()));
   if (!snapshot.trainers.length && !finding) return <Empty title="트레이너 기록이 없습니다." />;
-  const rows = all || query.trim() ? visible : visible.slice(0, LIST_SHOWN);
+  // the first three stand as the podium over the rest, and 20 rows follow it; a search or another order shows every match as a row
+  const podium = !query.trim() && order === "wins";
+  const rows = all || query.trim() ? visible : visible.slice(0, LIST_SHOWN + (podium ? 3 : 0));
   const exact = snapshot.trainers.some((t) => t.name === query.trim());
-  // the first three stand as larger panels over the rest (Composing a screen 25); a search shows every match as a row
-  const tops = query.trim() || order !== "wins" ? [] : rows.slice(0, 3);
+  const tops = podium ? rows.slice(0, 3) : [];
   const rest = rows.slice(tops.length);
   const tagsOf = (trainer) => {
-    // 리그는 이름 뒤 타입과 같은 태그로: 마스터는 사각이 켜지고, 루키는 꺼진다 (trainerLeague, 트레이너 시트의 머리와 같은 기준)
+    // 리그는 화면에 서지 않고 읽어 주는 말에만 남는다 (trainerLeague, 트레이너 시트의 머리가 같은 기준으로 말한다)
     const master = trainerLeague(profileOf(snapshot, trainer.key || trainer.name)) === "master";
-    // 로그인한 트레이너의 자기 줄: 리그 태그 뒤에 같은 태그로 나 (DESIGN.md "Colour and light")
     const mine = Boolean(me && (trainer.playerId ? trainer.playerId === me.playerId : trainer.name === me.name));
-    return { master, league: master ? "마스터" : "루키", mine };
+    return { league: master ? "마스터" : "루키", mine };
   };
-  const tags = ({ master, league, mine }) => <><span className={"tb-type rc-league" + (master ? " master" : "")}>{league}</span>{mine && <span className="tb-type rc-league master rc-me">나</span>}</>;
+  // 로그인한 트레이너의 자기 줄: 이름 뒤에 작게 나
+  const mineTag = (t) => t.mine ? <span className="t12 dim rc-me">나</span> : null;
   const say = (trainer, t, place) => `${place}위 ${trainer.name}${t.mine ? ", 나" : ""}, ${t.league}, 우승 ${trainer.wins}, 준우승 ${trainer.runnerUps}, 4강 ${trainer.top4}`;
   const open = (trainer) => (e) => onOpen(trainer.key || trainer.name, e.currentTarget.querySelector(".rc-name"));
+  const n = (v) => <span className={"rc-n" + (v ? "" : " mute")}>{v || 0}</span>;
 
   return (
     <div className="rc-list">
       <FindMe query={query} exact={exact} onOpen={onOpen} shown={finding} />
-      <ListSearch q={query} setQ={setQuery} placeholder={finding ? "내 트레이너 이름" : "트레이너 검색"} count={visible.length} />
-      {!finding && <div className="stack rc-sort">
-        <Chips value={order} onChange={setOrder} options={[["wins", "우승순"], ["games", "출전순"], ["name", "이름순"]]} label="정렬" />
-        {seasons.length > 1 && <Dropdown value={season} onChange={setSeason} ariaLabel="시즌" options={[{ value: "", label: "모든 시즌" }, ...seasons.map(s => ({ value: s, label: s }))]} />}
-      </div>}
+      {/* one control row on one line (2026-11-24): the search, the order and the season */}
+      <div className="ctl-row rc-ctl">
+        <ListSearch q={query} setQ={setQuery} placeholder={finding ? "내 트레이너 이름" : "트레이너 검색"} count={visible.length} />
+        {!finding && <Chips value={order} onChange={setOrder} options={[["wins", "우승순"], ["games", "출전순"], ["name", "이름순"]]} label="정렬" />}
+        {!finding && seasons.length > 1 && <Dropdown value={season} onChange={setSeason} ariaLabel="시즌" options={[{ value: "", label: "모든 시즌" }, ...seasons.map(s => ({ value: s, label: s }))]} />}
+      </div>
       {finding && <FindMe query={query} exact={exact} onOpen={onOpen} part="name" />}
       {visible.length ? (<>
-        {tops.length > 0 && <div className="stack rc-tops">
-          {tops.map((trainer, i) => {
+        {/* the almanac's podium (2026-11-24): the first three as thin large rank numerals, the name and the record line under each */}
+        {tops.length > 0 && <div className="rc-podium">
+          {tops.map((trainer) => {
             const t = tagsOf(trainer), place = ranked.indexOf(trainer) + 1;
-            return <button type="button" key={trainer.key || trainer.name} className={(i === 0 ? "inv" : "pn") + " rc-top"} onClick={open(trainer)} aria-label={say(trainer, t, place)}>
-              <span className="rc-top-head"><b className="t32 rc-name">{trainer.name}</b><span className="num t20 rc-top-place">{place}</span></span>
-              <span className="rc-top-tags">{tags(t)}</span>
-              <span className="stack rc-top-three">{[["우승", trainer.wins], ["준우승", trainer.runnerUps], ["4강", trainer.top4]].map(([k, v]) =>
-                <span key={k} className="rc-top-cell"><span className="t12 dim">{k}</span><b className="num t20">{v}</b></span>)}</span>
+            return <button type="button" key={trainer.key || trainer.name} className="rc-pod" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
+              <Fig value={String(place)} h={150} className="rc-pod-rank" label={`${place}위`} />
+              <b className="rc-pod-name rc-name">{trainer.name}{mineTag(t)}</b>
+              <span className="rc-pod-line" aria-hidden="true">우승 <b>{trainer.wins}</b>, 준우승 <b>{trainer.runnerUps}</b>, 4강 <b>{trainer.top4}</b></span>
             </button>;
           })}
         </div>}
-        {rest.length > 0 && <>
-          {/* one legend for the whole list: a lit square a win, a dim one a second place, an unlit one a top four (Composing a screen 25) */}
-          <p className="rc-legend t12 dim" aria-hidden="true"><span><i className="rc-mark win" />우승</span><span><i className="rc-mark ru" />준우승</span><span><i className="rc-mark sf" />4강</span></p>
-          <div className="stack rc-table">
-            {rest.map((trainer) => {
-              const t = tagsOf(trainer), place = ranked.indexOf(trainer) + 1;
-              return <button type="button" key={trainer.key || trainer.name} className="pn rc-tr" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
-                <span className="num t15 rc-tr-place">{place}</span>
-                <span className="rc-tr-main">
-                  <b className="t15 rc-name">{trainer.name}{tags(t)}</b>
-                  <span className="rc-marks" aria-hidden="true">{[["win", trainer.wins], ["ru", trainer.runnerUps], ["sf", trainer.top4]].flatMap(([k, n]) => Array.from({ length: n }, (_, j) => <i key={k + j} className={"rc-mark " + k} />))}</span>
-                </span>
-                <span className="rc-tr-words t12 dim" aria-hidden="true">우승 <b className="num">{trainer.wins}</b>, 준우승 <b className="num">{trainer.runnerUps}</b>, 4강 <b className="num">{trainer.top4}</b></span>
-              </button>;
-            })}
-          </div>
-        </>}
+        {rest.length > 0 && <div className={"rc-table" + (tops.length ? " under" : "")}>
+          <div className="rc-th t12 dim" aria-hidden="true"><span>순위</span><span>트레이너</span><span>우승</span><span>준우승</span><span>4강</span></div>
+          {rest.map((trainer) => {
+            const t = tagsOf(trainer), place = ranked.indexOf(trainer) + 1;
+            return <button type="button" key={trainer.key || trainer.name} className="pn rc-tr" onClick={open(trainer)} aria-label={say(trainer, t, place)}>
+              <span className="rc-tr-place">{place}</span>
+              <b className="t15 rc-name">{trainer.name}{mineTag(t)}</b>
+              {n(trainer.wins)}{n(trainer.runnerUps)}{n(trainer.top4)}
+            </button>;
+          })}
+        </div>}
       </>) : finding ? null : <Empty title="검색 결과가 없습니다." />}
-      {!all && !query.trim() && visible.length > LIST_SHOWN && (
-        <div className="rc-more"><Button variant="second" onClick={() => setAll(true)}>{visible.length}명 전체 보기</Button></div>
+      {!all && !query.trim() && visible.length > rows.length && (
+        <div className="rc-more"><Button variant="second" line onClick={() => setAll(true)}>{visible.length}명 전체 보기</Button></div>
       )}
     </div>
   );
@@ -398,9 +392,9 @@ function MyRecord({ snapshot, profile }) {
       {/* one grey line under the title says it (Composing a screen 22; 2026-11-23 audit, H-03) */}
       <p className="t12 dim reg rc-mine-note">나에게만 보입니다.</p>
       <div className="stack rc-counts rc-mine-counts">
-        <Counter label="승" value={rec.wins} unit="판" />
-        <Counter label="패" value={rec.losses} unit="판" />
-        <Counter label="승률" value={rec.rate} unit="%" cells={rec.rate >= 100 ? 3 : 2} after={<span className="t15">%</span>} />
+        <Counter label="승" value={rec.wins} unit="판" h={52} />
+        <Counter label="패" value={rec.losses} unit="판" h={52} />
+        <Counter label="승률" value={rec.rate} unit="%" h={52} />
       </div>
       {rec.rivals.length > 0 && <>
         <p className="t12 dim rc-mine-label">자주 만난 상대</p>
@@ -506,9 +500,9 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
     <div className="rc-profile">
       {/* the party sheet's order: the facts first, then what the trainer did, top to bottom, one column that only scrolls down */}
       <div className="stack rc-counts">
-        <Counter label="우승" value={championships} unit="회" />
-        <Counter label="준우승" value={runnerUps} unit="회" />
-        <Counter label="4강" value={top4} unit="회" />
+        <Counter label="우승" value={championships} unit="회" h={52} />
+        <Counter label="준우승" value={runnerUps} unit="회" h={52} />
+        <Counter label="4강" value={top4} unit="회" h={52} />
       </div>
       {/* found from 내 기록 찾기: right under what the record holds, the key that makes it the visitor's own */}
       {finding && <TrainerLink profile={profile} lead />}
@@ -555,7 +549,7 @@ function TrainerProfile({ snapshot, profile, onParty, onPokemon, go, finding = f
             </button>
           ))}
         </div>
-        {!allParties && parties.length > 4 && <div className="rc-more"><Button variant="second" onClick={() => setAllParties(true)}>{parties.length}개 전체 보기</Button></div>}
+        {!allParties && parties.length > 4 && <div className="rc-more"><Button variant="second" line onClick={() => setAllParties(true)}>{parties.length}개 전체 보기</Button></div>}
       </section>}
 
       <section className="rc-sec" aria-labelledby="rc-fav-h">
@@ -814,12 +808,12 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
     const meta = [formatDate(r.date), r.season, championshipEmphasis && "챔피언스 시리즈", r.team && "팀전", rule]
       .filter((part, i, all) => part && !title.includes(part) && all.indexOf(part) === i).join(", ");
     const head = <span className="r2-head"><span className="r2-title">{title}</span>{meta && <span className="r2-meta">{meta}</span>}</span>;
-    /* 순위마다 한 줄의 띠: 왼쪽은 순위의 칸(우승은 반전, 준우승은 켜짐, 4강은 흐림), 오른쪽은 이름(우승은 20). 팀전은 팀마다 줄을 나눈다. */
+    /* 순위마다 한 줄: 왼쪽은 순위의 말(작게, 흐리게), 오른쪽은 이름(우승은 20). 팀전은 팀마다 줄을 나눈다. */
     const resultLines = (lines) => (
       <div className="r2-res">
         {lines.map(([placement, label, entries]) => entries.map((entry, k) => (
           <div className={"r2-line " + placement} key={`${placement}:${k}`}>
-            <span className={"r2-rk" + (placement === "win" ? " inv" : "")}>{k === 0 ? label : ""}</span>
+            <span className="r2-rk">{k === 0 ? label : ""}</span>
             <span className="r2-names">
               {entry.names.map((name, n) => {
                 const cls = "r2-name" + (placement === "win" ? " win" : "");
@@ -893,7 +887,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
   const allShown = showAll || query.trim() !== "";
   const shownRows = allShown ? allRows : allRows.slice(0, LIST_SHOWN);
 
-  /* 59개 대회가 같은 블록으로 이어지지 않도록 시즌마다 장을 나눈다: 시즌 이름 20과 그 시즌의 대회 수를 32의 세그먼트로.
+  /* 59개 대회가 같은 블록으로 이어지지 않도록 시즌마다 장을 나눈다: 굵은 줄 위에 시즌 이름 32와 그 시즌의 대회 수를 가는 큰 숫자로.
      시즌이 없는 옛 기록은 연도로 묶는다. items 는 이미 최신순이다. */
   const chapterOf = (round) => {
     const year = String(round.date || "").match(/\d{4}/)?.[0];
@@ -906,8 +900,8 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
     return items.flatMap((item, i) => {
       const c = chapterOf(roundOf(item));
       const head = c && c !== last ? [<li className="rc-chapter" data-rise key={`chapter:${c}:${i}`}>
-        <h3 className="t20">{c}</h3>
-        <span className="rc-chapter-n"><Seg value={String(counts.get(c))} h={32} cells={2} label={`${counts.get(c)}회`} /><span className="t15">회</span></span>
+        <h3 className="t32 chapter">{c}</h3>
+        <span className="rc-chapter-n"><Fig value={String(counts.get(c))} h={52} label={`${counts.get(c)}회`} /><span className="t15">회</span></span>
       </li>] : [];
       last = c;
       return [...head, render(item)];
@@ -916,9 +910,11 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
 
   return (<>
     {/* on desktop the search and the kinds stand on one line, the search first (Composing a screen 27); a phone keeps the kinds first */}
-    <div className="rc-tour-tools">
-      {!selectedTour && <div className="rc-list-search"><ListSearch q={query} setQ={setQuery} placeholder="대회명, 시즌, 룰, 입상자, 포켓몬 검색" count={allRows.length} /></div>}
-      <Chips value={selectedTour ? selectedTour.key : "all"} onChange={setCategory} label="대회 종류"
+    <div className="ctl-row rc-tour-tools">
+      {/* the search always keeps its place, so picking a kind never moves the chips (2026-11-24, the owner: the search went and the
+          chips jumped left). It searches every event: typing goes back to 전체, and picking a kind clears what was typed */}
+      <ListSearch q={query} setQ={(v) => { setQuery(v); if (v && selectedTour) setCategory("all"); }} placeholder="대회명, 시즌, 룰, 입상자, 포켓몬 검색" count={allRows.length} />
+      <Chips value={selectedTour ? selectedTour.key : "all"} onChange={(key) => { setCategory(key); if (key !== "all") setQuery(""); }} label="대회 종류"
         options={[["all", `전체 ${(snapshot.archives || []).length}`], ...otours.map((tour) => [tour.key, `${tour.label} ${(tour.rounds || []).length}`])]} />
     </div>
 
@@ -936,7 +932,7 @@ function TournamentArchiveView({ snapshot, data, admin, setModal, onParty, onNam
             <ul className="stack rc-rounds">
               {withChapters(shownRows, (row) => row.round, ({ tour, round, key }) => renderRound(tour, round, key), allRows)}
             </ul>
-            {!allShown && allRows.length > LIST_SHOWN && <div className="rc-more"><Button variant="second" onClick={() => setShowAll(true)}>{allRows.length}개 전체 보기</Button></div>}
+            {!allShown && allRows.length > LIST_SHOWN && <div className="rc-more"><Button variant="second" line onClick={() => setShowAll(true)}>{allRows.length}개 전체 보기</Button></div>}
           </>
         ) : <Empty title="검색 결과가 없습니다." />}
       </>
@@ -970,7 +966,7 @@ function PokemonView({ snapshot, onOpen }) {
         <div className="rc-mons">
           {rows.map((pokemon) => (
             <button type="button" className="pn stand rc-mon" key={pokemon.name} onClick={() => onOpen(pokemon.name)} aria-label={`${pokemon.name}, ${rankOf(pokemon)}위, ${pokemon.entries}회 등록`}>
-              <span className="rc-mon-rank num t12 dim">{rankOf(pokemon)}</span>
+              <span className="rc-mon-rank">{rankOf(pokemon)}</span>
               <Mon src={pictureOf(pokemon.name, pokemon.spriteName)} />
               <span className="floor rc-band"><b className="t15">{pokemon.name}</b><span className="t12 dim num">{pokemon.entries}회</span></span>
             </button>
@@ -978,7 +974,7 @@ function PokemonView({ snapshot, onOpen }) {
         </div>
       ) : <Empty title="검색 결과가 없습니다." />}
       {!all && !normalized && visible.length > GRID_SHOWN && (
-        <div className="rc-more"><Button variant="second" onClick={() => setAll(true)}>{visible.length}종 전체 보기</Button></div>
+        <div className="rc-more"><Button variant="second" line onClick={() => setAll(true)}>{visible.length}종 전체 보기</Button></div>
       )}
     </div>
   );
@@ -1011,8 +1007,9 @@ function BarGroup({ label, rows, total, unit = "%", columns = 1 }) {
   );
 }
 
-/* The Pokémon sheet (2026-11-04): the Pokémon is its subject, so it stands large on its panel with its rank lit beside it and its types
-   on its floor; four counters read the record; then the statistics as bars: its base stats, the points the samples gave it, and the
+/* The Pokémon sheet (2026-11-04; its head redrawn 2026-11-24, the owner: the picture's line and the counters' lines did not meet and
+   the rank floated, "완전히 새로운 배치를 고민해보길"): one floor line across the sheet, the rank's figure at the left and the Pokémon at the
+   right both standing on it; under it the four counters on one shared line; then its types; then the statistics as bars: its base stats, the points the samples gave it, and the
    moves, items, abilities and natures they chose. The samples and parties follow as doors. */
 function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, onPokemon }) {
   const samples = useMemo(() => pokemonSamples(snapshot.rosters, pokemon.name), [snapshot.rosters, pokemon.name]);
@@ -1037,20 +1034,20 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, on
     <Modal title={pokemon.name} hint={dex ? `${dex.name}, 전국도감 ${String(dex.num).padStart(4, "0")}` : undefined} className="rc-sheet wide" onClose={onClose}>
       <div className="rc-profile">
         <div className="rc-pk-top">
-          <div className="pn stand rc-pk-stage">
+          <div className="stand rc-pk-stage">
             <span className="rc-pk-rank">
               <span className="t12 dim">채용 순위</span>
-              <span className="counter-board"><Seg value={String(rank)} h={84} cells={rank >= 100 ? 3 : 2} label={`채용 ${rank}위`} /><span className="t20">위</span></span>
+              <span className="counter-board"><Fig value={String(rank)} h={84} label={`채용 ${rank}위`} /><span className="t20">위</span></span>
             </span>
-            <span className="floor rc-pk-floor">{dex && dex.types.map((type) => <React.Fragment key={type}>{typeTag(type)}</React.Fragment>)}</span>
             <Mon src={pictureOf(pokemon.name, pokemon.spriteName)} />
           </div>
-          <div className="stack rc-pk-counts">
-            <Counter label="채용률" value={Math.round(pokemon.entryRate)} unit="%" cells={pokemon.entryRate >= 99.5 ? 3 : 2} after={<span className="t15">%</span>} />
-            <Counter label="등록 엔트리" value={pokemon.entries} unit="회" cells={pokemon.entries >= 100 ? 3 : 2} after={<span className="t15">회</span>} />
-            <Counter label="사용 트레이너" value={pokemon.trainerCount} unit="명" cells={pokemon.trainerCount >= 100 ? 3 : 2} after={<span className="t15">명</span>} />
-            <Counter label="우승 엔트리" value={pokemon.wins} unit="회" after={<span className="t15">회</span>} />
+          <div className="rc-pk-counts">
+            <Counter label="채용률" value={Math.round(pokemon.entryRate)} unit="%" h={52} />
+            <Counter label="등록 엔트리" value={pokemon.entries} unit="회" h={52} />
+            <Counter label="사용 트레이너" value={pokemon.trainerCount} unit="명" h={52} />
+            <Counter label="우승 엔트리" value={pokemon.wins} unit="회" h={52} />
           </div>
+          {dex && <div className="rc-pk-types">{dex.types.map((type) => <React.Fragment key={type}>{typeTag(type)}</React.Fragment>)}</div>}
         </div>
         <p className="t12 dim reg rc-lead-note">
           채용률 {pokemon.entryRate.toFixed(1)}%는 저장된 파티 엔트리 {snapshot.rosters.length}개를 기준으로 계산합니다.
@@ -1060,9 +1057,9 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, on
         {battle && <section className="rc-sec" aria-labelledby="rc-pk-bt-h">
           <SectionHead id="rc-pk-bt-h" title="공식 경기" />
           <div className="stack rc-counts">
-            <Counter label="선출" value={battle.picked} unit="판" cells={battle.picked >= 100 ? 3 : 2} after={<span className="t15">판</span>} />
-            <Counter label="선봉" value={battle.leads} unit="판" cells={battle.leads >= 100 ? 3 : 2} after={<span className="t15">판</span>} />
-            <Counter label="승률" value={Math.round(battle.wins / battle.picked * 100)} unit="%" cells={battle.wins === battle.picked ? 3 : 2} after={<span className="t15">%</span>} />
+            <Counter label="선출" value={battle.picked} unit="판" h={52} />
+            <Counter label="선봉" value={battle.leads} unit="판" h={52} />
+            <Counter label="승률" value={Math.round(battle.wins / battle.picked * 100)} unit="%" h={52} />
           </div>
         </section>}
 
@@ -1102,7 +1099,7 @@ function PokemonSheet({ snapshot, pokemon, rank, onClose, onParty, onTrainer, on
               <Row key={roster.id} title={roster.owner} line={[formatDate(roster.date), rosterTitle(roster), ...(detail ? [set.item_id && itemName(detail, set.item_id), set.ability_id && abilityName(set.ability_id)] : [])].filter(Boolean).join(", ")} onClick={() => onParty({ roster, set })} />
             ))}
           </div>
-          {!more && samples.length > 8 && <div className="rc-more"><Button variant="second" onClick={() => setMore(true)}>{samples.length}개 전체 보기</Button></div>}
+          {!more && samples.length > 8 && <div className="rc-more"><Button variant="second" line onClick={() => setMore(true)}>{samples.length}개 전체 보기</Button></div>}
         </section>}
 
         <section className="rc-sec" aria-labelledby="rc-pk-tr-h">
@@ -1186,10 +1183,6 @@ function RankingHub({ snapshot, data, admin, setModal, save, onName }) {
       {!view ? <Empty title="랭킹 기록이 없습니다." />
         : view.era ? <RankView era={view.era} onName={onName} />
         : <SeasonView s={view.season} onName={onName} />}
-      <p className="t12 dim reg rc-note">
-        누적 랭킹과 시즌 성적은 이전 기록에서 넘어온 점수에 대회마다 얻은 점수를 더해 매깁니다.
-        포인트는 마스터 리그와 마스터 리그 팀전에서만 쌓입니다. 파이컵 라이트와 루키 리그에는 포인트가 없습니다.
-      </p>
     </>
   );
 }

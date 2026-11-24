@@ -1,13 +1,13 @@
 /* =============================================================================
-   YPL Scoreboard: 더보기 (MorePage.jsx).
-   Grouped rows under a 12 label, 20 between groups, then the theme as a choice and admin login; then the alerts page (AlertsPage.jsx).
+   The almanac: 더보기 (MorePage.jsx).
+   Grouped entries under a 12 label and a 2px rule, 20 between groups, then the theme as a choice and admin login; then the alerts page (AlertsPage.jsx).
    ========================================================================== */
 
 .more-group { margin-top: var(--s8); }
 .more-label { margin-bottom: var(--s3); }
 .more-group .row-value { display: flex; color: var(--dim); }
-/* 알림 줄(함께하기의 첫 줄)의 새 알림: the lamp with its word before the chevron, lit as a lamp's word is */
-.more-new { display: flex; align-items: center; gap: var(--s2); margin-right: var(--s3); color: var(--lit); font-weight: 600; }
+/* 알림 줄(함께하기의 첫 줄)의 새 알림: the word before the chevron, lit and bold, never a mark */
+.more-new { display: flex; align-items: center; margin-right: var(--s3); color: var(--lit); font-weight: 700; }
 /* desktop uses its 1200 as any page of two kinds does: where to go in the 709, the settings and the operators' login in the 439 */
 @media (min-width: 860px) {
   .more { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); grid-auto-flow: row dense; column-gap: var(--s13); align-items: start; }
@@ -22,22 +22,17 @@
   .more-side > .more-group:last-child { align-self: end; }
 }
 
-/* ---------- 알림 (AlertsPage.jsx, draft B 2026-11-19): the alerts this week in the 709, this device's switch and the kinds board in the 439 held in
-   view; on a phone the settings stand under the alerts. A day is a 12 label over its stack, days 32 apart; a read alert steps its words to dim ---------- */
+/* ---------- 알림 (AlertsPage.jsx, 2026-11-24 redrawn for reading): one column on the 1200. The page name, this device's switch, 받을 알림
+   (board.css), then 받은 알림 at 20 and its days: a day is a 12 label over the 2px rule, its alerts rows of 64, the words lit at 15 and the
+   kind as the grey line, the time at the row's end in tabular digits. One that came since the last visit is lit and 700 with 새 알림 lit in
+   its grey line; a read one steps its words and its time to dim. No counts stand over it (Made by people). ---------- */
 .alerts > h1 { margin-bottom: var(--s5); }
+.alerts-main { margin-top: var(--s13); }
+.alerts-h { margin-bottom: var(--s5); }
 .alerts-day + .alerts-day { margin-top: var(--s8); }
-.alerts-row .row-main { padding-left: var(--pad); }
-.alerts-row.read b { color: var(--dim); font-weight: 600; }
-.alerts-meta { display: flex; gap: var(--s3); }
-.alerts-side { margin-top: var(--s13); }
-.alerts > .alerts-side:nth-child(2) { margin-top: 0; }
-/* desktop (2026-11-24, the owner: the 709 and the 439 split the page for nothing): one column on the whole 1200, the settings first
-   with the kinds as one row of seven, then the week's alerts */
-@media (min-width: 860px) {
-  .alerts { display: flex; flex-direction: column; }
-  .alerts-side { order: -1; margin-top: 0; }
-  .alerts > h1 { order: -2; }
-  .alerts-main { margin-top: var(--s13); }
-  .alerts .push-board { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-  .alerts .push-cell:last-child:nth-child(odd) { grid-column: auto; }
-}
+.alerts-day-h { padding-bottom: var(--s3); font-weight: 700; color: var(--dim); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.alerts-row .row-main > b { font-weight: 600; color: var(--dim); }
+.alerts-row.fresh .row-main > b { font-weight: 700; color: var(--lit); }
+.alerts-new { font-weight: 700; color: var(--lit); }
+.alerts-time { padding-left: var(--s3); font-weight: 400; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.alerts-row.fresh .alerts-time { color: var(--lit); }

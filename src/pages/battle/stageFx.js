@@ -3,7 +3,7 @@
    타입의 파편, 히트 스톱, 카메라의 반동). 맞은 쪽의 결과 줄은 맞는 순간에 함께 뜬다.
    말(턴, 승자, 특성, 이름)은 무대 밖의 판(.bs-over)이고 보드의 판(battle.css)이다.
    speed: 1 보통, .5 빠르게, 0 건너뛰기(연출 없이 상태만). */
-import { DUR, EASE_IN, EASE_OUT, reduced } from "../../components/common/motion.js";
+import { DUR, EASE_IN, EASE_OUT, INOUT, reduced } from "../../components/common/motion.js";
 import { makeDraw, recipeOf, playScript } from "./moveFx.js";
 import { atlasPainted, atlasStep, glOf, rand, lerp, clamp, typeId, colorOf, TYPE_COLOR } from "./gl.js";
 import { paintAway, takeAtlas } from "./atlas.js";
@@ -724,7 +724,12 @@ export function throwBall(stage, key) {
 }
 // the Pokémon standing on the canvas go out at once (before the opening's throws, so no lead stands before its ball comes)
 // dark: the lamps stay off until the opening switches them on (the gate lifts onto a dark stage)
-export const settle = stage => glOf(stage)?.settle();
+export const settle = stage => { const e = glOf(stage); if (!e) return; e.settle(); lampsOn(e); };
+/* the stadium's lamps are the court's light over the page's own ground (2026-11-24, the almanac: a stage with its lamps down stood as a
+   black slab on the navy page and a navy slab on the white one): the stage's box is the ground, and the lamps going down fade the
+   canvas toward it, so a dark court is the page itself and never a slab of another tone */
+const lampsOn = e => { e.canvas.getAnimations().forEach(a => a.cancel()); e.canvas.style.removeProperty("opacity"); };
+const lampsDown = e => e.canvas.style.opacity === "0";
 /* what a stage paints the first time it is needed, painted ahead in the browser's idle time (the battle page calls it as it opens):
    the atlas, the Poké Ball's frames and the sound's context. Each was a stop of its own as a replay opened (2026-11-07, measured:
    0.73 s, 0.15 s and 0.09 s on a desktop) */
@@ -781,43 +786,44 @@ export function hideAll(stage, { dark = false } = {}) {
   if (!e) return;
   e.sync();
   for (const a of e.actors.values()) { e.cancel(a); a.base.alpha = 0; }
-  if (dark && !instant()) e.gradeBase.dim = .18;
+  if (dark && !instant()) { e.canvas.getAnimations().forEach(a => a.cancel()); e.canvas.style.opacity = "0"; }
 }
 /* going in from the lobby (DESIGN.md "Battle", Going in): the court's Pokémon are called back and the stadium's lamps go down as they go,
-   the mirror of the opening, which switches them on (2026-11-07, the user: 배틀 시작 on the lobby wants an entrance) */
+   the mirror of the opening (2026-11-07, the user: 배틀 시작 on the lobby wants an entrance). The court dims toward the page's own ground,
+   never to black or to a navy slab (2026-11-24, the almanac) */
 export async function goIn(stage) {
   const e = E(stage);
   if (!e || instant()) return;
   e.sync();
-  const lamps = e.anim(e.grade, { dim: [1, 1, .18] }, { dur: reduced() ? DUR.leave : 1100, at: [0, .4, 1], ease: "inout", fill: true });
+  const lamps = done(e.canvas.animate([{ opacity: 1 }, { opacity: 1, offset: .4 }, { opacity: .18 }], { duration: reduced() ? DUR.leave : 1100, easing: INOUT, fill: "forwards" }));
   await Promise.all([lamps, ...[...e.actors.keys()].map(key => leave(stage, key))]);
 }
-/* the opening: the arena's lamps switch on over the dark stage hideAll left, and the throws come on their rise. No board or veil
-   stands over it (2026-11-07, the user: the 배틀 시작 popup made the start stutter; the strips and the team preview have said who plays) */
+/* the opening: the court tones in out of the page's ground hideAll left it at, in one 420 (2026-11-24, the almanac: three banks of
+   lamps from a black slab read as the scoreboard switching on), and the throws come on its rise. No board or veil stands over it
+   (2026-11-07, the user: the 배틀 시작 popup made the start stutter; the strips and the team preview have said who plays) */
 export async function opening(stage) {
   const e = E(stage);
   if (!e) return;
-  const darkened = e.gradeBase.dim !== 1;
-  if (instant()) { e.gradeBase.dim = 1; return; }
-  // two frames first: the lead the stage has just mounted (a render and a layout read) lands before the lamps start, not in their
+  const darkened = lampsDown(e);
+  if (instant()) { lampsOn(e); return; }
+  // two frames first: the lead the stage has just mounted (a render and a layout read) lands before the light starts, not in its
   // first frames (2026-11-07, measured: one stop as a replay opened)
   for (let i = 0; i < 2; i++) await new Promise(resolve => requestAnimationFrame(resolve));
   sfx("lamps");
-  /* the stage hideAll left dark comes back to its own lamps in the same turn as the lamps' tween starts at its dark end, so no frame
-     draws it lit in between (2026-11-07, the user: the arena flashed as a battle started; it stood lit for the two frames waited) */
-  e.gradeBase.dim = 1;
-  /* bank by bank, as a stadium's lamps do (DESIGN.md "Battle", The big moments; 2026-11-10: they came up in one fade): three steps of
-     160 with 100 between them, .18 to .45 to .72 to all on */
-  if (darkened && reduced()) e.anim(e.grade, { dim: [.18, 1] }, { dur: DUR.leave });
-  else if (darkened) e.anim(e.grade, { dim: [.18, .45, .45, .72, .72, 1], bloom: [1.6, 1.4, 1.4, 1.2, 1.2, 1] }, { dur: 680, at: [0, 160 / 680, 260 / 680, 420 / 680, 520 / 680, 1], ease: "out" });
+  /* the court comes up from the ground in the same turn as its hold on the ground is let go, so no frame draws it lit in between
+     (2026-11-07, the user: the arena flashed as a battle started) */
+  if (darkened) {
+    e.canvas.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduced() ? DUR.tone : DUR.light, easing: OUT });
+    e.canvas.style.removeProperty("opacity");
+  }
   await wait(reduced() ? DUR.tone : DUR.light);
 }
-/* the end (DESIGN.md "Battle", The big moments): the match board over the arena, the camera holding wide. The Pokémon each side knocked
-   out switch on, then the winner's row inverts with 승리 and the loser's dims (a tie dims both); it stands a moment and goes */
 /* the end (2026-11-09 second round, the user: the match board over the arena was ugly): no board stands over the stage; the arena's
-   own frame says it. The losing side's strip goes out first, its words and party falling to .382 with 패배 over its name, then the
-   winner's strip switches on inverted with 승리; a tie dims both under 무승부. The message window says who won. The strips keep it
-   while the end is looked at; a jump of the replay takes it back (clearFinal) */
+   own frame says it, in one beat (2026-11-24, the almanac: the winner's rule and the result band came about 1.1 s apart): the loser's
+   strip mutes by tone with 패배 by its name, the winner's 2px lit rule draws in under its strip from the start edge (420, battle.css
+   [data-won]) while its words rise 12 with 승리, and the stage lets the tape end at once, so the message window turns to the result
+   band (Say, rising 12) in the same beat; a tie mutes both under 무승부. The strips keep it while the end is looked at; a jump of the
+   replay takes it back (clearFinal) */
 export async function final(stage, { winner, perspective }) {
   const arena = stage?.closest(".bt-arena");
   if (!arena || instant()) return;
@@ -832,18 +838,17 @@ export async function final(stage, { winner, perspective }) {
     el.dataset.result = "";
     el.style.setProperty("--result", `"${tie ? "무승부" : "패배"}"`);
     el.dataset.lost = "";
-    [...el.children].forEach(c => c.animate([{ opacity: 1 }, { opacity: .382 }], { duration: ms(420), easing: OUT, fill: "backwards" }));
+    [...el.children].forEach(c => c.animate([{ opacity: 1 }, { opacity: .382 }], { duration: DUR.tone, easing: OUT, fill: "backwards" }));
   }
-  if (tie) return wait(1100);
-  /* the winner's strip lights in the same frame the loser's goes out and the message and the deck turn to the result: lit 420 after
+  if (tie) return;
+  /* the winner's strip lights in the same frame the loser's mutes and the message and the deck turn to the result: lit 420 after
      them, it came late, after everything else had changed (2026-11-10, the user: "다른 것 다 전환되고 뒤늦게 따라오는 느낌") */
   const won = strip(winner);
   if (!won) return;
   won.dataset.result = "";
   won.style.setProperty("--result", '"승리"');
   won.dataset.won = "";
-  [...won.children].forEach(c => c.animate([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: ms(420), easing: OUT, fill: "backwards" }));
-  await wait(1100);
+  [...won.children].forEach(c => c.animate([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: DUR.light, easing: OUT, fill: "backwards" }));
 }
 // a jump of the replay away from the end takes the strips' result back
 export function clearFinal(stage) {
@@ -1081,10 +1086,15 @@ export function shield(stage, key, id = "protect") {
   if (/spiky|kings|baneful|bulwark|obstruct/.test(id)) for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; e.emit({ at: [at[0] + Math.cos(a) * s * .5, at[1] + Math.sin(a) * s * .5], tex: "shard", ramp: `${t}.h`, size: [s * .04, s * .16], aspect: .45, rot: a + Math.PI / 2, life: 600, delay: 100 + i * 15, emis: .9, grow: true }); }
   return e.after(900);
 }
-// an ability or an item announced: a plate slides in on its owner's side
 /* an ability or an item (2026-11-09 second round): a cell joined to its owner's plate on the seam, the plate's own width, under the
-   foe's plate and over ours, so whose it is reads before the words do; with no plate standing (it has fallen) it comes in from its
-   side's edge as before */
+   foe's plate and over ours, so whose it is reads before the words do; with no plate standing (it has fallen) it stands at its side's
+   edge. Either way it arrives as everything does, rising 12 from its side as it lights (420), and leaves by opacity alone (260,
+   ease-in); it slid in from off the stage until 2026-11-24 */
+const POPUP = 1500;
+const popupFrames = from => [
+  { transform: from, opacity: 0 }, { transform: "none", opacity: 1, offset: DUR.light / POPUP, easing: OUT },
+  { transform: "none", opacity: 1, offset: 1 - DUR.leave / POPUP, easing: IN }, { transform: "none", opacity: 0 },
+];
 export function popup(stage, key, owner, name, own) {
   const over = overOf(stage);
   if (!over || instant()) return Promise.resolve();
@@ -1104,19 +1114,10 @@ export function popup(stage, key, owner, name, own) {
     el.style.left = `${p.left - o.left}px`;
     el.style.width = `${p.width}px`;
     if (own) el.style.bottom = `${o.bottom - p.top + 2}px`; else el.style.top = `${p.bottom - o.top + 2}px`;
-    over.appendChild(el);
-    const from = `translateY(${own ? 12 : -12}px)`;
-    return done(el.animate([
-      { transform: from, opacity: 0 }, { transform: "none", opacity: 1, offset: .2, easing: OUT },
-      { transform: "none", opacity: 1, offset: .84 }, { transform: from, opacity: 0 },
-    ], { duration: ms(1500), fill: "both" })).then(() => el.remove());
   }
   over.appendChild(el);
-  const off = own ? "-110%" : "110%";
-  return done(el.animate([
-    { transform: `translateX(${off})`, opacity: 0 }, { transform: "translateX(0)", opacity: 1, offset: .16, easing: OUT },
-    { transform: "translateX(0)", opacity: 1, offset: .82 }, { transform: `translateX(${off})`, opacity: 0 },
-  ], { duration: ms(1500), fill: "both" })).then(() => el.remove());
+  // ours rises from under its place, the foe's comes down onto it, each from its own side
+  return done(el.animate(popupFrames(`translateY(${own ? 12 : -12}px)`), { duration: ms(POPUP), fill: "both" })).then(() => el.remove());
 }
 
 /* ---------------------------------------------------------------- the pieces a move is built of ---------------------------------------------------------------- */

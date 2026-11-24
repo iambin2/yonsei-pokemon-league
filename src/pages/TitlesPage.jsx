@@ -4,7 +4,7 @@ import { Row, TabsLine } from "../components/common/Board.jsx";
 import Empty from "../components/common/Empty.jsx";
 import Button from "../components/common/Button.jsx";
 import Modal from "../components/common/Modal.jsx";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import { LitBoard, Medal, MedalBoard, bigMedal, useDesk, usePartnerMedal } from "../components/TitleFaces.jsx";
 import { medalUrl } from "../components/titleMedal.js";
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
@@ -40,7 +40,7 @@ const Names = ({ names, max = 5 }) => names.length > 0 && <span className="tl-na
 function ChampionLine({ medals, desk }) {
   return <LitBoard className="stack" role="list">{[...medals].reverse().map(m => <button type="button" key={m.key} role="listitem" aria-label={m.label}
     className={"pn tl-crow" + (m.reign ? " now" : "") + (m.on ? "" : " off")} onClick={m.onClick}>
-    <span className="tl-gen"><Seg value={String(m.gen)} h={m.reign ? 84 : 32} cells={1} /><span className="t12 dim">대</span></span>
+    <span className="tl-gen"><Fig value={String(m.gen)} h={m.reign ? (desk ? 136 : 84) : (desk ? 52 : 32)} /><span className="t12 dim">대</span></span>
     <Medal spec={m.spec} off={!m.on} big={bigAt(m.reign ? (desk ? 204 : 132) : (desk ? 120 : 84))} />
     <span className="tl-rmain"><b className={m.reign ? "t32" : "t20"}>{m.name}</b>
       {(m.reign || m.season) && <span className="t12 dim">{[m.reign && "현 챔피언", m.season].filter(Boolean).join(", ")}</span>}</span>
@@ -50,7 +50,7 @@ function ChampionLine({ medals, desk }) {
 function RegionLine({ medals, desk }) {
   return <LitBoard className="stack tl-regions" role="list">{medals.map(m => <button type="button" key={m.key} role="listitem" aria-label={m.label}
     className={"pn tl-tick" + (m.on ? "" : " off")} onClick={m.onClick} disabled={!m.onClick}>
-    <span className="tl-gen"><Seg value={String(m.gen)} h={32} cells={1} /><span className="t12 dim">세대</span></span>
+    <span className="tl-gen"><Fig value={String(m.gen)} h={32} /><span className="t12 dim">세대</span></span>
     <Medal spec={m.spec} off={!m.on} big={bigAt(desk ? 204 : 132)} /><b className="t15">{m.name}</b>
     {/* a region's cell is narrow, so three a cell */}<Names names={holdersOf(m.item)} max={3} />
   </button>)}</LitBoard>;
@@ -168,7 +168,7 @@ export default function TitlesPage({ data, admin, setModal, go }) {
   const strays = g?.key === "type" ? items.filter(item => !typeOfTitle(item.name)) : g?.key === "region" ? items.filter(item => !regionOfTitle(item.name)) : [];
 
   return (<section className="tt">
-    <header className="tt-head"><h1 className="t32">칭호</h1>{admin && g && <Button variant="link" onClick={() => setModal({ type: "title", groupKey: g.key })}>칭호 추가</Button>}</header>
+    <header className="tt-head"><h1 className="page-title">칭호</h1>{admin && g && <Button variant="link" onClick={() => setModal({ type: "title", groupKey: g.key })}>칭호 추가</Button>}</header>
     {/* no line of counts: the board itself shows which medals are struck and which wait (2026-11-19, Made by people) */}
     {groups.length > 1 && <div className="tt-tabs"><TabsLine value={g?.key} onChange={choose} label="칭호 분류" options={groups.map(x => [x.key, x.name])} /></div>}
 

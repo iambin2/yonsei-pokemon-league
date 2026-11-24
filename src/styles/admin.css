@@ -1,18 +1,17 @@
 /* =============================================================================
-   YPL Scoreboard: admin editors (champion, form builder, standings, rounds).
-   An editor's groups are panels; the fields inside them stand one tone up (--panel-2).
+   League almanac: admin editors (champion, form builder, standings, rounds).
+   An editor's groups stand on the ground: a hairline opens each, the fields under it are underlines.
    ========================================================================== */
 
-/* one round tool button for every editor */
+/* one tool key for every editor: a bare glyph, lit and tinted under the pointer */
 .fb-ic, .ed-del, .ed-mv, .ed-x {
   width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 0;
-  background: var(--panel-2); color: var(--dim);
+  background: transparent; color: var(--dim);
   transition: scale var(--move-press), background-color var(--move-tone),
     color var(--move-tone), opacity var(--move-tone);
 }
 @media (hover: hover) {
-  :is(.fb-ic, .ed-mv):hover:not(:disabled) { background: var(--panel-2); color: var(--lit); }
-  :is(.fb-ic.del, .ed-del, .ed-x):hover:not(:disabled) { background: var(--panel-2); color: var(--lit); }
+  :is(.fb-ic, .ed-del, .ed-mv, .ed-x):hover:not(:disabled) { background: var(--tint); color: var(--lit); }
 }
 
 /* ---------- champion editor ---------- */
@@ -21,14 +20,15 @@
 .ch-imgwrap { position: relative; }
 .ch-img {
   aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; cursor: pointer;
-  background: var(--panel-2);
+  box-shadow: inset 0 -1px 0 var(--rule);
   transition: background-color var(--move-tone);
 }
-@media (hover: hover) { .ch-img:hover { background-color: var(--panel-2); } }
+@media (hover: hover) { .ch-img:hover { background-color: var(--tint); } }
 .ch-img img { width: 82%; height: 82%; object-fit: contain; }
 /* a place with no picture yet is a strip, not a square: six empty squares stood three screens tall on a phone before a name was typed
    (2026-11-10) */
-.ch-img:not(:has(img)) { aspect-ratio: auto; height: var(--h-control); }
+/* with no picture it draws no line of its own: a second underline over the name's would read as one more field (2026-11-24) */
+.ch-img:not(:has(img)) { aspect-ratio: auto; height: auto; box-shadow: none; }
 .ch-plus { display: flex; flex-direction: column; align-items: center; gap: var(--s1); font-size: var(--t12); font-weight: 600; color: var(--mute); }
 .ch-name { min-height: var(--h-control); padding: var(--s2) var(--s3); font-size: var(--t15); }
 /* the names offered as one types need no browser arrow: the list opens under the field as it is typed */
@@ -42,10 +42,11 @@
 .ch-slot + .bk-hint, .ch-grid + .bk-hint { margin-top: var(--s3); }
 
 /* ---------- form builder ---------- */
-.fb-wrap { margin: var(--s5) 0; padding: var(--pad); background: var(--panel); }
+.fb-wrap { margin: var(--s5) 0; }
 .fb-wrap > .bk-check { font-weight: 600; }
-/* a question is a fill-2 cell inside the plate; concentric 32 - 16 = 16 */
-.fb-q { margin-bottom: var(--s3); padding: var(--pad); background: var(--panel-2); }
+/* a question is an entry: a hairline opens it, the event settings open with the 2px lit rule of a section */
+.fb-q { padding: var(--s5) 0; box-shadow: inset 0 1px 0 var(--rule); }
+.fb-q:has(> .fb-section-head) { box-shadow: inset 0 2px 0 var(--lit); }
 .fb-q-top { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
 .fb-q-top strong { font-size: var(--t15); font-weight: 600; }
 .fb-q-top .dd { width: calc(var(--s21) * 2 + var(--s13)); }
@@ -57,25 +58,24 @@
 .fb-opts { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); }
 .fb-opt { display: flex; align-items: center; gap: var(--s2); }
 .fb-opt input { min-height: var(--h-control); padding: var(--s2) var(--s3); }
-/* option glyph: the shape of the answer (circle, square, list), drawn in fill */
+/* option glyph: the shape of the answer, a solid --tint square as a check stands off; a dropdown's options are numbered */
 .fb-dot {
-  width: 20px; height: 20px; flex: none; display: grid; place-items: center; background: var(--panel-2); font-size: var(--t12); font-weight: 600; color: var(--mute);
+  width: 20px; height: 20px; flex: none; display: grid; place-items: center; background: var(--tint); font-size: var(--t12); font-weight: 600; color: var(--mute);
 }
-.fb-dot.multi { border-radius: 0; }
-.fb-dot.dropdown { background: none; width: 20px; }
+.fb-dot.dropdown { background: none; }
 .fb-addopt {
   align-self: flex-start; height: 44px; padding: 0 var(--s3); border: 0; background: transparent;
   font-size: var(--t15); font-weight: 600; color: var(--dim);
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 .fb-addq {
-  width: 100%; min-height: var(--h-row); margin-top: var(--s1); border: 0; background: var(--panel-2);
-  font-size: var(--t15); font-weight: 600; color: var(--dim);
+  width: 100%; min-height: var(--h-row); margin-top: var(--s1); padding: 0; border: 0; background: transparent; box-shadow: inset 0 -1px 0 var(--rule);
+  text-align: left; font-size: var(--t15); font-weight: 700; color: var(--lit);
   transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
 }
 @media (hover: hover) {
-  .fb-addopt:hover { background: var(--panel-2); color: var(--lit); }
-  .fb-addq:hover { background: var(--panel-2); color: var(--lit); }
+  .fb-addopt:hover { background: var(--tint); color: var(--lit); }
+  .fb-addq:hover { background: var(--tint); }
 }
 .fb-q-foot { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s5); margin-top: var(--s2); }
 .fb-req { min-height: 44px; }
@@ -95,12 +95,13 @@
 .ed-x { width: 24px; height: 24px; margin-left: var(--s2); }
 
 /* ---------- rounds editor ---------- */
-.ed-round { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s3); padding: var(--s5); background: var(--panel); }
+.ed-round { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s5) 0; box-shadow: inset 0 1px 0 var(--rule); }
+.ed-round:first-child { box-shadow: inset 0 2px 0 var(--lit); }
 .ed-round input { min-height: var(--h-control); padding: var(--s2) var(--s3); }
 .ed-rtop { display: flex; align-items: center; gap: var(--s2); }
 .ed-w { flex: 1 1 136px; min-width: 0; }
 .ed-r2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
-.ed-team { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); background: var(--panel-2); }
+.ed-team { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s2) 0 var(--s2) var(--s3); box-shadow: inset 1px 0 0 var(--rule); }
 .ed-rk { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--t12); font-weight: 600; color: var(--dim); }
 .ed-rk.gold { color: var(--lit); }
 .ed-auto { min-height: 44px; }
@@ -114,15 +115,6 @@
   .ed-grid { grid-template-columns: minmax(0, 1.618fr) repeat(4, minmax(0, 1fr)) var(--h-control); }
 }
 
-/* editors open on plate sheets: their groups become tiles of the same tone instead of opaque cards */
-.sheet :is(.ed-round, .tb-rule-confirm-list, .tb-library-save, .tb-saved-list, .bk-group) { background: var(--panel-2); box-shadow: none; }
-/* the notice editor's entry form is already on the sheet's panel: it adds no plate of its own, so its rows and fields line up
-   with the title and body above, and only the question boxes step up a tone */
-.sheet .fb-wrap { padding: 0; background: none; }
-/* a field inside a tinted group in a sheet stands on the sheet's own colour, or it would match the group */
-.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group, .fold) :is(input:not([type="checkbox"], [type="radio"]), textarea, .dd-btn) { background: var(--panel); }
-.sheet .fb-dot:not(.dropdown) { background: var(--panel); }
-.sheet :is(.fb-q, .ed-team, .bk-applybox, .bk-pin, .bk-team-card, .bk-series-row, .bk-ace) { background: var(--panel-2); }
 
 /* ---------- notice editor: taking entries is a switch row, the event settings cells, save is the main action ---------- */
 .fb-switch { width: 100%; text-align: left; }
@@ -130,15 +122,17 @@
 .fb-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
 .fb-cells { margin-bottom: var(--s5); }
 .fb-cells .cell { --field-bg: transparent; }
-.sheet .fb-cells .cell { background: var(--panel); }
 
 /* ---------- 운영 (DESIGN.md "Admin", 2026-11-08): counters, what waits as rows, the editors' doors; beside them each event in progress
    with its steps, its facts and its one action, held in view on desktop. On a phone: the counters, 할 일, 대회 진행, 편집. ---------- */
 .ad-page { display: grid; gap: var(--s5); }
-.ad-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* the four counts as the almanac's standing figures: a thin 84 numeral under its label, a hairline under each */
+.ad-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s5); }
+.ad-counts .counter { height: auto; gap: var(--s3); padding: var(--s3) 0 var(--s5); }
+/* every section of 운영 opens with the 2px lit rule under its head; its entries part on hairlines */
+.ad-page :is(.ad-block, .rc-linkreq) > .sh { margin-bottom: 0; padding-bottom: var(--s3); box-shadow: inset 0 -2px 0 var(--lit); }
 .ad-cols, .ad-main, .ad-side { display: grid; gap: var(--s8); align-content: start; min-width: 0; }
 .ad-block { display: grid; gap: var(--s3); }
-.ad-block > .sh { margin-bottom: 0; }
 /* 포인트 sheet: a league a section, its places as cells */
 /* the fields keep their own 20 and the heads their 12: no gap is added on top of them */
 .ad-points { display: grid; gap: 0; margin-top: var(--s5); }

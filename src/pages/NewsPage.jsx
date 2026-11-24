@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import Fig from "../components/common/Fig.jsx";
 import { BackLink, Chips, Choice, Counter, Dock, OptionRows, Question, Row, SectionHead, Toast } from "../components/common/Board.jsx";
-import { DUR, light } from "../components/common/motion.js";
+import { light } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
 import { isNewNotice, markNoticeSeen } from "../components/common/seenNotices.js";
 import { NoticeLead, NoticeRow } from "../components/common/NoticeRows.jsx";
@@ -51,7 +52,15 @@ function eventFacts(a){
   return {next,rows};
 }
 
-/* 공지 목록의 한 줄: 제목, 그 아래 회색 줄의 날짜(고정이면 고정이 켜진다), 줄 끝의 램프 칸. 새 글이면 램프가 켜진다(seenNotices.js) */
+/* 공지의 큰 숫자(연감의 가는 숫자): 작은 이름 아래 대회까지의 날, 신청한 사람. 읽는 중이면(null) 숫자 자리는 흐린 줄표다.
+   오늘 진행 중이면 이름 앞에 앰버 램프가 켜지고 숫자는 시작 시각이다. */
+function Count({ label, value, unit, live=false }){
+  const lit=value!=null&&value!=="";
+  return <div className="nw-count" aria-label={lit?`${label} ${value}${unit}`:label}>
+    <span className="t12 dim nw-count-label">{live&&<i className="lamp sig" aria-hidden="true"/>}{label}</span>
+    <span className="nw-count-fig"><Fig value={lit?String(value):""} h={136} label={lit?`${value}${unit}`:""}/><span className="t20">{unit}</span></span>
+  </div>;
+}
 /* 공지: 목록에서 제목을 누르면 본문 화면으로 넘어간다. 신청은 공지 위에 서는 한 장이고, 파티 제출은 팀 빌더로 간다.
    연 공지는 주소(?notice=)와 기록 한 칸에 남는다. */
 export default function NewsPage({ data, siteFailed = false, admin, setModal, save, submitForm, refresh, go, flash }) {
@@ -208,13 +217,13 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
         <h1 className="t32 nw-title" data-vt={"n-"+a.id}>{a.title}</h1>
       </header>
       <aside className="nw-aside">
-        {(next||counting)&&<div className="stack nw-counts">
+        {(next||counting)&&<div className="opens nw-counts">
           {next&&(next.dday===0
-            ? <Counter label={`${next.k?next.k+" ":""}오늘 진행 중`} lamp="sig" value={clock||"  :  "} cells={4} after={<span className="t15">시작</span>}/>
-            : <Counter label={`${next.k||"대회"}까지`} lamp value={String(next.dday).padStart(2,"0")} cells={next.dday>=100?3:2} unit="일" after={<span className="t15">일</span>}/>)}
-          {counting&&<Counter label="신청" value={applied} cells={applied>=100?3:2} unit="명"/>}
+            ? <Count label={`${next.k?next.k+" ":""}오늘 진행 중`} live value={clock} unit="시작"/>
+            : <Count label={`${next.k||"대회"}까지`} value={next.dday} unit="일"/>)}
+          {counting&&<Count label="신청" value={applied} unit="명"/>}
         </div>}
-        {facts?.rows.length>0&&<div className={"stack nw-spec"+(next||counting?" joined":"")}>
+        {facts?.rows.length>0&&<div className={"stack nw-spec"+(next||counting?" joined":" opens")}>
           {facts.rows.map(([k,v])=><div className="pn spec-row" key={k}><span className="t12 dim">{k}</span><span className="t15">{v}</span></div>)}
         </div>}
         {/* two ranks of keys (Composing a screen 28): what an entrant does next as 52 keys, what is used now and then as a row of 44;
@@ -238,7 +247,7 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
         </div>}
         {others.length>0&&<section className="nw-others" aria-labelledby="nw-others">
           <SectionHead id="nw-others" title="다른 공지"/>
-          <div className="stack">{others.map(x=><NoticeRow key={x.id} a={x} onOpen={()=>openArticle(x.id)}/>)}</div>
+          <div className="stack opens">{others.map(x=><NoticeRow key={x.id} a={x} onOpen={()=>openArticle(x.id)}/>)}</div>
         </section>}
       </aside>
       <div className="nw-main">
@@ -266,7 +275,7 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
 
   return (<section className="nw">
     <header className="nw-head">
-      <h1 className="t32">공지</h1>
+      <h1 className="page-title">공지</h1>
       <span className="nw-tools">
         {admin&&<Button variant="link" onClick={()=>setModal({type:"ann"})}>공지 작성</Button>}
       </span>
@@ -275,7 +284,7 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
     <div className="nw-search"><ListSearch q={q} setQ={setQ} placeholder="공지 제목과 내용 검색" count={list.length}/></div>
     {upcoming.length>0&&!kw&&<section className="nw-upcoming" aria-labelledby="nw-upcoming-h">
       <SectionHead id="nw-upcoming-h" title="다가오는 대회" link="캘린더에 추가" onLink={allToCalendar}/>
-      <div className="stack">{upcoming.map(({a:x,facts})=>{
+      <div className="stack opens">{upcoming.map(({a:x,facts})=>{
         // the day in full, the closing short (a phone's line holds both): its date while it is ahead, 신청 마감 once it has passed
         const closes=x.form?.closesAt, closed=closes&&applicationsClosed(x.form);
         const line=[...facts.rows.filter(([k])=>/일시/.test(k)).map(([,v])=>v), closes?(closed?"신청 마감":`신청 ${formatDate(closes)}까지`):""].filter(Boolean).join(", ");
@@ -286,12 +295,12 @@ export default function NewsPage({ data, siteFailed = false, admin, setModal, sa
     {list.length===0?(kw
       ? <>
         <Empty className="search-none" title="맞는 공지가 없습니다."/>
-        {all.length>0&&<section className="nw-recent"><SectionHead title="최근 공지"/><div className="stack nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></section>}
+        {all.length>0&&<section className="nw-recent"><SectionHead title="최근 공지"/><div className="stack opens nw-list">{all.slice(0,3).map(a=><NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div></section>}
       </>
       /* the notices could not be read (the seed stands in for the site's copy): a failed read, not an empty list (T-110) */
       : siteFailed ? <ErrorNote action="다시 불러오기" onRetry={refresh}>공지를 불러오지 못했습니다.</ErrorNote>
       : <Empty title="등록된 공지가 없습니다."/>)
-    : <div className="stack nw-list">{shown.map((a,i)=>i===0&&cur===1&&!kw?<NoticeLead key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>:<NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div>}
+    : <div className="stack opens nw-list">{shown.map((a,i)=>i===0&&cur===1&&!kw?<NoticeLead key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>:<NoticeRow key={a.id} a={a} onOpen={()=>openArticle(a.id)}/>)}</div>}
     <div className="nw-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>
     {modals}
   </section>);
@@ -397,7 +406,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
   // 같은 이름은 없고 비슷한 이름의 기록이 있으면(문장부호, 한 글자, 덧붙인 말) 그 이름인지 묻는다. 누르면 그 이름으로 바꾸고 같은 이름의 확인으로 간다.
   const similar=current&&!current.player?current.similar||[]:[];
   const useName=n=>{ setRegistrationName(n); setWho(""); setErrors(x=>({...x,name:"",who:""})); const key=playerNameKey(n); latest.current=key; lookup(n).then(r=>{ if(latest.current===key) setRecord(r&&{key,...r}); }); };
-  useLayoutEffect(()=>{ if(shown) light(recordRef.current,DUR.leave); },[shown?.key]);
+  useLayoutEffect(()=>{ if(shown) light(recordRef.current); },[shown?.key]);
   const set=(id,v)=>{ setAns(a=>({...a,[id]:v})); setErrors(e=>({...e,[id]:""})); };
   const submit=async()=>{
     const next={}; const typed=tidyApplicantName(registrationName);
@@ -445,7 +454,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
     </header>
     <aside className="nw-form-aside">
       {(facts.length>0||both)&&<div className="nw-form-facts">
-        <div className="stack">
+        <div className="stack opens">
           {facts.map(([k,v])=><div className="pn spec-row" key={k}><span className="t12 dim">{k}</span><span className="t15">{v}</span></div>)}
           {both&&<div className="pn spec-row"><span className="t12 dim">리그</span><span className="t15">루키와 마스터 함께 접수</span></div>}
         </div>
@@ -458,7 +467,7 @@ function FormPage({ ann, responsesOverride=null, onBack, onSubmit, onOpen, edit=
   </section>);
   if(done) return sheet({
     act:<Button variant="main" onClick={onBack}>공지 보기</Button>,
-    children:<div className="inv nw-done"><span className="box on"><Icon n="check" size={16}/></span><div><b className="t15">{edit?"신청을 수정했습니다.":"신청을 접수했습니다."}</b>{alias&&<p className="t12 reg">{`${alias} 이름으로 접수했습니다.`}</p>}</div></div>,
+    children:<div className="opens nw-done"><Icon n="check" size={20}/><div><b className="t15">{edit?"신청을 수정했습니다.":"신청을 접수했습니다."}</b>{alias&&<p className="t12 reg">{`${alias} 이름으로 접수했습니다.`}</p>}</div></div>,
   });
   if(edit&&!held) return sheet({
     toast:failed&&<Toast error action="다시 시도" onAction={find}>{failed}</Toast>,
@@ -569,10 +578,9 @@ function FormResponsesModal({ ann, onClose, onDeleteResp, onDeleteRegistration, 
   const nameOf=r=>r.registrationName||(fields[0]?cell(r.answers&&r.answers[fields[0].id]):"");
   const sentCount=subs?resp.filter(sent).length:0;
   const shown=resp.filter(r=>(!q.trim()||nameOf(r).includes(q.trim()))&&(filter==="all"||(filter==="sent")===sent(r)));
-  const cellsFor=n=>Math.max(2,String(n).length);
   return (<Modal title="신청자" hint={ann.title} onClose={onClose}>
-    <div className="stack fr-counters"><Counter label="신청" value={resp.length} cells={cellsFor(resp.length)}/>
-      {subs&&<><Counter label="파티 제출" value={sentCount} cells={cellsFor(resp.length)}/><Counter label="미제출" value={resp.length-sentCount} cells={cellsFor(resp.length)}/></>}</div>
+    <div className="stack fr-counters"><Counter label="신청" value={resp.length}/>
+      {subs&&<><Counter label="파티 제출" value={sentCount}/><Counter label="미제출" value={resp.length-sentCount}/></>}</div>
     {unified&&<p className="t12 reg dim">마스터 {resp.filter(row=>row.division==="master").length}명, 루키 {resp.filter(row=>row.division==="rookie").length}명</p>}
     {resp.length>0&&<div className="stack fr-bar">
       <label className="pn search-in"><Icon n="search" size={20}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="이름 검색" aria-label="이름 검색"/></label>
@@ -587,7 +595,7 @@ function FormResponsesModal({ ann, onClose, onDeleteResp, onDeleteRegistration, 
           {fields.length>0&&<span className="t12 reg dim fr-answers">{fields.map(f=>`${f.label||"질문"} ${cell(r.answers&&r.answers[f.id])||"없음"}`).join(", ")}</span>}
         </div>
         <div className="fr-actions">
-          {subs&&(sent(r)?<span className="t12 fr-sent"><i className="lamp" aria-hidden="true"/>제출</span>:<span className="t12 dim">미제출</span>)}
+          {subs&&(sent(r)?<span className="t12 fr-sent">제출</span>:<span className="t12 dim">미제출</span>)}
           {/* the PIN is set by a first party submission or a first 신청 수정, so any row may hold one */}{onResetPin&&<Button variant="link" onClick={()=>onResetPin(r)}>비밀번호 초기화</Button>}
           {onDeleteResp&&<button type="button" className="fr-del" onClick={async()=>{if(await siteConfirm({title:"응답 삭제",body:"이 응답을 삭제할까요? 삭제한 응답은 되돌릴 수 없습니다.",confirmLabel:"삭제",danger:true}))onDeleteResp(r.id);}} aria-label="삭제"><Icon n="trash" size={16}/></button>}
           {onDeleteRegistration&&subs&&!sent(r)&&<button type="button" className="fr-del" onClick={()=>onDeleteRegistration(r)} aria-label={`${nameOf(r)||"이 신청"} 삭제`}><Icon n="trash" size={16}/></button>}

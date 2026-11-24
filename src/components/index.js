@@ -17,4 +17,4 @@ export { default as SiteFooter } from "./layout/SiteFooter.jsx";
 export { NAV_ITEMS, TABS, MORE_ITEMS } from "./layout/Navigation.jsx";
 export { default as Icon } from "./common/Icon.jsx";
 export { STAGGER, transition } from "./common/motion.js";
-export { default as Seg } from "./common/Seg.jsx";
+export { default as Fig } from "./common/Fig.jsx";

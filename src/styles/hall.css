@@ -1,53 +1,54 @@
 /* =============================================================================
-   YPL Scoreboard: the titles' page frame, hall of fame, about (TitlesPage.jsx, ChampionsPage.jsx, AboutPage.jsx, ChampionSheet.jsx).
-   The titles' faces live in titles.css; the champion's party as six cells standing on their name bands.
+   The titles' page frame, hall of fame, about (TitlesPage.jsx, ChampionsPage.jsx, AboutPage.jsx, ChampionSheet.jsx).
+   The titles' faces live in titles.css; the champion's party as six standing on one line, their names under it.
    ========================================================================== */
 
 /* ---------- titles: the page's frame ---------- */
 .tt-head, .hof-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .tt-tabs { margin-top: var(--s5); }
 
-/* ---------- hall of fame: a lineage (2026-11-24, draft A). The crown is the page's big screen; every earlier reign is one row under it,
-   so a champion added is one row more and the oldest stands as large as the newest ---------- */
+/* ---------- hall of fame: a lineage, set as the league's almanac (2026-11-24). The reigning champion is the page's lead entry: the
+   generation as one giant thin figure, a thick rule, the name; every earlier reign is one entry under it, closed by a hairline, so a
+   champion added is one row more and the oldest stands as large as the newest ---------- */
 /* a failed or empty read stands where the crown would */
 .hof > :is(.ypl-empty, .error-note) { margin-top: var(--s5); }
 .hof-gen { display: inline-flex; align-items: flex-end; gap: var(--s2); }
-/* the crown: one inverted panel. 현 챔피언 over the generation at the column's top, the name, the season and the links at its foot */
-.hof-crown { display: grid; gap: var(--s5); margin-top: var(--s5); padding: var(--s5) var(--pad); }
-.hof-crown-who { display: grid; justify-items: start; align-content: space-between; gap: var(--s5); min-width: 0; }
-.hof-crown-top { display: grid; justify-items: start; gap: var(--s2); }
-.hof-crown-end { display: grid; justify-items: start; gap: var(--s1); min-width: 0; }
+/* the crown: no panel. 현 챔피언 over the giant generation, then the thick rule the name, the season and the links stand under */
+.hof-crown { display: grid; gap: var(--s8); margin-top: var(--s8); }
+.hof-crown-who { display: grid; justify-items: stretch; align-content: space-between; gap: var(--s5); min-width: 0; }
+.hof-crown-top { display: grid; justify-items: start; gap: var(--s5); }
+.hof-crown-end { display: grid; justify-items: start; gap: var(--s1); min-width: 0; padding-top: var(--s5); box-shadow: inset 0 var(--line) 0 var(--lit); }
 .hof-crown-name { min-width: 0; overflow-wrap: anywhere; }
 .hof-crown-act { display: flex; flex-wrap: wrap; gap: var(--s5); margin-top: var(--s3); }
-.hof-crown .btn.btn--link, .hof-crown .btn.btn--link:hover:not(:disabled) { --btn-fg: var(--ground); }
-.hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
+/* the six stand on one line, their names under it */
+.hof-crown-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--s3); row-gap: var(--s5); }
 .hof-crown-mon { --floor: var(--h-strip); aspect-ratio: 1; }
 .hof-crown-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
-.hof-band { display: grid; place-items: center; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-/* 계보: one row a reign, newest first; on a phone the generation and the name over the six in one row of six */
+.hof-band { display: grid; place-items: center; box-shadow: inset 0 1px 0 var(--rule); font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 계보: opened by the thick rule, one entry a reign, newest first; on a phone the generation and the name over the six in one row of six */
 .hof-past { margin-top: var(--s13); }
-.hof-line { display: grid; gap: var(--seam); }
-.hof-slot { display: grid; gap: var(--seam); min-width: 0; }
+.hof-line { display: grid; box-shadow: inset 0 var(--line) 0 var(--lit); }
+.hof-slot { display: grid; min-width: 0; }
 .hof-edit { justify-self: start; min-height: var(--h-control); }
-.hof-row { display: grid; gap: var(--s3); width: 100%; padding: var(--s3) var(--pad); text-align: left; }
-.hof-row-head { display: flex; align-items: center; gap: var(--s5); min-width: 0; }
+.hof-row { display: grid; gap: var(--s3); width: 100%; padding: var(--s5) 0; text-align: left; }
+.hof-row-head { display: flex; align-items: flex-end; gap: var(--s5); min-width: 0; }
 .hof-row-who { display: grid; gap: var(--s1); min-width: 0; }
 .hof-row-who > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hof-row-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .hof-row-mon { aspect-ratio: 1; }
 .hof-row-mon .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
-/* the champion sheet: the six with their names; on desktop as wide as the content, all six in one row */
-.hof-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
+/* the champion sheet: the six with their names on one line; on desktop as wide as the content, all six in one row */
+.hof-six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--s3); row-gap: var(--s5); }
 .hof-cell { --floor: var(--h-control); aspect-ratio: 1; }
 .hof-cell .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
-/* the seal on top of the sheet: the one inverted panel, the generation lit at 84; the party joins it by the seam */
-.hof-seal { display: grid; justify-items: start; gap: var(--s3); margin-bottom: var(--seam); padding: var(--pad); }
+/* the seal on top of the sheet: the generation as a thin figure, closed by the thick rule */
+.hof-seal { display: grid; justify-items: start; gap: var(--s3); margin-bottom: var(--s5); padding-bottom: var(--s5); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .hof-sheet-note { margin-top: var(--s3); }
-/* a plaque per member when the day's sets were kept: the picture on its floor and the facts split 1 to 1.618, the four moves under
+/* a plaque per member when the day's sets were kept: the picture on its line and the facts split 1 to 1.618, the four moves under
    both at the plaque's width, two by two, each one step up with its type tag under its name */
-.hof-plaques { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--seam); }
-.hof-plaque { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); gap: var(--s3); padding: var(--pad); }
-.hof-plaque-pic { aspect-ratio: 1; }
+.hof-plaques { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: var(--s8); }
+.hof-plaque { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); gap: var(--s3); padding: var(--s5) 0; }
+.hof-plaque-pic { aspect-ratio: 1; box-shadow: inset 0 -1px 0 var(--rule); align-self: start; }
 .hof-plaque-pic .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
 .hof-plaque-who { display: grid; align-content: start; gap: var(--s2); min-width: 0; }
 .hof-plaque-who > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
@@ -57,60 +58,19 @@
 .hof-spec dt { font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
 .hof-spec dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
 .hof-spec dd small { margin-left: var(--s2); font-size: var(--t12); font-weight: 400; color: var(--dim); }
-.hof-moves { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); margin: 0; padding: 0; list-style: none; }
-.hof-moves li { display: grid; justify-items: start; align-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row2); padding: var(--s2) var(--s3); background: var(--rule); --tag-bg: var(--panel-2); }
+.hof-moves { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.hof-moves li { display: grid; justify-items: start; align-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row2); padding: var(--s2) 0; box-shadow: inset 0 1px 0 var(--rule); }
 .hof-moves li > b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .hof-moves li.empty { color: var(--mute); }
 @media (min-width: 640px) { .hof-plaques { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 860px) {
   .hof-plaques { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  /* the crown and every row part 439 to 709 on one line, so the six of each reign stand under the crown's six; the crown's two rows of
-     three take the height of its words' column, so neither side keeps a band without ink */
-  .hof-crown, .hof-row { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s8); padding: var(--s8); }
-  .hof-crown { align-items: stretch; }
-  .hof-crown-six { grid-template-rows: repeat(2, minmax(0, 1fr)); }
-  .hof-crown-mon { aspect-ratio: auto; min-height: calc(var(--s21) * 2); }
-  .hof-row { align-items: center; padding-block: var(--s3); }
+  /* the crown and every row part 439 to 709 on one line, so the six of each reign stand under the crown's six */
+  .hof-crown, .hof-row { grid-template-columns: minmax(0, 439fr) minmax(0, 709fr); column-gap: var(--s13); }
+  .hof-crown { align-items: end; margin-top: var(--s13); }
+  .hof-crown-end > .t15 { font-size: var(--t20); line-height: var(--l20); font-weight: 400; }
+  .hof-row { align-items: end; }
+  .hof-row-who > b { font-size: var(--t32); line-height: var(--l32); }
   .hof-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
-/* ---------- about (draft 1C, 2026-11-19) ---------- */
-/* the big screen: the league's name and facts with ↗ 디스코드 참여 in the 709, the next two steps as doors in the 439 */
-.ab-screen { margin-top: var(--s5); }
-/* the lead runs its row's height and its key stands on its foot, so no band stays empty under it */
-.ab-lead { display: grid; grid-template-rows: auto auto auto auto 1fr; gap: var(--s3); padding: var(--pad); }
-.ab-lead > :last-child { align-self: end; }
-.ab-name { margin-top: calc(var(--s2) * -1); font-weight: 700; }
-.ab-spec { margin: 0; }
-.ab-spec > div { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
-.ab-spec dd { margin: 0; font-weight: 700; text-align: right; }
-.ab-lead > .btn--main { margin-top: var(--s2); }
-.ab-steps { margin: 0; padding: 0; list-style: none; }
-.ab-step { display: grid; gap: var(--s1); align-content: start; padding: var(--pad); }
-.ab-n { color: var(--mute); font-weight: 700; }
-.ab-step .read, .ab-time .read, .ab-kind .read { margin: 0; color: var(--dim); }
-.ab-go { justify-self: start; display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-bottom: calc((var(--h-control) - var(--l12)) / -2); font-weight: 700; color: var(--lit); }
-.ab-sec { margin-top: var(--s13); }
-/* the season's flow: one inverted strip, each step a part of it, an arrow before every step but the first */
-.ab-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
-.ab-flow > li { display: flex; align-items: center; justify-content: center; gap: var(--s2); height: var(--h-row); font-weight: 700; white-space: nowrap; }
-.ab-flow > li + li::before { content: "→"; font-weight: 400; }
-.ab-flow > li:nth-child(3)::before { content: none; }
-/* the history: four stops, the current one inverted */
-.ab-times { margin: 0; padding: 0; list-style: none; }
-.ab-time { display: grid; gap: var(--s1); align-content: start; padding: var(--pad); }
-.ab-when { white-space: nowrap; font-weight: 700; }
-.ab-time.inv .read { color: var(--ground); }
-/* a competition or a league: its name and its tag on one line, the reading under it */
-.ab-kind { display: grid; gap: var(--s1); padding: var(--pad); }
-.ab-kind-head { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
-.ab-tag { --type: var(--mute); }
-.ab-tag.lit { --type: var(--lit); }
-@media (min-width: 860px) {
-  /* the big screen split as the home's: the steps on the 439 */
-  .ab-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); }
-  .ab-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .ab-flow > li:nth-child(3)::before { content: "→"; }
-  .ab-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .ab-two { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); }
-}

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icon from "../common/Icon.jsx";
+import Menu from "../common/Menu.jsx";
+import { THEMES } from "./themes.js";
 import { VISITOR_EVENT, accountsEnabled, accountsReady, myPlayerLink, visitorSignedIn } from "../../services/visitorAuth.js";
 import { useSlideLine } from "../common/Board.jsx";
 import { TABS, WIDE_TABS, current, tabOf, useWideNav } from "./Navigation.jsx";
@@ -77,12 +79,17 @@ function AccountButton({ onNavigate }) {
 
 /* 바는 바탕 톤에 아래 머리카락 선 하나, 움직이지 않는다. 폰은 Wing Y와 워드마크, 오른쪽 끝에 테마 버튼.
    데스크톱(860 이상)은 1200 안에 브랜드, 화면 이름(지금 화면은 아래 2px 선), 테마 버튼. 넓은 데스크톱은 더보기가 없어
-   관리자 로그인이 바닥글에 선다(SiteFooter). 테마 버튼은 바꿀 쪽을 보인다: 다크에서는 해, 라이트에서는 달. */
-export default function SiteHeader({ view, onNavigate, dark, onToggleTheme, moreOpen, onMore, live = null }) {
+   관리자 로그인이 바닥글에 선다(SiteFooter).
+   테마 버튼(2026-11-24, 운영자 A안): 누르면 바로 바꾸지 않고 버튼 아래에 더보기의 화면과 같은 네 갈래(어둡게, 밝게, 고대비, 기기 설정)를
+   메뉴로 연다. 고르면 그 자리에서 바뀌고 닫힌다. 아이콘은 지금 상태다: 다크는 해, 라이트는 달, 고대비는 반이 찬 원. 폰은 같은 줄이 시트로 뜬다. */
+export default function SiteHeader({ view, onNavigate, dark, themePref = "dark", onTheme, moreOpen, onMore, live = null }) {
   const wide = useWideNav();
   const cur = tabOf(view, wide);
   const navRef = useSlideLine(`${cur}:${wide}`);
-  const themeLabel = dark ? "라이트 테마로 바꾸기" : "다크 테마로 바꾸기";
+  const themeRef = useRef(null);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const icon = themePref === "contrast" ? "contrast" : dark ? "sun" : "moon";
+  const themeLabel = `화면, 지금 ${THEMES.find(([key]) => key === themePref)?.[1] || "어둡게"}`;
   return (
     <header className="topbar">
       <a href={viewHref("home")} className="brand" onClick={follow(() => onNavigate("home"))} aria-label="YPL 홈으로">
@@ -96,13 +103,15 @@ export default function SiteHeader({ view, onNavigate, dark, onToggleTheme, more
             onClick={follow(() => onNavigate(key))}>{key === "bracket" && live && <i className="lamp sig" aria-hidden="true" />}{label}</a>)}
       </nav>
       <AccountButton onNavigate={onNavigate} />
-      {/* the lamp's fixture: its housing is dark until something is live; on event day it lights with its word and opens the bracket */}
+      {/* on event day the amber mark and its word open the bracket; on any other day nothing stands there */}
       {live
         ? <a href={viewHref("bracket")} className="onair t12" onClick={follow(() => onNavigate("bracket"))} aria-label={`${live.name} 진행 중, 대진표 보기`}><i className="lamp sig" aria-hidden="true" />진행 중</a>
-        : <i className="lamp unlit onair-off" aria-hidden="true" />}
-      <button type="button" className="iconbtn theme-btn" onClick={onToggleTheme} aria-label={themeLabel}>
-        <Icon key={dark ? "sun" : "moon"} n={dark ? "sun" : "moon"} size={24} />
+        : null}
+      <button type="button" className="iconbtn theme-btn" ref={themeRef} onClick={() => setThemeOpen(o => !o)} aria-label={themeLabel} aria-haspopup="menu" aria-expanded={themeOpen}>
+        <Icon key={icon} n={icon} size={24} />
       </button>
+      {themeOpen && <Menu anchor={themeRef} title="화면" onClose={() => { setThemeOpen(false); themeRef.current?.focus({ preventScroll: true }); }}
+        items={THEMES.map(([key, label]) => ({ key, label, current: key === themePref, onSelect: () => { if (key !== themePref) onTheme?.(key); } }))} />}
     </header>
   );
 }

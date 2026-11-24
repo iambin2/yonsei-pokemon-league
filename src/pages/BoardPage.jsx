@@ -290,10 +290,10 @@ function FreeBoard({ admin, flash, tabs }){
   }
 
   return (<section className="bd">
-    <h1 className="t32">게시판</h1>
+    <h1 className="page-title">게시판</h1>
     {tabs}
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="제목, 내용, 글쓴이" count={list.length}/><Button variant="main" icon="plus" onClick={()=>setCompose(true)}>글쓰기</Button></div>
-    <div className="stack bd-list">
+    <div className="stack opens bd-list">
       {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
       {!loadError&&!posts&&!fresh&&<Loader/>}
       {!loadError&&posts&&list.length===0&&(kw
@@ -302,9 +302,8 @@ function FreeBoard({ admin, flash, tabs }){
       {shown.map(p=>{ const cc=(p.comments||[]).length; const d=dotDay(p.createdAt);
         return <Row key={p.id} title={<span data-vt={"b-"+p.id}>{p.title||p.body||"(제목 없음)"}</span>}
           line={<>{p.nick}{d&&<>, <span className="num">{d.day}</span> {d.weekday}</>}</>}
-          /* a post for the operators carries its lit lamp and word at the row's end, as a state does (2026-11-24, the owner: 눈에 잘 띄게) */
-          lamp={p.secret?"관리자 전용":undefined}
-          value={cc>0?<span className="t12 dim">댓글 {cc}</span>:undefined} onClick={()=>openPost(p.id)} href={viewHref("board",{post:p.id})}/>;})}
+          /* a post for the operators says so in lit words at the row's end (2026-11-24, the owner: 눈에 잘 띄게) */
+          value={p.secret||cc>0?<span className="bd-ends">{p.secret&&<span className="t12 bd-secret">관리자 전용</span>}{cc>0&&<span className="t12 dim">댓글 {cc}</span>}</span>:undefined} onClick={()=>openPost(p.id)} href={viewHref("board",{post:p.id})}/>;})}
     </div>
     <div className="bd-pager"><Pager page={cur} pages={pages} onGo={setPage}/></div>
     {compose&&<BoardCompose initial={typeof compose==="object"?compose:null} onClose={()=>setCompose(false)} onSubmit={addPost}/>}
@@ -510,11 +509,11 @@ function ShowcaseBoard({ kind, format, setFormat, admin, flash, go, tabs }){
   }
 
   return (<section className="bd">
-    <h1 className="t32">게시판</h1>
+    <h1 className="page-title">게시판</h1>
     {tabs}
     <div className="bd-tools stack"><ListSearch q={q} setQ={setQ} placeholder="제목, 포켓몬, 글쓴이" count={list.length}/><Button variant="main" icon="plus" onClick={()=>setPicking(true)}>{label} 올리기</Button></div>
     {loadError&&<ErrorNote action="다시 불러오기" onRetry={reload}>{loadError}</ErrorNote>}
-    {!posts?(!loadError&&<Loader/>):<div className="stack bd-list">
+    {!posts?(!loadError&&<Loader/>):<div className="stack opens bd-list">
       {list.length===0&&(kw
         ? <Empty title="검색 결과가 없습니다."/>
         : <Empty title={`아직 ${FORMAT_LABEL[format]} ${label} 글이 없습니다.`}/>)}

@@ -126,7 +126,6 @@ export default function App() {
     try{ localStorage.setItem("ypl-theme", pref); }catch(e){}
     themeTurn(()=>flushSync(()=>setThemePref(pref)));
   },[]);
-  const switchTheme=useCallback(()=>chooseTheme(dark?"light":"dark"),[dark,chooseTheme]);
   /* 테마는 <html> 에 건다 — 페이지, 오버스크롤 영역, 스크롤바, 브라우저 주소창 색이 한 바탕을 쓴다. */
   useLayoutEffect(()=>{
     const root=document.documentElement;
@@ -307,7 +306,7 @@ export default function App() {
     <div className={"ypl"+(admin?" is-admin":"")}>
       {/* 키보드로 들어온 사람은 매번 바 전체를 지나야 본문에 닿았다. */}
       <a className="skip-link" href="#ypl-main">본문으로 건너뛰기</a>
-      <SiteHeader view={going||view} onNavigate={go} dark={dark} onToggleTheme={switchTheme} live={live}
+      <SiteHeader view={going||view} onNavigate={go} dark={dark} themePref={themePref} onTheme={chooseTheme} live={live}
         moreOpen={Boolean(more)} onMore={toggleMore}/>
 
       <div className="wrap"><main className={"page"+(data?"":" page--wait")+(going?" is-going":"")} id="ypl-main" tabIndex={-1} key={view}>

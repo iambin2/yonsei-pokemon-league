@@ -1,4 +1,4 @@
-/* The lit lamp at the end of a notice row means new (DESIGN.md "Lamps"). A notice is new for seven days after its date,
+/* 새 글, lit and bold at the end of a notice row, means new (DESIGN.md "Marks"). A notice is new for seven days after its date,
    until this browser opens it. What was opened is a per-viewer convenience, so it lives in localStorage and may come back empty. */
 const KEY = "ypl-seen-notices", DAYS = 7, DAY_MS = 86400000;
 

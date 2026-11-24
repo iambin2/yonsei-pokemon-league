@@ -5,9 +5,11 @@ import { PushBoard, usePush } from "../components/common/PushControl.jsx";
 import { alertsSeenAt, markAlertsSeen, readInbox } from "../services/announcementPush.js";
 import { PUSH_KINDS, inboxDays, kindLabel } from "../services/announcementPushPolicy.js";
 
-/* 알림 (?view=alerts, draft B 2026-11-19): 받은 알림이 709, 설정이 439에 화면에 남아 선다. 휴대폰에서는 받은 알림 아래에 설정.
-   받은 알림은 지난 7일, 이 기기가 받는 종류(꺼진 기기는 모든 종류)의 알림이다(docs/db/push_inbox.sql). 지난번에 본 뒤에 온 줄은
-   밝고 램프가 켜지며, 화면에 온 때가 다음 방문의 기준이 된다. */
+/* 알림 (?view=alerts, 2026-11-24 다시 짬, the owner: "알림창도 가독성이 최악이야. 새로 설계해야 할 것 같아"): 한 단에 페이지 이름,
+   이 기기 알림의 스위치, 받을 알림의 목록, 그리고 받은 알림을 날짜별로. 날마다 작은 회색 머리가 2px 줄 위에 서고, 알림 한 줄은 밝은
+   제목, 회색 줄의 종류, 오른쪽 끝의 시각이다. 받은 알림은 지난 7일, 이 기기가 받는 종류(꺼진 기기는 모든 종류)의 알림이다
+   (docs/db/push_inbox.sql). 지난번에 본 뒤에 온 줄은 밝고 굵게 서며 회색 줄에 새 알림이 밝게 붙고, 읽은 줄은 흐리게 선다.
+   화면에 온 때가 다음 방문의 기준이 된다. 개수를 크게 세워 두지 않는다(Made by people). */
 const ALL = PUSH_KINDS.map(k => k.kind);
 
 /* an alert's address opened as the site's own move where the shell knows it, otherwise as a page load (a battle seat) */
@@ -42,24 +44,24 @@ export default function AlertsPage({ go }) {
   const arrival = useArrival(items !== undefined);
   const open = opener(go);
   const days = items ? inboxDays(items, new Date(), seen.current) : [];
-
   return (
     <section className="alerts">
-      <h1 className="t32">알림</h1>
+      <h1 className="page-title">알림</h1>
+      <div className="alerts-set"><PushBoard push={push} /></div>
       {items !== null && push.mode !== "none" && <div className="alerts-main" ref={arrival}>
+        <h2 className="t20 alerts-h">받은 알림</h2>
         {items === undefined ? null : failed ? <ErrorNote action="다시 불러오기" onRetry={() => { setItems(undefined); setAgain(n => n + 1); }}>알림을 불러오지 못했습니다.</ErrorNote>
           : !days.length ? <div className="ypl-empty"><p className="t15">최근 7일의 알림이 없습니다.</p></div>
-          : days.map(({ day, items: list }) => <div className="alerts-day" key={day}>
-            <p className="t12 dim push-label">{day}</p>
-            <div className="stack">{list.map((item, i) => (
-              <a key={i} href={item.url} onClick={follow(() => open(item.url))} className={"pn row row--2 alerts-row" + (item.unread ? "" : " read")}>
-                <span className="row-main"><b className="t15">{item.body}</b><span className="t12 dim reg alerts-meta"><span>{kindLabel(item.kind)}</span><span>{item.time}</span></span></span>
-                <span className="row-lamp">{item.unread && <i className="lamp" aria-label="새 알림" />}</span>
+          : days.map(({ day, items: list }) => <section className="alerts-day" key={day} aria-label={day}>
+            <p className="t12 alerts-day-h">{day}</p>
+            <div className="stack opens">{list.map((item, i) => (
+              <a key={i} href={item.url} onClick={follow(() => open(item.url))} className={"pn row row--2 alerts-row" + (item.unread ? " fresh" : "")}>
+                <span className="row-main"><b className="t15">{item.body}</b><span className="t12 dim reg">{kindLabel(item.kind)}{item.unread && <>, <b className="alerts-new">새 알림</b></>}</span></span>
+                <span className="row-value t15 alerts-time">{item.time}</span>
               </a>
             ))}</div>
-          </div>)}
+          </section>)}
       </div>}
-      <aside className="alerts-side"><PushBoard push={push} /></aside>
     </section>
   );
 }

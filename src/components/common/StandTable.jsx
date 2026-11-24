@@ -1,5 +1,6 @@
 import React from "react";
-import { Bar, koNumber } from "./Board.jsx";
+import { koNumber } from "./Board.jsx";
+import Fig from "./Fig.jsx";
 import Button from "./Button.jsx";
 
 /* 점수 순으로 정렬하고 같은 점수는 같은 순위, 다음 순위는 건너뛴다(6, 6, 8). */
@@ -14,26 +15,28 @@ export function rankRows(rows) {
 
 const SHOWN = 12;
 
-/* A ranking as the line score (DESIGN.md "Layout and pages", draft B; Composing a screen 25): a sole leader stands first as an inverted
-   row 84 tall, the name at 20, its bar on a track and the points at 32; the rest are rows of 52, the place, the name, the bar and the
-   points at 20. The bars are the points over the first's. No header row of column names: each row says its figure with its unit.
-   A tie is named 공동 (공동 3위). rows are raw; they are ranked here, unless placed: 도전의 탑's board comes ranked from the database.
-   unit says what the points count (연승). A row's live run carries the amber lamp with 도전 중, and its open is its door.
-   rows null is the board switched off: the rows at their size while the ranking is read, so nothing under it moves when it lights. */
+/* A ranking as the almanac's table (2026-11-24): small dim column heads over a 2px lit rule, then rows of 52 closed by hairlines, the
+   place muted, the name, the points in Albert Sans at the row's end (a zero muted). A sole leader stands first, its name at 32 and its
+   points as a thin large figure. A tie is the same place again (the label says 공동). rows are raw; they are ranked here, unless placed:
+   도전의 탑's board comes ranked from the database. unit says what the points count (연승). A row's live run carries the amber lamp with
+   도전 중, and its open is its door. rows null is the table's places standing at their size while the ranking is read (data-wait), so
+   nothing under it moves when the rows light into them. */
 export default function StandTable({ rows, total, onName, open = false, onMore, shown: limit = SHOWN, placed = false, unit = "점" }) {
-  if (!rows) return <div className="stack line-score" aria-hidden="true">
-    <div className="pn ls-row ls-first" />{[1, 2, 3, 4].map(i => <div key={i} className="pn ls-row" />)}
-  </div>;
+  // the head is the same element while the rows are read and after, and stands through their arrival (data-kept, motion.js light)
+  const head = <div className="st-head t12 dim" aria-hidden="true" data-kept=""><span>순위</span><span>트레이너</span><span>{unit === "점" ? "점수" : unit}</span></div>;
+  if (!rows) return <><div className="line-score st" aria-hidden="true" data-wait="">
+    {head}<div className="pn st-row st-first" />{[1, 2, 3, 4].map(i => <div key={i} className="pn st-row" />)}
+  </div></>;
   const ranked = placed ? rows : rankRows(rows);
   if (!ranked.length) return null;
   const shown = open ? ranked : ranked.slice(0, limit);
   const per = new Map(); ranked.forEach((r) => per.set(r.rank, (per.get(r.rank) || 0) + 1));
   const tied = (r) => per.get(r.rank) > 1;
   const solo = per.get(ranked[0].rank) === 1;
-  const best = Math.max(1, ranked[0].points || 0);
   const seen = new Map();
   return (<>
-    <div className="stack line-score">
+    <div className="line-score st">
+      {head}
       {shown.map((r, i) => {
         const n = (seen.get(r.name) || 0) + 1; seen.set(r.name, n);
         const first = i === 0 && solo;
@@ -42,18 +45,17 @@ export default function StandTable({ rows, total, onName, open = false, onMore, 
         const line = r.note || "";
         const go = r.open || (onName ? (e) => onName(r.name, e.currentTarget) : null);
         const Box = go ? "button" : "div";
-        return <Box key={`${r.name}#${n}`} {...(go ? { type: "button", onClick: go } : {})} className={(first ? "inv ls-first" : "pn") + " ls-row" + (line ? " two" : "")}
+        return <Box key={`${r.name}#${n}`} {...(go ? { type: "button", onClick: go } : {})} className={"pn st-row" + (first ? " st-first" : "") + (line ? " two" : "")}
           aria-label={`${place} ${r.name}, ${pts}${unit}${line ? `, ${line}` : ""}${r.live ? ", 도전 중" : ""}`}>
-          <span className="ls-place t15">{r.live && <i className="lamp sig" aria-hidden="true" />}{place}</span>
-          <span className="ls-main">
-            <b className={first ? "t20" : "t15"}>{r.name}{r.live && <span className="t12 ls-live"> 도전 중</span>}</b>
-            {line && <span className="t12 dim reg ls-line">{line}</span>}
-            <Bar value={pts / best} />
+          <span className="st-place">{r.live && <i className="lamp sig" aria-hidden="true" />}{r.rank}</span>
+          <span className="st-main">
+            <b className={first ? "t32" : "t15"}>{r.name}{r.live && <span className="t12 st-live"> 도전 중</span>}</b>
+            {line && <span className="t12 dim reg">{line}</span>}
           </span>
-          <span className="ls-pts"><b className={"num " + (first ? "t32" : "t20")}>{koNumber(pts)}</b><span className="t12 dim">{unit}</span></span>
+          <span className={"st-pts" + (pts ? "" : " mute")}>{first ? <Fig value={String(pts)} h={40} label={`${pts}${unit}`} /> : <span className="st-n">{koNumber(pts)}</span>}<span className="t12 dim">{unit}</span></span>
         </Box>;
       })}
     </div>
-    {!open && ranked.length > limit && onMore && <div className="rank-more"><Button variant="second" onClick={onMore}>{total || ranked.length}명 전체 보기</Button></div>}
+    {!open && ranked.length > limit && onMore && <div className="rank-more"><Button variant="second" line onClick={onMore}>{total || ranked.length}명 전체 보기</Button></div>}
   </>);
 }

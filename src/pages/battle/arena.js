@@ -27,10 +27,13 @@ export const flatAt = (H, y) => clamp((y / H - VP) / (F * ACROSS), .16, .7);
 const PALETTE = {
   dark: { ground: "#081C3D", court: "#12294F", line: "#8196B9" },
   light: { ground: "#DDE2EA", court: "#FFFFFF", line: "#8196B9" },
+  // 고대비 (tokens.css --hc-*): one black court with white lines at full contrast in dark, one white court with black lines in light
+  hcDark: { ground: "#000000", court: "#000000", line: "#FFFFFF" },
+  hcLight: { ground: "#FFFFFF", court: "#FFFFFF", line: "#000000" },
 };
 
 function paint(e) {
-  const { W, H } = e, P = e.light ? PALETTE.light : PALETTE.dark;
+  const { W, H } = e, P = PALETTE[e.hc ? (e.light ? "hcLight" : "hcDark") : e.light ? "light" : "dark"];
   /* painted past the stage on every side by more than the camera ever shows (its pan stops a tenth past the edge, and a shake goes
      a little further: at a tenth the edge of the picture showed as a dark strip). Drawn finer than the screen, so the lines stay
      crisp when the camera pushes in */
@@ -52,7 +55,7 @@ function paint(e) {
   }
   /* a painted line through floor points [X, Z]: the outline of paint HW of the camera's height wide, as the camera sees it, so a line
      running away is wide and one lying across is narrow, never under 1.2 px. Straight lines get square ends half their width long */
-  const HW = .006, MIN = .6;
+  const HW = e.hc ? .009 : .006, MIN = e.hc ? 1 : .6;
   const paintLine = (pts, closed = false) => {
     const sp = pts.map(([X, Z]) => at(X, Z)), n = sp.length, left = [], right = [];
     for (let i = 0; i < n; i++) {

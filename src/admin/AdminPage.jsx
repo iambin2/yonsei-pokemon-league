@@ -21,7 +21,7 @@ import { buildExportCsvs, downloadText, fetchExportTables } from "../services/re
 import { FREE_BOARD_KEY, readCommunity } from "../services/communityStore.js";
 
 /* 운영 (DESIGN.md "Admin", 2026-11-08): the operators' one place. Their work had stood scattered inside the public pages (a notice's
-   responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counters,
+   responses, a bracket's result entry and record, the trainer tab's link requests), found only by going to each. Here: four counts as large thin figures,
    what waits as rows in the order things happen now, each going to the screen that does it; beside them (the 439 on desktop, held in
    view) each event in progress with its four steps and the one action its step asks for; under the rows, the doors to every editor. */
 const DOORS = [
@@ -62,7 +62,7 @@ function Exports({ flash }) {
   </section>;
 }
 /* 관리자 전용 글 (2026-11-24, the owner: 관리자에게만 보이게 쓴 글을 운영 화면에서 눈에 잘 띄게): the board's posts written for the
-   operators, newest first; one nobody has answered yet keeps its lamp lit. A row opens the post. With none, nothing shows. */
+   operators, newest first; one nobody has answered yet says 답글 전 at its end, lit. A row opens the post. With none, nothing shows. */
 function Letters({ go }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
@@ -75,7 +75,7 @@ function Letters({ go }) {
     <SectionHead id="ad-letters-h" title="관리자 전용 글" link="게시판" onLink={() => go("board")} />
     <div className="stack">{rows.map(p => { const cc = (p.comments || []).length;
       return <Row key={p.id} title={p.title || p.body || "(제목 없음)"} line={[p.nick, p.createdAt && formatDate(p.createdAt, { time: true })].filter(Boolean).join(", ")}
-        lamp={cc ? undefined : "답글 전"} value={cc ? <span className="t12 dim">댓글 {cc}</span> : undefined} onClick={() => go("board", { post: p.id })} />; })}</div>
+        value={<span className={"t12" + (cc ? " dim" : "")}>{cc ? `댓글 ${cc}` : "답글 전"}</span>} onClick={() => go("board", { post: p.id })} />; })}</div>
   </section>;
 }
 
@@ -179,7 +179,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
     const before = e.closesAt;
     if (await save(withClose(koreaNow()), "신청을 마감했습니다.")) flash("신청을 마감했습니다.", { label: "되돌리기", run: () => save(withClose(before), "마감을 되돌렸습니다.") });
   };
-  if (!admin) return <div className="ad-page"><h1 className="t32">운영</h1><Empty title="관리자 로그인이 필요합니다." />
+  if (!admin) return <div className="ad-page"><h1 className="page-title">운영</h1><Empty title="관리자 로그인이 필요합니다." />
     <Button variant="main" onClick={onAdmin}>관리자 로그인</Button></div>;
   const tasks = adminTasks(overview);
   // the requests block reads them itself and says how many wait after each decision; until it does, the overview's count stands
@@ -190,12 +190,12 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
     go("bracket", { eventId: t.event.id });
   };
   return <div className="ad-page">
-    <h1 className="t32">운영</h1>
+    <h1 className="page-title">운영</h1>
     <div className="stack ad-counts">
-      <Counter label="할 일" value={n(tasks.length + towerDue.length)} lamp={tasks.length + towerDue.length > 0} />
-      <Counter label="신청" value={n(events.filter(e => e.step === 1).reduce((s, e) => s + (e.applicants || 0), 0))} cells={3} />
-      <Counter label="남은 경기" value={n(events.reduce((s, e) => s + e.left, 0))} />
-      <Counter label="연결 요청" value={requests == null ? null : String(requests)} lamp={requests > 0} />
+      <Counter label="할 일" value={n(tasks.length + towerDue.length)} h={84} />
+      <Counter label="신청" value={n(events.filter(e => e.step === 1).reduce((s, e) => s + (e.applicants || 0), 0))} h={84} />
+      <Counter label="남은 경기" value={n(events.reduce((s, e) => s + e.left, 0))} h={84} />
+      <Counter label="연결 요청" value={requests == null ? null : String(requests)} h={84} />
     </div>
     {/* the decision operators make most: Google accounts asking for a trainer's record, first and across the page */}
     <LinkRequests id="ad-linkreq-h" onCount={counted} />
@@ -207,8 +207,8 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
             <section className="ad-block ad-todo" aria-labelledby="ad-todo-h">
               <SectionHead id="ad-todo-h" title="할 일" />
               {tasks.length || towerDue.length ? <div className="stack">
-                {tasks.map(t => <Row key={t.key} title={t.title} line={t.line} lamp={true} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}
-                {towerDue.map(d => <Row key={d.grantId} title={`${towerMonthLabel(d.month)} ${TOWER_TITLE}`} line={`도전의 탑 1위 ${d.trainer_name}, ${d.wins}연승. 누르면 칭호를 줍니다.`} lamp={true} onClick={() => grantTower(d)} label={`${towerMonthLabel(d.month)} ${TOWER_TITLE}, ${d.trainer_name}에게 주기`} />)}
+                {tasks.map(t => <Row key={t.key} title={t.title} line={t.line} onClick={() => open(t)} label={`${t.title}, ${t.line}`} />)}
+                {towerDue.map(d => <Row key={d.grantId} title={`${towerMonthLabel(d.month)} ${TOWER_TITLE}`} line={`도전의 탑 1위 ${d.trainer_name}, ${d.wins}연승. 누르면 칭호를 줍니다.`} onClick={() => grantTower(d)} label={`${towerMonthLabel(d.month)} ${TOWER_TITLE}, ${d.trainer_name}에게 주기`} />)}
               </div>
                 : <div className="pn ad-none"><span className="t15">지금 할 일이 없습니다.</span></div>}
             </section>

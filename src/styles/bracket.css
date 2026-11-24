@@ -1,12 +1,11 @@
 /* =============================================================================
-   YPL Navy — bracket, the parts not yet rebuilt: submission status, draw, wizard, apply, team match (brackets.css holds the rebuilt list and tree)
+   The league almanac: bracket, the operators' parts: submission status, draw, wizard, apply, team match (brackets.css holds the rebuilt list and tree)
    ========================================================================== */
 
-/* ---------- panels: submission status, Champions qualifier ---------- */
-.bk-submission { padding: 0 var(--pad); background: var(--panel); }
-.bk-qualifier { padding: var(--pad); }
-/* its rows and its second key stand one tone up from the panel that holds them, and a key is as wide as its word */
-.bk-qualifier :is(.bk-pin, .btn--second) { background: var(--panel-2); }
+/* ---------- sections: submission status, Champions qualifier; each opens on a 2px lit rule and closes on a hairline ---------- */
+.bk-submission { padding: 0; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.bk-qualifier { padding: var(--s5) 0; }
+/* a key is as wide as its word */
 .bk-qualifier .row-actions > .btn { flex: none; width: auto; }
 .bk-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
 .bk-panel-head > div { display: grid; gap: var(--s1); min-width: 0; }
@@ -23,17 +22,14 @@
 .bk-submission-chevron.open { transform: rotate(180deg); }
 .bk-submission-detail { padding-bottom: var(--s8); }
 .bk-submission-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s2); }
-.bk-submission-group { padding: var(--s2) var(--s5); background: var(--panel-2); }
-.bk-submission-group-head { display: flex; justify-content: space-between; padding: var(--s2) 0; font-size: var(--t15); font-weight: 600; }
+.bk-submission-group { padding: 0; }
+.bk-submission-group-head { display: flex; justify-content: space-between; padding: var(--s2) 0; box-shadow: inset 0 -1px 0 var(--lit); font-size: var(--t15); font-weight: 600; }
 .bk-submission-group-head span { font-weight: 400; color: var(--mute); font-variant-numeric: tabular-nums; }
-.bk-submission-members { display: grid; gap: var(--seam); }
+.bk-submission-members { display: grid; column-gap: var(--s5); }
 .bk-submission-individuals { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.bk-submission-member { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: var(--s2) var(--s3); background: var(--panel-2); font-size: var(--t15); }
-.bk-submission-group .bk-submission-member { background: var(--rule); }
+.bk-submission-member { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: var(--s2) 0; box-shadow: inset 0 -1px 0 var(--rule); font-size: var(--t15); }
 .bk-submission-member-name { font-weight: 600; }
 .bk-submission-member .bd-del { flex: none; white-space: nowrap; }
-/* a member's row already stands one tone up, so its button takes the ground, as a type tag does */
-.bk-submission-member .bd-del { background: var(--ground); }
 .bk-submission-state { flex: 1; font-size: var(--t12); color: var(--mute); font-weight: 600; font-variant-numeric: tabular-nums; }
 .bk-submission-state.submitted { color: var(--lit); font-weight: 700; }
 .bk-submission-empty { padding-bottom: var(--s5); font-size: var(--t15); color: var(--mute); }
@@ -48,15 +44,15 @@
 /* 건너뛰기: on a desktop in the heading row, always in the window; on a phone the docked action */
 .bk-draw-skip { display: none; }
 @media (min-width: 860px) { .bk-draw-skip { display: block; } .bk-drawwrap > .dock { display: none; } }
-/* the slot being drawn is lit one tone up; the names rolling through it are its motion, so it does not breathe as well */
-.mb-row.drolling { background: var(--panel-2); }
+/* the slot being drawn stands on the hover step (--tint), the names rolling through it are its motion; nothing breathes */
+.mb-row.drolling { background: var(--tint); }
 /* a drawn name switches on in its slot */
 .mb-row.pop { animation: y-fade var(--move-tone); }
 .bk-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s5); }
-.bk-group { padding: var(--s5); background: var(--panel); }
+.bk-group { padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
 .bk-group-h { margin-bottom: var(--s3); font-size: var(--t15); font-weight: 600; }
 
-/* ---------- wizard: back link, title and event, steps as panels joined by the seam, the main action docked ---------- */
+/* ---------- wizard: back link, title and event, steps as sections on hairlines, the main action docked ---------- */
 /* making a bracket is the page's one kind of thing: a sheet's width on a phone, the whole 1200 on desktop like every list page,
    with its actions in the 439 at the right end, as a notice's main action stands */
 .bk-create { display: grid; gap: var(--s5); max-width: var(--sheet-w); }
@@ -75,22 +71,21 @@
   .bk-step1 > :not(.dock) { grid-column: 1; }
   .bk-create .bk-step1 > .dock { grid-column: 2; grid-row: 1 / span 9; width: auto; margin-top: 0; justify-self: stretch; }
 }
-/* the two sides of a match are equals: one width each, and the key one step above the panel it stands on, or it vanishes into it */
+/* the two sides of a match are equals: one width each */
 .bk-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.bk-pick .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }
 
-/* participants: rows of 52 joined by the seam, the box, the number, the name, the state at the end */
-.bk-fill { display: flex; flex-direction: column; gap: var(--seam); }
+/* participants: entries of 52 on hairlines under a 2px lit rule, the box, the number, the name, the state at the end */
+.bk-fill { display: flex; flex-direction: column; gap: 0; box-shadow: inset 0 var(--line) 0 var(--lit); }
 .bk-pin, .bk-team-card {
-  display: flex; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s1) var(--pad);
-  background: var(--panel);
+  display: flex; align-items: center; gap: var(--s3); min-height: var(--h-row); padding: var(--s1) 0;
+  box-shadow: inset 0 -1px 0 var(--rule);
 }
-@media (hover: hover) { label.bk-pin:hover { background: var(--panel-2); } }
+@media (hover: hover) { label.bk-pin:hover { background: var(--tint); } }
 /* the box stands before the name, so a sibling reads it; a :has() with :not(:checked) restyled the whole app on every node added anywhere */
 .bk-pin > input[type="checkbox"]:not(:checked) ~ .bk-participant-name { color: var(--dim); }
 .bk-pin input:not([type="checkbox"]), .bk-team-card input { min-height: var(--h-control); padding: var(--s2) var(--s3); }
 .bk-pin-no {
-  width: var(--s5); height: var(--h-strip); flex: none; display: grid; place-items: center; font-size: var(--t12); font-weight: 600; line-height: 1; color: var(--mute);
+  width: var(--s5); height: var(--h-strip); flex: none; display: grid; place-items: center; font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t12); font-weight: 600; line-height: 1; color: var(--mute);
 }
 .bk-pin-no.gold { color: var(--lit); }
 .bk-participant-name { flex: 1; min-width: 0; font-weight: 600; }
@@ -114,23 +109,23 @@
   width: var(--h-control); height: var(--h-control); display: grid; place-items: center; border: 0; color: var(--lit);
   transition: scale var(--move-press), background-color var(--move-tone);
 }
-@media (hover: hover) { .bk-count button:hover { background: var(--panel-2); } }
+@media (hover: hover) { .bk-count button:hover { background: var(--tint); } }
 .bk-count input { width: 84px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* ---------- apply (record): the places as rows with the winner inverted, the points as rows, the action and later ---------- */
+/* ---------- apply (record): the places as rows with the winner lit, the points as rows, the action and later ---------- */
 .bk-apply-meta { margin: 0 0 var(--s3); }
 .bk-apply-places { margin: 0 0 var(--s5); }
 .bk-apply-places .spec-row dd { margin: 0; }
-.bk-apply-point { display: grid; grid-template-columns: minmax(0, 1fr) auto var(--s13); align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
+.bk-apply-point { display: grid; grid-template-columns: minmax(0, 1fr) auto var(--s13); align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0; }
 .bk-apply-point b { text-align: right; }
-.bk-applybox { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s5); background: var(--panel-2); font-size: var(--t15); }
+.bk-applybox { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s5) 0; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); font-size: var(--t15); }
 /* a line's check stands before its words on the line: as a block it stood alone over the list (2026-11-10) */
 .bk-applybox > div { display: flex; align-items: center; gap: var(--s2); min-height: var(--l15); }
 .bk-applybox > div > .ic { flex: none; }
 .bk-applybox + .field { margin-top: var(--s5); }
 .bk-ab-meta { font-size: var(--t12); font-weight: 600; color: var(--mute); }
-.bk-chg { display: grid; gap: var(--seam); }
-.bk-chg-row { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; min-height: var(--h-control); padding: var(--s3) var(--s5); background: var(--panel-2); font-size: var(--t15); }
+.bk-chg { display: grid; box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bk-chg-row { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; min-height: var(--h-control); padding: var(--s3) 0; box-shadow: inset 0 -1px 0 var(--rule); font-size: var(--t15); }
 .bk-exist { flex: none; color: var(--dim); }
 .bk-exist.new { color: var(--lit); }
 .bk-chg-pts { display: inline-flex; align-items: center; gap: var(--s1); margin-left: auto; font-variant-numeric: tabular-nums; color: var(--dim); }
@@ -144,12 +139,13 @@
 @media (max-width: 639px) { .bk-award > .bk-chg-cnt { flex-basis: 100%; margin-left: calc(var(--s5) + var(--s3)); } }
 .bk-pts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .bk-pt { display: flex; flex-direction: column; gap: var(--s2); font-size: var(--t12); font-weight: 600; color: var(--mute); }
-.bk-pt input { text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bk-pt input { text-align: center; font-family: var(--font-fig); font-weight: 600; font-variant-numeric: tabular-nums; }
 .bk-alloc { display: flex; flex-direction: column; gap: var(--s2); }
 .bk-alloc-row { display: flex; align-items: center; gap: var(--s3); }
 .bk-alloc-row input { max-width: calc(var(--s21) + var(--s13)); text-align: center; }
 .bk-alloc-tag { flex: none; min-width: 52px; color: var(--dim); }
-.bk-alloc-tag.w { background: var(--lit); color: var(--ground); box-shadow: none; }
+/* the winner's tag: lit and bold on a 2px lit rule, as every decided thing */
+.bk-alloc-tag.w { background: transparent; color: var(--lit); font-weight: 700; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .bk-alloc-team { font-size: var(--t12); color: var(--mute); }
 
 /* ---------- team match (lineup + tiebreaker) ---------- */
@@ -158,26 +154,27 @@
 .bk-bout-columns { margin-bottom: var(--s3); font-size: var(--t12); font-weight: 600; color: var(--mute); }
 /* team names head their columns on the picked names inside the dropdowns (dd-btn padding 20) */
 .bk-bout-columns strong { padding-left: var(--s5); color: var(--lit); }
-.bk-series { display: flex; flex-direction: column; gap: var(--s2); }
-.bk-series-row { padding: var(--s2); background: var(--panel-2); }
+.bk-series { display: flex; flex-direction: column; box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bk-series-row { padding: var(--s2) 0; box-shadow: inset 0 -1px 0 var(--rule); }
 .bk-series-no { font-size: var(--t12); font-weight: 600; line-height: 1; color: var(--mute); text-align: center; }
 .bk-series-vs { font-size: var(--t12); font-weight: 600; color: var(--mute); text-align: center; }
 .bk-bout-side { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 /* a side's team, said over its line only where the head row with the two teams is away (a phone) */
 .bk-bout-team { display: none; }
 .bk-bout-player { flex: 1; min-width: 0; }
-.bk-bout-player .dd-btn { background: var(--panel-2); min-height: var(--h-control); padding-inline: var(--s3); }
+.bk-bout-player .dd-btn { min-height: var(--h-control); padding-inline: var(--s3); }
 .bk-bout-win {
   flex: none; height: var(--h-control); width: var(--h-row); min-width: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1);
-  border: 0; background: var(--panel-2); font-size: var(--t12); font-weight: 600; color: var(--mute);
-  transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);
+  border: 0; background: transparent; font-size: var(--t12); font-weight: 600; color: var(--mute);
+  transition: scale var(--move-press), color var(--move-tone);
 }
-@media (hover: hover) { .bk-bout-win:not(.is-win):hover { background: var(--panel-2); color: var(--lit); } }
-.bk-bout-win.is-win { background: var(--lit); color: var(--ground); }
+/* 승 is a word key: no box; it lights on hover and, once pressed, stands bold on its 2px lit rule */
+@media (hover: hover) { .bk-bout-win:not(.is-win):hover { color: var(--lit); } }
+.bk-bout-win.is-win { color: var(--lit); font-weight: 700; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 /* the tie-breaker's row stands on the bouts' grid: the same 8 inside, so its names and keys share their lines */
-.bk-ace { margin-top: var(--s5); padding: var(--s2); background: var(--panel-2); }
-.bk-ace-h { margin: var(--s2) var(--s2) var(--s3); font-size: var(--t15); font-weight: 700; color: var(--lit); }
-.bk-ace .bk-series-row { background: transparent; padding: 0; }
+.bk-ace { margin-top: var(--s5); padding: var(--s2) 0; box-shadow: inset 0 var(--line) 0 var(--lit); }
+.bk-ace-h { margin: var(--s2) 0 var(--s3); font-size: var(--t15); font-weight: 700; color: var(--lit); }
+.bk-ace .bk-series-row { box-shadow: none; padding: 0; }
 @media (max-width: 639px) {
   .bk-bout-columns { display: none; }
   .bk-bout-row { grid-template-columns: 1fr; gap: var(--s2); }
@@ -187,7 +184,7 @@
   .bk-series-no { text-align: left; }
 }
 
-/* ---------- 3 대진 배치: each first-round match a row, the two names as cells; the held name inverted ---------- */
+/* ---------- 3 대진 배치: each first-round match a row, the two names as cells; the held name lit on its rule ---------- */
 .bk-place-tools { grid-template-columns: minmax(0, 1fr); }
 .bk-place-tools:has(> :nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* desktop: the wizard's tools (전체 선택, 전체 해제, 참가자 추가, 팀 나누기, 다시 추첨, 랭킹 시드) are keys as wide as their words, 44 tall, and
@@ -197,39 +194,40 @@
   :is(.bk-pin-keys, .bk-place-tools) > .btn { flex: 0 0 auto; width: auto; height: var(--h-control); }
   .bk-participant-confirm-list, .bk-place { max-width: 709px; }
 }
-.bk-place-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0 var(--s2) 0 var(--pad); }
+.bk-place-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0; }
 .bk-place-name { min-height: var(--h-control); padding: 0 var(--s3); text-align: left; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; transition: scale var(--move-press), background-color var(--move-tone); }
-.bk-place-name.inv { color: var(--ground); }
+.bk-place-name.inv { color: var(--lit); }
 .bk-place-name.bye { display: flex; align-items: center; color: var(--mute); font-weight: 600; cursor: default; }
-@media (hover: hover) { button.bk-place-name:not(.inv):hover { background: var(--panel-2); } }
+@media (hover: hover) { button.bk-place-name:not(.inv):hover { background: var(--tint); } }
 .bk-pts-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
 .bk-pts-note { margin: 0 0 var(--s2); }
 
-/* ---------- 결과 입력: match chips, the match's head, its two players as rows; the winner inverted ---------- */
+/* ---------- 결과 입력: match chips, the match's head, its two players as entries; the winner lit on its 2px rule ---------- */
 .bk-entry { display: grid; gap: var(--s3); margin-bottom: var(--s8); }
 .bk-entry > h2 { margin: 0; }
 /* the matches as one even grid: with six, five stood on a line and M6, the one being entered, alone under them (2026-11-10) */
 .bk-entry-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--s13), 1fr)); gap: var(--seam); }
 .bk-entry-chip { display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); min-width: var(--s13); min-height: var(--h-control); padding: 0 var(--s3); color: var(--dim); transition: background-color var(--move-tone); }
-.bk-entry-chip.inv { color: var(--ground); font-weight: 700; }
+.bk-entry-chip.inv { color: var(--lit); font-weight: 700; }
 .bk-entry-chip.done:not(.inv) { color: var(--lit); }
-@media (hover: hover) { .bk-entry-chip.pn:hover { background: var(--panel-2); } }
-.bk-entry-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); margin: 0; }
+@media (hover: hover) { .bk-entry-chip.pn:hover { background: var(--tint); } }
+.bk-entry-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: 0; margin: 0; }
 .bk-entry-live { display: inline-flex; align-items: center; gap: var(--s2); }
 .bk-entry-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; min-height: calc(var(--h-row2) + var(--s5)); color: inherit; transition: background-color var(--move-tone); }
-.bk-entry-row.inv { color: var(--ground); }
-.bk-entry-row.inv .dim { color: var(--ground); }
+.bk-entry-row.inv { color: var(--lit); }
+.bk-entry-row.inv .dim { color: var(--lit); }
 .bk-entry-name { display: grid; gap: var(--s1); min-width: 0; }
 .bk-entry-name > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bk-entry-row.pn .bk-entry-name > span { color: var(--dim); }
-@media (hover: hover) { .bk-entry-row.pn:not(:disabled):hover { background: var(--panel-2); } }
+@media (hover: hover) { .bk-entry-row.pn:not(:disabled):hover { background: var(--tint); } }
 
 /* scores and 불참 (docs/db/match_outcome.sql): the pick takes the row, the score its − digit + at the end */
-.bk-entry-pick { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); align-self: stretch; padding: 0 var(--pad); text-align: left; color: inherit; }
+.bk-entry-pick { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); align-self: stretch; padding: 0; text-align: left; color: inherit; }
 .bk-entry-row.scored { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .bk-entry-score { display: flex; align-items: center; gap: var(--s2); padding-right: var(--s2); }
-.bk-entry-step { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); background: var(--panel-2); color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
-.bk-entry-row.inv .bk-entry-step { background: var(--panel); color: var(--lit); }
+/* the score's − and +: small controls on a solid --tint step, no outline; disabled they keep the step and mute the mark */
+.bk-entry-step { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); background: var(--tint); color: var(--lit); transition: scale var(--move-press), color var(--move-tone); }
+.bk-entry-step:active:not(:disabled) { scale: .976; }
 .bk-entry-step:disabled { color: var(--mute); }
 .bk-entry-actions { grid-template-columns: minmax(0, 1fr); }
 /* desktop: result entry stands in the 709, so a name and its score are read together, and the rare 불참, 기권, 실격 are keys as wide

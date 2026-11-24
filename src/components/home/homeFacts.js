@@ -3,13 +3,11 @@
 import { loadHallOfFameArtworkLookup, mergeHallOfFame, resolveHallOfFameArtwork } from "../../services/hallOfFamePresentation.js";
 import { displaySeasonLabel, generationText } from "../../services/seasonLabel.js";
 import { freshRead } from "../../services/readCache.js";
-import { buildRecordsSnapshot } from "../../services/recordsAnalytics.js";
-import { rankRows } from "../common/StandTable.jsx";
 
 /* 명예의 전당과 같은 합침(mergeHallOfFame)과 같은 그림(resolveHallOfFameArtwork), 최신 챔피언이 앞.
    옛 파티 이미지 표(legacyPartyImages, 압축해도 248KB)는 받지 않는다: 이름만으로 스프라이트를 찾는다. */
 const CHAMPIONS_KEY = "ypl-home-champions";
-let shownChampions = null, shownFacts = null;
+let shownChampions = null;
 /* 이미 읽은 값은 첫 그림부터 쓴다. 돌아온 홈이 면을 다시 비우거나 복원한 스크롤 아래로 내용을 밀지 않는다. 새 값은 뒤따라 읽는다. */
 export function seenChampions() {
   if (shownChampions) return shownChampions;
@@ -48,47 +46,4 @@ export async function loadChampions(data, admin = false) {
   shownChampions = rows;
   if (rows.length) try { localStorage.setItem(CHAMPIONS_KEY, JSON.stringify(rows)); } catch { /* 다음에 다시 읽는다 */ }
   return rows;
-}
-
-/* 랭킹 화면과 같은 고르기: 정규화 기록은 최신 시즌이 맨 앞, 예전 기록은 맨 뒤에 있다. */
-function currentSeason(snapshot, data, rankRows) {
-  const seasons = snapshot.ranking?.seasons || data.seasons || [];
-  const normalized = seasons.some(s => s.source === "normalized") || (snapshot.ranking?.series || []).some(s => s.source === "normalized");
-  const season = normalized ? seasons[0] : seasons[seasons.length - 1];
-  if (!season?.rows?.length) return null;
-  // the line score's five (HomePage)
-  return { name: season.name, rows: rankRows(season.rows).slice(0, 5).map(({ rank, name, points }) => ({ rank, name, points: points || 0 })) };
-}
-
-/* 기록 화면의 스냅숏을 같은 캐시로 읽는다. 공식 기록을 못 읽으면 기록 화면처럼 기존 기록으로 센다.
-   사실 몇 개를 위해 요청 11개가 나가므로, 다시 찾은 방문자는 6시간 안의 값을 쓴다. 대회가 끝나야 바뀌는 사실이다. */
-const FACTS_KEY = "ypl-home-facts-3";
-const FACTS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
-const RECORDS_MAX_AGE_MS = 60 * 1000;
-
-export function seenFacts() {
-  try {
-    const saved = shownFacts || JSON.parse(localStorage.getItem(FACTS_KEY));
-    return saved && Date.now() - saved.at < FACTS_MAX_AGE_MS ? saved.facts : null;
-  } catch { return null; /* 저장소를 못 읽으면 새로 센다 */ }
-}
-export async function loadFacts(data, admin = false) {
-  if (!admin) {
-    const saved = seenFacts();
-    if (saved) return saved;
-  }
-  const [normalized, projection] = await Promise.all([
-    import("../../services/normalizedRecordsService.js"), import("../../services/normalizedRecordsProjection.js"),
-  ]);
-  let raw = null;
-  if (normalized.normalizedRecordsReadEnabled()) raw = await freshRead("records", normalized.fetchNormalizedRecordsSnapshot, admin ? 0 : RECORDS_MAX_AGE_MS).catch(() => null);
-  const snapshot = raw ? projection.buildNormalizedRecordsProjection(data, raw, null) : buildRecordsSnapshot(data);
-  // the home reads one fact from the records: the current season's line score (the league's counts went on 2026-11-19, Made by people)
-  const facts = { season: currentSeason(snapshot, data, rankRows) };
-  // 공식 기록을 읽었을 때만 기억한다. 대체 집계가 6시간 남아 있으면 안 된다.
-  if (raw) {
-    shownFacts = { at: Date.now(), facts };
-    try { localStorage.setItem(FACTS_KEY, JSON.stringify(shownFacts)); } catch { /* 다음에 다시 센다 */ }
-  }
-  return facts;
 }

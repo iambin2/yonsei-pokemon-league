@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown, Empty, ErrorNote, Icon, Loader, Segmented } from "../components/index.js";
 import { Bar, Cell, Mon, Row, SectionHead, TabsLine } from "../components/common/Board.jsx";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import PickerSheet, { PickField } from "../components/common/PickerSheet.jsx";
 import { DEFAULT_REGULATION_ID, REGULATIONS, TYPE_OPTIONS } from "../data/index.js";
 import { championsData } from "../services/index.js";
@@ -124,17 +124,16 @@ function HpBar({ result }) {
   );
 }
 
-/* 고른 기술 하나의 판: 범위를 세그먼트로 켜고(정수), 정확한 값과 막대와 확정 몇 타를 그 아래에 둔다. */
+/* 고른 기술 하나의 판: 범위를 가는 큰 숫자로 세우고(정수), 정확한 값과 막대와 확정 몇 타를 그 아래에 둔다. */
 function ResultBoard({ result, detailData }) {
   const [rolls, setRolls] = useState(false);
   const name = moveName(detailData, result.moveId);
   const low = Math.round(result.minPct), high = Math.round(result.maxPct);
-  const cells = Math.max(2, String(high).length);
   return (
     <div className="pn calc-board">
       <span className="t12 dim">{name}, {TYPE_KO[result.type] || result.type} {CATEGORY_KO[result.category] || ""}{result.basePower ? ` ${result.basePower}` : ""}</span>
-      <div className="calc-board-seg" aria-label={`대미지 ${result.minPct}% 에서 ${result.maxPct}%`}>
-        <Seg value={String(low)} cells={cells} h={40} label={`${low}`} /><span className="t20 dim">~</span><Seg value={String(high)} cells={cells} h={40} label={`${high}`} /><span className="t20">%</span>
+      <div className="calc-board-fig" aria-label={`대미지 ${result.minPct}% 에서 ${result.maxPct}%`}>
+        <Fig value={String(low)} h={84} label={`${low}`} /><span className="calc-board-tilde" aria-hidden="true">~</span><Fig value={String(high)} h={84} label={`${high}`} /><span className="calc-board-unit">%</span>
       </div>
       <span className="t12 reg dim">{result.minPct}% ~ {result.maxPct}%, 대미지 {result.min} ~ {result.max}, 상대 HP {result.curHP}{result.curHP !== result.hp ? ` / ${result.hp}` : ""}</span>
       <HpBar result={result} />
@@ -420,13 +419,13 @@ function SpeedView({ sides, engines, pokemons, pool, detailData, display, field,
           <span className="stand calc-fig"><Mon src={spriteUrl(pokemons[basis].name)} /><span className="floor" aria-hidden="true" /></span>
           <div className="calc-speed-board">
             <span className="t12 dim">기준 포켓몬, {display(pokemons[basis])}</span>
-            <Seg value={String(me)} h={40} label={`스피드 ${me}`} />
+            <Fig value={String(me)} h={84} label={`스피드 ${me}`} />
             <span className="t12 reg dim">{rows.length}마리 중 {faster}마리가 더 빠릅니다.{ties ? ` ${ties}마리는 같습니다.` : ""}</span>
           </div>
           <Button variant="link" onClick={() => { setQuery(""); requestAnimationFrame(() => meRef.current?.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" })); }}>내 위치</Button>
         </div>
       ) : (
-        <div className="pn calc-speed-none">
+        <div className="calc-speed-none">
           <p className="t15 reg dim">기준 포켓몬을 골라 주세요.</p>
           <Button variant="second" onClick={() => openPokemonPicker(basis)}>포켓몬 선택</Button>
         </div>
@@ -513,7 +512,7 @@ function DexView({ pokemon, detailData, display, openPicker, onUse }) {
 
       <div className="calc-dex-grid">
         <div className="calc-dex-block">
-          <div className="tb-subhead"><span className="t12 dim">종족값</span><b className="t12">{total}</b></div>
+          <div className="tb-subhead calc-total"><span className="t12 dim">종족값</span><Fig value={String(total)} h={52} label={`종족값 합계 ${total}`} /></div>
           <div className="calc-base">
             {STAT_KEYS.map(key => {
               const base = record.baseStats?.[key] ?? 0;
@@ -685,7 +684,7 @@ export default function CalculatorPage() {
   const loading = detailStatus !== "ready";
   return (
     <section className="sec calc-page" data-tab={tab}>
-      <h1 className="t32">계산기</h1>
+      <h1 className="page-title">계산기</h1>
       <div className="calc-body">
       <div className="calc-tabs">
         <TabsLine value={tab} onChange={setTab} label="계산기 보기" options={[["damage", "대미지"], ["speed", "스피드"], ["dex", "도감"]]} />

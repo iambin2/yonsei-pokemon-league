@@ -42,9 +42,9 @@ export function useCups(asked = 0) {
   return cups;
 }
 
-export function CupList({ cups, onCup, onMake, onRetry }) {
+export function CupList({ cups, onCup, onMake, onRetry, boxRef = null, style }) {
   if (cups === null) return null;
-  return <section className="streak-cups" aria-labelledby="streak-cups">
+  return <section ref={boxRef} style={style} className="streak-cups" aria-labelledby="streak-cups">
     <SectionHead id="streak-cups" title="등반전" link="열기" onLink={onMake} />
     {cups === undefined ? <div className="stack"><div className="pn row" /></div>
       : cups === false ? <ErrorNote action="다시 불러오기" onRetry={onRetry}>등반전을 불러오지 못했습니다.</ErrorNote>
@@ -183,8 +183,8 @@ export function CupBoard({ id, approved, onGate, onOpen, onBack, onClimb }) {
       <div className="cup-counters">
         {phase === "over" ? <Counter label="마감" value={null} />
           : <Counter label={phase === "soon" ? "시작까지" : "마감까지"} lamp={phase === "on" ? "sig" : undefined} value={left == null ? null : String(left)} unit={unit} />}
-        <Counter label="참가" value={cup ? String(cup.players) : null} unit="명" cells={Math.max(2, String(cup?.players ?? 0).length)} />
-        {cup?.code && <Counter label="코드" value={cup.code} cells={4} />}
+        <Counter label="참가" value={cup ? String(cup.players) : null} unit="명" />
+        {cup?.code && <Counter label="코드" value={cup.code} />}
       </div>
     </div>
     <div className="bt-lobby">

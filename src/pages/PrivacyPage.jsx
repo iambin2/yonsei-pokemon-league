@@ -79,13 +79,13 @@ export default function PrivacyPage() {
   const goTo = i => body.current?.querySelectorAll("h3")[i]?.scrollIntoView({ block: "start" });
   return (
     <section className="nw pv">
-      <h1 className="t32">개인정보처리방침</h1>
+      <h1 className="page-title">개인정보처리방침</h1>
       <p className="t12 dim reg nw-req">시행일 {EFFECTIVE}</p>
       <div className="nw-body" ref={body}><Prose text={TEXT} /></div>
       {/* the 439 holds the articles, held in view as the reading scrolls (Typesetting: a page of reading keeps it in the 709) */}
       <nav className="pv-toc" aria-labelledby="pv-toc-h">
         <div className="sh"><h2 className="t20" id="pv-toc-h">조문</h2></div>
-        <ol className="stack pv-toc-list">
+        <ol className="stack opens pv-toc-list">
           {ARTICLES.map((a, i) => <li key={a.n}><button type="button" className="pn pv-toc-row" onClick={() => goTo(i)}>
             <span className="num t12 dim">제{a.n}조</span><b className="t15">{a.name}</b></button></li>)}
         </ol>

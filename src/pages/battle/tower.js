@@ -6,7 +6,7 @@
      0. coming to the tab: the camera comes down and round from the whole tower to the run's door while the doors won light in turn;
      1. between games the tower comes up over the stage as the camera settles before the door;
      2. a game won: its lamp goes out (the room cools to warm), the camera walks the terrace to the next door, a fifth of a turn
-        round and up, and that door's lamp switches on. A lamp never moves; after a gatekeeper the next door is the next floor's first;
+        round and up, and that door's lamp comes on. A lamp never moves; after a gatekeeper the next door is the next floor's first;
      3. when the game is made and read, the camera comes to stand before the amber door, then walks in through its arch into the
         room, whose dark becomes the stage's own ground;
      4. that dark outlives the screen, goes to the next screen's stage, and the next screen comes up out of it.
@@ -57,7 +57,7 @@ const settled = anim => anim.finished.catch(() => {});
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const fade = (x, from, to, duration, o = {}) => settled(x.animate([{ opacity: from }, { opacity: to }], { duration, easing: EASE_OUT, fill: "both", ...o }));
 let scene = null;           // the tower called on a stage: { el, own } (own: made for the call, not the tab's hall)
-let car = null;             // the dark the camera walked into, fixed over the window: { el }
+let veil = null;            // the dark the camera walked into, fixed over the window: { el }
 let left = [];              // the going out of the screen the camera walked out of, let go when the next one stands
 const letGo = () => { left.forEach(a => a.cancel()); left = []; };
 const f1 = n => n.toFixed(1);
@@ -224,7 +224,8 @@ function climbersHTML(tw) {
   return `<svg class="tw-leads" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${lines}</svg>${labels}`;
 }
 const escapeHTML = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const themeOf = () => document.documentElement.dataset.theme || "";
+// the theme and 고대비 together: a change of either draws the tower again in its tones
+const themeOf = () => `${document.documentElement.dataset.theme || ""}${document.documentElement.dataset.contrast || ""}`;
 const marksOf = el => [...el.querySelectorAll(".tw-tag, .tw-leads")];
 // the marks laid again for where the camera now stands (the tab's hall only)
 function mark(el, show = true) {
@@ -396,11 +397,11 @@ async function moveTo(el, st) {
 // theme redrew it and cut its entrance short)
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
   new MutationObserver(() => document.querySelectorAll(".tw").forEach(el => el.tower && el.tower.theme !== themeOf() && drawTower(el, el.tower.st)))
-    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-contrast"] });
 }
 
 /* ---------- the scene ---------- */
-/* 0. coming to the tab: the night switches on over the whole tower, from its plaza to its lantern, and the camera comes down and
+/* 0. coming to the tab: the night comes up over the whole tower, from its plaza to its lantern, and the camera comes down and
    round to the run's door, while the doors won light one after another up the road as it comes, the run's own door last; then the
    climbers' marks */
 async function entrance(el) {
@@ -435,7 +436,7 @@ async function arrive(el) {
   return animate(el, ARRIVE, e => { tw.cam = e >= 1 ? null : mixView(a, b, e); }, out3);
 }
 /* 2. a game won: its lamp goes out where it stands (the amber room cools to the warm of a game won), the camera walks the terrace
-   to the next door, and that door's lamp switches on. A lamp never moves: no light crosses the terrace between the two (2026-11-16,
+   to the next door, and that door's lamp comes on. A lamp never moves: no light crosses the terrace between the two (2026-11-16,
    the user: "클리어한 층의 빛이 꺼지고 다른 층의 빛이 켜지는 식이 아니라, 빛이 이동하는 경로가 전부 보여"). After a gatekeeper the next door
    is the next floor's first, a fifth of a turn on like any other */
 async function step(el, st) {
@@ -536,7 +537,7 @@ export async function towerDive() {
   Object.assign(dark.style, { left: `${box.left}px`, top: `${top}px`, width: `${box.width}px`, height: `${Math.max(0, bottom - top)}px` });
   (document.querySelector(".ypl") || document.body).appendChild(dark);
   if (own) el.remove();
-  car = { el: dark };
+  veil = { el: dark };
 }
 
 // where a stage stands, cut to the window; a team preview is still drawing its cards when the dark arrives and runs past the foot
@@ -546,35 +547,37 @@ const boxOf = el => {
   const foot = parseFloat(getComputedStyle(el.closest(".page") || document.body).paddingBottom) || 0;
   return { left: r.left, top, width: r.width, height: Math.max(0, innerHeight - foot - top) };
 };
-// the next screen comes up out of the dark, as the battle's own stage does
-const lift = el => fade(el, 1, 0, 680).then(() => el.remove());
+// the next screen comes up out of the dark as it fades (680), as the battle's own stage does
+const clearVeil = el => fade(el, 1, 0, 680).then(() => el.remove());
 
-/* 4. the next screen has mounted; the dark goes to its stage (target) and the screen comes up out of it. Returns the time until it
-   starts to lift, so that screen's arrival can wait for it, or null when no dark waits */
+/* 4. the next screen has mounted; the dark goes to its stage (target) and the screen comes up out of it. The dark never moves by
+   layout: it is set at once on the new box and moved there from the old one by transform alone (translate and scale, origin at its
+   top left), so it is a picture moving on the compositor. Returns the time until it starts to clear, so that screen's arrival can
+   wait for it, or null when no dark waits. (The name is kept: BattlePage.jsx calls it) */
 export function liftArrive(target) {
   letGo();
-  if (!car || !target) return null;
-  const { el } = car;
-  car = null;
+  if (!veil || !target) return null;
+  const { el } = veil;
+  veil = null;
   if (reduced()) { el.remove(); return 0; }
   const was = el.getBoundingClientRect(), to = boxOf(target);
   const moved = Math.abs(to.left - was.left) + Math.abs(to.top - was.top) + Math.abs(to.width - was.width) + Math.abs(to.height - was.height) > 4;
-  const px = b => ({ left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px` });
   (async () => {
-    if (moved) {
-      await settled(el.animate([px(was), px(to)], { duration: MOVE, easing: INOUT, fill: "forwards" }));
-      Object.assign(el.style, px(to));
+    if (moved && to.width > 0 && to.height > 0) {
+      Object.assign(el.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+      const from = `translate(${f1(was.left - to.left)}px, ${f1(was.top - to.top)}px) scale(${(was.width / to.width).toFixed(4)}, ${(was.height / to.height).toFixed(4)})`;
+      await settled(el.animate([{ transform: from }, { transform: "none" }], { duration: MOVE, easing: INOUT, fill: "backwards" }));
     } else await pause(BEAT);
     sfx("turn");
-    await lift(el);
+    await clearVeil(el);
   })();
   return moved ? MOVE : BEAT;
 }
 
-// a refusal (the game could not be made): the scene goes, or the dark lifts where it stands, and the screen stands again
+// a refusal (the game could not be made): the scene goes, or the dark clears where it stands, and the screen stands again
 export function towerDrop(now = false) {
-  const s = scene, c = car;
-  scene = null; car = null;
+  const s = scene, c = veil;
+  scene = null; veil = null;
   letGo();
   // the dive lets go of its scene before it walks, so every hall is freed here, not only the scene's
   document.querySelectorAll(".tw-hall").forEach(x => { x.twIn = false; });
@@ -583,5 +586,5 @@ export function towerDrop(now = false) {
     else void fade(s.el, 1, 0, DUR.leave).then(() => s.el.remove());
   }
   if (s && !s.own && s.el.tower) drawTower(s.el, { ...s.el.tower.st, live: false });
-  if (c) { if (now || reduced()) c.el.remove(); else void lift(c.el); }
+  if (c) { if (now || reduced()) c.el.remove(); else void clearVeil(c.el); }
 }

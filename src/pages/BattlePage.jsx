@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { DUR, dimAway, goOut, handOff, light, lineup, reduced } from "../components/common/motion.js";
+import { DUR, desktop, goOut, handOff, light, lineup, place, reduced, tone } from "../components/common/motion.js";
 import Button from "../components/common/Button.jsx";
 import Icon from "../components/common/Icon.jsx";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import Empty from "../components/common/Empty.jsx";
 import ErrorNote from "../components/common/ErrorNote.jsx";
 import Loader, { Busy } from "../components/common/Loader.jsx";
@@ -184,14 +184,15 @@ class RoomGuard extends React.Component {
   }
 }
 
-/* 저장한 팀: 팀 이름과 규정, 그리고 여섯을 그림으로(DESIGN.md "Where a Pokémon stands": 파티 목록은 이름 줄이 아니라 그림). 고른 팀은 반전한다. */
+/* 저장한 팀: 팀 이름과 규정, 그리고 여섯을 그림으로(DESIGN.md "Where a Pokémon stands": 파티 목록은 이름 줄이 아니라 그림). 고른 팀은 이름이
+   굵어지고 그 아래 2px 줄이 시작 쪽에서 그어진다(battle.css). */
 function TeamRows({ teams, value, onChange, res }) {
   return <div className="stack bt-teams" role="radiogroup" aria-label="팀">
     {teams.map(team => {
       const on = team.id === value;
       const reg = REGULATIONS[team.regulationId] || team.regulationId;
       const said = `${team.name}, ${reg}, ${team.members.map(m => res.text.pokedex[m.pokemonId] || m.pokemonName).join(", ")}`;
-      return <label key={team.id} className={"bt-team " + (on ? "inv" : "pn")}>
+      return <label key={team.id} className={"bt-team pn" + (on ? " on" : "")}>
         <input type="radio" className="sr-only" name="battle-team" checked={on} onChange={() => onChange(team.id)} aria-label={said} />
         <span className="bt-team-head"><b className="t15">{team.name}</b><span className="t12 reg dim">{reg}</span>{on && <Icon n="check" size={20} />}</span>
         <span className="bt-team-six" aria-hidden="true">{team.members.map((m, i) => <span key={i} className="stand"><i className="floor" /><Mon src={spriteUrl(m.pokemonName)} loading="lazy" onError={onSpriteError()} /></span>)}</span>
@@ -265,13 +266,13 @@ function Lobby({ res, teams, teamId, setTeamId, name, setName, nameError = "", f
   const reg = REGULATIONS[team?.regulationId] || team?.regulationId || "";
   return (
     <div className="bt-page">
-      <h1 className="t32">배틀</h1>
+      <h1 className="page-title">배틀</h1>
       {tabs}
       {before}
       <div className="bt-lobby">
         <div className="bt-lobby-main">
           {/* the court for every party (2026-11-06, the user: one look for a random party and a saved team): a random party's leads are
-              not drawn yet, so a light breathes on our floor where they will come out. The strips are the menu (2026-11-18, draft B) */}
+              not drawn yet, so our floor stands empty until they come out. The strips are the menu (2026-11-18, draft B) */}
           <LobbyArena res={res} foe={foe || foeHint} foeMuted={!foe} foeNote={foeNote} foeWord={foeWord} six={six}
             oursWord={random ? `무작위 여섯 마리, ${reg}` : ""} onFoe={foeSheet && !laid ? () => setSheet("foe") : null} onOurs={laid ? null : () => setSheet("party")}
             ours={/* a field on the strip, its line always drawn and the edit mark after it, so it never reads as a caption (2026-11-09) */
@@ -321,12 +322,16 @@ let earlyWorker = null;
 /* the battle it was started with, asked while the court goes dark: the room takes this answer instead of asking again, and the parties'
    pictures are taken before the team preview lights (2026-11-07, the user: the party's pictures came in a moment after the screen) */
 let earlyStart = null;
+/* its answer once it has come: the room opens on it in its first frame, so no empty frame stands between the screen left and the team
+   preview (2026-11-24, recorded: the room's first frame was the match's empty frame while the answer was taken a second time) */
+let earlyDone = null;
 function startEarly(w, start) {
+  earlyDone = null;
   return new Promise((resolve, reject) => {
     const take = ({ data }) => {
       if (data.id !== 0) return;
       w.removeEventListener("message", take);
-      if (data.ok) resolve(data); else reject(Object.assign(new Error(data.error), { problems: data.problems }));
+      if (data.ok) { earlyDone = data; resolve(data); } else reject(Object.assign(new Error(data.error), { problems: data.problems }));
     };
     w.addEventListener("message", take);
     w.postMessage({ id: 0, type: "start", ...start });
@@ -357,34 +362,58 @@ export async function enterBattle(id, dark) {
   const [, got] = await Promise.all([dark, ready]);
   primed.set(id, got);
 }
-/* the court of the screen a key was pressed on, going dark, and the rest of that screen dimming as a page being left does (DESIGN.md
-   "Motion", Page change), so the whole screen goes, not only its court. A refusal stands it up again (standUp) */
+/* the court of the screen a key was pressed on dims toward the page's ground as its Pokémon are called back (goIn), and the rest of
+   that screen leaves (260, ease-in) at once: what stays is the court's own frame, the key pressed (busy in its dock) and a match's
+   head, whose words switch by tone on the next screen (2026-11-24, recorded: a rematch flipped 종료 to 선출 중 and dropped the turn's
+   figure in one frame). The head's figure leaves with the rest. A refusal stands it all up again (standUp) */
 let dimmed = [];
+const KEEP = ".bt-arena, .dock, .bt-head";
+const leavers = (el, keep = KEEP) => [...el.children].flatMap(c => (c.matches(keep) ? [] : c.querySelector(keep) ? leavers(c, keep) : [c]));
+// the head of the match a key was pressed on stays for the next one, which switches its words by tone instead of lighting it anew
+let headStays = false;
+// the court a key was pressed on is going dim (goIn), so it stands to the swap
+let courtDim = false;
 export const goingIn = scope => {
   const page = document.querySelector(scope)?.closest(".bt-page");
-  if (page) dimmed = dimAway([...page.querySelectorAll(".bt-lobby-set, .bt-lists, .bt-side")]);
+  headStays = Boolean(page?.classList.contains("bt-match"));
+  if (page) dimmed = goOut([...leavers(page), ...page.querySelectorAll(".bt-head .bt-win")]);
   /* going in from a page scrolled past its stage (a phone choosing a 연승 도전 swap, a rematch under the result) comes back to the
      stage first, so the court is seen going dark and the floor called on it (2026-11-09) */
   const stage = document.querySelector(`${scope} .bs-stage`);
   if (stage && stage.getBoundingClientRect().top < 0) window.scrollTo(0, 0);
+  courtDim = Boolean(stage);
   return goIn(stage).catch(() => {});
 };
-export const standUp = () => { dimmed.forEach(a => a.cancel()); dimmed = []; leftBehind(); };
-/* the screen being left goes all the way out (160) the moment before the next one takes its place, so the change is a fade and a
-   light, never the dimmed screen vanishing in one frame (2026-11-09, measured by recording every frame of a battle: going in and a
-   rematch each removed the .382 screen at once). The next screen cancels it as it lights (useMatchLit), and so does a refusal; if
-   no battle screen comes, it lets go by itself */
+export const standUp = () => {
+  dimmed.forEach(a => a.cancel()); dimmed = []; headStays = false; courtDim = false; leftBehind();
+  // the court comes back to its light
+  document.querySelectorAll("#ypl-main .bs-gl").forEach(c => c.getAnimations().forEach(a => a.cancel()));
+};
+/* the screen being left goes all the way out (260) the moment before the next one takes its place, so the change is a fade and a
+   light, never the screen vanishing in one frame (2026-11-09, measured by recording every frame of a battle: going in and a rematch
+   each removed the .382 screen at once). On a phone the site's bars leave with it, the battle being the one screen without them
+   (2026-11-24: they vanished in one frame). The next screen cancels it as it lights (useMatchLit), and so does a refusal; if no
+   battle screen comes, it lets go by itself. A match's head stays to the swap, and on into the next match (headStays) */
 let leaving = [];
 export const leftBehind = () => { leaving.forEach(a => a.cancel()); leaving = []; };
 export async function leaveNow() {
   if (reduced()) return;
   leftBehind();
-  leaving = goOut([...document.querySelectorAll("#ypl-main > *")]);
+  const main = document.getElementById("ypl-main");
+  /* what stays to the swap: a match's head (the battle's bar: it goes on into the next match, or gives its place to the site's bars
+     going back), and the court gone dim, so the last frame before the next screen is never the bare ground (2026-11-24, recorded:
+     the whole page stood out for 190 while the next screen was drawn) */
+  const keep = [main?.querySelector(".bt-match .bt-head") && ".bt-head", courtDim && ".bs-stage"].filter(Boolean).join(", ");
+  const going = main && keep ? leavers(main, keep) : [...(main?.children || [])];
+  const bars = desktop() || main?.classList.contains("page--battle") ? [] : [...document.querySelectorAll(".topbar, .tabbar")];
+  leaving = goOut([...going, ...bars]);
+  courtDim = false;
   await Promise.all(leaving.map(a => a.finished.catch(() => {})));
   setTimeout(leftBehind, 2000);
 }
 function CpuRoom({ res, say, go, onLeave, onRestart }) {
-  const [state, setState] = useState(null);
+  // a battle gone into from the lobby or a rematch opens on its answer already taken (earlyDone), not on the match's empty frame
+  const [state, setState] = useState(() => (earlyWorker && earlyDone ? { row: earlyDone.row, view: earlyDone.view } : null));
   const [error, setError] = useState(null);
   const worker = useRef(null);
   const calls = useRef(new Map());
@@ -395,6 +424,7 @@ function CpuRoom({ res, say, go, onLeave, onRestart }) {
     const early = earlyWorker ? earlyStart : null;
     earlyWorker = null;
     earlyStart = null;
+    earlyDone = null;
     worker.current = w;
     let n = 0;
     const take = data => {
@@ -523,9 +553,9 @@ function RoomHall({ rooms, onOpen, onMake, onRetry }) {
   if (rooms === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>방 목록을 불러오지 못했습니다.</ErrorNote>;
   return <>
     <div className="stack bt-hall-counts">
-      <Counter label="기다리는 방" value={count(all.length)} cells={3} lamp={all.length > 0} />
-      <Counter label="공개 방" value={count(all.filter(r => r.room === "open").length)} cells={3} />
-      <Counter label="비밀 방" value={count(all.filter(r => r.room === "code").length)} cells={3} />
+      <Counter label="기다리는 방" value={count(all.length)} lamp={all.length > 0} />
+      <Counter label="공개 방" value={count(all.filter(r => r.room === "open").length)} />
+      <Counter label="비밀 방" value={count(all.filter(r => r.room === "code").length)} />
     </div>
     <div className="stack bt-hall-tools"><ListSearch q={q} setQ={pick(setQ)} placeholder="방을 연 사람" count={list.length} /><Button variant="main" icon="plus" onClick={onMake}>방 만들기</Button></div>
     <div className="bt-hall-filters">
@@ -559,7 +589,15 @@ const BATTLE_TABS = ["open", "streak", "rooms", "live", "mine"];
 function BattleOpen({ res, onOpen, go, preset }) {
   /* it lights as a page does when it comes, and lets go of the battle's going out (2026-11-09: going back from a battle, and the
      first load, swapped to it in one frame) */
-  useLayoutEffect(() => { leftBehind(); light(document.getElementById("ypl-main"), DUR.leave); }, []);
+  useLayoutEffect(() => {
+    const main = document.getElementById("ypl-main");
+    // back from a battle on a phone the site's bars come back with the page, by light, never in one frame (2026-11-24)
+    const back = main?.classList.contains("page--battle");
+    main?.classList.remove("page--battle");
+    leftBehind();
+    light(main, DUR.leave);
+    if (back && !desktop()) place([...document.querySelectorAll(".topbar, .tabbar")]);
+  }, []);
   const [tab, setTab] = useState(() => { const asked = new URLSearchParams(window.location.search).get("tab"); return BATTLE_TABS.includes(asked) ? asked : "open"; });
   const [rooms, rereadRooms] = useRooms();
   const [live, rereadLive] = useLiveBoards();
@@ -572,11 +610,11 @@ function BattleOpen({ res, onOpen, go, preset }) {
     window.history.replaceState(window.history.state, "", url);
   };
   const tabs = <div className="bt-tabs"><TabsLine value={tab} onChange={changeTab} label="배틀 화면" options={[["open", "배틀 열기"], ["streak", "도전의 탑"], ["rooms", rooms?.length ? `방 목록 ${rooms.length}` : "방 목록"], ["live", live?.length ? `관전 ${live.length}` : "관전"], ["mine", "기록"]]} /></div>;
-  if (tab === "live") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<LiveHall res={res} rows={live} onOpen={onOpen} onRetry={rereadLive} /></div>;
-  if (tab === "mine") return <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<BattleLists onOpen={onOpen} /></div>;
+  if (tab === "live") return <div className="bt-page"><h1 className="page-title">배틀</h1>{tabs}<LiveHall res={res} rows={live} onOpen={onOpen} onRetry={rereadLive} /></div>;
+  if (tab === "mine") return <div className="bt-page"><h1 className="page-title">배틀</h1>{tabs}<BattleLists onOpen={onOpen} /></div>;
   if (tab === "streak") return <StreakOpen res={res} onOpen={onOpen} go={go} tabs={tabs} enter={enterBattle} goingIn={goingIn} standUp={standUp} leaveNow={leaveNow} onPractice={() => { setFirstFoe("cpu"); changeTab("open"); }} />;
   return tab === "rooms"
-    ? <div className="bt-page"><h1 className="t32">배틀</h1>{tabs}<RoomHall rooms={rooms} onOpen={onOpen} onMake={() => { setFirstFoe("room"); changeTab("open"); }} onRetry={rereadRooms} /></div>
+    ? <div className="bt-page"><h1 className="page-title">배틀</h1>{tabs}<RoomHall rooms={rooms} onOpen={onOpen} onMake={() => { setFirstFoe("room"); changeTab("open"); }} onRetry={rereadRooms} /></div>
     : <BattleSetup res={res} onOpen={onOpen} preset={preset} tabs={tabs} firstFoe={firstFoe} />;
 }
 function BattleSetup({ res, onOpen, preset, tabs, firstFoe }) {
@@ -832,7 +870,7 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
   const kind = rematch ? "다시하기" : official ? "공식 경기" : row.room === "open" ? "공개 방" : row.room === "code" ? "비밀 방" : "친선 배틀";
   return (
     <div className="bt-page">
-      <h1 className="t32">배틀</h1>
+      <h1 className="page-title">배틀</h1>
       <div className="bt-lobby bt-lobby-wait">
         <div className="bt-lobby-main">
           {res && <LobbyArena res={res} foe="참가 대기" foeMuted waiting six={six} ours={<b className="bt-trainer">{row.p1_name || "나"}</b>}>
@@ -849,9 +887,9 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           <Row title={rematch ? "상대의 다시하기를 기다리는 중입니다." : "상대를 기다리는 중입니다."} line={`${rule} ${kind}`} />
           {/* a code room's four digits stand first and largest: they are what the opener reads out to the one coming in */}
           <div className="bt-wait-counters">
-            {code && !rematch && <Counter label="방 코드" value={code} cells={4} h={84} />}
+            {code && !rematch && <Counter label="방 코드" value={code} h={84} />}
             {/* only the code is read out large; the time waited is a 40 counter beside it, so a phone keeps 대기 취소 in view (P-04) */}
-            <Counter label="기다린 시간" value={clock} cells={3} h={40} />
+            <Counter label="기다린 시간" value={clock} h={40} />
           </div>
         </div>
       </div>
@@ -913,7 +951,7 @@ function OfficialSeat({ eventId, nodeKey, res, onOpen }) {
   const names = [match.a, match.b];
   return (
     <div className="bt-page">
-      <h1 className="t32">공식 경기</h1>
+      <h1 className="page-title">공식 경기</h1>
       <Row title={`${match.a} 대 ${match.b}`} line={[match.eventName, match.label].filter(Boolean).join(", ")} lamp={open ? "진행 중" : null} />
       {match.decided
         ? <Empty title="이미 승자가 정해진 경기입니다." desc="대진표에서 결과를 확인해 주세요." />
@@ -1093,10 +1131,21 @@ function useMatchLit() {
     const first = pv();
     if (!first) light(main, DUR.leave);
     const side = main.querySelector(".bt-match .bt-side");
+    /* the match's head: on a rematch or a run's next game it stood through the change (goingIn), so only its words switch, by tone;
+       coming from the lobby it arrives first, then the court and our strip over the cards (2026-11-24, recorded: the head and the
+       court stood in one frame while the cards lined up) */
+    const stay = headStays;
+    headStays = false;
+    courtDim = false;
+    /* the head is the battle's bar on a phone and stands at once, its words coming up by tone, so the first frame of the new screen is
+       never the bare ground while the rest is still being drawn (2026-11-24, recorded: 117 of nothing after the swap) */
+    const head = main.querySelector(".bt-match .bt-head");
+    if (stay || (first && !head?.closest(".bt-side"))) tone([...(head?.querySelectorAll(".bt-head-main > *, .bt-head-key") || [])]);
+    if (first) lineup([null, first.querySelector(".bt-pv-room"), first.querySelector(".bt-pv-strip.own")], [], -wait);
     // round the cards: the column's parts in order (the menu's own rows one by one) with 기권 at the end, or the dock under a phone's cards
     const round = () => {
       const forfeit = side?.querySelector(".bt-forfeit");
-      const parts = side ? [...side.children].flatMap(el => (el.classList.contains("bt-menu") ? [...el.children] : [el])).filter(el => el !== forfeit)
+      const parts = side ? [...side.children].flatMap(el => (el.classList.contains("bt-menu") ? [...el.children] : [el])).filter(el => el !== forfeit && !(stay && el === head))
         : [...main.querySelectorAll(".bt-match .bt-deck > *")];
       return forfeit ? [...parts, forfeit] : parts;
     };
@@ -1650,8 +1699,9 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
       <b className="bt-head-names">{`${names[perspective]} 대 ${names[foe]}`}</b>
     </div>
     {/* the floor as its track: its number over its five games, this one lit (2026-11-09: the stair glyph went with the stairs) */}
-    {gameAt != null && <span className="pn bt-win bt-win-floor"><Seg value={String(streakFloor(gameAt))} h={32} cells={String(streakFloor(gameAt)).length} label={`${streakFloor(gameAt)}층`} /><TrackBar at={floorGame(gameAt)} playing={!ended} mini /></span>}
-    {started && <span className="pn bt-win"><Seg value={String(Math.min(99, shownTurn)).padStart(2, "0")} h={32} cells={2} label={`${shownTurn}턴`} /></span>}
+    {gameAt != null && <span className="pn bt-win bt-win-floor"><Fig value={String(streakFloor(gameAt))} h={40} label={`${streakFloor(gameAt)}층`} /><TrackBar at={floorGame(gameAt)} playing={!ended} mini /></span>}
+    {/* the turn: a muted dash through the opening (it stood as a big 0), then the figure switches in place and brightens once (Fig) */}
+    {started && <span className="pn bt-win"><Fig value={shownTurn > 0 ? String(Math.min(99, shownTurn)) : ""} h={40} label={shownTurn > 0 ? `${shownTurn}턴` : "턴 시작 전"} /></span>}
     {compact && <button type="button" className="pn bt-head-key" onClick={() => setMenuOpen(true)} aria-label="메뉴" aria-haspopup="dialog"><Icon n="more" size={24} /></button>}
   </div>;
   /* the pick stands until the team preview goes, locked once it is sent (2026-11-09, measured: it vanished in the frame 선출 확정 was
@@ -1746,7 +1796,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
               <b className="bt-end-title">{endTitle}</b>
               {/* a rematch asked for is said in the result's own grey line with its lamp, in no room of its own: as a panel over the result
                   it made the deck 54 taller the moment it came, and the stage over it dropped (2026-11-10, measured on the other phone) */}
-              <span className="bt-end-line">{offered ? <><i className="lamp" aria-hidden="true" />{`${josa(names[foe], "subject")} 다시하기를 원합니다.`}</> : endLine}</span>
+              <span className={"bt-end-line" + (offered ? " offer" : "")}>{offered ? `${josa(names[foe], "subject")} 다시하기를 원합니다.` : endLine}</span>
             </div>}
             {streak ? <StreakEnd id={row.id} won={row.winner === seat?.side} res={res} {...streak} settle={settle} onInfo={setSheetTip}
               stage={stageBox} away={autoplay || cue != null}
@@ -1793,9 +1843,6 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
         {/* the other battles being played, so a watcher goes from one to the next without the lobby: the same event's first */}
         {othersBox}
         {logBox}
-        {/* the credits are a footnote, not a fact (Composing a screen 16): one quiet paragraph at the very end, regular weight, set apart
-            (2026-11-24, the owner: 이렇게까지 강조 안 해도 될 사항들) */}
-        <div className="bt-credit t12 reg mute"><span>배틀 엔진 Pokémon Showdown (MIT)</span><span>음악 YPL (코드로 작곡)</span><span>효과음 Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</span></div>
       </div>}
       {compact && menuOpen && <Modal title="메뉴" onClose={() => setMenuOpen(false)}>{menu}{cast && othersBox}</Modal>}
       {soundOpen && <Modal title="소리" onClose={() => setSoundOpen(false)}><SoundSheet /></Modal>}

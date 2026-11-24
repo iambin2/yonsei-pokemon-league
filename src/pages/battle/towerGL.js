@@ -97,7 +97,7 @@ export function paletteOf(el) {
     ground: v("--ground"),
     // a won room's light: warm; in the day deepened toward the amber so a won door still reads on white stone
     warm: mix(v("--tw-warm"), amber, day ? 0.38 : 0),
-    // light itself: the board's lit tone at night; in the day the words are navy, so the light is white
+    // light itself: the page's lit tone at night; in the day the words are navy, so the light is white
     lit: day ? [1, 1, 1] : v("--lit"),
     // what a door's room becomes as the camera walks in: the stage's own ground, which the next screen comes up out of
     lift: v("--ground"),

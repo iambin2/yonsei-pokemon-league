@@ -1,11 +1,11 @@
-// The YPL Scoreboard design law (DESIGN.md) as a test. Every CSS declaration in src/styles and every inline style={{}} in src is checked
+// The YPL League Almanac design law (DESIGN.md) as a test. Every CSS declaration in src/styles and every inline style={{}} in src is checked
 // against the rules below. A deliberate exception is listed in EXCEPT under its reason; an exception that no longer occurs fails too, so
 // the list only shrinks.
 //
 // The build has landed: every file is held to the strict rules, only scoreboard tokens and only lengths on the series.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
@@ -56,7 +56,7 @@ function inlineDecls(file) {
   return out;
 }
 const SRC = walk(join(ROOT, "src")).filter(f => /\.(jsx?|mjs)$/.test(f) && !rel(f).startsWith("src/data/") && !rel(f).startsWith("src/pages/battle/"));
-// The battle screen is a game (DESIGN.md "Battle"): its stage, effects and HUD keep the site's colours and taste but not the board's law;
+// The battle screen is a game (DESIGN.md "Battle"): its stage, effects and HUD keep the site's colours and taste but not every strict number of this law;
 // since 2026-11-18 a 도전의 탑 run's play (tower-play.css: the draft, the doors, the break, the trades) is part of that game.
 // Popups over it and every screen outside it are held to every rule here.
 const STAGE = ["battle-stage.css", "battle.css", "tower-play.css"];
@@ -75,6 +75,10 @@ const strict = () => true;
 const layers = v => { const out = [""]; let depth = 0; for (const ch of v) { depth += ch === "(" ? 1 : ch === ")" ? -1 : 0; if (ch === "," && !depth) out.push(""); else out[out.length - 1] += ch; } return out.map(p => p.trim()); };
 const COLOR = /#[0-9a-f]{3,8}\b|\b(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|\b(white|black|red|green|blue|gray|grey)\b/i;
 const SIZE_TOKENS = /^(inherit|var\(--t(12|15|20|32)\))$/;
+// a figure (Fig.jsx, DESIGN.md "Figures") is sized by its digits' height over .72; the page's name stands at 52 or 84 (.page-title)
+const S = "var\\(--(s(1|2|3|5|8|13|21)|seam)\\)";
+const FIG_SIZE = new RegExp(`^calc\\(\\(?(${S}|var\\(--fig-h\\))( [-+*] (${S}|\\d+))*\\)? \\/ \\.72\\)$`);
+const FIG_LINE = new RegExp(`^(${S}|var\\(--fig-h\\)|calc\\((${S}|\\d*\\.?\\d+)( [+*] (${S}|\\d*\\.?\\d+))*\\)|\\.\\d+)$`);
 const SIZE_BRIDGE = /^var\(--(fs-\w+|title|display|hero|fig-[sml])\)$/;
 const LINE_TOKENS = /^(1|inherit|var\(--l(12|15|20|32|-read)\))$/;
 const LINE_BRIDGE = /^(1\.236em|var\(--lh-\w+\))$/;
@@ -85,19 +89,21 @@ const RULES = {
   "colour: components read semantic tokens, never primitives (Colour and light)": d => d.file !== "src/styles/tokens.css" && /var\(--(navy(-[123])?|white|mist|haze|amber(-deep)?|paper-[123]|slate(-2)?)\)/.test(d.value),
   "colour: solid only, no gradient (Colour and light)": d => /gradient\(/.test(d.value),
   "space: margin, padding and gap sit on the golden scale (Space)": d => /^(margin|padding|gap|row-gap|column-gap)(-|$)/.test(d.prop) && pxs(d.value).some(n => !SPACE.has(n)),
-  "type: a size is one of the four tokens (Type)": d => d.prop === "font-size" && !SIZE_TOKENS.test(d.value) && (strict(d) || !SIZE_BRIDGE.test(d.value)),
-  "type: a line is on the 4 grid, from its token (Type)": d => d.prop === "line-height" && !LINE_TOKENS.test(d.value) && (strict(d) || !LINE_BRIDGE.test(d.value)),
-  "type: weights 400 600 700 (Type)": d => d.prop === "font-weight" && !fontFace(d) && !WEIGHTS.has(d.value) && !/^(inherit|var\()/.test(d.value),
-  "type: tracking is a token (Type)": d => d.prop === "letter-spacing" && !/^(0|inherit|var\(--ls(20|32|-[a-z0-9]+)\))$/.test(d.value),
-  "type: one font stack (Type)": d => d.prop === "font-family" && !fontFace(d) && !/^(inherit|var\(--font\))$/.test(d.value),
+  "type: a size is one of the four tokens, a figure's, or the page's name (Type, Figures)": d => d.prop === "font-size" && !SIZE_TOKENS.test(d.value) && !FIG_SIZE.test(d.value) && !(/page-title|-pod/.test(d.sel) && /^var\(--s(13|21)\)$/.test(d.value)),
+  "type: a line is on the 4 grid, from its token or its figure (Type, Figures)": d => d.prop === "line-height" && !LINE_TOKENS.test(d.value) && !FIG_LINE.test(d.value),
+  "type: weights 400 600 700, and a figure's 200 and 300 (Type, Figures)": d => d.prop === "font-weight" && !fontFace(d) && !WEIGHTS.has(d.value) && !(/^(200|300)$/.test(d.value) && /fig|rank|\.num|count|when|board/.test(d.sel)) && !/^(inherit|var\()/.test(d.value),
+  "type: tracking is a token (Type)": d => d.prop === "letter-spacing" && !/^(0|inherit|var\(--ls(20|32|-fig|-[a-z0-9]+)\))$/.test(d.value),
+  "type: one font stack, Albert Sans first for a figure (Type, Figures)": d => d.prop === "font-family" && !fontFace(d) && !/^(inherit|var\(--font(-fig)?\))$/.test(d.value),
   "type: no uppercase label (Voice and tone)": d => d.prop === "text-transform" && d.value === "uppercase",
   "type: a line runs to its column; nothing carries a narrower measure (Type)": d => /^max-(width|inline-size)$/.test(d.prop) && (/\d(ch|r?em)\b/.test(d.value) || /var\(--read\)/.test(d.value)),
-  "panels: nothing is round (Panels)": d => /radius/.test(d.prop) && !d.prop.startsWith("--") && !/^0(px)?$/.test(d.value),
-  "panels: no shadow; a box-shadow only draws an inset hairline, rule or ring (Panels)": d => d.prop === "box-shadow" && !/^(none|var\(--shadow-[12]\))$/.test(d.value) && layers(d.value).some(p => !/^inset\s/.test(p)),
-  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row and the footer (Panels)": d =>
-    (d.prop === "box-shadow" && layers(d.value).some(p => /^inset 0 (-?1px|-?var\(--hair\)) 0 var\(--rule\)$/.test(p)))
-    || (d.prop === "height" && /^(1px|var\(--hair\))$/.test(d.value) && BLOCKS[d.blk]?.background === "var(--rule)"),
-  "panels: no border (Panels)": d => strict(d) && /^border(-(top|right|bottom|left))?$/.test(d.prop) && !/^(0|none)$/.test(d.value),
+  "entries: nothing is round (Entries and rules)": d => /radius/.test(d.prop) && !d.prop.startsWith("--") && !/^0(px)?$/.test(d.value),
+  "entries: no shadow; a box-shadow only draws an inset hairline, rule or ring (Entries and rules)": d => d.prop === "box-shadow" && !/^(none|var\(--shadow-[12]\))$/.test(d.value) && layers(d.value).some(p => !/^inset\s/.test(p)),
+  // 2026-11-24, the owner: "외곽선이 있는 네모칸이 전부 너무너무 어색해": no control, key, menu or square is ringed, at rest, under a pointer,
+  // in focus or chosen. A ring is a keyboard's :focus-visible on a key or a link, and nothing else (a 100px inset is autofill's fill, not a ring)
+  "entries: no outlined square; a ring is only a keyboard's focus on a key (Entries and rules, Controls)": d => d.prop === "box-shadow" && !/:focus-visible/.test(d.sel)
+    && layers(d.value).some(p => /^inset\s+0(px)?\s+0(px)?\s+0(px)?\s+(?!100px)\S/.test(p)),
+  "entries: an outline is only a keyboard's focus ring (Controls)": d => /^outline(-style|-width)?$/.test(d.prop) && !/^(none|0(px)?)$/.test(d.value) && !/:focus-visible/.test(d.sel),
+  "entries: no border; a line is an inset hairline or rule (Entries and rules)": d => strict(d) && /^border(-(top|right|bottom|left))?$/.test(d.prop) && !/^(0|none)$/.test(d.value),
   "light: nothing blurs what is behind it (Don't)": d => /backdrop-filter$/.test(d.prop),
   "light: nothing blurs or glows (Don't)": d => /^(-webkit-)?filter$/.test(d.prop) && /blur\(|drop-shadow\(/.test(d.value),
   "eye: every length stands on the series (The golden law)": d => strict(d) && /^((min-|max-)?(width|height)|top|right|bottom|left|inset|flex-basis)$/.test(d.prop) && !d.sel.startsWith("@") && pxs(d.value).some(n => !LENGTHS.has(n)),
@@ -107,7 +113,7 @@ const RULES = {
   "motion: a transition or an animation reads a --move token (Motion)": d => /^(transition|animation)(-duration|-timing-function)?$/.test(d.prop)
     && (/cubic-bezier|\blinear\(|steps\(|\bease(-in|-out|-in-out)?\b|\d(ms|s)\b/.test(noVars(d.value)) || /var\(--(ease|spring)/.test(d.value)),
   "motion: a duration is a token (Motion)": d => /^(transition|animation)/.test(d.prop) && /(?<![\w.-])\d*\.?\d+m?s\b/.test(noVars(d.value)),
-  "opacity: 0, 1, a token, or an unlit bar (Colour and light)": d => d.prop === "opacity" && !/^(0|1|var\(--opacity-[a-z]+\)|var\(--off\))$/.test(d.value),
+  "opacity: 0, 1, a token, or a faint mark (Colour and light)": d => d.prop === "opacity" && !/^(0|1|var\(--opacity-[a-z]+\)|var\(--off\))$/.test(d.value),
   "depth: a z-index is a named step": d => d.prop === "z-index" && !/^(auto|calc\(var\(--z-sticky\) \+ 1\)|var\(--z-[a-z]+\))$/.test(d.value),
   "set: a Korean word never breaks inside itself; a spaceless run breaks by overflow-wrap (Typesetting)": d => d.prop === "word-break" && !/^(keep-all|normal|inherit)$/.test(d.value),
   "set: upright only, nothing slants (Typesetting)": d => d.prop === "font-style" && !/^(normal|inherit)$/.test(d.value),
@@ -123,7 +129,7 @@ const C = "src/styles/components.css", P = "src/styles/pages.css", T = "src/styl
 const B = "src/styles/bracket.css", R = "src/styles/records.css";
 const EXCEPT = {
   "panels: no line between rows; a hairline edges only the bars, the dock, a tab row and the footer (Panels)": {
-    "the edges DESIGN.md names (Panels 2)": [
+    "the edges DESIGN.md names (Entries and rules)": [
       "src/styles/shell.css | .topbar | box-shadow: inset 0 -1px 0 var(--rule)", "src/styles/shell.css | .tabbar | box-shadow: inset 0 1px 0 var(--rule)",
       "src/styles/board.css | .dock | box-shadow: inset 0 1px 0 var(--rule)", "src/styles/board.css | .tabsline-frame | box-shadow: inset 0 -1px 0 var(--rule)",
       "src/styles/shell.css | .site-foot | box-shadow: inset 0 1px 0 var(--rule)"],
@@ -131,7 +137,7 @@ const EXCEPT = {
   "depth: a z-index is a named step": {
     "a stack orders itself: toasts by their place": ["src/components/common/Toaster.jsx | style | z-index: 10 - index"],
   },
-  "opacity: 0, 1, a token, or an unlit bar (Colour and light)": {
+  "opacity: 0, 1, a token, or a faint mark (Colour and light)": {
   },
   "colour: literals live only in tokens.css (Colour and light)": {
     "a video letterbox is black in both themes": ["src/styles/posts.css | .bd-yt | background: #000"],
@@ -148,6 +154,17 @@ const EXCEPT = {
   },
 };
 
+test("a second action stands on its own line, never floating (Controls)", () => {
+  assert.deepEqual(decl(".btn.btn--second", "box-shadow"), ["inset 0 -1px 0 var(--rule)"]);
+});
+test("a door keeps room inside its own lit face, never a band past it (Entries and rules)", () => {
+  assert.ok(/--band: var\(--s3\)/.test(TOKENS) && /--band: var\(--s5\)/.test(TOKENS), "--band is 12 on a phone and 20 from 860");
+  assert.ok(DECLS.some(d => /\.row/.test(d.sel) && /\.opt-row/.test(d.sel) && d.prop === "padding-inline" && d.value === "var(--band)"), "row-like doors keep --band inside");
+  assert.deepEqual(DECLS.filter(d => d.prop === "inset" && /var\(--band\) \* -1/.test(d.value)).map(keyOf), [], "the lit face never grows past the door");
+});
+test("a field, a check and a select never ring, by click or by key (Controls)", () => {
+  assert.deepEqual(decl(":is(input, textarea, select):focus-visible", "outline"), ["none"]);
+});
 for (const [rule, broken] of Object.entries(RULES)) {
   test(rule, () => {
     const allowed = new Set(Object.values(EXCEPT[rule] || {}).flat());
@@ -161,9 +178,7 @@ for (const [rule, broken] of Object.entries(RULES)) {
 
 // ---------- a line breaks where its column ends or its sentence ends, never by hand (Type) ----------
 test("no hand-placed line break in the site's own copy (Type)", () => {
-  // the one allowed: the home's no-event sentence, set in two lines on a phone and hidden on desktop (home.css .ho-title br)
-  const allowed = new Set(["src/pages/HomePage.jsx"]);
-  const hits = SRC.filter(f => /\.jsx$/.test(f) && !rel(f).startsWith("src/admin/") && !allowed.has(rel(f)))
+  const hits = SRC.filter(f => /\.jsx$/.test(f) && !rel(f).startsWith("src/admin/"))
     .flatMap(f => [...read(f).matchAll(/<br\s*\/?>/g)].map(() => rel(f)));
   assert.deepEqual(hits, [], "let the line run to its column, or end the sentence");
 });
@@ -212,27 +227,20 @@ test("the heights: a strip, the touch floor, a row, a two-line row, a counter (T
   assert.match(TOKENS, /--nav-height: 56px; --tab-height: 64px; --admin-height: 40px;/);
 });
 
-// ---------- seven-segment displays ----------
-test("a segment cell is real: h tall, h / phi wide, its unlit bars at --off (Seven-segment displays)", async () => {
-  const { segCells, segWidth } = await import("../src/components/common/seg.js");
-  // the bars are drawn in seg.js (segShapes), which Seg.jsx and the stage's floor plate both draw from
-  const seg = src("src/components/common/Seg.jsx") + src("src/components/common/seg.js");
-  assert.match(seg, /Math\.round\(h \/ PHI\)/, "width is height over phi");
-  assert.match(seg, /w \* \.16/, "a bar is .16 of the width");
-  assert.match(seg, /w \* \.32/, "cells stand .32 of the width apart");
-  assert.match(seg, /className="off"/);
-  assert.match(TOKENS, /\.seg \.off \{ opacity: var\(--off\); \}/);
-  assert.deepEqual(segCells("6.5", 2), ["6", "5"], "no decimal point in segments: whole numbers only");
-  assert.deepEqual(segCells(6, 2), [" ", "6"], "a total leaves its unused leading cells dark");
-  assert.deepEqual(segCells("05", 2), ["0", "5"], "a countdown lights its leading zero");
-  assert.deepEqual(segCells("13:00", 4), ["1", "3", ":", "0", "0"], "a clock is four cells and a dot cell");
-  assert.equal(segWidth(40, 2), 25 * 2 + 8);
+// ---------- figures (the almanac, 2026-11-24: the seven-segment display is gone) ----------
+test("a figure is Albert Sans, the larger the thinner, a leading zero dropped (Figures)", () => {
+  const fig = src("src/components/common/Fig.jsx");
+  assert.match(fig, /h >= 84 \? 200 : h >= 40 \? 300 : 400/, "200 from 84, 300 from 40, 400 under");
+  assert.match(fig, /replace\(\/\^\(-\?\)0\+\(\?=\\d\)\/, "\$1"\)/, "a leading zero is dropped");
+  assert.match(fig, /includes\(":"\)/, "except in a clock");
+  assert.match(TOKENS, /\.fig \{[^}]*font-size: calc\(var\(--fig-h\) \/ \.72\);[^}]*font-family: var\(--font-fig\);/, "its size is its digits' height over .72, in Albert Sans");
+  assert.ok(!existsSync(join(ROOT, "src/components/common/Seg.jsx")) && !existsSync(join(ROOT, "src/components/common/seg.js")), "no segment display is left");
+  assert.deepEqual(SRC.filter(f => /<Seg\b/.test(read(f))).map(rel), []);
 });
-test("a display is never under 32 and stands on the segment scale (Seven-segment displays)", () => {
-  const sizes = new Set(["32", "40", "84", "120", "240"]);
-  // a Counter draws its value as a Seg, so its h is held too, a ternary's every branch included
+test("a figure is never under 32 (Figures)", () => {
+  // a Counter draws its value as a Fig, so its h is held too, a ternary's every branch included
   const hs = tag => [...tag.matchAll(/\bh=\{([^}]*)\}/g)].flatMap(m => m[1].match(/\b\d+\b(?![.\]])/g) || []);
-  const hits = SRC.flatMap(f => [...read(f).matchAll(/<(?:Seg|Counter)\b[^>]*?>/g)].flatMap(m => hs(m[0])).filter(h => !sizes.has(h)).map(h => `${rel(f)}: ${h}`));
+  const hits = SRC.flatMap(f => [...read(f).matchAll(/<(?:Fig|Counter)\b[^>]*?>/g)].flatMap(m => hs(m[0])).filter(h => +h < 32).map(h => `${rel(f)}: ${h}`));
   assert.deepEqual(hits, []);
 });
 
@@ -293,7 +301,8 @@ test("the body sets the type: keep-all, no faked faces, tabular digits (Typesett
   assert.match(TOKENS, /--font: "Albert Sans", "Freesentation",/, "Albert Sans first, so Latin and digits in a Korean line are Albert Sans");
   assert.match(TOKENS, /i, em \{ font-style: normal; \}/, "upright only");
   assert.match(TOKENS, /--ls20: -\.01em; --ls32: -\.02em;/, "tracking only tightens, with size");
-  assert.deepEqual(DECLS.filter(d => d.prop === "letter-spacing" && /^\.?\d|^var\(--ls(?!20|32)/.test(d.value) && d.value !== "0").map(keyOf), [], "no open tracking");
+  assert.deepEqual(DECLS.filter(d => d.prop === "letter-spacing" && /^\.?\d|^var\(--ls(?!20|32|-fig)/.test(d.value) && d.value !== "0").map(keyOf), [], "no open tracking");
+  assert.match(TOKENS, /--ls-fig: -\.04em;/, "a figure only tightens");
 });
 
 // ---------- motion ----------
@@ -383,12 +392,12 @@ test("one button: every button that is a button comes from Button.jsx (Controls)
 // ---------- the tiers (Hierarchy): a heading's tag is its tier's look, an action is one of three ----------
 const JSX = SRC.filter(f => f.endsWith(".jsx"));
 const headings = level => JSX.flatMap(f => [...read(f).matchAll(new RegExp(`<h${level} className=(\\{[^}]*\\}|"[^"]*")`, "g"))].map(m => ({ file: rel(f), cls: m[1] })));
-test("a page title is tier 1, 32; only a page led by its display captions it (Hierarchy)", () => {
+test("a page title is tier 1: the page's name at 52 / 84, a thing's own title 32; a page led by its figure captions it (Hierarchy)", () => {
   const led = new Set(["src/pages/HomePage.jsx", "src/pages/StatusPage.jsx"]);
-  assert.deepEqual(headings(1).filter(h => !led.has(h.file) && !/\bt32\b/.test(h.cls)).map(h => `${h.file}: ${h.cls}`), []);
+  assert.deepEqual(headings(1).filter(h => !led.has(h.file) && !/\b(t32|page-title)\b/.test(h.cls)).map(h => `${h.file}: ${h.cls}`), []);
 });
 test("a section or sheet title is tier 2, 20; the decided record's one name stands at 32 (Hierarchy)", () => {
-  const off = [2, 3].flatMap(headings).filter(h => !/\bt20\b/.test(h.cls) && !/hof-crown-name/.test(h.cls));
+  const off = [2, 3].flatMap(headings).filter(h => !/\bt20\b/.test(h.cls) && !/hof-crown-name|\bchapter\b/.test(h.cls));
   assert.deepEqual(off.map(h => `${h.file}: ${h.cls}`), [], "a label over a control is its label, not a heading");
 });
 test("an action is main, second or link (Hierarchy)", () => {
@@ -417,4 +426,20 @@ test("a switch is the one .sw, a span inside its key (Components)", () => {
   const hits = SRC.flatMap(f => [...read(f).matchAll(/<(\w+)[^<>]*className=\{"sw"/g)].filter(m => m[1] !== "span").map(() => rel(f)));
   assert.deepEqual(hits, []);
   assert.ok(SRC.some(f => /<span className=\{"sw"/.test(read(f))));
+});
+test("고대비 is a real high contrast on the platform's convention: every word 7 or more on its ground and its step, what acts and its highlight 7 or more, the main key's words 7 or more on its fill, the mark 3 or more, both themes (Colour and light)", () => {
+  const p = n => new RegExp(`--${n}:\\s*(#[0-9A-F]{6})`, "i").exec(TOKENS)?.[1];
+  const lum = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((s, c, i) => s + c * [.2126, .7152, .0722][i], 0);
+  const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((q, r) => r - q); return (x + .05) / (y + .05); };
+  // [ink, dim, mute, ground, step, mark, act, hi, the words on a filled act or hi]
+  const sets = [["#FFFFFF", p("hc-ink-1"), p("hc-ink-2"), p("hc-black"), p("hc-step"), p("hc-yellow"), p("hc-yellow"), p("hc-cyan"), p("hc-black")],
+    [p("hc-black"), p("hc-ink-3"), p("hc-ink-4"), "#FFFFFF", p("hc-step-light"), p("hc-amber"), p("hc-blue"), p("hc-purple"), "#FFFFFF"]];
+  for (const [lit, dim, mute, ground, step, mark, act, hi, onAct] of sets) {
+    for (const bg of [ground, step]) for (const ink of [lit, dim, mute, act]) assert.ok(cr(ink, bg) >= 7, `${ink} on ${bg}: ${cr(ink, bg).toFixed(2)}`);
+    for (const c of [act, hi]) { assert.ok(cr(c, ground) >= 7, `${c} on ${ground}`); assert.ok(cr(onAct, c) >= 7, `${onAct} on ${c}`); }
+    assert.ok(cr(mark, ground) >= 3, `mark ${mark} on ${ground}`);
+  }
+  // the yellow is the convention's own (Windows' and the browsers' forced-colours LinkText), and --act and --hl exist only under 고대비
+  assert.equal(p("hc-yellow").toUpperCase(), "#FFFF00");
+  assert.equal((TOKENS.match(/--act:/g) || []).length, 2);
 });

@@ -77,27 +77,53 @@
 /* ---------- semantic: what components read (DESIGN.md "Colour and light"). Dark here, light below. ---------- */
 :root {
   color-scheme: dark;
-  --ground: var(--navy); --panel: var(--navy-1); --panel-2: var(--navy-2); --rule: var(--navy-3);
+  /* the almanac (2026-11-24): nothing stands on a surface; --panel and --panel-2 are the ground itself, and --tint is the one step a door
+     takes under a pointer. --rule is the hairline between entries, --lit the thick rule that opens a section and marks the decided one. */
+  --ground: var(--navy); --panel: var(--navy); --panel-2: var(--navy); --tint: var(--navy-1); --rule: var(--navy-3);
   --lit: var(--white); --dim: var(--mist); --mute: var(--haze); --signal: var(--amber); --off: .08;
   --gold: var(--gold-1);
-  --veil: rgb(8 28 61 / .72);
+  /* the words on a filled lit thing (the main key, a check that is on): the ground's colour that a decided entry does not redefine */
+  --on-lit: var(--navy);
+  /* the veil behind a sheet (2026-11-24, the owner: a sheet the colour of the page was not seen as one): the page under it goes a deep
+     navy near black (#010813 at .8), so the sheet, the ground itself with no edge, stands as a lit page laid over a dimmed one */
+  --veil: rgb(1 8 19 / .8);
 }
-/* 고대비 (2026-11-22, DESIGN.md "Colour and light"): the dark board with what is dim and muted lit nearer white and the seams a step up.
-   Primitives already in the palette, no new colour. */
+/* 고대비 (2026-11-22; a real high contrast 2026-11-24, then on the platform's own convention the same day, the owner: "노란색이 더 많았던
+   것 같은데"). Windows' contrast themes and the browsers' forced colours (Chrome's, read 2026-11-24: Canvas #000, CanvasText #FFF,
+   LinkText #FFFF00, Highlight #1AEBFF under black HighlightText; light: #FFF, #000, LinkText #00009F, Highlight #37006E under white)
+   paint everything you can act on or that is chosen in one strong colour, and what a pointer or a keyboard is on in a second. Dark is white
+   ink on pure black, the dim and muted words near white, the hairlines light grey; --act is the yellow of every link, word key, chosen tab
+   and chip, decided entry, main key, check and switch; --hl the cyan of focus, a pointer on the main key and selected text. The live mark
+   is the yellow lamp. Light is the same the other way: black on white, --act the forced colours' link blue, --hl their purple, the mark a
+   dark amber. --act and --hl exist only here (board.css's 고대비 block reads them), so the other themes are untouched. Type colours stay
+   as content. The veil greys the page so the sheet, black on black otherwise, stands over it. */
+:root {
+  --hc-black: #000000; --hc-ink-1: #EDEDED; --hc-ink-2: #CFCFCF; --hc-line: #BDBDBD; --hc-step: #2E2E2E; --hc-yellow: #FFFF00; --hc-cyan: #1AEBFF;
+  --hc-ink-3: #1A1A1A; --hc-ink-4: #333333; --hc-step-light: #E0E0E0; --hc-amber: #7A4A00; --hc-blue: #00009F; --hc-purple: #37006E;
+}
 :root[data-contrast="more"] {
-  --dim: var(--paper-1); --mute: var(--mist); --rule: var(--haze);
+  --ground: var(--hc-black); --panel: var(--hc-black); --panel-2: var(--hc-black); --tint: var(--hc-step); --rule: var(--hc-line);
+  --lit: var(--white); --dim: var(--hc-ink-1); --mute: var(--hc-ink-2); --signal: var(--hc-yellow); --on-lit: var(--hc-black);
+  --act: var(--hc-yellow); --hl: var(--hc-cyan);
+  --veil: rgb(90 90 90 / .7);
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --ground: var(--white); --panel: var(--paper-1); --panel-2: var(--paper-2); --rule: var(--paper-3);
+  --ground: var(--white); --panel: var(--white); --panel-2: var(--white); --tint: var(--paper-1); --rule: var(--paper-3);
   --lit: var(--navy); --dim: var(--slate); --mute: var(--slate-2); --signal: var(--amber-deep); --off: .06;
   --gold: var(--gold-2);
-  --veil: rgb(255 255 255 / .72);
+  --on-lit: var(--white);
+  /* in light the navy veil greys the white page, and the white sheet stands over it */
+  --veil: rgb(8 28 61 / .5);
 }
-/* the light board's 고대비 (기기 설정 on a device asking for more contrast): the same step the other way, dim words nearer navy,
-   muted ones to what dim was, the seams to the blue grey. Primitives already in the palette. */
+/* the light board's 고대비 (기기 설정 on a device asking for more contrast, in light): black ink on pure white, the dim and muted words
+   near black, the hairlines black, the pointer's step a light grey, the mark a dark amber; what acts the forced colours' link blue (yellow
+   reads 1.07 on white), focus their purple, the main key blue with white words */
 :root[data-theme="light"][data-contrast="more"] {
-  --dim: var(--navy-3); --mute: var(--slate); --rule: var(--haze);
+  --ground: var(--white); --panel: var(--white); --panel-2: var(--white); --tint: var(--hc-step-light); --rule: var(--hc-black);
+  --lit: var(--hc-black); --dim: var(--hc-ink-3); --mute: var(--hc-ink-4); --signal: var(--hc-amber); --on-lit: var(--white);
+  --act: var(--hc-blue); --hl: var(--hc-purple);
+  --veil: rgb(0 0 0 / .6);
 }
 
 /* ---------- the golden law: one ratio, phi ---------- */
@@ -109,10 +135,14 @@
   --t12: .75rem; --t15: .9375rem; --t20: 1.25rem; --t32: 2rem;
   --l12: 16px; --l15: 20px; --l20: 28px; --l32: 40px; --l-read: 24px;
   --ls20: -.01em; --ls32: -.02em;
+  /* figures (Fig.jsx): Albert Sans first, tightened; their size is the digits' height over .72 */
+  --font-fig: "Albert Sans", var(--font); --ls-fig: -.04em;
   /* a strip, the touch floor, a row, a two-line row, a counter */
   --h-strip: 32px; --h-control: 44px; --h-row: 52px; --h-row2: 64px; --h-counter: 84px;
   --hair: 1px; --line: 2px; --lamp: 8px;
   --gutter: var(--s5); --pad: var(--s3); --content: 1200px; --sheet-w: 576px;
+  /* the room a door keeps inside its own lit face on each side (board.css): a phone's 12, a desktop's 20 */
+  --band: var(--s3);
   --nav-height: 56px; --tab-height: 64px; --admin-height: 40px;
   --opacity-disabled: .382;
   --z-raised: 1; --z-sticky: 10; --z-header: 20; --z-modal: 40; --z-popover: 50; --z-toast: 60; --z-skip: 80;
@@ -126,7 +156,7 @@
 /* between a phone and the desktop (a tablet, a phone on its side) the phone's board stands as one 576 column on the ground,
    with the bars, the dock and the footer on the same lines, instead of a phone stretched to the window (DESIGN.md "Space") */
 @media (min-width: 640px) and (max-width: 859px) { :root { --content: var(--sheet-w); } }
-@media (min-width: 860px) { :root { --nav-height: 64px; --tab-height: 0px; --pad: var(--s5); --t12: var(--t15); --l12: var(--l15); } }
+@media (min-width: 860px) { :root { --nav-height: 64px; --tab-height: 0px; --pad: var(--s5); --band: var(--s5); --t12: var(--t15); --l12: var(--l15); } }
 
 @media (min-resolution: 2dppx) { :root { --hair: .5px; } }
 
@@ -174,14 +204,16 @@ iframe { border: 0; }
 /* the one focus ring: 2px of light inside the edge */
 :focus-visible { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 /* on anything inverted the ring is the ground's, or it is light on light (DESIGN.md "Controls": a ground ring on any inverted panel) */
-:is(.inv, .btn--main, .skip-link, .seg-track > [aria-selected="true"]):focus-visible { outline-color: var(--ground); }
+:is(.inv, .btn--main, .skip-link):focus-visible { outline-color: var(--ground); }
+/* a field, a check and a select never ring, by click or by key (2026-11-24): a field's focus is its 2px line, a check's its square's step */
+:is(input, textarea, select):focus-visible { outline: none; }
 ::placeholder { color: var(--mute); opacity: 1; }
 input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: none; }
 input[type="date"], input[type="datetime-local"] { min-height: 52px; }
 ::-webkit-calendar-picker-indicator { opacity: var(--opacity-disabled); cursor: pointer; }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-input:-webkit-autofill { -webkit-text-fill-color: var(--lit); box-shadow: inset 0 0 0 100px var(--panel); }
+input:-webkit-autofill { -webkit-text-fill-color: var(--lit); box-shadow: inset 0 0 0 100px var(--ground); }
 :where(button, .tab, .navlink, a.pn) { user-select: none; }
 label:has(input) { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -207,30 +239,28 @@ label:has(input) { cursor: pointer; }
 .meta { font-size: var(--t12); line-height: var(--l12); color: var(--dim); }
 .unit { font-size: var(--t12); font-weight: 600; line-height: var(--l12); color: var(--dim); margin-left: var(--s1); }
 
-/* ---------- panels: every surface is a square panel one tone off the ground, joined by the seam ---------- */
-.pn { background: var(--panel); }
-.pn2 { background: var(--panel-2); }
+/* ---------- entries (the almanac, 2026-11-24): what was a panel is an entry on the page, closed by a hairline under it ---------- */
+.pn, .pn2 { background: transparent; box-shadow: inset 0 -1px 0 var(--rule); }
 .stack { display: grid; gap: var(--seam); }
-/* inverted: decided, current or chosen. One in a group. */
-.inv { background: var(--lit); color: var(--ground); }
-.inv :is(.dim, .mute) { color: var(--ground); }
+/* the decided, current or chosen one: lit, with the thick rule under it instead of a hairline. Inside it the ground's colour reads as
+   the lit one, so every word and mark a part once set in the ground's colour on the inverted panel stays readable. */
+.inv { --ground: var(--lit); background: transparent; color: var(--lit); box-shadow: inset 0 -2px 0 var(--lit); }
 /* a panel that holds positioned parts (a sheet, a menu) */
 .plate { position: relative; }
 .plate, .dd-menu, .popover { background: var(--panel); }
 
-/* ---------- lamps: an 8px square beside a word. Lit is new or next, amber is live now. A lamp never blinks and never moves. ---------- */
+/* ---------- the mark: an 8px amber square beside a word for what is live now. Nothing else is marked. ---------- */
 .lamp { display: inline-block; flex: none; width: var(--lamp); height: var(--lamp); background: var(--lit); }
 .lamp.sig { background: var(--signal); }
-.inv .lamp { background: var(--ground); }
 
-/* ---------- seven-segment displays (Seg.jsx): the unlit bars stay at --off, so the cell reads as hardware ---------- */
-.seg { display: block; flex: none; color: var(--lit); }
-.seg .off { opacity: var(--off); }
-.inv .seg { color: var(--ground); }
+/* ---------- figures (Fig.jsx): a number the page announces, set large in Albert Sans's thin weights, the larger the thinner ---------- */
+.fig { display: block; flex: none; font-size: calc(var(--fig-h) / .72); line-height: var(--fig-h); font-family: var(--font-fig); font-variant-numeric: tabular-nums; letter-spacing: var(--ls-fig); white-space: nowrap; color: var(--lit); }
 
-/* ---------- press and hover: a finger comes down, scale .976; desktop hover lifts a panel one tone. Nothing grows. ---------- */
-/* a panel that changes state (lit, dim, inverted) changes in one tone, whether or not a finger pressed it */
-:where(button, a[href], .press, .pn, .inv, .seg) { transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
+/* ---------- press and hover: a finger comes down, scale .976; desktop hover lays the --tint step on a door. Nothing grows. ---------- */
+/* an entry that changes state (lit, dim, decided) changes its words in one tone, whether or not a finger pressed it; nothing on the
+   page is filled, so only a door (a button, a link) tones its ground, for the pointer's step */
+:where(.pn, .inv) { transition: color var(--move-tone); }
+:where(button, a[href], .press) { transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
 :where(button, a[href], .press):active:not(:disabled) { scale: .976; }
 @media (prefers-reduced-motion: reduce) { :where(button, a[href], .press):active:not(:disabled) { scale: 1; } }
 /* disabled (DESIGN.md Controls, 2026-11-16 one form): its words and marks are muted and its panel keeps its tone, so a navy panel never
@@ -262,6 +292,10 @@ label:has(input) { cursor: pointer; }
   :root .bk-submission-chevron { transition: color var(--move-tone); }
   :root .sw i { transition: background-color var(--move-tone); }
 }
+/* a section's 2px rule draws in from the start edge as the page is set (motion.js light): for the length of the draw it is this
+   pseudo-element, along the top edge or the bottom (.end), on ::before or, where that is taken, ::after (.aft) */
+.y-draw:not(.aft)::before, .y-draw.aft::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--line); background: var(--lit); transform-origin: left center; pointer-events: none; }
+.y-draw.end:not(.aft)::before, .y-draw.end.aft::after { top: auto; bottom: 0; }
 /* theme change: the page turns in one frame under a clearing wash of the old ground (motion.js themeTurn) */
 .theme-turn * { transition: none !important; }
 .theme-fade * { transition: none !important; }

@@ -1,6 +1,6 @@
 /* =============================================================================
-   YPL Scoreboard: notices (NewsPage.jsx).
-   List: the title at 32, 공지 작성 on its baseline for the operators, the search 20 under, rows of 64, the pager.
+   The almanac: notices (NewsPage.jsx).
+   List: the title at 32, 공지 작성 on its baseline for the operators, the search 20 under, the entries under a 2px rule, the pager.
    A notice: the back link 20 under the bar, its date line, the title at 32, the counters and the spec, the body, the docked action.
    ========================================================================== */
 
@@ -11,8 +11,15 @@
 .nw-upcoming { margin-top: var(--s8); }
 .nw-list { margin-top: var(--s5); }
 .nw-list .row { height: var(--h-row2); }
-/* 고정 stands first in a notice's grey line, as on the lead panel and the notice itself: 고정, 10.28 수 */
+/* 고정 stands first in a notice's grey line, as on the lead and the notice itself: 고정, 10.28 수 */
 .nw-pin { font-weight: 600; color: var(--lit); }
+/* 새 글 stands in the grey line after the date, lit and 700, never a mark (NoticeRows.jsx; the home's notices too; 2026-11-24, the owner:
+   at the row's far end it read stranded) */
+.nt-new { font-weight: 700; color: var(--lit); white-space: nowrap; }
+/* the first notice of the list is the issue's lead entry: its title at 32 on desktop, as a contents entry of the almanac */
+@media (min-width: 860px) { .nw-list > .nt-lead { padding-block: var(--s8); } .nw-list > .nt-lead .lead-title { font-size: var(--t32); line-height: var(--l32); letter-spacing: var(--ls32); } }
+/* 다가오는 대회's days left read as a figure at the entry's end */
+.nw-upcoming .row-value > .num { font-family: var(--font-fig); font-size: var(--t20); line-height: var(--l20); font-weight: 400; letter-spacing: var(--ls-fig); }
 .nw-pager { margin-top: var(--s5); }
 .nw-recent { margin-top: var(--s8); }
 .nw-recent > .nw-list { margin-top: 0; }
@@ -26,11 +33,17 @@
 .nw-others { display: none; }
 .nw-date { margin-top: var(--s3); }
 .nw-title { margin-top: var(--s2); }
-.nw-counts { margin-top: var(--s5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* one counter alone (신청 without a coming date) takes the whole width, like the spec rows under it */
-.nw-counts > :only-child { grid-column: 1 / -1; }
+.nw-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s5); margin-top: var(--s8); }
+/* a figure the notice announces: its name small over a thin number, its unit at 20 on the number's foot (Fig.jsx). A phone sets
+   the number at 84, desktop at 136 (its h) */
+.nw-count { display: grid; align-content: start; gap: var(--s3); min-width: 0; padding-block: var(--s3) var(--s5); }
+.nw-count-label { display: flex; align-items: center; gap: var(--s2); }
+.nw-count-fig { display: flex; align-items: flex-end; gap: var(--s2); }
+.nw-count-fig > .t20 { flex: none; }
+@media (max-width: 859px) { .nw-count .fig { font-size: calc(var(--s21) / .72); line-height: var(--s21); } }
+@media (min-width: 860px) { .nw-count + .nw-count { padding-left: var(--s8); box-shadow: inset 1px 0 0 var(--rule); } }
 .nw-spec { margin-top: var(--s5); }
-.nw-spec.joined { margin-top: var(--seam); }
+.nw-spec.joined { margin-top: 0; padding-top: var(--seam); box-shadow: inset 0 1px 0 var(--rule); }
 .nw-body { margin-top: var(--s8); }
 .nw-more { margin-top: var(--s8); }
 /* the keys of using: one row of 44 joined by the seam, two to a row past two */
@@ -64,8 +77,7 @@
 .nw-form-sec .q + .q { margin-top: var(--s5); }
 .nw-form-resp { margin-top: var(--s13); }
 .nw-form-resp .pr-wrap.compact { margin: 0; }
-.nw-done { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s5); }
-.nw-done .box.on { background: var(--ground); color: var(--lit); }
+.nw-done { display: flex; align-items: flex-start; gap: var(--s3); padding-block: var(--s5); }
 .nw-done p { margin-top: var(--s1); }
 
 /* desktop: one column on the whole 1200 (2026-11-24, the owner: the 709 and the held 439 beside it felt shut in). The head, the
@@ -75,6 +87,10 @@
   .nw-keys { order: 3; display: flex; gap: var(--seam); margin-top: var(--s8); }
   .nw-keys > .nw-apply, .nw-keys > .nw-utils { display: contents; }
   .nw-keys .btn { flex: 1 1 0; height: var(--h-row); min-width: 0; }
+  /* every key of the bar stands 52 on one line: a small key's 44 left 링크 공유 standing 8 above the rest (2026-11-24) */
+  .nw-keys .btn.btn--second { height: var(--h-row); }
+  /* a word key with no main action beside it (an ordinary notice's 링크 공유) is as wide as its words, at the column's start, not a line across the 1200 */
+  .nw-keys:not(:has(.btn--main)) .btn.btn--second { flex: 0 0 auto; }
   .nw-keys > .nw-main-act { order: -1; flex: 1.618 1 0; min-width: 0; }
   .nw-keys .dock { margin-top: 0; }
   .nw-keys .dock > .btn { width: 100%; }
@@ -88,5 +104,3 @@
   .nw-form-aside > .nw-form-facts { order: 1; } .nw-form-aside > .nw-form-act { order: 2; } .nw-form-aside > .nw-form-resp { order: 3; }
   .nw-form-aside .dock { margin-top: 0; }
 }
-/* a second action on a row of the form stands one step up from the row, or it is the row */
-.nw-form .row .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }

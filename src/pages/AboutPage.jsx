@@ -2,13 +2,16 @@ import React from "react";
 import { Icon } from "../components/index.js";
 import { SectionHead } from "../components/common/Board.jsx";
 import Button from "../components/common/Button.jsx";
+import Fig from "../components/common/Fig.jsx";
 import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
 
 /* ============================== ABOUT ==============================
-   Draft 1C (2026-11-19, the owner's pick): joining is the big screen, since the first question of someone arriving from the Discord is
-   "can I play": the league's name at 32 with its facts as spec rows and ↗ 디스코드 참여 as the main action, and the two steps after it
-   as doors in the 439. Then the season's flow as one inverted strip, the history as four stops in a row (now inverted), and the
-   competitions beside the leagues, each with its tag. Neighbours never share a size and a form (Composing a screen 25). */
+   Draft 1C (2026-11-19, the owner's pick), set as the almanac (2026-11-24): joining is the big screen, since the first question of
+   someone arriving from the Discord is "can I play": the league's name at 32, the first event as a thin figure (2023년 5월), its
+   leagues as a spec row and ↗ 디스코드 참여 as the main action, and the two steps after it as entries in the 439, each numbered by a
+   thin figure. Then the season's flow as one line of words under its rule, the history as four stops (now the one with the thick
+   rule), and the competitions beside the leagues, each with its kind in a dim word. Neighbours never share a size and a form
+   (Composing a screen 25). */
 const STEPS = [
   { t: "공지에서 신청", d: "대회 공지의 신청 버튼으로 참가합니다.", cta: "공지 보기", to: "news" },
   { t: "공식 파티 제출", d: "대회 시작 전까지 사이트에서 파티를 제출합니다.", cta: "팀 빌더 열기", to: "builder" },
@@ -31,25 +34,28 @@ const LEAGUES = [
   { name: "루키 리그", tag: "입문 정규 리그", desc: "우승하면 마스터 리그로 올라가고 ‘슈퍼루키’ 칭호를 얻습니다." },
 ];
 
-/* a competition or a league: its name, its kind as a tag after it (Composing a screen 20: a league as the type's tag), one line under */
-const Kinds = ({ items }) => <div className="stack">{items.map(c => (
+/* a competition or a league: its name, its kind as a word after it (the regular one lit), one line under */
+const Kinds = ({ items }) => <div className="stack opens">{items.map(c => (
   <div key={c.name} className="pn ab-kind">
-    <span className="ab-kind-head"><b className="t15">{c.name}</b><span className={"tb-type ab-tag" + (c.lit ? " lit" : "")}>{c.tag}</span></span>
+    <span className="ab-kind-head"><b className="t20">{c.name}</b><span className={"t12 ab-tag" + (c.lit ? "" : " dim")}>{c.tag}</span></span>
     {c.desc && <p className="read">{c.desc}</p>}
   </div>))}</div>;
 
 export default function AboutPage({ go }) {
   return (<section className="about">
-    <h1 className="t32">소개</h1>
+    <h1 className="page-title">소개</h1>
 
-    <div className="stack ab-screen">
-      <section className="pn ab-lead" aria-labelledby="ab-name">
+    <div className="opens ab-screen">
+      <section className="ab-lead" aria-labelledby="ab-name">
         {/* the first of the steps: the steps beside it count on from 2 */}
-        <span className="num t20 ab-n">1</span>
+        <Fig value="1" h={52} className="ab-n" label="1" />
         <span className="t12 dim">YPL, Yonsei Pokémon League</span>
         <b className="t32 ab-name" id="ab-name">포센연의 배틀 리그</b>
+        <div className="ab-since" aria-label="첫 대회 2023년 5월, 파이컵">
+          <span className="t12 dim">첫 대회, 파이컵</span>
+          <span className="ab-since-fig" aria-hidden="true"><Fig value="2023" h={84} label="" /><span className="t20">년</span><Fig value="5" h={84} label="" /><span className="t20">월</span></span>
+        </div>
         <dl className="stack ab-spec">
-          <div className="pn2"><dt className="t12 dim">첫 대회</dt><dd className="t15">2023년 5월, 파이컵</dd></div>
           <div className="pn2"><dt className="t12 dim">리그</dt><dd className="t15">마스터 리그, 루키 리그</dd></div>
         </dl>
         <Button variant="main" icon="ext" href={DISCORD_URL} target="_blank" rel="noreferrer">디스코드 참여</Button>
@@ -58,7 +64,7 @@ export default function AboutPage({ go }) {
       <ol className="stack ab-steps" start={2}>
         {STEPS.map((s, i) => (
           <li key={s.t} className="pn ab-step">
-            <span className="num t20 ab-n">{i + 2}</span>
+            <Fig value={String(i + 2)} h={52} className="ab-n" label={String(i + 2)} />
             <b className="t15">{s.t}</b>
             <p className="read">{s.d}</p>
             <button type="button" className="ab-go t12" onClick={() => go?.(s.to)}><Icon n="arrow" size={16} />{s.cta}</button>
@@ -69,15 +75,15 @@ export default function AboutPage({ go }) {
 
     <section className="ab-sec" aria-labelledby="ab-flow">
       <SectionHead id="ab-flow" title="시즌의 흐름" />
-      <ol className="inv ab-flow">{FLOW.map(t => <li key={t} className="t15">{t}</li>)}</ol>
+      <ol className="opens ab-flow">{FLOW.map(t => <li key={t} className="t20">{t}</li>)}</ol>
     </section>
 
     <section className="ab-sec" aria-labelledby="ab-time">
       <SectionHead id="ab-time" title="리그 연혁" />
-      <ol className="stack ab-times">
+      <ol className="stack opens ab-times">
         {TIMELINE.map((t, i) => (
           <li key={t.when} className={(i === TIMELINE.length - 1 ? "inv" : "pn") + " ab-time"}>
-            <span className="num t15 ab-when">{t.when}</span>
+            <span className="ab-when">{t.when}</span>
             <b className="t15">{t.title}</b>
             <p className="read">{t.body}</p>
           </li>
@@ -95,5 +101,8 @@ export default function AboutPage({ go }) {
         <Kinds items={LEAGUES} />
       </section>
     </div>
+
+    {/* the credits the battle once carried in its side column (2026-11-24, the owner: "정말 아무도 신경 안 쓰는 곳으로 치워버리든가") */}
+    <p className="t12 dim ab-credit">배틀 엔진 Pokémon Showdown (MIT), 음악 YPL, 효과음 Kenney, Lentikula, BigSoundBank, OpenGameArt (CC0)</p>
   </section>);
 }

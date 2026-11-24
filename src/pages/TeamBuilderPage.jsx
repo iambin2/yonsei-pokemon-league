@@ -442,7 +442,7 @@ function OfficialSubmissionPanel({
           <div className="pn tb-revision" key={row.id}>
             <b className="t15">{row.revision}회차</b>
             <span className="t12 reg dim num">{formatSubmissionTime(row.submitted_at)}</span>
-            {index === 0 ? <span className="t12 tb-revision-now"><i className="lamp" aria-hidden="true" />지금의 공식 파티</span> : <span className="t12 reg dim">이전 제출</span>}
+            {index === 0 ? <span className="t12 tb-revision-now">지금의 공식 파티</span> : <span className="t12 reg dim">이전 제출</span>}
           </div>
         ))}</div>
         <p className="t12 reg dim">다시 제출하면 {revisions[0].revision + 1}회차로 남고, 이전 회차는 지워지지 않습니다.</p>
@@ -1467,7 +1467,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
 
   return (
     <section className="sec tb-page" data-step={step}>
-      <header className="tb-head"><h1 className="t32">팀 빌더</h1><Button variant="link" disabled={!storageAvailable} onClick={() => openLibrary(false)}>내 팀{savedTeams.length > 0 ? ` ${savedTeams.length}` : ""}</Button></header>
+      <header className="tb-head"><h1 className="page-title">팀 빌더</h1><Button variant="link" disabled={!storageAvailable} onClick={() => openLibrary(false)}>내 팀{savedTeams.length > 0 ? ` ${savedTeams.length}` : ""}</Button></header>
 
       <div className="tb-steps" ref={stepsRef}>
         <TabsLine value={step} onChange={changeStep} label="팀 빌더 단계" options={[["rules", "규정"], ["pool", "포켓몬 선택"], ["team", "팀 구성"]]} />
@@ -1544,7 +1544,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
             <div><h2 className="t20">포켓몬 선택</h2></div>
           </div>
           {/* the line keeps its place once both are ready, so the search under it does not rise (2026-11-23 audit, R-13) */}
-          <div className="tb-data-line">{(detailStatus!=="ready"||localizationStatus!=="ready")&&<>{detailStatus==="error"?<Bang/>:<i className={"lamp"+(detailStatus==="ready"?"":" unlit")} aria-hidden="true"/>}{[detailStatus!=="ready"&&dataStatusText,localizationStatus!=="ready"&&localizationText].filter(Boolean).join(", ")}</>}</div>
+          <div className="tb-data-line">{(detailStatus!=="ready"||localizationStatus!=="ready")&&<>{detailStatus==="error"&&<Bang/>}{[detailStatus!=="ready"&&dataStatusText,localizationStatus!=="ready"&&localizationText].filter(Boolean).join(", ")}</>}</div>
           <div className="tb-search-row">
             <span className="search-input-icon" aria-hidden="true"><Icon n="search" size={20}/></span>
             <input
@@ -1593,7 +1593,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
           {/* the types as a board of cells. One type at a time; it is the search's own type condition, so the search chips show it too */}
           <TypeGrid label="타입으로 거르기" value={searchChips.find(chip => chip.kind === "type")?.id || ""} types={TYPE_OPTIONS} all={`전체 ${eligiblePool.length}`}
             onChange={id => setSearchChips(current => [...current.filter(chip => chip.kind !== "type"), ...(id ? [{ kind: "type", id, label: TYPE_OPTIONS.find(type => type.id === id)?.korean || id }] : [])])} />
-          <div className="tb-sort-row">
+          <div className="ctl-row tb-sort-row">
             <Dropdown className="tb-dd" value={sortId} onChange={setSortId} ariaLabel="정렬 기준" options={BUILDER_SORTS.map(sort => ({ value: sort.id, label: sort.label }))} />
             {/* the order's direction as a square key beside the select on the seam, its arrow the direction (2026-11-23, the owner: a word
                 floating beside the select, "기호나 아이콘으로") */}
@@ -1816,7 +1816,7 @@ export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
             return (
               <div className={"tb-saved " + (open ? "inv" : "pn")} key={saved.id}>
                 <button type="button" className="tb-saved-open" onClick={() => loadSavedTeam(saved)} aria-label={`${saved.name} 불러오기`}>
-                  <span className="tb-saved-head"><b className="t15">{saved.name}</b>{open ? <span className="t12 tb-saved-mark"><i className="lamp" aria-hidden="true" />열린 팀</span> : day && <span className="t12 reg dim">저장 {day}</span>}</span>
+                  <span className="tb-saved-head"><b className="t15">{saved.name}</b>{open ? <span className="t12 tb-saved-mark">열린 팀</span> : day && <span className="t12 reg dim">저장 {day}</span>}</span>
                   <span className="t12 reg dim">{`${savedReg?.shortName || saved.regulationId}${saved.cupRuleId !== "none" ? `, ${(CUP_RULES[saved.cupRuleId]?.shortName || "룰")}${type ? ` (${type.korean})` : ""}` : ""}, ${saved.members.length}/6마리`}</span>
                   <span className="tb-saved-six">{saved.members.map((member, index) => <span key={index} className="stand"><i className="floor" aria-hidden="true" /><Mon src={spriteUrl(member.pokemonName)} loading="lazy" onError={onSpriteError()} /></span>)}</span>
                 </button>

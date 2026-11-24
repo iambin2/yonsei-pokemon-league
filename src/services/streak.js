@@ -10,8 +10,8 @@ export const STREAK_REGULATION = "m-c";
 export const STREAK_BATTLE_FORMAT = "singles";
 // engine.mjs formatId(STREAK_REGULATION, STREAK_BATTLE_FORMAT), written out so the screen need not load the engine (tests/streak.test.mjs)
 export const STREAK_FORMAT_ID = "gen9championsbssregmc";
-/* 다섯 판이 한 층이고 다섯 번째 판은 층의 수문장이다. 2026-11-09 일곱에서 줄임(사용자: "주인이 등장하는 주기를 짧게", 주인은 그날 수문장이 되었다): 한 층은 높이가
-   32, 44, 52, 64, 84로 오르는 다섯 계단이다(DESIGN.md의 높이 다섯, Streak.jsx FloorCells) */
+/* 다섯 판이 한 층이고 다섯 번째 판은 층의 수문장이다. 2026-11-09 일곱에서 줄임(사용자: "주인이 등장하는 주기를 짧게", 주인은 그날 수문장이 되었다): 한 층은
+   다섯 개의 짧은 줄로 그린다(DESIGN.md "Floors and the stake", The track; Streak.jsx TrackBar) */
 export const STREAK_STEP = 5;
 /* 탑의 컴퓨터 계단 (2026-11-11, BATTLE_STREAK.md 14.6, 15.7). 층의 세기는 상대 파티가 아니라 컴퓨터가 맡는다. 잰 값(드래프트 파티를 둔
    온전한 컴퓨터가 15장의 상대를 둔 그 단계를 이긴 몫, 각 500판): 폴리곤 77%, 폴리곤2 68%, 폴리곤Z 57%. 랭커 구축 통째로였던 14장에는
@@ -24,10 +24,10 @@ export const STREAK_STEPS = [
   { id: "porygonz", options: LEVELS.porygonz.options, budgetMs: 400 },
 ];
 
-/* 램프 (2026-11-11, BATTLE_STREAK.md 14장, 사용자: "목숨이 3개로 바뀌면서 긴장감이 없어지고 게임이 늘어지는"): 도전은 램프 둘로
-   시작하고 둘까지만 켜진다. 진 판(패배, 기권, 시간 초과, 무승부)마다 하나가 꺼지고, 남으면 같은 판을 새 상대와 다시 한다. 다 꺼지면
-   도전이 끝난다. 수문장을 깨면 하나가 다시 켜진다: 한 층에 실수 한 번까지다. 처음에는 하나로 시작해 수문장이 예비를 켜게 했으나, 잰
-   세기로는 1층 돌파가 약 19%라 사용자가 둘로 시작을 골랐다(같은 날, 14.6). 예전(12장): 램프 셋, 수문장과 강한 문이 다시 켰다 */
+/* 하트 (2026-11-11, BATTLE_STREAK.md 14장, 사용자: "목숨이 3개로 바뀌면서 긴장감이 없어지고 게임이 늘어지는"; 2026-11-24까지 램프로 그렸다): 도전은
+   하트 둘로 시작하고 둘까지만 찬다. 진 판(패배, 기권, 시간 초과, 무승부)마다 하나를 쓰고, 남으면 같은 판을 새 상대와 다시 한다. 다 쓰면
+   도전이 끝난다. 수문장을 깨면 하나가 다시 찬다: 한 층에 실수 한 번까지다. 처음에는 하나로 시작해 수문장이 예비를 주게 했으나, 잰
+   세기로는 1층 돌파가 약 19%라 사용자가 둘로 시작을 골랐다(같은 날, 14.6). 예전(12장): 셋, 수문장과 강한 문이 다시 채웠다 */
 export const STREAK_LIVES = 2;
 export const STREAK_START_LIVES = 2;
 /* 탑의 세트에서 빼는 것, 양쪽 모두(같은 장): 한 번의 주사위가 판을 가르는 도구와 기술. 세트의 첫 도구가 빠지면 그 세트의 다음 도구가
@@ -47,10 +47,10 @@ export const STREAK_DRAFT = 3;
    층의 세기는 컴퓨터의 계단이 맡는다(STREAK_STEPS) */
 
 /* 다음 판의 문 (13장): 끝난 판 뒤에 도전이 쉬면, 다음 판은 문으로 고른다. 보통은 두 문, 상대의 여섯이 보이는 보통 상대와 컴퓨터가 한 칸
-   위인 강한 상대다. 강한 상대를 이기면 그 판의 교환이 한 급 위까지 닿는다(14장부터 램프는 켜지지 않는다). 다음
+   위인 강한 상대다. 강한 상대를 이기면 그 판의 교환이 한 급 위까지 닿는다(14장부터 하트는 주지 않는다). 다음
    판이 수문장이면 문은 하나, 닫힌 문이다(수문장은 판에 들어가서야 본다, 2026-11-09). wins: 다음 판 전에 이긴 판 수 */
 export const doorsOf = wins => (streakMaster(wins) ? ["gate"] : ["even", "hard"]);
-// 이긴 판이 예비 램프를 켜는가: 수문장뿐이다(14장, 강한 문은 교환 승급만 준다). wins: 그 판 전에 이긴 판 수
+// 이긴 판이 예비 하트를 주는가: 수문장뿐이다(14장, 강한 문은 교환 승급만 준다). wins: 그 판 전에 이긴 판 수
 export const streakRelights = wins => streakMaster(wins);
 // 이긴 판의 교환이 한 급 위까지 닿는가: 수문장이거나 강한 문(13장 승급)
 export const streakReach = (wins, hard = false) => hard || streakMaster(wins);
@@ -69,9 +69,9 @@ export const streakMaster = wins => floorGame(wins) === STREAK_STEP;
 export const streakFresh = wins => floorGame(wins) === 1;
 
 /* 도전의 판들을 차례로 읽는다(중계, battleService.js runGames): 판마다 그 판 전에 이긴 판 수(at)와 그 판에 들어갈 때 켜져 있던
-   램프(lives). 진 판 뒤에도 도전이 이어지므로 판의 자리가 곧 연승이 아니다. games: [{ id, status, winner }], 열린 순서.
-   over: 마지막 판이 끝났고 램프가 남지 않았다. 관전 화면은 도전의 상태를 따로 읽고(battleService.js readRunState), 그것을 읽지 못할
-   때만 이 over를 쓴다(14장 전의 도전은 램프 셋으로 시작했으므로 여기서 세면 틀린다) */
+   하트(lives). 진 판 뒤에도 도전이 이어지므로 판의 자리가 곧 연승이 아니다. games: [{ id, status, winner }], 열린 순서.
+   over: 마지막 판이 끝났고 하트가 남지 않았다. 관전 화면은 도전의 상태를 따로 읽고(battleService.js readRunState), 그것을 읽지 못할
+   때만 이 over를 쓴다(14장 전의 도전은 하트 셋으로 시작했으므로 여기서 세면 틀린다) */
 export function runTrack(games) {
   let at = 0, lives = STREAK_START_LIVES;
   const out = games.map(g => {

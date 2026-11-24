@@ -1,7 +1,7 @@
 /* =============================================================================
-   YPL Scoreboard: team builder and calculator, the rebuilt parts (TeamBuilderPage.jsx, CalculatorPage.jsx).
-   The head and page tabs, and the team's six: each a panel with the Pokémon standing on its
-   name band, the chosen band inverted, an empty slot a +. team-builder.css and calculator.css still hold the rest.
+   The league almanac: team builder and calculator, the rebuilt parts (TeamBuilderPage.jsx, CalculatorPage.jsx).
+   Nothing stands on a panel. A block opens with the 2px lit rule, its entries part on hairlines, and the chosen one is bold on the
+   thick lit rule. The team's six stand on their lines, an empty slot its number. team-builder.css and calculator.css hold the rest.
    ========================================================================== */
 
 /* the page's blocks stand 20 apart; the line under the title 8 */
@@ -9,11 +9,14 @@
 .tb-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .tb-steps, .calc-tabs { margin-bottom: 0; }
 
-/* the Pokémon to pick: panels joined by the seam, the picture, the name and its types, the stats, + */
+/* the Pokémon to pick: entries on hairlines, the picture, the name and its types, the stats, + */
 /* rows keep their content height inside the scrolling list: a fixed-height grid would squeeze them and clip the stats */
-.tb-pokemon-list { display: grid; grid-auto-rows: max-content; gap: var(--seam); }
-.tb-pokemon-row { background: var(--panel); box-shadow: none; }
-@media (hover: hover) { .tb-pokemon-row:not(:disabled):hover { background: var(--panel-2); } }
+.tb-pokemon-list { display: grid; grid-auto-rows: max-content; gap: 0; box-shadow: inset 0 1px 0 var(--rule); }
+.tb-pokemon-row { box-shadow: inset 0 -1px 0 var(--rule); }
+@media (hover: hover) { .tb-pokemon-row:not(:disabled):hover { background: var(--tint); } }
+/* a block's head opens on the 2px lit rule, as the almanac's sections do */
+.tb-team-head, .tb-editor-head, .tb-mx-head { padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); }
+@media (min-width: 860px) { .tb-panel-head { padding-top: var(--s3); box-shadow: inset 0 var(--line) 0 var(--lit); } }
 
 .tb-team-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .tb-mon { --floor: var(--h-row); position: relative; display: block; width: 100%; aspect-ratio: 1 / 1.272; text-align: left; }
@@ -23,7 +26,6 @@
 /* the × is the slot's sibling (a button never holds a button), so the cell that holds both is what it hangs from */
 .tb-mon-cell { position: relative; }
 .tb-mon-cell:hover .tb-mon-remove, .tb-mon.active + .tb-mon-remove, .tb-mon-remove:focus-visible { opacity: 1; }
-.tb-mon.active + .tb-mon-remove { color: var(--ground); }
 @media (hover: none) { .tb-mon-remove { opacity: 1; } }
 @media (hover: hover) { .tb-mon-remove:hover { color: var(--lit); } }
 @media (min-width: 860px) { .tb-team-slots { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
@@ -45,8 +47,8 @@
 .tb-type-grid.has-all { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .tb-type-grid > .all { grid-column: span 2; }
 .tb-type-opt { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: var(--h-control); padding: 0 var(--s2); color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 600; transition: scale var(--move-press), background-color var(--move-tone); }
-.tb-type-opt.inv { color: var(--ground); }
-@media (hover: hover) { .tb-type-opt.pn:not(:disabled):hover { background: var(--panel-2); } }
+.tb-type-opt.inv { color: var(--lit); font-weight: 700; }
+@media (hover: hover) { .tb-type-opt.pn:not(:disabled):hover { background: var(--tint); } }
 
 /* ---------- the team: a line, the six as cells joined by the seam, the links ---------- */
 .tb-team { display: grid; gap: var(--s3); }
@@ -130,10 +132,8 @@
 .tb-saved-six { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--seam); margin-top: var(--s2); }
 .tb-saved-six > span { aspect-ratio: 1; overflow: hidden; }
 .tb-saved-six .mon { left: 0; right: 0; height: calc(100% - var(--floor)); margin-inline: auto; }
-.tb-saved.inv .tb-saved-six > span { background: transparent; }
 .tb-saved-actions { display: flex; justify-content: flex-end; gap: var(--s5); padding: 0 var(--pad) var(--s2); }
-.tb-saved.inv .btn--link { --btn-fg: var(--ground); }
-@media (hover: hover) { .tb-saved.pn:hover { background: var(--panel-2); } }
+@media (hover: hover) { .tb-saved.pn:hover { background: var(--tint); } }
 .tb-library-empty { margin-top: var(--s5); }
 
 /* the check under the editor stands a block apart, like every block on the page */
@@ -171,30 +171,31 @@
 /* the type board stands 12 under the search, the list's sort under it */
 .tb-pool-panel > .tb-type-grid { flex: none; margin-top: var(--s3); }
 
-/* ---------- 타입 상성: the team against the 18 types, a board of cells joined by the seam (TeamBuilderPage.jsx TypeMatchups).
-   The frame is one step up: the head row (the corner naming the rows, a member's picture, a count's word) and the head column (the
-   types). Inside it a cell lights what counts (×2), dims what does not (×½, ×0), stays dark for ×1; ×4 inverts. A changed cell
-   switches by tone. ---------- */
+/* ---------- 타입 상성: the team against the 18 types, a ruled table (TeamBuilderPage.jsx TypeMatchups). The head row (the corner
+   naming the rows, a member's picture, a count's word) closes on the 2px lit rule, every type's row on a hairline. A cell is lit for
+   what counts (×2), dim for what does not (×½, ×0), quiet for ×1; ×4 is bold on the thick rule. A changed cell switches by tone. ---------- */
 .tb-mx { display: grid; gap: var(--s3); }
 .tb-mx-head h2 { margin: 0; }
 .tb-mx-sides { display: grid; gap: var(--s5); }
 .tb-mx-side { display: grid; gap: var(--s3); align-content: start; min-width: 0; }
 .tb-mx-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: 24px; }
-.tb-mx-table { width: calc(100% + var(--seam) * 2); margin: calc(var(--seam) * -1); table-layout: fixed; border-collapse: separate; border-spacing: var(--seam); }
-.tb-mx-table th { padding: 0; background: var(--panel-2); text-align: left; font-weight: 600; }
+.tb-mx-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.tb-mx-table th { padding: 0; text-align: left; font-weight: 600; }
+.tb-mx-table thead th { box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.tb-mx-table tbody :is(th, td) { box-shadow: inset 0 -1px 0 var(--rule); }
 /* a type is a cell of the frame, every one the width of the column: the tag's square and name stand in it, no tag of its own */
 .tb-mx-table thead th:first-child { width: var(--h-row2); }
-.tb-mx-table tbody th, .tb-mx-table th.tb-mx-corner { padding: 0 var(--s2); }
-.tb-mx-table tbody th > .tb-type { --tag-bg: transparent; display: flex; padding: 0; }
+.tb-mx-table tbody th, .tb-mx-table th.tb-mx-corner { padding: 0 var(--s2) 0 0; }
+.tb-mx-table tbody th > .tb-type { display: flex; }
 @media (min-width: 860px) { .tb-mx-table thead th:first-child { width: var(--s21); } }
 .tb-mx-table td {
-  height: var(--h-strip); padding: 0; background: var(--panel); color: var(--lit); text-align: center;
+  height: var(--h-strip); padding: 0; color: var(--lit); text-align: center;
   font-size: var(--t12); line-height: var(--l12); font-weight: 700; font-variant-numeric: tabular-nums;
-  transition: background-color var(--move-tone), color var(--move-tone);
+  transition: color var(--move-tone);
 }
 .tb-mx-table td.lo { color: var(--dim); font-weight: 600; }
 .tb-mx-table td.off { color: var(--mute); font-weight: 600; }
-.tb-mx-table td.x4 { background: var(--lit); color: var(--ground); }
+.tb-mx-table tbody td.x4 { font-weight: 700; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 /* the corner and a count's word stand in the middle of their head cell, as a picture fills its own */
 .tb-mx-table :is(th.tb-mx-corner, th.tb-mx-total) { vertical-align: middle; color: var(--dim); }
 .tb-mx-table th.tb-mx-total { text-align: center; }

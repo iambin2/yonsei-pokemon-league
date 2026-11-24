@@ -1,11 +1,14 @@
 /* 연승 도전 (docs/BATTLE_STREAK.md 8장, DESIGN.md "Layout and pages" 연승 도전): the battle page's tab, what a game of a run has at
    stake while it is played, and what it says when it ends. A run climbs floors of five games, the fifth the floor's gatekeeper
-   (src/services/streak.js), and the run is shown as the tower itself (tower.js; 2026-11-10, the user: the lift's hall was "너무
-   단순해. 전광판 숫자만 반복되는 느낌"): the tab's stage is the tower seen from its foot, beside it the run's streak; going into a
+   (src/services/streak.js), and the run is shown as the tower itself (tower.js; 2026-11-10, the user: the first hall, two shut doors
+   and a floor's number, was "너무 단순해. 전광판 숫자만 반복되는 느낌"): the tab's stage is the tower seen from its foot, beside it the run's streak; going into a
    game is a scene on that tower, in through the door of the game. Its games are played as any server battle (BattleRoom), and the battle function answers as the computer; what a game's
    answer says of the run is kept with the seat (battleService.js). No gatekeeper is drawn before its game (2026-11-09, the user:
-   "실루엣들이 뭔가 어정쩡하게 있다"): a gatekeeper's game is told by inverted doors and the floor's last game, and the gatekeeper is
-   met on the team preview. */
+   "실루엣들이 뭔가 어정쩡하게 있다"): a gatekeeper's game is told by its door and its lines decided, over the thick lit rule, and by
+   being the floor's last game, and the gatekeeper is met on the team preview.
+   Its motion is the almanac's (DESIGN.md "Motion"), played here by this folder's own .animate as the stage's is: what arrives rises
+   12 as it lights, 38 apart in reading order, pictures last by tone and keys after them; what goes leaves (260); a chosen thing's
+   2px rule draws in from its start edge; transform and opacity only. */
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import Button from "../../components/common/Button.jsx";
@@ -13,7 +16,7 @@ import Icon from "../../components/common/Icon.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
 import Pager from "../../components/common/Pager.jsx";
-import Seg from "../../components/common/Seg.jsx";
+import Fig from "../../components/common/Fig.jsx";
 import { Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
@@ -23,7 +26,7 @@ import { pickStreakDraft, readDailyBoard, readMyStreakRuns, resumeStreakRun, rea
 import { formatDate } from "../../services/dateFormat.js";
 import { STREAK_LIVES, STREAK_STEP, floorGame, gameWords, streakFloor, streakMaster, swapParty, swapTier } from "../../services/streak.js";
 import { nameOf } from "./Stage.jsx";
-import { DUR, EASE_IN, EASE_OUT, STAGGER, climb, place, reduced } from "../../components/common/motion.js";
+import { DUR, EASE_IN, EASE_OUT, STAGGER, climb, forgetLine, place, reduced, slideLine, tone } from "../../components/common/motion.js";
 import { ALIGNMENTS, STAT_KEYS, calculatedStat, onSpriteError, spriteUrl } from "../../services/teamBuilderCore.js";
 import { josa, toID } from "../../services/battleLog.js";
 import { drawTower, standTower, towerBreak, towerDive, towerDrop, towerShow } from "./tower.js";
@@ -56,30 +59,88 @@ function useBoard(daily = false) {
   return board;
 }
 
+/* ---------- the almanac's verbs, as the tower plays them (DESIGN.md "Motion") ---------- */
+const RISE = [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }];
+const DRAW = [{ transform: "scaleX(0)" }, { transform: "none" }];
+// a rule drawn lit that settles to its own muted (the game a run fell on): the lit ::after draws in, then fades off the muted rule
+const SETTLE = [{ transform: "scaleX(0)", opacity: 1 }, { transform: "none", opacity: 1, offset: .618 }, { transform: "none", opacity: 0 }];
+const can = el => Boolean(el) && typeof el.animate === "function";
+// a 2px rule draws in from its start edge: the rule is the element's own ::after (origin left), the hairline under it stays
+function drawRule(el, delay = 0, keys = DRAW, duration = DUR.light) {
+  if (!can(el) || reduced()) return;
+  try { el.animate(keys, { duration, delay, easing: EASE_OUT, fill: "backwards", pseudoElement: "::after" }); } catch { /* the rule stands */ }
+}
+// a picture comes on by tone: at delay when it is drawn already, else the moment it has loaded, so none pops in
+function toneIn(im, delay) {
+  const on = d => im.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.tone, delay: d, easing: EASE_OUT, fill: "backwards" });
+  if (im.complete && im.naturalWidth) { on(delay); return; }
+  im.style.opacity = "0";
+  const done = () => { im.style.opacity = ""; on(0); };
+  im.addEventListener("load", done, { once: true });
+  im.addEventListener("error", () => { im.style.opacity = ""; }, { once: true });
+}
+/* arrive: groups rise 12 as they light over 420, 38 apart in reading order (a group's parts together, the stagger stopping at 260),
+   then the pictures in them by tone. Returns when the last group starts, so what comes after (a key) can follow it */
+function arrive(groups, start = 0, cap = DUR.leave) {
+  if (reduced()) return start;
+  const gs = groups.map(g => [].concat(g).filter(can)).filter(g => g.length);
+  gs.forEach((g, i) => g.forEach(el => el.animate(RISE, { duration: DUR.light, delay: start + Math.min(i * STAGGER.row, cap), easing: EASE_OUT, fill: "backwards" })));
+  const last = start + Math.min(Math.max(0, gs.length - 1) * STAGGER.row, cap);
+  for (const el of gs.flat()) for (const im of el.tagName === "IMG" ? [el] : el.querySelectorAll("img")) toneIn(im, last + DUR.tone);
+  return last;
+}
+// the keys come last: they rise after what they act on
+const keysAfter = (el, delay) => { if (can(el) && !reduced()) el.animate(RISE, { duration: DUR.light, delay, easing: EASE_OUT, fill: "backwards" }); };
+// leave: what goes fades out where it stands (260, ease-in); resolves when it has gone, or past its length on a hidden page
+function leave(els) {
+  if (reduced()) return Promise.resolve([]);
+  const anims = els.filter(can).map(el => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR.leave, easing: EASE_IN, fill: "forwards" }));
+  const late = new Promise(resolve => setTimeout(resolve, DUR.leave + DUR.press));
+  return Promise.race([Promise.all(anims.map(a => a.finished)), late]).then(() => anims, () => anims);
+}
+
 /* 연승 도전 shows no 난이도 anywhere (2026-11-09, the user: "난이도 표기 자체를 연승 도전에서는 없애자"): the computer still plays each
    floor at its own (streak.js streakStep), but the screens say only the floor and its games */
 
-/* a floor's five games as one bar cut on the seam (the tower draws the same as a floor's five doors, tower.js): won lit, the game being played the
-   amber lamp's colour, the next one while the run rests at .382, a lost one muted, the rest an unlit bar's light. at: the game, 1 to 5 */
+/* a floor's five games as five short rules (the tower draws the same as a floor's five doors, tower.js): won lit, the game being played the
+   live amber, the next one while the run rests dim, a lost one muted, the rest a hairline. at: the game, 1 to 5 (6: the floor won whole).
+   Each is its hairline (::before) with its state's rule over it (::after), so a rule can draw in over its hairline (motion.js climb) */
 export function TrackBar({ at, playing = false, lost = false, mini = false }) {
   return <span className={"streak-track-bar" + (mini ? " mini" : "")} aria-hidden="true">
     {Array.from({ length: STREAK_STEP }, (_, i) => <i key={i} data-step={i + 1} className={i + 1 < at ? "won" : i + 1 === at ? (lost ? "lost" : playing ? "now" : "next") : ""} />)}
   </span>;
 }
-/* the run's lamps (DESIGN.md 도전의 탑, The run's lamps, 2026-11-10; two since 2026-11-11, the second the spare a gatekeeper lights):
-   lit while left and its housing once out or not yet earned, at the right end of the line that names the game. lives: the lamps left; none drawn while the database does not say them (before the lamps'
-   SQL has run a run still ends on its first lost game) */
-export function RunLamps({ lives }) {
+/* the run's hearts (DESIGN.md 도전의 탑, The hearts, 2026-11-24; two since 2026-11-11, the second the spare a gatekeeper gives):
+   filled while left and outlined once spent or not yet earned, at the right end of the line that names the game. lives: the hearts
+   left; none drawn while the database does not say them (before the lives' SQL has run a run still ends on its first lost game).
+   Each heart is its dim outline with its lit fill over it. was: the hearts before the game just played; one spent empties in place
+   (the fill goes, 420 ease-in, the outline stays dim), one given back fills by tone, at delay (after the streak's figure switched) */
+// the hearts last drawn while a game was played (the stake, the band), so the break knows whether a gatekeeper gave one back
+let heldLives = null;
+export function RunHearts({ lives, was = lives, delay = 0 }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    if (lives == null || was == null || was === lives || reduced()) return;
+    [...(ref.current?.children || [])].forEach((heart, i) => {
+      const fill = heart.lastElementChild;
+      if (!can(fill)) return;
+      if (i < was && i >= lives) fill.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR.light, delay, easing: EASE_IN, fill: "backwards" });
+      else if (i >= was && i < lives) fill.animate([{ opacity: 0 }, { opacity: 1 }], { duration: DUR.tone, delay, easing: EASE_OUT, fill: "backwards" });
+    });
+  }, []);
   if (lives == null) return null;
-  return <span className="streak-lamps" role="img" aria-label={`남은 램프 ${lives}개`}>
-    {Array.from({ length: STREAK_LIVES }, (_, i) => <i key={i} className={"lamp" + (i < lives ? "" : " unlit")} />)}
+  return <span ref={ref} className="streak-hearts" role="img" aria-label={`남은 하트 ${lives}개`}>
+    {Array.from({ length: STREAK_LIVES }, (_, i) => <span key={i} className={"streak-heart" + (i < lives ? " on" : "")}>
+      <Icon n="heart" size={16} /><Icon n="heart" size={16} className="on" />
+    </span>)}
   </span>;
 }
-/* the floor as its number in segments and its track. wins: the games won; lost: the run ended on the next game */
-function FloorTrack({ wins, lost = false, playing = false }) {
-  const floor = streakFloor(wins), at = floorGame(wins);
+/* the floor as its figure and its track. wins: the games won; lost: the run ended on the next game; whole: the floor just cleared,
+   its five lit (wins then counts the next floor) */
+function FloorTrack({ wins, lost = false, playing = false, whole = false }) {
+  const floor = whole ? streakFloor(wins) - 1 : streakFloor(wins), at = whole ? STREAK_STEP + 1 : floorGame(wins);
   return <span className="streak-track" role="img" aria-label={`${floor}층, ${STREAK_STEP}판 가운데 ${at - 1}판 이김`}>
-    <Seg value={String(floor)} h={32} cells={String(floor).length} label="" />
+    <Fig value={String(floor)} h={32} label="" />
     <TrackBar at={at} lost={lost} playing={playing} />
   </span>;
 }
@@ -154,45 +215,38 @@ export function readAhead(species) {
     im.decode().then(() => idle(() => centreInk(im)), () => {});
   }
 }
-/* a step's three come face down and turn over one after another (2026-11-18, the owner's draft B, Task 9): each card folds to its edge
-   over its plain back (150) and opens on its face (150), 140 after the one before. Under reduced motion they stand turned */
-const FOLD = 150, TURN_STEP = 140;
-function turnOver(row) {
-  if (!row || reduced() || typeof row.animate !== "function") return;
-  const cards = [...row.children], backs = cards.map(card => {
-    const back = document.createElement("i");
-    back.className = "streak-back";
-    back.setAttribute("aria-hidden", "true");
-    card.append(back);
-    return back;
-  });
-  // the faces are decoded and placed (their ink read on load) while the backs stand still, then they turn
-  const faces = cards.map(c => c.querySelector("img")?.decode().catch(() => {}));
-  Promise.race([Promise.all(faces), new Promise(r => setTimeout(r, 900))]).then(() => requestAnimationFrame(() => cards.forEach((card, i) => {
-    const back = backs[i];
-    card.animate([{ transform: "perspective(900px) rotateY(0deg)" }, { transform: "perspective(900px) rotateY(90deg)" }], { duration: FOLD, delay: i * TURN_STEP, easing: EASE_IN, fill: "backwards" })
-      .finished.then(() => {
-        back.remove();
-        card.animate([{ transform: "perspective(900px) rotateY(-90deg)" }, { transform: "none" }], { duration: FOLD, easing: EASE_OUT });
-      }, () => back.remove());
-  })));
-}
-/* the chosen card stays lit and the other two go off; its picture switches on in its place in the row (place, the site's arrival),
+/* the chosen card stays lit and the other two go off; its picture comes on by tone in its place in the row (place),
    nothing flies (2026-11-18, the user: a copy of the picture flew up into the numbered place, "너무 구려") */
 function travel(row, species) {
   const card = [...(row?.children || [])].find(c => c.dataset.species === species);
   if (card) for (const c of row.children) c.classList.toggle("off", c !== card);
 }
+/* A step's three arrive as entries (2026-11-24, the almanac; face down and turned over one after another from 2026-11-18): they rise
+   12 as they light, 38 apart, their pictures last. Changing step, the step's three leave where they stand (260) while the next three
+   rise in their place from 222 (as the old ones are nearly gone), so the row is never empty. The line under the step being chosen slides along the six places */
 export function DraftBoard({ res, draft, picks, onPick }) {
   // the first place not chosen: the furthest a run's draft has come (the last when all six are)
   const open = () => { const i = draft.findIndex((_, k) => !picks[k]); return i < 0 ? draft.length - 1 : i; };
   const [step, setStep] = useState(open);
-  const strip = useRef(null), cards = useRef(null), next = useRef(0);
-  // switching on: the strip's places one after another, then each step's three turning over (turnOver)
-  useLayoutEffect(() => { place([...(strip.current?.children || [])], { step: STAGGER.row }); }, []);
-  useLayoutEffect(() => turnOver(cards.current), [step]);
-  // the next place's three are read while this step's stand turned, so they turn over without a wait
-  useEffect(() => { const t = setTimeout(() => readAhead(draft[step + 1]?.map(c => c.species)), FOLD * 2 + TURN_STEP * 2); return () => clearTimeout(t); }, [step]);
+  // the step whose three are leaving
+  const [gone, setGone] = useState(null);
+  const head = useRef(null), strip = useRef(null), cards = useRef(null), old = useRef(null), next = useRef(0), first = useRef(true);
+  const go = k => { clearTimeout(next.current); if (k === step) return; setGone(step); setStep(k); };
+  useLayoutEffect(() => {
+    slideLine(strip.current);
+    const three = [...(cards.current?.children || [])];
+    if (first.current) { first.current = false; arrive([head.current, strip.current, ...three]); }
+    else arrive(three, DUR.leave - STAGGER.row);
+  }, [step]);
+  useLayoutEffect(() => {
+    if (gone == null) return undefined;
+    let on = true;
+    leave([old.current]).then(() => { if (on) setGone(null); });
+    return () => { on = false; };
+  }, [gone]);
+  useEffect(() => { const row = strip.current; return () => forgetLine(row); }, []);
+  // the next place's three are read while this step's stand, so they arrive without a wait
+  useEffect(() => { const t = setTimeout(() => readAhead(draft[step + 1]?.map(c => c.species)), DUR.light + DUR.leave); return () => clearTimeout(t); }, [step]);
   useEffect(() => () => clearTimeout(next.current), []);
   // a place newly filled lights its picture where it stands
   const had = useRef(picks);
@@ -210,63 +264,74 @@ export function DraftBoard({ res, draft, picks, onPick }) {
     onPick(step, species);
     clearTimeout(next.current);
     if (was) return;
-    // the chosen one lights in its place, and after a beat the next empty place's step comes up
+    // the chosen one's rule draws in, and after a beat the next empty place's step comes up
     const after = draft.findIndex((_, k) => k !== step && !picks[k]);
-    if (after >= 0) next.current = setTimeout(() => setStep(after), DUR.light);
+    if (after >= 0) next.current = setTimeout(() => go(after), DUR.light);
   };
+  const row = (k, live) => draft[k].map(c => {
+    const on = picks[k] === c.species, pick = live ? () => choose(c.species) : undefined;
+    return <span key={c.species} data-species={c.species} className={"streak-pick" + (picks[k] && !on ? " off" : "")}>
+      <MonCard res={res} species={c.species} ability={c.ability} item={c.item} moves={(c.moves || []).map(id => ({ id, pp: "" }))} compact
+        pick={{ order: on ? k + 1 : 0, onPick: pick || (() => {}) }} />
+      {/* its six at level 50 on tracks under the moves, part of the card: a tap on them chooses it as the card does (2026-11-16 draft B) */}
+      <span className={"streak-pick-stats" + (on ? " on" : "")} onClick={pick}>
+        <StatBars stats={statsAt50(res, c.species, c.evs, c.nature)} />
+      </span>
+      {c.mega && <img className="streak-mega-mark" src={MEGA} alt="메가진화" draggable="false" />}
+    </span>;
+  });
   const done = picks.filter(Boolean).length;
   return <section className="streak-draft" aria-labelledby="streak-draft-title">
-    <div className="pn streak-trades-title"><b id="streak-draft-title">파티 고르기</b><span className="t12 dim">{done} / {draft.length}</span></div>
+    <div ref={head} className="pn streak-trades-title"><b id="streak-draft-title">파티 고르기</b><span className="t12 dim">{done} / {draft.length}</span></div>
     <div className="stack streak-party" ref={strip}>
       {draft.map((_, k) => {
         const sp = picks[k], shut = !sp && k > reached;
         return <button key={k} type="button" disabled={shut} className={"streak-slot" + (sp ? " full" : "") + (k === step ? " now" : "")} aria-current={k === step ? "step" : undefined}
-          aria-label={`${k + 1}번째 자리${sp ? `, ${nameOf(res, sp)}` : ""}`} onClick={() => { clearTimeout(next.current); setStep(k); }}>
+          data-current={k === step ? "" : undefined} aria-label={`${k + 1}번째 자리${sp ? `, ${nameOf(res, sp)}` : ""}`} onClick={() => go(k)}>
           {sp ? <img src={spriteUrl(sp)} alt="" draggable="false" onError={onSpriteError()} /> : <span>{k + 1}</span>}
           {megaOf(k) && <img className="streak-mega-mark" src={MEGA} alt="" draggable="false" />}
         </button>;
       })}
     </div>
-    <div key={step} ref={cards} className="stack streak-draft-row" role="radiogroup" aria-label={`${step + 1}번째 자리`}>
-      {draft[step].map(c => {
-        const on = picks[step] === c.species;
-        return <span key={c.species} data-species={c.species} className={"streak-pick" + (picks[step] && !on ? " off" : "")}>
-          <MonCard res={res} species={c.species} ability={c.ability} item={c.item} moves={(c.moves || []).map(id => ({ id, pp: "" }))} compact
-            pick={{ order: on ? step + 1 : 0, onPick: () => choose(c.species) }} />
-          {/* its six at level 50 on tracks under the moves, part of the card: a tap on them chooses it as the card does (2026-11-16 draft B) */}
-          <span className={"streak-pick-stats" + (on ? " on" : "")} onClick={() => choose(c.species)}>
-            <StatBars stats={statsAt50(res, c.species, c.evs, c.nature)} />
-          </span>
-          {c.mega && <img className="streak-mega-mark" src={MEGA} alt="메가진화" draggable="false" />}
-        </span>;
-      })}
+    <div className="streak-draft-rows">
+      <div key={step} ref={cards} className="stack streak-draft-row" role="radiogroup" aria-label={`${step + 1}번째 자리`}>{row(step, true)}</div>
+      {gone != null && gone !== step && <div key={`gone${gone}`} ref={old} className="stack streak-draft-row gone" aria-hidden="true" inert="">{row(gone, false)}</div>}
     </div>
   </section>;
 }
 
 /* the doors to the next game (2026-11-11, 13장): two doors, each with the six behind it as a team preview shows them (the even foe
    and the strong one, its computer a step up, which lets the trade reach a tier up when beaten), or one shut door, the gatekeeper's,
-   which lights the spare lamp. 15장: behind a door stands a party built for it (towerBuild.mjs); no season or rank is shown (2026-11-11,
+   which gives the spare heart. 15장: behind a door stands a party built for it (towerBuild.mjs); no season or rank is shown (2026-11-11,
    the user: "상대 파티 순위 표시는 불필요하므로 UI에서 완전히 제거").
    Each door says what it gives beside its name, in nouns, so the choice reads as the trade-off it is (2026-11-11, the user: "보통 상대
-   강한 상대도 뭐 어쩌라는 건지 와닿는 게 하나도 없어"): the gate 램프 +1 and 교환 승급, the strong door 교환 승급 (14장), the even one 없음, each after the
+   강한 상대도 뭐 어쩌라는 건지 와닿는 게 하나도 없어"): the gate 하트 +1 and 교환 승급, the strong door 교환 승급 (14장), the even one 없음, each after the
    same dim 보상 so the two doors read as one line compared (2026-11-11, the user chose draft C over the hairline chips).
-   One is chosen, inverted; the key goes through it */
-export function DoorPick({ res, doors, value, onChange }) {
+   The chosen one stands over the 2px rule of its hue (the gatekeeper's one door over the lit one): it draws in from its start edge as
+   the door is chosen (420) while the other's retracts (260); the key goes through it */
+export function DoorPick({ res, doors, value, onChange, at = 0 }) {
+  const ref = useRef(null);
+  // the doors arrive one after another from at, and the chosen door's rule draws in as it comes
+  useLayoutEffect(() => {
+    const all = [...(ref.current?.children || [])];
+    arrive(all, at);
+    const on = all.findIndex(d => d.classList.contains("on"));
+    if (on >= 0) drawRule(all[on], at + on * STAGGER.row + DUR.tone);
+  }, []);
   if (!doors?.length) return null;
   const word = { even: "보통 상대", hard: "강한 상대", gate: "수문장" };
   /* no strip of its own over the doors (2026-11-11: with it the break ran past a phone's stage and the trades lost their last row):
-     each door names itself. The even door is blue and the strong one red, the whole door when chosen (no bar on its edge)
+     each door names itself. The even door is blue and the strong one red, its hairline and its rule once chosen (no bar on its edge)
      (2026-11-11, the user: "약한 상대는 푸른 계열, 강한 상대는 붉은 계열"), in the water and fire type colours the site already has */
   return <section className="streak-doors" aria-label="다음 상대">
-    <div className={"stack streak-door-row" + (doors.length === 1 ? " one" : "")} role="radiogroup" aria-label="다음 상대">
+    <div ref={ref} className={"stack streak-door-row" + (doors.length === 1 ? " one" : "")} role="radiogroup" aria-label="다음 상대">
       {doors.map((d, i) => <button key={d.kind} type="button" role="radio" aria-checked={value === i} onClick={() => onChange(i)}
-        className={"streak-door" + (d.kind === "gate" ? " inv" : (d.kind === "hard" ? " type-fire" : " type-water") + (value === i ? " on" : " pn"))}>
+        className={"streak-door " + (d.kind === "gate" ? "gate" : d.kind === "hard" ? "type-fire" : "type-water") + (value === i ? " on" : "")}>
         <span className="streak-door-head"><b>{word[d.kind]}</b></span>
-        <span className="streak-door-gain" aria-label={d.kind === "even" ? "보상 없음" : d.kind === "hard" ? "이기면 교환 승급" : "이기면 램프 하나와 교환 승급"}>
+        <span className="streak-door-gain" aria-label={d.kind === "even" ? "보상 없음" : d.kind === "hard" ? "이기면 교환 승급" : "이기면 하트 하나와 교환 승급"}>
           <span className="streak-gain-k" aria-hidden="true">보상</span>
           {d.kind === "even" ? <span className="streak-gain none">없음</span>
-            : <>{d.kind === "gate" && <span className="streak-gain"><i className="lamp" aria-hidden="true" />램프 +1</span>}<span className="streak-gain">교환 승급</span></>}
+            : <>{d.kind === "gate" && <span className="streak-gain"><Icon n="heart" size={16} className="on" />하트 +1</span>}<span className="streak-gain">교환 승급</span></>}
         </span>
         {/* the six as their pictures alone (2026-11-18, the user: the type squares under them were "상당히 무의미") */}
         {d.species.length > 0 && <span className="streak-door-six">{d.species.map(s => <span key={s} className="streak-door-mon">
@@ -277,26 +342,32 @@ export function DoorPick({ res, doors, value, onChange }) {
   </section>;
 }
 
-/* a game of a run, beside it while it is played (the menu): which game, the streak riding on it lit at 32 with its unit, and the
-   floor's track joined under it. A floor's gatekeeper inverts. wins: the games won before it */
+/* a game of a run, beside it while it is played (the menu): which game, the streak riding on it as a figure of 52 with its unit, and
+   the floor's track joined under it. A floor's gatekeeper is decided: its 2px lit rule draws in from the left as it comes (.inv
+   keeps the name). wins: the games won before it */
 export function StreakStake({ wins, lives = null }) {
-  const master = streakMaster(wins);
+  const master = streakMaster(wins), head = useRef(null);
+  heldLives = lives;
+  useLayoutEffect(() => { if (master) drawRule(head.current); }, []);
   return <div className="stack streak-stake">
-    <div className={(master ? "inv" : "pn") + " streak-stake-head"}>
-      <span className="t12 dim streak-named">{gameWords(wins)}<RunLamps lives={lives} /></span>
-      <span className="streak-stake-board"><Seg value={String(wins)} h={32} cells={2} label={`${wins}연승`} /><span className="t15">연승</span></span>
+    <div ref={head} className={(master ? "inv" : "pn") + " streak-stake-head"}>
+      <span className="t12 dim streak-named">{gameWords(wins)}<RunHearts lives={lives} /></span>
+      <span className="streak-stake-board"><Fig value={String(wins)} h={52} label={`${wins}연승`} /><span className="t15">연승</span></span>
     </div>
     <div className="pn streak-stake-track"><FloorTrack wins={wins} playing /></div>
   </div>;
 }
 
 /* the stake on a run's team preview (DESIGN.md 연승 도전, Floors and the stake, 2026-11-09): a band over the foe's six, the game and
-   the streak riding on it, inverted on a gatekeeper's game, where the gatekeeper's cell among the six inverts with it (battle.css) */
+   the streak riding on it, decided on a gatekeeper's game (its 2px lit rule drawing in from the left), where the gatekeeper's cell
+   among the six takes the rule with it (battle.css) */
 export function StreakBand({ wins, lives = null }) {
-  const master = streakMaster(wins);
-  return <div className={(master ? "inv" : "pn") + " streak-band"}>
-    <b className="t15 streak-named">{gameWords(wins)}<RunLamps lives={lives} /></b>
-    <span className="streak-stake-board"><Seg value={String(wins)} h={32} cells={2} label={`${wins}연승`} /><span className="t15">연승</span></span>
+  const master = streakMaster(wins), band = useRef(null);
+  heldLives = lives;
+  useLayoutEffect(() => { if (master) drawRule(band.current); }, []);
+  return <div ref={band} className={(master ? "inv" : "pn") + " streak-band"}>
+    <b className="t15 streak-named">{gameWords(wins)}<RunHearts lives={lives} /></b>
+    <span className="streak-stake-board"><Fig value={String(wins)} h={32} label={`${wins}연승`} /><span className="t15">연승</span></span>
   </div>;
 }
 
@@ -317,7 +388,7 @@ function useWarm(on) {
 export { useAccount };
 
 /* this device's run, read again from its game: playing (a game on), resting (the game ended and the run goes on: won, or lost with a
-   lamp left; the next game not yet opened), or none (null). A game that ended while its player was away (the clock) has told its
+   heart left; the next game not yet opened), or none (null). A game that ended while its player was away (the clock) has told its
    seat nothing, so the seat asks once (viewBattle keeps the run's answer) */
 /* undefined while it is read (for the seen it was asked for, so a read again is never answered by the last one), null for none */
 function useRun(daily = false, seen = 0) {
@@ -343,8 +414,8 @@ function useRun(daily = false, seen = 0) {
   return got?.ask === ask ? got.run : undefined;
 }
 
-/* going into a game of a run is a scene on the tower (tower.js): it switches on over the stage the key was pressed under (on the tab
-   it already stands), the game just won lights and the lamp steps on, or the lift rises a floor after a gatekeeper, all while the
+/* going into a game of a run is a scene on the tower (tower.js): it arrives over the stage the key was pressed under (on the tab
+   it already stands), the game just won lights and the camera walks on to the next door, or up to the next floor's first after a gatekeeper, all while the
    game is made and read; then the camera walks in through the lamp's door into its dark, and the next screen comes up out of it
    (BattlePage.jsx useMatchLit). wins: the wins before the game gone into; null (a game being played, gone back into) plays nothing.
    again: a lost game gone into again, where no door was won.
@@ -358,7 +429,7 @@ export const floorCall = (dark, scope, wins, leaveNow = async () => {}, again = 
   return { shown: Promise.all([dark, shown]).catch(() => {}), leave: towerDive };
 };
 
-/* the run lit: its streak at 84 (this device's run while it goes on, else the account's best of the month or the day). No line
+/* the run lit: its streak as a figure of 120, the amber mark by its label only while its game is being played (this device's run while it goes on, else the account's best of the month or the day). No line
    explains the rule; the tower beside it shows it. With nothing of one's own it is not drawn (2026-11-18, the owner: "의미 없이
    낭비되는 공간을 최소화"): the month's first place stood here and was read twice, here and on the podium under it, and before that a
    dark cell stood for a number never played */
@@ -367,8 +438,8 @@ function RunBoard({ run, best, approved, daily = false }) {
   if (value == null) return null;
   const label = run ? gameWords(run.wins) : daily ? "오늘 내 기록" : "이번 달 내 최고 기록";
   return <div className="pn streak-hero">
-    <span className="t12 dim streak-named"><span className="streak-hero-label">{run && <i className="lamp sig" aria-hidden="true" />}{label}</span>{run && <RunLamps lives={run.lives} />}</span>
-    <span className="streak-hero-board"><Seg value={String(value)} h={84} cells={2} label={`${value}연승`} /><span className="t20">연승</span></span>
+    <span className="t12 dim streak-named"><span className="streak-hero-label">{run?.playing && <i className="lamp sig" aria-hidden="true" />}{label}</span>{run && <RunHearts lives={run.lives} />}</span>
+    <span className="streak-hero-board"><Fig value={String(value)} h={120} label={`${value}연승`} /><span className="t20">연승</span></span>
   </div>;
 }
 
@@ -513,11 +584,17 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   // the other climbers on the tower, all of them, counted by floor there: this board's but one's own (one's own run is the path)
   const climbers = !back && rows ? rows.filter(r => !r.mine).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
   const ready = run !== undefined && board !== undefined && account !== undefined && (!approved || synced);
+  /* the key comes last (2026-11-24): it waits unseen in its place until the run is read and the tower (or the draft) comes in, then
+     rises after it. Once up it stays: a run read again does not take it away */
+  const keysRef = useRef(null), keysUp = useRef(false), cupsRef = useRef(null);
+  const keysOn = keysUp.current || ready;
+  // 등반전 under the key follows it, one step later in reading order
+  useLayoutEffect(() => { if (ready && !keysUp.current) { keysUp.current = true; keysAfter(keysRef.current, DUR.light); keysAfter(cupsRef.current, DUR.light + STAGGER.row); } }, [ready]);
   /* 등반전 (Cups.jsx): one opened stands as its own screen in the tab, kept in the address (&cup=) so its link and its alert open it */
   const openCup = id => { showCupInAddress(id); setCup(id); };
   if (cup) return (
     <div className="bt-page">
-      <h1 className="t32">배틀</h1>
+      <h1 className="page-title">배틀</h1>
       {tabs}
       {gateSheet}
       <CupBoard id={cup} approved={approved} onGate={() => setGate(true)} onOpen={onOpen} onBack={() => { openCup(null); setCupsAsked(n => n + 1); }}
@@ -526,7 +603,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   );
   return (
     <div className="bt-page">
-      <h1 className="t32">배틀</h1>
+      <h1 className="page-title">배틀</h1>
       {tabs}
       {gateSheet}
       <div className="bt-lobby">
@@ -536,12 +613,12 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
               ? <DraftBoard res={res} draft={drafting} picks={picks} onPick={(i, sp) => setPicks(p => { const n = [...p]; n[i] = n[i] === sp ? undefined : sp; return n; })} />
               : <TowerHall key={round} wins={wins} live={Boolean(run?.playing)} climbers={climbers} ready={ready} />}
           </div>
-          {run && !run.playing && run.doors && <DoorPick res={res} doors={run.doors} value={door} onChange={setDoor} />}
+          {run && !run.playing && run.doors && <DoorPick res={res} doors={run.doors} value={door} onChange={setDoor} at={DUR.tone} />}
           <Dock toast={error ? <Toast error>{error}</Toast> : null}>
-            <div className="bt-end-keys">{keys}</div>
+            <div ref={keysRef} className="bt-end-keys" style={keysOn ? undefined : { opacity: 0 }}>{keys}</div>
           </Dock>
           {/* 등반전 under the tower's key: the side holds the run and the month (2026-11-19: beside them the side outgrew the tower) */}
-          <CupList cups={cups} onCup={openCup} onMake={() => (approved ? setMaking(true) : setGate(true))} onRetry={() => setCupsAsked(n => n + 1)} />
+          <CupList boxRef={cupsRef} style={keysOn ? undefined : { opacity: 0 }} cups={cups} onCup={openCup} onMake={() => (approved ? setMaking(true) : setGate(true))} onRetry={() => setCupsAsked(n => n + 1)} />
         </div>
         <div className="bt-lobby-set streak-side">
           {/* the run's board heads the side, on the scene's top line, so the scene starts where 배틀 열기's court does (2026-11-09,
@@ -645,16 +722,16 @@ export function SwapTable({ rows, chosen, onPick, onInfo = null, up = false }) {
         const mine = chosen?.give === r.species, none = !r.can.length;
         return <React.Fragment key={r.species}>
           {/* one of ours is its set's key: the picture, the name and the info mark in one panel (on a phone the name keeps its room) */}
-          <button type="button" className={(mine ? "inv" : "pn") + " streak-trade" + (none ? " off" : "")} disabled={!onInfo}
+          <button type="button" className={"pn streak-trade" + (mine ? " on" : "") + (none ? " off" : "")} disabled={!onInfo}
             onClick={() => onInfo?.(`swap:own:${r.species}:`)} aria-label={`${r.name} 세트 보기`}>
             <img src={spriteUrl(r.species)} alt="" draggable="false" onError={onSpriteError()} /><b>{r.name}</b>
             {onInfo && <b className="bt-i" aria-hidden="true">i</b>}
           </button>
-          <span className={(mine ? "inv" : "pn") + " streak-trades-mark" + (none ? " off" : "")} aria-hidden="true"><Icon n="swap" size={20} /></span>
+          <span className={"pn streak-trades-mark" + (mine ? " on" : "") + (none ? " off" : "")} aria-hidden="true"><Icon n="swap" size={20} /></span>
           <span className="streak-takes" role="group" aria-label={`${r.name}와 바꿀 수 있는 포켓몬${none ? " 없음" : ""}`} style={{ "--n": Math.max(3, r.can.length + r.held.length) }}>
             {r.can.map(t => {
               const on = mine && chosen.take === t.species;
-              return <button key={t.species} type="button" className={(on ? "inv" : "pn") + " streak-take"} aria-pressed={on}
+              return <button key={t.species} type="button" className={"pn streak-take" + (on ? " on" : "")} aria-pressed={on}
                 aria-label={`${r.name} 대신 ${t.name}`} onClick={() => onPick(on ? null : { give: r.species, take: t.species })}>
                 <img src={spriteUrl(t.species)} alt="" draggable="false" onError={onSpriteError()} /><b>{t.name}</b>
               </button>;
@@ -675,7 +752,7 @@ export function SwapTable({ rows, chosen, onPick, onInfo = null, up = false }) {
 /* The end of a game of a run, for its player. The break between games stands in the stage's place (stage: the stage box), where the
    eye already is and where there is room, so nothing is scrolled to (2026-11-09 second round): its head is the run's count (switching
    from the last count to the new one as a score does) beside the next game, named, with its floor's track and its gatekeeper waiting at
-   the end (inverted when the next game is the gatekeeper's); under it the trades. After a loss the head is the count and the run's place
+   the end (decided, over the thick lit rule, when the next game is the gatekeeper's); under it the trades. After a loss the head is the count and the run's place
    on the month's board, and the track shows where it fell. The deck keeps only the result and the keys (다음 판 or 다시 도전, and
    나가기). Playing the replay puts the break away (away) and the stage shows it; back at the end it lights again. The run rests after a
    win until 다음 판 opens the next game, so 나가기 loses nothing. ours, theirs: the two parties' species, as the team preview showed
@@ -706,11 +783,12 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
   /* the break a run rests on asks one thing at a time (2026-11-18, the owner's draft B, Task 9): the result, then the trade (after a
      won game whose sixes are known), then the next door, the deck's key going from one to the next */
   const [beat, setBeat] = useState("result");
-  useEffect(() => readAhead(seat?.doors?.flatMap(d => d.species)), []);
+  // the doors' and the trade's pictures are read ahead while the result stands, so no picture of a later beat pops in
+  useEffect(() => readAhead([...(seat?.doors?.flatMap(d => d.species) || []), ...ourSix.map(m => m.species), ...theirSix.map(m => m.species)]), []);
   // trades the server refused (what the screen could not see: a run from before the sets were sent): they stand off with its reason
   const [blocked, setBlocked] = useState([]);
   const wins = seat?.wins ?? 0;
-  /* the run goes on: after a win, and after a lost game the seat has been told of (its answer, or its view read again) while a lamp
+  /* the run goes on: after a win, and after a lost game the seat has been told of (its answer, or its view read again) while a heart
      is left. A lost game not yet told of (the clock, before the view comes back) stands as the run's end until it is */
   const resting = !seat?.ended && (won || typeof seat?.won === "boolean");
   const lives = seat?.lives;
@@ -718,15 +796,72 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
   const best = Boolean(board?.find(r => r.mine && wins > 0 && r.wins === wins));
   const place = board?.find(r => r.mine && wins > 0)?.place ?? null;
   const [shown, setShown] = useState(resting && won && wins > 0 ? wins - 1 : wins);
-  const box = useRef(null);
+  /* a gatekeeper just beaten: the floor cleared stands as a scene, its five rules lit on the old floor, then the floor's figure
+     switches (tone) and the next floor's rules stand */
+  const cleared = resting && won && wins > 0 && floorGame(wins) === 1;
+  const [whole, setWhole] = useState(cleared);
+  // the hearts before the game: a loss spent one; a gatekeeper gives one back, known from the hearts the game was played with
+  const livesWas = lives == null ? null : !won ? lives + 1 : cleared && heldLives != null ? heldLives : lives;
+  const box = useRef(null), keysRef = useRef(null), leaving = useRef(false);
+  /* a run's end stands once its month's board is read (its place and its three are part of the scene), or after 1200 without it, so
+     no part of the scene pops in after it has arrived */
+  const [waited, setWaited] = useState(false);
+  useEffect(() => { if (resting) return undefined; const t = setTimeout(() => setWaited(true), 1200); return () => clearTimeout(t); }, [resting]);
+  const standing = resting || board !== null || waited;
   useWarm(true);
   useEffect(() => {
     const timer = setTimeout(() => setShown(wins), DUR.light);
     const el = box.current;
-    // the game just won brightens in its new light, then the next one lights (motion.js climb)
-    if (el && resting && won) climb(el.querySelector(`[data-step="${floorGame(wins) - 1}"]`), el.querySelector(`[data-step="${floorGame(wins)}"]`));
-    return () => clearTimeout(timer);
+    let turn = 0;
+    // once the figure has switched, the game just won draws its rule in, and the next one tones to dim (motion.js climb)
+    if (el && cleared) {
+      climb(el.querySelector(`[data-step="${STREAK_STEP}"]`), null);
+      turn = setTimeout(() => setWhole(false), DUR.light * 3);
+    } else if (el && resting && won) climb(el.querySelector(`[data-step="${floorGame(wins) - 1}"]`), el.querySelector(`[data-step="${floorGame(wins)}"]`));
+    return () => { clearTimeout(timer); clearTimeout(turn); };
   }, [wins, resting, stage]);
+  useLayoutEffect(() => { if (cleared && !whole) tone(box.current?.querySelector(".streak-result-track .streak-track-bar")); }, [whole]);
+  /* what arrives: each beat's entries rise 38 apart, pictures by tone, then the key; the run's end as one scene in reading order (its
+     counters, the recap, the floors from the highest down drawing their rules, the game it fell on settling to muted last, then the
+     month's three). Before the break has a stage to stand in, the key waits for it */
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) { keysAfter(keysRef.current, DUR.light + DUR.leave); return; }
+    const kids = sel => [...el.querySelectorAll(sel)];
+    let last;
+    if (!resting) {
+      const floors = kids(".streak-tower-floor");
+      const head = [...kids(".streak-break-head > *"), ...kids(".streak-recap > *")];
+      last = arrive([...head, ...floors], 0, Infinity);
+      floors.forEach((row, r) => [...row.querySelectorAll(".streak-track-bar > i.won")].forEach((rule, j) => drawRule(rule, (head.length + r) * STAGGER.row + j * STAGGER.row)));
+      const settle = last + STREAK_STEP * STAGGER.row;
+      drawRule(el.querySelector(".streak-tower-floor .streak-track-bar > i.lost"), settle, SETTLE, DUR.light + DUR.leave);
+      const board = el.querySelector(".streak-break-board");
+      last = board ? arrive([board.firstElementChild, ...board.querySelectorAll(".st-head, .st-row")], settle + STAGGER.row, Infinity) : settle;
+    } else if (beat === "result") {
+      last = arrive(kids(".streak-result > *").flatMap(c => (c.classList.contains("streak-recap") ? [...c.children] : [c])));
+    } else if (beat === "trade") {
+      const cells = kids(".streak-trades > *"), rows = [];
+      for (let i = 0; i < cells.length; i += 3) rows.push(cells.slice(i, i + 3));
+      last = arrive(rows);
+    } else {
+      const plate = el.querySelector(".streak-break-name");
+      arrive([plate], STAGGER.row);
+      if (master) drawRule(plate, STAGGER.row);
+      last = STAGGER.row * (1 + (seat?.doors?.length || 1));
+    }
+    keysAfter(keysRef.current, last + DUR.tone);
+  }, [beat, stage, standing]);
+  // the beat goes (260, its key with it) and the next one's entries rise in its place
+  const toBeat = next => {
+    const el = box.current;
+    if (leaving.current) return;
+    if (!el || reduced()) { setBeat(next); return; }
+    leaving.current = true;
+    // the next beat comes in as the old one is nearly gone (222 of its 260), so no frame stands empty between them
+    const anims = [...el.children, keysRef.current].filter(can).map(x => x.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DUR.leave, easing: EASE_IN, fill: "forwards" }));
+    setTimeout(() => { flushSync(() => setBeat(next)); anims.forEach(x => x.cancel()); leaving.current = false; }, DUR.leave - STAGGER.row);
+  };
   /* ours in tier order, strongest first, each its row; theirs in tier order within a row (SwapTable). A tier is a sample set's (19장),
      read off the whole sets the function sends (seat.own, seat.beaten) where it sends them, else off the species */
   const setOf = (list, m) => list?.find(s => s.species === m.species) || m;
@@ -764,7 +899,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
       /* a refused trade stands off in its row and is let go, its reason one press away where the eye already is (a toast in the
          deck's flow pushed 다음 판 down, 2026-11-10, the user: "왜곡이 생겨"). Without a named trade the toast says it, and the key
          says 다음 판 again */
-      if (e.pair?.give && e.pair?.take) { setBlocked(b => [...b, { ...e.pair, why: e.message }]); setChosen(null); setBeat("trade"); }
+      if (e.pair?.give && e.pair?.take) { setBlocked(b => [...b, { ...e.pair, why: e.message }]); setChosen(null); toBeat("trade"); }
       else { setError(e.message); setChosen(null); }
     }
   };
@@ -772,9 +907,9 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
   const brk = resting ? <section ref={box} className={"streak-break beat-" + beat + (away ? " away" : "")} aria-label={beat === "door" ? "다음 판" : beat === "trade" ? "교환" : "결과"}>
     {beat === "result" && <div className="streak-result">
       <span className="t15 dim">{gameWords(played)} {won ? "승리" : "패배"}</span>
-      <span className="streak-result-count" role="img" aria-label={`${best ? "이번 달 내 최고 기록" : "이번 도전"} ${shown}연승`}><Seg value={String(shown)} h={84} cells={2} label="" /><span className="t20">연승</span></span>
+      <span className="streak-result-count" role="img" aria-label={`${best ? "이번 달 내 최고 기록" : "이번 도전"} ${shown}연승`}><Fig value={String(shown)} h={84} label="" /><span className="t20">연승</span></span>
       {best && <span className="t12 dim">이번 달 내 최고 기록</span>}
-      <span className="streak-result-track"><FloorTrack wins={wins} /><RunLamps lives={lives} /></span>
+      <span className="streak-result-track"><FloorTrack wins={wins} whole={whole} /><RunHearts lives={lives} was={livesWas} delay={DUR.light} /></span>
       {recap && <div className="stack streak-recap" role="group" aria-label="상대 파티">
         <span className="pn streak-trades-title"><b>상대 파티</b></span>
         {recap.map(m => <MonCard key={m.species} res={res} species={m.species} ability={m.ability} item={m.item || null} moves={(m.moves || []).map(name => ({ id: name, pp: "" }))} compact />)}
@@ -783,8 +918,8 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     {beat === "trade" && <SwapTable rows={rows} up={reach > 0} chosen={chosen} onPick={setChosen} onInfo={onInfo} />}
     {beat === "door" && <>
       <BreakTower wins={wins} climbing={won && wins > 0 && floorGame(wins) === 1} again={!won} />
-      <b className={(master ? "inv" : "pn") + " t15 streak-named streak-break-name"}>{gameWords(wins)}<RunLamps lives={lives} /></b>
-      <DoorPick res={res} doors={seat?.doors} value={door} onChange={setDoor} />
+      <b className={(master ? "inv" : "pn") + " t15 streak-named streak-break-name"}>{gameWords(wins)}<RunHearts lives={lives} /></b>
+      <DoorPick res={res} doors={seat?.doors} value={door} onChange={setDoor} at={STAGGER.row * 2} />
     </>}
   </section> : <section ref={box} className={"streak-break" + (away ? " away" : "")} aria-label="도전 끝">
     <div className="stack streak-break-head">
@@ -792,7 +927,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
       {/* a lost run: its place on the month's board as a counter of the same size beside the streak (the two stood at 84 and 116,
           the place's panel holding the track under it); the floor it fell on stays in the head's window */}
       {place != null ? <Counter label={`${monthOf(0).label} 순위`} value={place} after={<span className="t15">위</span>} />
-        : <div className="pn streak-next"><b className="t15 streak-named">{gameWords(wins)}<RunLamps lives={lives} /></b><FloorTrack wins={wins} lost /></div>}
+        : <div className="pn streak-next"><b className="t15 streak-named">{gameWords(wins)}<RunHearts lives={lives} was={livesWas} delay={DUR.light} /></b><FloorTrack wins={wins} lost /></div>}
     </div>
     {recap && <div className="stack streak-recap" role="group" aria-label="상대 파티">
       <span className="pn streak-trades-title"><b>상대 파티</b></span>
@@ -801,7 +936,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     {/* a lost run stands as a scene of its own: the floors it climbed as a tower, the highest on top, then the month's first three */}
     <div className="stack streak-tower" role="img" aria-label={`${streakFloor(wins)}층 ${gameWords(wins)}에서 끝났습니다.`}>
       {Array.from({ length: Math.min(streakFloor(wins), 5) }, (_, i) => streakFloor(wins) - i).map(f => <span key={f} className="pn streak-tower-floor">
-        <Seg value={String(f)} h={32} cells={String(streakFloor(wins)).length} label="" />
+        <Fig value={String(f)} h={32} label="" />
         <TrackBar at={f < streakFloor(wins) ? STREAK_STEP + 1 : floorGame(wins)} lost={f === streakFloor(wins)} />
       </span>)}
     </div>
@@ -811,16 +946,16 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
     </section>}
   </section>;
   // the key goes from beat to beat, and from the next door into the game (2026-11-18)
-  const onward = beat === "result" ? <Button variant="main" onClick={() => setBeat(swapping ? "trade" : "door")}>다음</Button>
-    : beat === "trade" ? <Button variant="main" onClick={() => setBeat("door")}>{swap ? "바꾸고 다음" : "바꾸지 않고 다음"}</Button>
+  const onward = beat === "result" ? <Button variant="main" onClick={() => toBeat(swapping ? "trade" : "door")}>다음</Button>
+    : beat === "trade" ? <Button variant="main" onClick={() => toBeat("door")}>{swap ? "바꾸고 다음" : "바꾸지 않고 다음"}</Button>
     : <Button variant="main" loading={busy} onClick={() => goInto(() => streakNextGame(id, swap, door), wins)}>{won ? "다음 판" : "이어서 하기"}</Button>;
   return <>
-    {stage && createPortal(brk, stage)}
+    {stage && standing && createPortal(brk, stage)}
     <Dock toast={error ? <Toast error>{error}</Toast> : null}>
-      <div className="bt-end-keys">
+      <div ref={keysRef} className="bt-end-keys">
         {resting ? onward
           /* a new run begins with its draft, on the tab (2026-11-11); 오늘의 탑 is once a day, so its end has no 다시 도전 */
-          /* a lost game the seat has not been told of yet (the clock, before its view comes back) may still have a lamp: 다시 도전 there
+          /* a lost game the seat has not been told of yet (the clock, before its view comes back) may still have a heart: 다시 도전 there
              would end the run unasked (2026-11-13), so it waits for the run's answer */
           : !seat?.daily && typeof seat?.won === "boolean" && <Button variant="main" icon="refresh" loading={busy} onClick={async () => {
             setBusy(true);

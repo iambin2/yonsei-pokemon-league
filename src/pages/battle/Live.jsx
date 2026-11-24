@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Seg from "../../components/common/Seg.jsx";
+import Fig from "../../components/common/Fig.jsx";
 import Empty from "../../components/common/Empty.jsx";
 import Loader from "../../components/common/Loader.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
@@ -91,7 +91,7 @@ export function LiveCard({ res, row, label, lead = false, onOpen }) {
     <span className="bt-live-head">
       <i className="lamp sig" aria-hidden="true" />
       <span className="bt-live-say"><b>{KIND_WORD[row.kind] || "친선"}</b><span>{context(row, label)}</span></span>
-      {turn > 0 && <span className="bt-win"><Seg value={String(Math.min(99, turn)).padStart(2, "0")} h={32} cells={2} label={`${turn}턴`} /></span>}
+      {turn > 0 && <span className="bt-win"><Fig value={String(Math.min(99, turn))} h={32} label={`${turn}턴`} /></span>}
     </span>
     {strip(row.p2_name, p2, true)}
     {strip(row.p1_name, p1, false)}
@@ -108,9 +108,9 @@ export function LiveHall({ res, rows, onOpen, onRetry }) {
   if (rows === false) return <ErrorNote action="다시 불러오기" onRetry={onRetry}>관전할 배틀을 불러오지 못했습니다.</ErrorNote>;
   return <>
     <div className="stack bt-hall-counts">
-      <Counter label="진행 중" value={count(all.length)} cells={2} lamp={all.length > 0 ? "sig" : false} />
-      <Counter label="공식 경기" value={count(all.filter(r => r.kind === "official").length)} cells={2} />
-      <Counter label="도전의 탑" value={count(all.filter(r => r.kind === "streak").length)} cells={2} />
+      <Counter label="진행 중" value={count(all.length)} lamp={all.length > 0 ? "sig" : false} />
+      <Counter label="공식 경기" value={count(all.filter(r => r.kind === "official").length)} />
+      <Counter label="도전의 탑" value={count(all.filter(r => r.kind === "streak").length)} />
     </div>
     <div className="bt-hall-filters">
       {[["종류", kind, setKind, KINDS], ["형식", format, setFormat, FORMATS]].map(([label, value, set, options]) =>

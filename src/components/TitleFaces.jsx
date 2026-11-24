@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
-import Seg from "./common/Seg.jsx";
+import Fig from "./common/Fig.jsx";
+import { place } from "./common/motion.js";
 import { medalDrawn, medalUrl } from "./titleMedal.js";
 import { loadRecordsPokemonDirectory } from "../services/recordsPokemon.js";
 import { spriteUrl } from "../services/teamBuilderCore.js";
@@ -63,10 +64,12 @@ export function Medal({ spec, off = false, big = false }) {
 }
 
 /* anything that holds medals switches them on together, once the last is drawn (2026-11-22: they came on one by one, some 100 apart
-   at a phone's speed, 1.7 s for the eighteen types, and the board read as stuttering) */
+   at a phone's speed, 1.7 s for the eighteen types, and the board read as stuttering). Medals that were waiting come on by tone as a
+   group, as late pictures do (DESIGN.md "Motion"), instead of popping in; medals drawn before the board stood light with the page */
 export function LitBoard({ className = "", children, ...rest }) {
-  const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
-  useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });
+  const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0), waited = useRef(false);
+  useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (!all) waited.current = true; if (all !== lit) setLit(all); });
+  useLayoutEffect(() => { if (lit && waited.current) { waited.current = false; place([...board.current.querySelectorAll(".tl-medal > img")]); } }, [lit]);
   return <Drawn.Provider value={drawn}><div ref={board} className={"tl-lit " + className + (lit ? " lit" : "")} {...rest}>{children}</div></Drawn.Provider>;
 }
 
@@ -94,7 +97,7 @@ export function MedalBoard({ medals, cols, className = "", label }) {
 }
 
 /* 트레이너 시트의 칭호: 챔피언은 제 판에 크게(그 사람의 가장 큰 사실), 그 밖의 가진 칭호는 모두 한 판의 메달로(타입, 지방, 그 밖의 순). 그 아래 타입 18개와 지방 10개는
-   메달 대신 램프 판: 가진 칸만 반전되어 켜지고 나머지는 꺼진 채 자리를 지킨다. 판 머리에 몇 개를 가졌는지. */
+   메달 대신 이름의 표: 가진 이름만 굵게 켜지고 나머지는 흐린 채 자리를 지킨다. 표 머리에 몇 개를 가졌는지 가는 숫자로. */
 export function TrainerTitles({ champions = [], titles = [] }) {
   const partnerMedalOf = usePartnerMedal();
   const mine = key => titles.filter(title => title.key === key);
@@ -111,9 +114,9 @@ export function TrainerTitles({ champions = [], titles = [] }) {
   ];
   const lamps = (label, items, has) => { const n = items.filter(([key]) => has(key)).length; return <div className="tl-lampset">
     <div className="tl-mhead"><span className="t12 dim">{label}</span>
-      <span className="counter-board"><Seg value={String(n)} h={32} cells={2} label={`${items.length}개 중 ${n}개`} /><span className="t15">/ {items.length}</span></span></div>
+      <span className="counter-board"><Fig value={String(n)} h={52} label={`${items.length}개 중 ${n}개`} /><span className="t15">/ {items.length}</span></span></div>
     <div className="stack tl-lamps" style={{ "--n": items.length, "--m": items.length % 6 ? 5 : 6 }} role="list" aria-label={label}>
-      {items.map(([key, name]) => <span key={key} role="listitem" className={"t12 tl-lamp " + (has(key) ? "inv" : "pn")} aria-label={`${name}${has(key) ? "" : ", 없음"}`}>{name}</span>)}
+      {items.map(([key, name]) => <span key={key} role="listitem" className={"t12 tl-lamp" + (has(key) ? " on" : "")} aria-label={`${name}${has(key) ? "" : ", 없음"}`}>{name}</span>)}
     </div>
   </div>; };
   /* three a row on a phone, so a held title's whole name (하나 엘리트, 해피너스 파트너) is read */

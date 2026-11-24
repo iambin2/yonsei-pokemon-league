@@ -1,4 +1,6 @@
-
+/* ---------- the almanac (2026-11-24): a section's entries open under a 2px lit rule, each closed by its hairline. The rule is the
+   list's own, kept clear of the first entry's hover tone by the 2 it stands on. ---------- */
+.opens { box-shadow: inset 0 var(--line) 0 var(--lit); padding-top: var(--line); }
 
 /* =========================== NEWS ===========================
    A list card; a title opens the notice on its own screen and flies into place (I2).
@@ -16,12 +18,13 @@
 .prose a { color: var(--lit); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--mute); }
 .prose strong { font-weight: 600; }
 .prose-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 136px), 1fr)); gap: var(--seam); }
-.prose-grid p { padding: var(--s3) var(--s5); background: var(--panel); line-height: var(--l-read); }
+.prose-grid p { padding: var(--s3) 0; box-shadow: inset 0 -1px 0 var(--rule); line-height: var(--l-read); }
 .prose-grid p::first-line { font-weight: 600; }
 @media (min-width: 860px) {
   .prose p { font-size: var(--t15); }
   .prose-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .prose-grid p { padding: var(--s5) var(--s8); }
+  .prose-grid { column-gap: var(--s8); }
+  .prose-grid p { padding-block: var(--s5); }
 }
 .pr-n {
   min-width: 20px; height: 20px; padding: 0 var(--s2); display: inline-grid; place-items: center; color: var(--lit); font-size: var(--t12); font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1;
@@ -32,8 +35,8 @@
 .pr-title { flex: 1; display: flex; align-items: center; gap: var(--s2); min-width: 0; font-size: var(--t15); }
 .pr-body { padding: 0 var(--s5) var(--s5); }
 .pr-list { display: grid; gap: var(--seam); }
-.pr-row { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--s3); align-items: baseline; padding: var(--s3) var(--pad); background: var(--rule); }
-.pr-name { font-size: var(--t12); font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+.pr-row { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--s3); align-items: baseline; padding-block: var(--s3); box-shadow: inset 0 -1px 0 var(--rule); }
+.pr-name { font-family: var(--font-fig); font-size: var(--t15); font-weight: 400; color: var(--mute); font-variant-numeric: tabular-nums; }
 .pr-vals { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
 .pr-val { display: flex; gap: var(--s3); font-size: var(--t15); }
 .pr-flabel { flex: none; min-width: 84px; font-size: var(--t12); color: var(--mute); }
@@ -52,7 +55,7 @@
 .fr-chips { margin-bottom: var(--s3); }
 .fr-sent { display: inline-flex; align-items: center; gap: var(--s2); }
 .fr-csv { display: flex; align-items: center; gap: var(--s2); min-height: var(--h-row); padding: 0 var(--pad); font-size: var(--t15); line-height: var(--l15); font-weight: 700; transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .fr-csv:hover { background: var(--panel-2); } }
+@media (hover: hover) { .fr-csv:hover { background: var(--tint); } }
 .fr-when { white-space: nowrap; }
 .fr-row { display: grid; grid-template-columns: var(--s5) minmax(0, 1fr) auto; align-items: center; gap: var(--s3); min-height: var(--h-row2); padding: var(--s2) var(--pad); }
 .fr-main { display: grid; gap: var(--s1); min-width: 0; }
@@ -79,10 +82,7 @@
 .sc-win > img { position: relative; z-index: var(--z-raised); width: 61.8%; height: auto; aspect-ratio: 1; object-fit: contain; }
 .sc-win .tb-types { position: relative; z-index: var(--z-raised); }
 /* the facts, points and moves are the lower half of the same card: one panel joined on the seam, its tables one step up */
-.sc-spec { display: flex; flex-direction: column; gap: var(--s5); margin-top: var(--seam); padding: var(--s5); background: var(--panel); }
-/* on a sheet the card stands one step up, as every panel there does (DESIGN.md "Sheets") */
-.sheet .sc-mon :is(.case-win, .sc-spec) { background: var(--panel-2); }
-.sheet .sc-mon :is(.case-label, .sc-stats, .sc-moves li) { background: var(--rule); }
+.sc-spec { display: flex; flex-direction: column; gap: var(--s5); margin-top: var(--seam); padding-block: var(--s5); }
 .sc-facts { display: flex; flex-direction: column; gap: var(--s2); margin: 0; }
 .sc-facts > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: baseline; gap: var(--s3); }
 .sc-facts dt { font-size: var(--t12); color: var(--dim); }
@@ -90,7 +90,7 @@
 .sc-facts dd small { margin-left: var(--s2); font-size: var(--t12); font-weight: 400; color: var(--mute); }
 /* the points' label over the table, 8 above it as a label over its field; the rows share one grid so their columns line up */
 .sc-stat-block { display: grid; gap: var(--s2); }
-.sc-stats { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-auto-rows: minmax(32px, auto); align-items: center; column-gap: var(--s2); padding: var(--s1) var(--s3); background: var(--panel-2); font-size: var(--t15); }
+.sc-stats { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-auto-rows: minmax(32px, auto); align-items: center; column-gap: var(--s2); padding-block: var(--s1); box-shadow: inset 0 var(--hair) 0 var(--rule), inset 0 -1px 0 var(--rule); font-size: var(--t15); }
 .sc-stat { display: contents; }
 .sc-stat b { font-weight: 600; white-space: nowrap; }
 .sc-base { white-space: nowrap; color: var(--dim); }
@@ -102,25 +102,25 @@
 .sc-sp em.on { font-weight: 600; color: var(--lit); }
 .sc-moves { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin: 0; padding: 0; }
 /* a move slot holds its name over its type line; an empty slot keeps the same height, so cases stay the same length */
-.sc-moves li { display: flex; flex-direction: column; justify-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row2); padding: var(--s2) var(--s3); background: var(--panel-2); }
+.sc-moves li { display: flex; flex-direction: column; justify-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row2); padding-block: var(--s2); box-shadow: inset 0 -1px 0 var(--rule); }
 .sc-moves li b { display: block; min-width: 0; font-size: var(--t15); line-height: var(--l15); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-move-line { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 .sc-moves li small { font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
 .sc-pick { list-style: none; display: flex; flex-direction: column; gap: var(--s1); padding: 0; }
 .sc-pick-row { display: flex; flex-direction: column; align-items: stretch; gap: var(--s2); width: 100%; padding: var(--s3); background: transparent; text-align: left; color: inherit; transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .sc-pick-row:hover { background: var(--panel-2); }
+@media (hover: hover) { .sc-pick-row:hover { background: var(--tint); }
 }
 .sc-pick-main { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
 .sc-pick-main b { font-size: var(--t15); font-weight: 600; }
 .sc-pick-main small { font-size: var(--t12); color: var(--mute); }
 .sc-pick-row .sc-sprites img { width: 32px; height: 32px; }
 .sc-choose { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
-.sc-choose-mon { display: flex; flex-direction: column; align-items: center; gap: var(--s1); padding: var(--s2); background: var(--panel-2); color: var(--dim); font-size: var(--t12); font-weight: 600; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
+.sc-choose-mon { display: flex; flex-direction: column; align-items: center; gap: var(--s1); padding: var(--s2); box-shadow: inset 0 -1px 0 var(--rule); color: var(--dim); font-size: var(--t12); font-weight: 600; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
 .sc-choose-mon img { width: 52px; height: 52px; object-fit: contain; }
 .sc-choose-mon span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sc-choose-mon.on { background: var(--lit); color: var(--ground); }
+.sc-choose-mon.on { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); color: var(--lit); font-weight: 700; }
 
-/* an empty search, one form everywhere (DESIGN.md "Errors and empty"): one line on its panel; the count is in the search field */
+/* an empty search, one form everywhere (DESIGN.md "Errors and empty"): one line under its rule; the count is in the search field */
 .ypl-empty.search-none { margin-top: var(--s5); }
 
 /* ---------- privacy (PrivacyPage.jsx) ---------- */
@@ -128,7 +128,7 @@
    articles, held in view (draft 2A, 2026-11-19). On a phone the articles come after the reading */
 .pv-toc { margin-top: var(--s13); }
 .pv-toc-list { margin: 0; padding: 0; list-style: none; }
-.pv-toc-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: var(--h-control); padding: 0 var(--pad); text-align: left; }
+.pv-toc-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: var(--h-control); padding: 0; text-align: left; }
 .pv-toc-row > .num { flex: none; width: var(--s13); white-space: nowrap; }
 .pv-toc-row > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .pv .nw-body h3 { scroll-margin-top: calc(var(--nav-height) + var(--s5)); }
@@ -137,3 +137,60 @@
   .pv > :not(.pv-toc) { grid-column: 1; }
   .pv-toc { grid-column: 2; grid-row: 1 / span 3; position: sticky; top: calc(var(--nav-height) + var(--s8)); margin-top: 0; }
 }
+
+/* ---------- about (AboutPage.jsx: draft 1C, 2026-11-19, set as the almanac 2026-11-24; moved here from hall.css) ---------- */
+/* the big screen: the league's name, the first event as a thin figure and ↗ 디스코드 참여 in the 709, the next two steps in the 439,
+   the whole opening under one 2px rule */
+.ab-screen { display: grid; margin-top: var(--s5); }
+.ab-lead { display: grid; align-content: start; gap: var(--s3); padding-block: var(--s5) var(--s8); box-shadow: inset 0 -1px 0 var(--rule); }
+.ab-name { margin-top: calc(var(--s2) * -1); font-weight: 700; }
+.ab-n { color: var(--dim); }
+.ab-since { display: grid; gap: var(--s2); margin-top: var(--s5); }
+.ab-since-fig { display: flex; align-items: flex-end; gap: var(--s2); }
+.ab-since-fig > .t20 { margin-right: var(--s3); }
+/* a phone sets the first event at 52 so 2023년 5월 holds its line */
+@media (max-width: 859px) { .ab-since-fig .fig { font-size: calc(var(--s13) / .72); line-height: var(--s13); } }
+.ab-screen > * { min-width: 0; }
+.ab-spec { margin: 0; }
+.ab-spec > div { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); }
+.ab-spec dd { margin: 0; font-weight: 700; text-align: right; }
+.ab-lead > .btn--main { margin-top: var(--s5); }
+.ab-steps { margin: 0; padding: 0; list-style: none; }
+.ab-step { display: grid; gap: var(--s1); align-content: start; padding-block: var(--s5); }
+.ab-step > .ab-n { margin-bottom: var(--s3); }
+.ab-step .read, .ab-time .read, .ab-kind .read { margin: 0; color: var(--dim); }
+.ab-go { justify-self: start; display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-bottom: calc((var(--h-control) - var(--l12)) / -2); font-weight: 700; color: var(--lit); }
+.ab-sec { margin-top: var(--s13); }
+/* the season's flow: four words on one line under the rule, an arrow before every step but the first */
+.ab-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
+.ab-flow > li { display: flex; align-items: center; gap: var(--s2); min-height: var(--h-counter); white-space: nowrap; }
+.ab-flow > li + li::before { content: "→"; font-weight: 400; color: var(--dim); }
+.ab-flow > li:nth-child(3)::before { content: none; }
+/* the history: four stops, the current one under the thick rule */
+.ab-times { margin: 0; padding: 0; list-style: none; }
+.ab-time { display: grid; gap: var(--s1); align-content: start; padding-block: var(--s5); }
+.ab-when { font-family: var(--font-fig); font-size: var(--t20); line-height: var(--l20); font-weight: 400; letter-spacing: var(--ls-fig); white-space: nowrap; }
+.ab-time.inv .ab-when { font-weight: 700; }
+/* a competition or a league: its name at 20 and its kind as a word on one line, the reading under it */
+.ab-kind { display: grid; gap: var(--s2); padding-block: var(--s5); }
+.ab-kind-head { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+@media (min-width: 860px) {
+  /* the big screen split as the home's: the steps on the 439, a hairline between them */
+  .ab-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); column-gap: var(--s13); }
+  .ab-lead { box-shadow: none; }
+  .ab-steps { padding-left: var(--s8); box-shadow: inset 1px 0 0 var(--rule); }
+  .ab-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ab-flow > li:nth-child(3)::before { content: "→"; }
+  .ab-times { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--s5); }
+  .ab-two { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); }
+}
+
+/* ---------- the page for a missing address (StatusPage.jsx): 404 as one giant thin figure, 136 on a phone and 220 on desktop (its h),
+   its title under it as the figure's caption ---------- */
+.status-board { height: auto; margin-top: var(--s5); }
+@media (max-width: 859px) { .status-board .fig { font-size: calc((var(--s21) + var(--s13)) / .72); line-height: calc(var(--s21) + var(--s13)); } }
+@media (min-width: 860px) { .status-board { margin-top: var(--s8); } }
+.status-page .status-title { margin-top: var(--s8); padding-top: var(--s5); box-shadow: inset 0 var(--line) 0 var(--lit); max-width: 439px; }
+
+/* the battle's credits, one quiet line at the very end of 소개 */
+.ab-credit { margin-top: var(--s21); font-weight: 400; }

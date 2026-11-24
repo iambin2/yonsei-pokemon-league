@@ -17,7 +17,7 @@
 
 /* ---------- a counter: label 12 on top, a 40 display under it, 84 tall ---------- */
 /* 8 above the label's line box and 8 under it put about 12 of ink above the label and between it and the digits (the eye law) */
-.counter { height: var(--h-counter); padding: var(--pad); padding-top: var(--s2); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; }
+.counter { height: var(--h-counter); padding: var(--pad) 0; padding-top: var(--s2); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; }
 /* desktop: the 20 line of the label, 8, and the 40 display fill 84 with 8 above and under */
 @media (min-width: 860px) { .counter { padding-block: var(--s2); } }
 
@@ -25,93 +25,62 @@
 .row { display: flex; align-items: center; width: 100%; height: var(--h-row); text-align: left; }
 .row--2 { height: var(--h-row2); }
 .row-main { flex: 1; display: grid; gap: var(--s1); min-width: 0; padding-right: var(--s3); }
-.row-main:first-child { padding-left: var(--pad); }
+.row-main:first-child { padding-left: 0; }
 .row-lead { flex: none; }
 .row-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-main > b { font-weight: 700; }
-.row-value { flex: none; padding-right: var(--pad); }
+.row-value { flex: none; padding-right: 0; }
 /* a lamp stands before its word, as on the bar and the live strip; at a row's end it keeps the panel's padding like everything there */
-.row-lamp { flex: none; display: flex; justify-content: flex-end; align-self: stretch; align-items: center; padding: 0 var(--pad) 0 var(--s3); }
-.row-lamp-word { flex: none; display: inline-flex; align-items: center; gap: var(--s2); padding-right: var(--pad); font-weight: 600; white-space: nowrap; }
-
-/* ---------- a ranking as the line score (draft B): the sole leader an inverted row of 84, the name at 20 and the points at 32; the rest rows
-   of 52 at 20; each name over its bar on a track, the bars the points over the first's ---------- */
-.line-score { grid-template-columns: var(--s21) minmax(0, 1fr) auto; }
-/* the rows share the board's columns, so every track ends on one line whatever the points' width; a row with its record line is 64 */
-.ls-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: var(--s3); width: 100%; min-height: var(--h-row); padding-right: var(--pad); text-align: left; }
-.ls-row.two { min-height: var(--h-row2); }
-.ls-row.ls-first { min-height: var(--h-counter); }
-.ls-place { display: flex; align-items: center; gap: var(--s2); padding-left: var(--pad); color: var(--dim); white-space: nowrap; }
-.ls-first .ls-place { color: var(--ground); }
-.ls-main { display: grid; gap: var(--s1); min-width: 0; }
-.ls-main > :not(.bar) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ls-main > b { font-weight: 700; }
-.ls-live { font-weight: 600; }
-/* a figure and its unit join with none (Typesetting) */
-.ls-pts { display: flex; align-items: baseline; justify-content: flex-end; white-space: nowrap; }
-.ls-pts > b { font-weight: 700; }
+.row-lamp { flex: none; display: flex; justify-content: flex-end; align-self: stretch; align-items: center; padding: 0 0 0 var(--s3); }
+.row-lamp-word { flex: none; display: inline-flex; align-items: center; gap: var(--s2); padding-right: 0; font-weight: 600; white-space: nowrap; }
 
 /* ---------- a lead panel: the date lit, the title at 20 in two lines ---------- */
-.lead { display: grid; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
+.lead { display: grid; gap: var(--s3); width: 100%; padding: var(--pad) 0; text-align: left; }
 .lead-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); }
 .lead-date { display: flex; align-items: flex-end; gap: var(--s1); }
-.lead-date > .seg + span { margin-right: var(--s2); }
+.lead-date > .fig + span { margin-right: var(--s2); }
 .lead-lamp { display: flex; align-items: center; gap: var(--s2); }
-/* a notice's lead: the lamp with 새 글, the title at 20, its date as the grey line 4 under it (Space) */
+/* a notice's lead: the title at 20, its date (and 새 글, lit) as the grey line 4 under it (Space) */
 .nt-lead { gap: var(--s1); }
-.nt-lead > .lead-lamp { margin-bottom: var(--s2); }
 .lead-title + .reg { margin-top: calc(var(--s1) - var(--s3)); }
 .nt-lead > .lead-title + .reg { margin-top: 0; }
 .lead-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 700; }
 
 /* ---------- the live strip: 44, the amber lamp and the event, 대진표 → at the right; 20 above the page's first line ---------- */
-.live-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); width: 100%; min-height: var(--h-control); margin-bottom: var(--s5); padding: 0 var(--pad); text-align: left; }
+.live-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); width: 100%; min-height: var(--h-control); margin-bottom: var(--s5); padding: 0; text-align: left; }
 .live-strip-say { display: flex; align-items: center; gap: var(--s2); min-width: 0; font-weight: 700; }
 .live-strip-go { display: flex; align-items: center; gap: var(--s1); flex: none; color: var(--dim); }
 
-/* ---------- desktop hover lifts a panel one tone; nothing grows ---------- */
-@media (hover: hover) {
-  :is(button, a).pn:not(.inv):hover:not(:disabled) { background: var(--panel-2); }
-  /* the lit one stays lit under a pointer: it steps one tone down and keeps its words in the ground's colour */
-  :is(button, a).inv:hover:not(:disabled) { background: var(--dim); color: var(--ground); }
-}
+/* ---------- desktop hover lays the --tint step on a door, the decided one too: it keeps its lit words over its 2px rule and is never a
+   slab; nothing grows ---------- */
+@media (hover: hover) { :is(button, a):is(.pn, .inv):hover:not(:disabled) { background: var(--tint); } }
+/* room inside a door (2026-11-24, the owner: a hover lit up to the very edge of a check or a word, and the lit face must keep its size,
+   "켜지는 면의 크기는 유지하면서"): a row-like door's tint is its own box, and its words, check, switch, arrow, time or figure stand --band
+   inside it on both sides (12 on a phone, 20 from 860). Every row of one list takes the same inset. */
+:is(button, a, label):is(.row, .opt-row, .lead, .bd-post, .pv-toc-row, .hof-row, .tb-pokemon-row) { padding-inline: var(--band); }
+/* a cell that opens a select keeps its words inside it the same way */
+.cell:has(.dd-btn) { padding-inline: var(--band); }
 
 /* ---------- where a Pokémon stands: in a panel, its ink's feet on the floor band's top edge (Mon, inkCentre.js standInk) ---------- */
 .stand { --floor: 24%; position: relative; overflow: hidden; }
 /* the floor is a place, not a band: nothing is painted under a Pokémon (2026-11-03). A band with words keeps them; an empty one
    shrinks to 4 so the picture takes the cell. Only a chosen name band lights. */
 .floor { position: absolute; left: 0; right: 0; bottom: 0; height: var(--floor); }
-.stand:not(.champion):has(> .floor:empty) { --floor: var(--s1); }
-.floor.inv { background: var(--lit); }
+.stand:has(> .floor:empty) { --floor: var(--s1); }
 .mon { position: absolute; bottom: var(--floor); aspect-ratio: 1; object-fit: contain; object-position: 50% 100%; }
 /* a picture that arrived before the others of its group waits unseen for them (Board.jsx Mon) */
 .mon[data-late] { opacity: 0; }
 
-/* ---------- the current champion (draft B): the reign's half of the big screen. 현 챔피언, the generation, the name at 32 and the season
-   at the left, the Pokémon standing at the right, the six as one row of six cells across the panel, → 파티 보기 at its foot ---------- */
-.champion { display: flex; flex-direction: column; gap: var(--s3); width: 100%; padding: var(--pad); text-align: left; }
-.champion-head { flex: 1 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: calc(var(--s21) * 2); }
-.champion-who { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
-.champion-gen { margin-top: var(--s3); }
-.champion-who > b { max-width: 100%; margin-top: var(--s1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.champion-who > .reg { margin-top: var(--s1); }
-.champion-stand { --floor: 0; }
-.champion-stand .mon { right: 0; height: 100%; }
-.champion-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.champion-six > .stand { aspect-ratio: 1; }
-.champion-six .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s1)); margin-inline: auto; }
-.champion-more { display: flex; align-items: center; gap: var(--s1); min-height: var(--l12); font-weight: 600; }
-
-/* ---------- the main action: an inverted 52 panel, its mark (→, ✓, +) before the word, the two together in the centre ---------- */
+/* ---------- the main action: a filled 52 key, its mark (→, ✓, +) before the word, the two together in the centre ---------- */
 .btn.btn--main {
-  --btn-bg: var(--lit); --btn-bg-hover: var(--dim); --btn-fg: var(--ground);
+  --btn-bg: var(--lit); --btn-bg-hover: var(--dim); --btn-fg: var(--on-lit);
   justify-content: center; gap: var(--s3); width: 100%; min-width: 0; height: var(--h-row); padding: 0 var(--s5);
   font-size: var(--t15); line-height: var(--l15); font-weight: 700;
 }
 /* a main action that cannot act yet drops to a panel with muted words (DESIGN.md "Controls"), not a faded fill */
 /* in a row of small actions the main action keeps the row's 44 and its own width */
 .btn.btn--main.btn--sm { width: auto; height: var(--h-control); }
-.btn.btn--main:disabled:not([aria-busy="true"]) { --btn-bg: var(--panel); --btn-fg: var(--mute); opacity: 1; }
+.btn.btn--main:disabled:not([aria-busy="true"]) { --btn-bg: var(--tint); --btn-fg: var(--mute); opacity: 1; }
 /* a link: a 12px word underlined 4px under in --dim; 15 when it stands alone */
 .btn.btn--link {
   --btn-bg: transparent; --btn-bg-hover: transparent; --btn-fg: var(--dim);
@@ -120,8 +89,6 @@
 }
 .btn.btn--link.btn--lg { font-size: var(--t15); line-height: var(--l15); }
 @media (hover: hover) { .btn.btn--link:hover:not(:disabled) { --btn-fg: var(--lit); } }
-/* a lamp that is switched off keeps its place */
-.lamp.unlit { background: var(--panel-2); }
 
 /* ---------- a back link: 12 dim with a chevron, naming where it goes ---------- */
 .back { display: flex; width: fit-content; align-items: center; gap: var(--s1); min-height: var(--h-control); margin-block: calc((var(--h-control) - var(--l12)) / -2); }
@@ -131,34 +98,36 @@
 .q { display: grid; gap: var(--s2); min-width: 0; }
 .q + .q { margin-top: var(--s5); }
 .q .in, .q .dd-btn {
-  width: 100%; height: var(--h-row); min-height: var(--h-row); padding: 0 var(--pad); background: var(--panel); box-shadow: none;
+  width: 100%; height: var(--h-row); min-height: var(--h-row); padding: 0 var(--pad); background: transparent; box-shadow: inset 0 -1px 0 var(--dim);
   font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit);
 }
-.q textarea.in { height: auto; min-height: calc(var(--h-row) * 2); padding-block: var(--s3); line-height: var(--l-read); font-weight: 400; }
-.q.has-error .in { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.q textarea.in { height: auto; min-height: calc(var(--h-row) * 2); padding-block: var(--s3); line-height: var(--l-read); font-weight: 400; background: var(--tint); box-shadow: none; }
+.q.has-error .in, .q .in:focus-visible { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 /* an erring field in focus keeps its line alone: line and ring together stood over what is typed (2026-11-23) */
 .q.has-error .in:focus-visible { outline: none; }
 .q .in::placeholder { color: var(--mute); font-weight: 400; }
 .q-error { display: flex; align-items: center; gap: var(--s2); }
-.bang { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--lit); color: var(--ground); font-size: var(--t12); line-height: 1; font-weight: 700; }
-.inv .bang { background: var(--ground); color: var(--lit); }
+.bang { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--tint); color: var(--lit); font-size: var(--t12); line-height: 1; font-weight: 700; }
 
-/* choice: panels in a row, 44 tall, the chosen one inverted */
+/* choice: words in a row of 44 entries, the chosen one lit over the 2px rule */
 .choice { grid-template-columns: repeat(auto-fit, minmax(var(--s21), 1fr)); }
-.choice-opt { display: flex; align-items: center; justify-content: center; min-height: var(--h-control); padding: 0 var(--s3); text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); cursor: pointer; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
+.choice-opt { position: relative; display: flex; align-items: center; justify-content: center; min-height: var(--h-control); padding: 0 var(--s3); text-align: center; font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--dim); cursor: pointer; transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone); }
 .choice-opt.inv { color: var(--ground); font-weight: 700; }
-.choice-opt:has(:focus-visible), .check-row:has(:focus-visible) .box { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
+.choice-opt:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .choice-opt.inv:has(:focus-visible) { outline-color: var(--ground); }
-@media (hover: hover) { .choice-opt.pn:hover { background: var(--panel-2); } }
-/* check: a 20 square, off is panel-2, on is inverted with a check */
+@media (hover: hover) { .choice-opt.pn:hover { background: var(--tint); } }
+/* check: a solid 20 square, off --rule (--tint measured 1.06 to the ground in dark, a square no one could find), on filled --lit with its
+   mark in --on-lit; no outline. A pointer or a keyboard's focus steps the empty square up to --mute */
 .checks { display: grid; gap: var(--s3); }
 .check-row { display: flex; align-items: flex-start; gap: var(--s3); min-height: var(--s5); cursor: pointer; }
-.box { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--panel-2); }
-.box.on { background: var(--lit); color: var(--ground); }
+.box { display: grid; place-items: center; width: var(--s5); height: var(--s5); flex: none; background: var(--rule); transition: background-color var(--move-tone); }
+.box.on { background: var(--lit); color: var(--on-lit); }
+.check-row:has(:focus-visible) .box:not(.on), .push-kind:focus-visible .box:not(.on) { background: var(--mute); }
+@media (hover: hover) { :is(.check-row, .push-kind):hover:not(:disabled) .box:not(.on) { background: var(--mute); } }
 
 /* ---------- a cell: a label 12 over a value 15 in a 52 panel; a control inside fills the cell, focus draws the 2px line ---------- */
 .cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--seam); }
-.cell { position: relative; display: grid; align-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row); padding: 0 var(--pad); background: var(--panel); }
+.cell { position: relative; display: grid; align-content: center; gap: var(--s1); min-width: 0; min-height: var(--h-row); padding: 0; box-shadow: inset 0 -1px 0 var(--rule); }
 .cell.wide { grid-column: 1 / -1; }
 .cell-label { font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); }
 .cell > b, .cell > span:not(.cell-label) { font-size: var(--t15); line-height: var(--l15); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -170,14 +139,16 @@
 .cell .dd-btn:active { scale: none; }
 .cell:has(.dd-btn:active:not(:disabled)) { scale: .976; transition: scale var(--move-press); }
 .cell .dd-btn:focus-visible { outline: none; }
+/* open, the cell's one line is the 2px --lit; the button inside draws none (2026-11-24: its own 2px stood over the cell's, two lines) */
 .cell:has(.dd.open) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cell .dd.open .dd-btn { box-shadow: none; }
 .cell:has(.dd-btn:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .cell .pick-clear { z-index: var(--z-raised); }
 .cell .tb-locked-item { min-height: 0; padding: 0; background: none; }
-@media (hover: hover) { .cell:has(.dd-btn:not(:disabled)):hover { background: var(--panel-2); } }
+@media (hover: hover) { .cell:has(.dd-btn:not(:disabled)):hover { background: var(--tint); } }
 
-/* ---------- option rows: 64 panels with a title and a line; the chosen one inverted with a check ---------- */
-.opt-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-row2); padding: var(--s2) var(--pad); cursor: pointer; transition: background-color var(--move-tone); }
+/* ---------- option rows: 64 entries with a title and a line; the chosen one lit over the 2px rule with a check ---------- */
+.opt-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-row2); padding: var(--s2) 0; cursor: pointer; transition: background-color var(--move-tone); }
 .opt-copy { display: grid; gap: var(--s1); min-width: 0; }
 .opt-line { color: var(--dim); }
 .opt-row.inv .opt-line { color: var(--ground); }
@@ -185,7 +156,7 @@
 .opt-row.pn.off { color: var(--mute); }
 .opt-row:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
 .opt-row.inv:has(:focus-visible) { outline-color: var(--ground); }
-@media (hover: hover) { .opt-row.pn:not(.off):hover { background: var(--panel-2); } }
+@media (hover: hover) { .opt-row.pn:not(.off):hover { background: var(--tint); } }
 
 /* ---------- the dock: the main action docks above the tab bar on a ground strip with a hairline ---------- */
 .dock { position: relative; }
@@ -201,7 +172,7 @@
   .ypl.is-admin:has(.page .dock) .site-foot-in { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-height) + var(--admin-height) + var(--h-counter) + var(--s13)); }
 }
 
-/* ---------- a toast: an inverted 52 panel above the docked action; its one action an underlined word ---------- */
+/* ---------- a toast: a filled 52 strip above the docked action; its one action an underlined word ---------- */
 .toast-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 600; }
 .toast-say { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
 .toast-act { flex: none; min-height: var(--h-control); font-size: var(--t12); line-height: var(--l12); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: var(--hair); }
@@ -217,33 +188,69 @@
 
 /* ---------- search: a 52 field panel with the icon; focus draws the 2px line ---------- */
 .search { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.search-in { display: flex; align-items: center; gap: var(--s3); flex: 1; min-width: 0; height: var(--h-row); padding: 0 var(--pad); color: var(--mute); cursor: text; }
-.search-in:has(input:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: calc(var(--line) * -1); }
+.search-in { display: flex; align-items: center; gap: var(--s3); flex: 1; min-width: 0; height: var(--h-row); padding: 0 var(--pad); color: var(--mute); cursor: text; box-shadow: inset 0 -1px 0 var(--dim); }
+.search-in:has(input:focus) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .search-in input { flex: 1; min-width: 0; min-height: 0; height: 100%; padding: 0; background: none; box-shadow: none; font-size: var(--t15); line-height: var(--l15); color: var(--lit); }
-.search-in input:focus-visible { outline: none; box-shadow: none; }
+.search-in input:focus { outline: none; box-shadow: none; }
 .search-clear { display: grid; place-items: center; width: var(--h-control); height: var(--h-control); margin-right: calc(var(--pad) * -1); color: var(--dim); }
 .search-count { flex: none; }
 /* a field answers a pointer as a panel does (Controls: desktop hover lifts a panel to --panel-2) */
-@media (hover: hover) { .pn.search-in:hover { background: var(--panel-2); } }
+@media (hover: hover) { .pn.search-in:hover { background: var(--tint); } }
+
+/* ---------- a control row (2026-11-24, the owner: the search, the chips and the select stood on lines at three heights, "분절된 것처럼
+   보여"): every part stands 52 tall on ONE 1px --dim line drawn under the whole row; a part's own line goes. A chosen chip's 2px rule, a
+   focused search's and an open select's 2px line fall on that same line. On a phone the search takes its own line and the rest share the next;
+   from 860 everything stands on one line, the search taking the room that is left and a select 220. ---------- */
+.ctl-row { display: flex; flex-wrap: wrap; align-items: stretch; min-width: 0; }
+.ctl-row > * { min-height: var(--h-row); box-shadow: inset 0 -1px 0 var(--dim); }
+.ctl-row > .search { flex: 1 1 100%; }
+.ctl-row > .search > .search-in { box-shadow: none; }
+.ctl-row > .search > .search-in:has(input:focus) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.ctl-row > .chips { flex: none; flex-wrap: nowrap; overflow-x: auto; align-items: stretch; gap: 0; margin: 0; padding: 0; }
+.ctl-row > .chips > * { height: auto; min-height: var(--h-row); box-shadow: none; }
+.ctl-row > .chips > ::after { inset: 0; }
+.ctl-row > .dd, .ctl-row > .ctl-grow { flex: 1 1 calc(var(--s21) + var(--s13)); width: auto; }
+.ctl-row .dd-btn { height: 100%; box-shadow: none; }
+.ctl-row > .btn { flex: none; width: auto; align-self: center; }
+.ctl-row > .btn--main { box-shadow: none; }
+@media (min-width: 860px) {
+  .ctl-row > .search { flex: 1 1 0; }
+  .ctl-row > .dd { flex: none; width: calc(var(--s21) * 2 + var(--s13)); }
+}
+
+/* ---------- a control that a list follows straight under it opens that list (2026-11-24, the owner: the search's line and the list's
+   opening rule stood one on the other, "두 줄이 있어 보이는"): the control's own line is the list's 2px lit rule, and the list draws no
+   rule and keeps no gap of its own. One line, whatever the control: a search, a control row, the tools over a board's list. ---------- */
+:is(.nw-search, .bd-tools, .bt-hall-tools, .rc-list > .search):has(+ :is(.opens, .tb-pokemon-list)) .search-in,
+.ctl-row:has(+ :is(.opens, .tb-pokemon-list)) > *,
+.calc-tier-search:has(+ .calc-tiers) input { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+:is(.nw-search, .bd-tools, .bt-hall-tools, .ctl-row, .calc-tier-search, .rc-list > .search) + :is(.opens, .tb-pokemon-list, .calc-tiers) { margin-top: 0; padding-top: 0; box-shadow: none; }
 
 /* ---------- a spec: key and value rows of 44 inside a stack ---------- */
-.spec-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; min-height: var(--h-control); padding: var(--s3) var(--pad); }
+.spec-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; min-height: var(--h-control); padding: var(--s3) 0; }
 
 /* a counter's lamp stands 8 before its label; its unit stands on the display's baseline */
 .counter-label { display: flex; align-items: center; gap: var(--s2); }
 .counter-board { display: flex; align-items: flex-end; gap: var(--s1); }
 .counter-board > .t15 { line-height: 1; }
 
-/* a second action: a panel button, 52 tall, the word centred, lit */
+/* a second action (2026-11-24, the owner: no outlined box, "외곽선이 있는 네모칸이 전부 너무너무 어색해", and then not floating either,
+   "너무 공중에 둥둥 떠보임"): a word key standing on its own place, lit 700 words centred over the key's own 1px --rule line across its
+   share, 52 tall (44 in a row of small actions), so a row of keys reads as entries on one ruled line beside the filled main key of the same
+   height. A pointer lays --tint on the key; the words keep room inside it. */
 .btn.btn--second {
-  --btn-bg: var(--panel); --btn-bg-hover: var(--panel-2); --btn-fg: var(--lit);
-  width: 100%; min-width: 0; height: var(--h-row); padding: 0 var(--s5); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none;
+  --btn-bg: transparent; --btn-bg-hover: var(--tint); --btn-fg: var(--lit);
+  justify-content: center; width: 100%; min-width: 0; height: var(--h-row); padding: 0 var(--s5); box-shadow: inset 0 -1px 0 var(--rule);
+  font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-decoration: none;
 }
+.btn.btn--second.btn--sm { height: var(--h-control); }
+/* a "N명 전체 보기" that ends a list is an entry of it: the words and → over the hairline, spanning the column, --band inside it */
+.btn.btn--second.btn--line { justify-content: space-between; padding: 0 var(--band); }
 
 /* ---------- page tabs: words on a 44 line, the chosen one 700 and lit with a 2px line under it ---------- */
-/* steps of a flow: a row of 44 panels joined by the seam */
+/* steps of a flow: a row of 44 entries; the current one lit over the 2px rule */
 .steps { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
-.step { display: flex; align-items: center; gap: var(--s2); min-width: 0; min-height: var(--h-control); padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--mute); white-space: nowrap; }
+.step { position: relative; display: flex; align-items: center; gap: var(--s2); min-width: 0; min-height: var(--h-control); padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--mute); white-space: nowrap; }
 .step.done { color: var(--dim); }
 .step.inv { color: var(--ground); font-weight: 700; }
 /* the frame draws the row's hairline; the words scroll inside it */
@@ -265,12 +272,12 @@
 .status { display: inline-flex; align-items: center; gap: var(--s2); white-space: nowrap; }
 .row-value .status { display: flex; }
 
-/* ---------- chips: 32 panels, 12px, the applied one inverted; a long row is the browser's own sideways scroll ---------- */
+/* ---------- chips: 32 entries, 12px, the applied one lit over the 2px rule; a long row is the browser's own sideways scroll ---------- */
 .chips { display: flex; gap: var(--seam); overflow-x: auto; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chips > * { flex: none; display: flex; align-items: center; height: var(--h-strip); min-height: var(--h-strip); padding: 0 var(--s3); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); white-space: nowrap; }
 .chips > .inv { color: var(--ground); font-weight: 700; }
-@media (hover: hover) { .chips > .pn:hover { background: var(--panel-2); } }
+@media (hover: hover) { .chips > .pn:hover { background: var(--tint); } }
 /* a chip is a 32 strip but takes a finger's 44: its target runs 6 past it above and below, inside room the row keeps for it */
 .chips { padding-block: calc((var(--h-control) - var(--h-strip)) / 2); margin-block: calc((var(--h-control) - var(--h-strip)) / -2); }
 .chips > * { position: relative; }
@@ -282,42 +289,41 @@
   .chips > ::after { inset: 0; }
 }
 @media (max-width: 859px) {
-  .page :is(.tabsline, .chips:not(.sheet .chips)) { margin-right: calc(var(--gutter) * -1); padding-right: var(--gutter); }
+  .page :is(.tabsline, .chips:not(.sheet .chips, .ctl-row > .chips)) { margin-right: calc(var(--gutter) * -1); padding-right: var(--gutter); }
 }
 
 /* ---------- alerts (PushControl.jsx): a switch row, the kinds board, and the sheet that says why first ---------- */
 .push-ask { display: grid; gap: var(--s5); }
-.push-note { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--pad); }
-/* a switch: 52 by 32; off is a muted square in panel-2, on is inverted with the square at the right */
-.switch-row { justify-content: space-between; padding-right: var(--pad); }
-.sw { display: flex; width: var(--s13); height: var(--h-strip); padding: var(--s1); flex: none; background: var(--panel-2); transition: scale var(--move-press), background-color var(--move-tone); }
-.sw i { width: 24px; height: 24px; background: var(--mute); }
+.push-note { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--pad) 0; }
+/* a switch: 52 by 32, a solid --rule track (as a check's square) with a --dim square at the left; on, the track is --lit and the square --on-lit at the right. No outline */
+.switch-row { justify-content: space-between; padding-right: 0; }
+.sw { display: flex; width: var(--s13); height: var(--h-strip); padding: var(--s1); flex: none; background: var(--rule); transition: scale var(--move-press), background-color var(--move-tone); }
+.sw i { width: 24px; height: 24px; background: var(--dim); }
 .sw.on { background: var(--lit); }
 /* the square slides across the track as the switch turns */
 .sw i { transition: transform var(--move-tone), background-color var(--move-tone); }
 .sw.on i { transform: translateX(calc(var(--s13) - var(--s1) * 2 - 24px)); }
-.sw.on i { background: var(--ground); }
+.sw.on i { background: var(--on-lit); }
 /* a switch that cannot be pressed keeps its track and steps its square down one tone */
 :disabled .sw i { background: var(--rule); }
-/* the kinds board on the alerts page: two columns of 64 cells, an alert kind's name over its group, the kinds this device takes inverted */
+/* 받을 알림 on the alerts page: a 12 label over the 2px rule, then a row of 64 for each kind, its name lit at 15/700 over its group, the
+   check at the row's end; two columns from 860 */
 .push-group { margin-top: var(--s8); }
-.push-label { margin-bottom: var(--s3); }
-.push-board { grid-template-columns: 1fr 1fr; }
-/* an odd last kind takes the row, so the board has no empty cell (Composing a screen 26) */
-.push-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.push-cell { display: grid; align-content: center; gap: var(--s1); height: var(--h-row2); padding: 0 var(--pad); text-align: left; }
+.push-label { padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.push-kind .row-main > b { font-weight: 700; }
+.push-kind:disabled .box { opacity: var(--opacity-disabled); }
+@media (min-width: 860px) { .push-board { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s8); } }
 
 /* ---------- errors and empty (DESIGN.md "Errors and empty"): the ! square and a sentence, then one way out ---------- */
-.error-note { display: grid; gap: var(--s3); padding: var(--pad); }
+.error-note { display: grid; gap: var(--s3); padding: var(--pad) 0; }
 /* on a desktop its one way out is as wide as its word, at the start (Composing a screen 27; 2026-11-23 audit, R-07) */
 @media (min-width: 860px) { .error-note > .btn { justify-self: start; width: auto; } }
 /* a note that follows a page's head or its search stands a block below it, not on it (measured 0 under 대진표, 공지 and the home's screen) */
-:is(.bk-head, .nw-search, .ho-screen) + .error-note { margin-top: var(--s5); }
+:is(.bk-head, .nw-search) + .error-note { margin-top: var(--s5); }
 .error-say { display: flex; align-items: flex-start; gap: var(--s3); font-weight: 600; }
 /* an empty place stands on a panel of its own, as 지금 할 일이 없습니다. and the notices' no-match do: its two lines on the open ground
    read as words left floating (2026-11-10, the user: "텍스트 홀로 둥 떠있는 걸 안 좋아해"); on a sheet it is one step up, as every panel there */
-.ypl-empty { display: grid; gap: var(--s1); padding: var(--s5) var(--pad); background: var(--panel); }
-.sheet .ypl-empty { background: var(--panel-2); }
+.ypl-empty { display: grid; gap: var(--s1); padding: var(--s5) 0; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
 .back + .ypl-empty { margin-top: var(--s5); }
 .ypl-empty b { font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
 .ypl-empty p { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }
@@ -326,7 +332,6 @@
 .status-label { display: flex; align-items: center; gap: var(--s2); }
 .status-board { display: flex; align-items: flex-end; height: 120px; margin-top: var(--s3); }
 /* on desktop 404 is the hero at 240, as the home's countdown (DESIGN.md "Hierarchy" tier 0): the same cells drawn twice as tall */
-@media (min-width: 860px) { .status-board { height: 240px; } .status-board > .seg { width: auto; height: 240px; } }
 /* 404 leads with its display, so its title is the display's caption: 20 on a phone, 32 on desktop, as the home's event name;
    an error page has no display and its title is the page's (32) */
 .status-title { margin-top: var(--s5); }
@@ -338,24 +343,31 @@
 .status-links:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---------- the chosen word's line: the word's own ::before, as wide as the word; a change slides it in by transform (motion.js slideLine) ---------- */
-.tabsline > button.on::before, .navlink:is([aria-current="page"], [data-current])::before {
+.tabsline > button.on::before, .navlink:is([aria-current="page"], [data-current])::before, .seg-track > button[aria-selected="true"]::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--line); background: var(--lit); transform-origin: left center; pointer-events: none;
+}
+
+/* ---------- the chosen one's rule among chips, choices, option rows and steps: its own ::before over the hairline, so a change of
+   choice draws it in from the start edge in a tone while its words tone with it (motion.js drawRule; a Segmented row and page tabs
+   slide one line instead) ---------- */
+:is(.chips > .inv, .choice-opt.inv, .opt-row.inv, .step.inv) { box-shadow: inset 0 -1px 0 var(--rule); }
+:is(.chips > .inv, .choice-opt.inv, .opt-row.inv, .step.inv)::before {
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--line); background: var(--lit); transform-origin: left center; pointer-events: none;
 }
 
 /* ---------- the cursor (2026-11-03): a desktop pointer gets an answer from everything it can press, by tone and a 4 nudge.
    A Pokémon in a door steps up 4 off its floor; an arrow leans 4 toward where it goes; a word brightens. Nothing grows. ---------- */
 .mon { transition: transform var(--move-tone), opacity var(--move-tone); }
-:is(.btn, .champion-more, .ab-go, .back, .sh-link, .site-foot-dc) .ic { transition: transform var(--move-tone); }
+:is(.btn, .ab-go, .back, .sh-link, .site-foot-dc) .ic { transition: transform var(--move-tone); }
 .sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) {
   :is(button, a):hover:not(:disabled) .mon { transform: translateY(calc(var(--s1) * -1)); }
   /* only an arrow leans, toward where it goes (DESIGN.md "Motion", the pointer); a check or a + stays still */
-  :is(.btn--main, .champion, .ab-go, .site-foot-dc):hover:not(:disabled) :is(.ic-arrow, .ic-ext) { transform: translateX(var(--s1)); }
+  :is(.btn--main, .ab-go, .site-foot-dc):hover:not(:disabled) :is(.ic-arrow, .ic-ext) { transform: translateX(var(--s1)); }
   .back:hover .ic { transform: translateX(calc(var(--s1) * -1)); }
   .site-foot-admin:hover, .site-foot-dc:hover, .site-foot-login:hover { color: var(--lit); }
   .row:not(.inv):hover .row-main > b { color: var(--lit); }
 }
-/* below the first screen a panel waits dark until it scrolls into view (motion.js light) */
 @media (prefers-reduced-motion: reduce) { .mon { transition: none; } }
 
 /* a Pokémon that just joined a team or a cell rises into it */
@@ -370,12 +382,42 @@
 .bar { position: relative; display: block; min-width: 0; }
 .bar > svg { display: block; width: 100%; height: var(--seam); height: round(var(--seam), var(--dpx, 1px)); overflow: visible; }
 .bar.thick > svg { height: var(--s2); height: round(var(--s2), var(--dpx, 1px)); }
-.bar rect { fill: var(--panel-2); }
-.sheet .bar rect:first-child { fill: var(--rule); }
+.bar rect { fill: var(--rule); }
 .bar .on { fill: var(--dim); }
 .bar.thick .on { fill: var(--lit); }
 .bar .under { fill: var(--dim); }
-.inv .bar rect:first-child { fill: var(--dim); }
-.inv .bar .on { fill: var(--ground); }
+.inv .bar .on { fill: var(--lit); }
 .bar > input[type="range"] { position: absolute; left: 0; right: 0; top: 50%; width: 100%; height: var(--h-strip); margin: 0; translate: 0 -50%; opacity: 0; cursor: pointer; }
 .bar:has(:focus-visible) { outline: var(--line) solid var(--lit); outline-offset: var(--s1); }
+
+/* ---------- a toast stays filled (the almanac, 2026-11-24): it must be found at once over whatever it lies on, so it is the one decided
+   thing that keeps a lit surface, its words in the ground's own colour ---------- */
+:is(.toast, .toast-panel).inv { --ground: var(--on-lit); background: var(--lit); color: var(--on-lit); box-shadow: none; }
+
+/* ---------- a page's name (the almanac, 2026-11-24): the page title set as the records draft sets 기록, 52 on a phone and 84 on desktop.
+   A thing opened inside a page (a notice, a post, a bracket) keeps its title at 32. ---------- */
+.page-title { font-size: var(--s13); line-height: calc(var(--s13) + var(--s2)); font-weight: 700; letter-spacing: var(--ls32); }
+@media (min-width: 860px) { .page-title { font-size: var(--s21); line-height: calc(var(--s21) + var(--s2)); } }
+
+/* ---------- 고대비 (tokens.css, DESIGN.md "Colour and light"): the platform's high-contrast convention in the board's own parts. Words
+   and section rules stay the ink; everything a finger can act on or that is chosen takes --act (yellow on black, the link blue on white):
+   links and word keys, the chosen tab's, chip's and option's words and their 2px rule, the decided entry, the main key's fill, a check and a
+   switch that are on, a field's line in focus. --hl (cyan on black, purple on white) is the focus ring, a pointer on the main key and
+   selected text. Every rule here waits on data-contrast, so the other themes never see it. ---------- */
+:root[data-contrast="more"] { accent-color: var(--act); caret-color: var(--act); }
+:root[data-contrast="more"] ::selection { background: var(--hl); color: var(--on-lit); }
+:root[data-contrast="more"] :is(.btn.btn--link, .btn.btn--second, .modal-actions .btn:is(.btn--link, .btn--second)):not(.bt-forfeit) { --btn-fg: var(--act); }
+:root[data-contrast="more"] :is(.back, .sh-link, .ho-key:not(.done), .site-foot-dc, .site-foot-login, .site-foot-admin, .admin-dock-desk) { color: var(--act); }
+:root[data-contrast="more"] :is(.tabsline > button.on, .navlink:is([aria-current="page"], [data-current]), .tab:is([aria-current="page"], [data-current]),
+  .seg-track > button[aria-selected="true"], .mi.on, .mi.on .check, .dd-opt.sel, .dd-tick, .pick-row > .check) { color: var(--act); }
+:root[data-contrast="more"] :is(.tabsline > button.on, .navlink:is([aria-current="page"], [data-current]), .tab:is([aria-current="page"], [data-current]),
+  .seg-track > button[aria-selected="true"], .chips > .inv, .choice-opt.inv, .opt-row.inv, .step.inv)::before { background: var(--act); }
+/* the decided entry reads its ink as --act, so its words, its rule and every mark it once set in the ink or the ground turn with it */
+:root[data-contrast="more"] .inv:not(.toast, .toast-panel) { --lit: var(--act); }
+:root[data-contrast="more"] .btn.btn--main:is(:not(:disabled), [aria-busy="true"]) { --btn-bg: var(--act); --btn-bg-hover: var(--hl); --btn-fg: var(--on-lit); }
+:root[data-contrast="more"] .page.is-going .btn.btn--main { --btn-bg: var(--tint); --btn-fg: var(--lit); }
+:root[data-contrast="more"] :is(.box.on, .sw.on, :where(.ypl) input[type="checkbox"]:not(.sr-only):checked) { background: var(--act); }
+:root[data-contrast="more"] .bar.thick .on { fill: var(--act); }
+:root[data-contrast="more"] :is(.q .in:focus-visible, .search-in:has(input:focus), .ctl-row > .search > .search-in:has(input:focus), .dd.open .dd-btn, .cell:has(.dd.open),
+  :where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--act); }
+:root[data-contrast="more"] :is(:focus-visible:not(.btn--main, .skip-link), .choice-opt:has(:focus-visible), .cell:has(.dd-btn:focus-visible), .opt-row:has(:focus-visible), .bar:has(:focus-visible)) { outline-color: var(--hl); }

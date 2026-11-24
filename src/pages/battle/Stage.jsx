@@ -8,18 +8,18 @@ import * as fx from "./stageFx.js";
 import * as cam from "./stageCamera.js";
 import { cry, loadCry } from "./cries.js";
 import { sfx, conditionSound } from "./sfx.js";
-import { DUR, EASE_OUT, fall, light, reduced } from "../../components/common/motion.js";
-import { boardOff, boardOn } from "./changeover.js";
+import { DUR, EASE_OUT, reduced } from "../../components/common/motion.js";
+import { arrive, previewLeaves, ruleLeaves, stageOpens } from "./changeover.js";
 import { HIDDEN_VOLATILES, STAT, STATUS, currentTypes, effLabel, effectType, effectWord, effectiveness, maxPP } from "./battleWords.js";
 // the words and the matchups live in battleWords.js (plain JS, so the battle tests read them as the screen does)
 export { STATUS, effLabel, effectWord, effectiveness };
-import Seg from "../../components/common/Seg.jsx";
+import Fig from "../../components/common/Fig.jsx";
 import { Bar, Mon } from "../../components/common/Board.jsx";
 import Icon from "../../components/common/Icon.jsx";
 
 /* 배틀 무대 (DESIGN.md "Battle", The stage). 경기장 위에 두 편이 마주 서고, 각 포켓몬 머리 위에 쇼다운처럼 상태 막대가 뜬다.
    날씨, 필드, 룸, 벽, 설치기는 무대 위에 그대로 남아 보이고, 기록 한 줄마다 stageFx.js의 연출이 돈다.
-   무대는 테마와 상관없이 늘 밤의 남색 경기장이다(영상의 레터박스처럼). */
+   무대의 바탕은 페이지의 바탕이고, 조명이 꺼진 경기장은 그 바탕으로 어두워진다(검거나 남색인 판이 따로 서지 않는다). */
 
 export const other = side => (side === "p1" ? "p2" : "p1");
 export const keyOf = ident => String(ident).slice(0, 3);
@@ -358,29 +358,34 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
             const fresh = first && !stageRef.current;
             // the plates wait for the leads: on a stage already standing (a replay's start) they go out before anything is shown
             if (first && stageRef.current) intro(stageRef.current);
-            /* the board changes over (changeover.js; rebuilt 2026-11-10 from eight blank panels, "너무 심플해서": now the board's
-               modules run in from both edges, meet in the middle and switch off from the centre out). Before that:
-               blank panels switch on over the team preview from the middle out while the pick
-               beside it sinks away, the court takes the room under them, and they switch off on it (2026-11-08, the user: the lit
-               cards cut to the dark court in one frame; 2026-11-10: a transition of its own, not the lift) */
-            const board = fresh ? await Promise.all([boardOff(document.querySelector(".bt-match .bt-stagebox")),
-              ...[...document.querySelectorAll(".bt-match .bt-pickdock")].map(fall)]).then(([b]) => b) : null;
+            /* the changeover (changeover.js, the almanac's, 2026-11-24): the team preview's entries leave top to bottom, the pick
+               with them, and the stage keeps its box; a lit rule draws across its top as the battle's frame stands there, and the court
+               tones in under it (2026-11-08, the user: the lit cards cut to the dark court in one frame; 2026-11-10: a transition of
+               its own, not the lift) */
+            // the column's parts in reading order (the menu's rows one by one) with 기권 last
+            const sideParts = () => {
+              const side = document.querySelector(".bt-match .bt-side");
+              const forfeit = side?.querySelector(".bt-forfeit");
+              const parts = side ? [...side.children].flatMap(el => (el.classList.contains("bt-menu") ? [...el.children] : [el])).filter(el => el !== forfeit) : [];
+              return [...parts, forfeit].filter(Boolean);
+            };
+            const stood = new Set(fresh ? sideParts() : []);
+            if (fresh) await previewLeaves(document.querySelector(".bt-match .bt-stagebox"));
             standing.delete(k);
             show();
-            // the panels switch off on the court once it stands, lamps off (hideAll below runs in this same frame, before their beat)
-            const uncovered = boardOn(board);
-            // the column beside it is the battle's now (its moves, its party), and lights as the stage stands
-            if (fresh) light(document.querySelector(".bt-match .bt-side"), DUR.leave);
-            // and so do the keys under the stage, which came with it, instead of standing at once while the panels still cover it
-            if (fresh) light(document.querySelector(".bt-match .bt-deck"), DUR.leave);
             // the stage mounts with the first lead, so it is read again here
             const st = stageRef.current;
-            // the opening (DESIGN.md "Battle", The big moments): the lamps switch on, then the throws
+            const ruled = fresh ? stageOpens(st) : null;
+            /* what is new beside it and under it (the party in the column, the keys) comes in reading order after the stage, 기권 last,
+               each at its own light: a locked deck at the locked light, never lit first (2026-11-24, recorded: the moves stood in full
+               colour, then dropped). What stood through the change (the head, the menu) stays as it is */
+            if (fresh) arrive([...sideParts().filter(el => !stood.has(el)), ...document.querySelectorAll(".bt-match .bt-deck > *")], DUR.light);
+            // the opening (DESIGN.md "Battle", The big moments): the court tones in out of the page's ground, then the throws
             if (first && st) {
               opened = true;
               // each side's plates come in as its lead stands (and all of them by the first turn, or the end of this run)
               intro(st);
-              // nobody stands before their ball is thrown (the canvas draws the Pokémon, so it is the canvas that hides them), lamps off
+              // nobody stands before their ball is thrown (the canvas draws the Pokémon, so it is the canvas that hides them), the court at the ground
               fx.hideAll(st, { dark: true });
               /* on a phone 선출 확정 stands at the foot of the long team preview, and the stage that replaces it was left above the
                  screen, the throws with it: in the same frame the stage first paints, the page comes back up to it, so it is one change */
@@ -388,11 +393,12 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
                 const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-height")) || 0;
                 const top = (st.closest(".bt-arena") || st).getBoundingClientRect().top - bar;
                 if (top < 0) window.scrollBy({ top, behavior: "instant" });
-                // the pictures go onto the GPU one a frame while the lamps are off, so the lamps and the throws never stop for an upload
-                await Promise.all([fx.warm(st, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl)).concat(fx.SUBSTITUTE)), uncovered]);
+                // the pictures go onto the GPU one a frame while the rule draws, so the court's light and the throws never stop for an upload
+                await Promise.all([fx.warm(st, ["p1", "p2"].flatMap(s => R.state.sides[s].preview.map(spriteUrl)).concat(fx.SUBSTITUTE)), ruled]);
               }
               fx.sceneOn(); opening = true;
               await fx.opening(st);
+              if (ruled) ruled.then(ruleLeaves);
             }
             if (opener && text.length) { shown = text; flushSync(() => said.set(shown)); saidAt = performance.now(); }
            
@@ -457,8 +463,8 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
           case "turn": show(); stageRef.current?.classList.remove("bs-intro"); await toWide(); sfx("turn"); fx.turnMark(stage); break;
           case "end": {
             /* the end (DESIGN.md "Battle", The big moments): the camera holds on the wide shot (2026-11-06: its push onto the winner
-               moved the whole screen for no reason) and the match board lights over the arena: the Pokémon each side knocked out switch
-               on, then the winner's row inverts with 승리 and the loser's dims; that is the celebration */
+               moved the whole screen for no reason) and the arena's own frame says it in one beat with the result band: the winner's
+               rule draws in under its strip and the loser's mutes; that is the celebration */
             // the strips turn with the message, not after the camera has settled
             show();
             fx.sceneOn();
@@ -468,8 +474,9 @@ export function useStageTape(log, res, perspective, epoch = 0, live = false, sea
           }
           default: show();
         } } catch (err) { console.error("stage", err); show(); }
-        // an ability's or an item's plate has stood its own beat and stays over its owner: its line is not held again
-        if (text.length && !chain && event?.verb !== "ability" && event?.verb !== "item") await fx.hold(saidAt, MSG_MS);
+        /* an ability's or an item's plate has stood its own beat and stays over its owner: its line is not held again. Nor is the end's:
+           the message window turns to the result band as the strips say it, one beat (2026-11-24) */
+        if (text.length && !chain && !["ability", "item", "end"].includes(event?.verb)) await fx.hold(saidAt, MSG_MS);
       }
       if (landing.length) await Promise.all(landing);
       if (leads.length) await Promise.all(leads);
@@ -658,9 +665,10 @@ function Tags({ tags }) {
 // the message window over the bottom of the stage: the newest line lit, the one before it dim; when the game asks
 // (리자몽은 무엇을 할까?) the question is the newest
 /* result: at the end (2026-11-18, the owner's draft A of the end, "승자의 무대와 결과 띠"), the window becomes the result band, the court
-   still standing over it with the last Pokémon on it: the result at 32 (inverted when it is the decided thing the seat or a watcher
-   reads, a panel when the seat lost), how it went under it at 15, and at its right each side's name with the Pokémon it brought, a
-   fallen one grey. { title, line, won, sides: [{ name, mons: [{ species, out }] }] } */
+   still standing over it with the last Pokémon on it: the result at 32 (decided, over the 2px lit rule, when it is what the seat or a
+   watcher reads; over the hairline when the seat lost), how it went under it at 15, and at its right each side's name with the
+   Pokémon it brought, a fallen one grey. It rises 12 into the window as the strips say the end, one beat (battle.css .bt-result).
+   { title, line, won, sides: [{ name, mons: [{ species, out }] }] } */
 export function Say({ said: box, ask, result = null, res = null }) {
   const said = useBox(box);
   if (result) return <div className={"bt-say bt-result" + (result.won ? " inv" : "")} role="status">
@@ -673,8 +681,8 @@ export function Say({ said: box, ask, result = null, res = null }) {
 }
 
 
-/* the clock on the stage (DESIGN.md "Battle", The clock): the seconds of a decision in segment cells, as the board announces a
-   number, and a bar under them emptying as the 90 run out; amber under 30, red for the last 10. mine: the decision owed is ours.
+/* the clock on the stage (DESIGN.md "Battle", The clock): the seconds of a decision as a thin figure, and a line under them emptying
+   as the 90 run out; amber under 30, red for the last 10. mine: the decision owed is ours.
    held: an operator paused the clock; the seconds it holds stand dim and still, with no warning tone */
 const CLOCK = 90;
 function Clock({ left, mine, held = false }) {
@@ -682,7 +690,7 @@ function Clock({ left, mine, held = false }) {
   const share = Math.max(0, Math.min(1, left / CLOCK));
   const tone = held ? " held" : left <= 10 ? " hot" : left <= 30 ? " warm" : "";
   return <div className={"bt-clock" + tone + (mine ? " mine" : "")} role="timer" aria-label={held ? `시계 멈춤, ${left}초 남음` : `${mine ? "내 선택" : "선택"}까지 ${left}초`}>
-    <Seg value={String(left)} h={24} cells={2} label="" />
+    <Fig value={String(left)} h={32} label="" />
     <i aria-hidden="true"><b style={{ "--f": share }} /></i>
   </div>;
 }
@@ -747,8 +755,8 @@ export function Stage({ scene, stageRef, perspective, doubles, res, names, said,
 
 /* before a battle (DESIGN.md "Battle", Opening and waiting): the court with our leads on the near side and the far side empty until
    the opponent comes. A change of team or format sends the leads in again, out of the same light as in a battle. */
-// awaiting: the opponent has not come yet, and a light breathes on the far floor where each of theirs will be sent in
-// random: our party is drawn when the battle opens, so the same light breathes on our near floor where our leads will come out
+// awaiting: the opponent has not come yet, and the far floor stands empty
+// random: our party is drawn when the battle opens, so our near floor stands empty until the leads come out
 // (2026-11-06: the random party showed six switched-off panels while a saved team showed the court; both are the court now)
 // foeLead: the opponent known before the battle (the computer, as its 난이도's Pokémon) stands on the far side, out of the same light
 /* res: the dex, so a lead cries as it comes out (ball only).
@@ -795,15 +803,10 @@ export function LobbyStage({ leads: asked, doubles, label, awaiting = false, ran
   return (
     <div className="bs-stage" ref={ref} role="img" aria-label={label}>
       <div className="bs-world">
+        {/* a floor still to be filled (the opponent not come, a random party not drawn) stands still and empty: no light breathes
+            on it (2026-11-24, the almanac: nothing breathes); 참가 대기 is the amber mark and its word on the strip */}
         {painted && foeLead && !awaiting && <SideField side="p2" scene={scene} doubles={false} />}
-        {awaiting && <div className="bs-side foe" aria-hidden="true">
-          {(doubles ? [0, 1] : [0]).map(slot => <div key={slot} className="bs-slot" data-pos={`foe${doubles ? `-d${slot}` : ""}`}><i className="bs-await" /></div>)}
-        </div>}
-        {random
-          ? <div className="bs-side own" aria-hidden="true">
-            {(doubles ? [0, 1] : [0]).map(slot => <div key={slot} className="bs-slot" data-pos={`own${doubles ? `-d${slot}` : ""}`}><i className="bs-await" /></div>)}
-          </div>
-          : painted && <SideField side="p1" scene={scene} own doubles={doubles} />}
+        {!random && painted && <SideField side="p1" scene={scene} own doubles={doubles} />}
       </div>
       {/* a plate said on the court as it goes dark (a 연승 도전 floor's master, Streak.jsx), outside the camera as in a battle */}
       <div className="bs-over" aria-hidden="true" />
@@ -821,7 +824,7 @@ export function LobbyStage({ leads: asked, doubles, label, awaiting = false, ran
    (oursWord) or the team's six */
 export function LobbyArena({ res, foe, foeNote = "", foeMuted = false, waiting = false, ours, six = [], foeWord = "", oursWord = "", onFoe = null, onOurs = null, children }) {
   const list = six.map(species => ({ species, light: "lit", share: null }));
-  const who = <>{waiting && <i className="lamp" aria-hidden="true" />}<b className={"bt-trainer" + (foeMuted ? " mute" : "")}>{foe}</b>{foeNote && <span className="bt-who-note">{foeNote}</span>}</>;
+  const who = <>{waiting && <i className="lamp sig" aria-hidden="true" />}<b className={"bt-trainer" + (foeMuted ? " mute" : "")}>{foe}</b>{foeNote && <span className="bt-who-note">{foeNote}</span>}</>;
   const party = list.length ? <Roster list={list} label={`내 파티, ${rosterSaid(res, list)}`} /> : oursWord ? <span className="bt-strip-word">{oursWord}</span> : null;
   /* the arena lights as one thing with the page (data-rise, motion.js light): its strips stood lit in the first frame beside panels
      still dark, and the court's box stood black for the frame before its picture was drawn (2026-11-10, coming back from a battle) */

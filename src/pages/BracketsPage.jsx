@@ -29,7 +29,7 @@ import { BYE, clearedByPick, collectGraphMatches, evalGraph, seriesWins, winsNee
 import { matchStage } from "../services/recordsAnalytics.js";
 import { battleClock, battleForMatch, battleHref, battleWinnerEntry, handoverReady, listEventBattles, officialBattleHref, retryBattleApply, voidBattle } from "../services/battleService.js";
 import { parseBoutKey, teamBouts } from "../services/teamBouts.js";
-import Seg from "../components/common/Seg.jsx";
+import Fig from "../components/common/Fig.jsx";
 import { WORDMARK_PATH } from "../components/layout/SiteHeader.jsx";
 import { PRIVATE_BRACKETS_KEY, communityUrl, createCommunityItem, deleteCommunityItem, patchCommunityItem, readCommunity, readErrorText, shareLink, verifyCommunityPin } from "../services/communityStore.js";
 import { PIN_DENIED } from "../services/communityItems.js";
@@ -85,8 +85,6 @@ function bkDownload(canvas,filename){ canvas.toBlob(async blob=>{ if(!blob)retur
     try{ await navigator.share({files:[file]}); return; }catch(error){ if(error?.name==="AbortError") return; }
   }
   const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); },"image/png"); }
-function bkRR(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-function bkSpaced(ctx,text,cx,y,sp){ ctx.save(); ctx.textAlign="left"; const ws=[...text].map(ch=>ctx.measureText(ch).width+sp); const tot=ws.reduce((a,c)=>a+c,0)-sp; let x=cx-tot/2; for(let i=0;i<text.length;i++){ ctx.fillText(text[i],x,y); x+=ws[i]; } ctx.restore(); }
 
 function bkClip(ctx,t,max){ if(ctx.measureText(t).width<=max)return t; let s=t; while(s.length>1&&ctx.measureText(s+"…").width>max)s=s.slice(0,-1); return s+"…"; }
 /* 이미지 저장도 사이트와 같은 서체와 네이비 다크 토큰을 쓴다. */
@@ -95,7 +93,7 @@ const BKM=BKF;
 /* 이미지는 테마와 상관없이 네이비 판이다. 색은 토큰에서 읽어 사이트와 어긋나지 않는다. */
 let BKC=null;
 function bkInks(){ const css=getComputedStyle(document.documentElement), v=n=>css.getPropertyValue(n).trim();
-  BKC={ bg:v("--navy"), card:v("--navy-1"), ink:v("--white"), t2:v("--mist"), t5:v("--mist"), line2:v("--navy-2"), primary:v("--white"), onPrimary:v("--navy") }; }
+  BKC={ bg:v("--navy"), ink:v("--white"), t2:v("--mist"), t5:v("--mist"), rule:v("--navy-3") }; }
 async function bkFonts(){ bkInks(); try{ if(document.fonts&&document.fonts.load){ await Promise.all(["700","600","400"].flatMap(w=>[document.fonts.load(w+' 40px "Freesentation"',"가"),document.fonts.load(w+' 40px "Albert Sans"',"A")])); await document.fonts.ready; } }catch(e){} }
 function bkPage(ctx,W,H){ ctx.fillStyle=BKC.bg; ctx.fillRect(0,0,W,H); }
 /* YPL 워드마크: 사이트 상단 바와 같은 그린 글자. x는 align 기준점, y는 글자 아래끝, h는 글자 높이. */
@@ -151,117 +149,85 @@ async function downloadChampionPng(b,res,nameOf){
   bkDownload(cv,`${b.name}_우승_${champ}.png`);
 }
 
-function bkDrawMatch(ctx,x,y,w,h,aTxt,bTxt,aWin,bWin,aBye,bBye){
-  bkRR(ctx,x,y,w,h,0); ctx.fillStyle=BKC.card; ctx.fill();
-  const rowH=h/2; const drawRow=(ry,txt,win,bye)=>{
-    if(win){ bkRR(ctx,x+4,ry+4,w-8,rowH-8,0); ctx.fillStyle=BKC.primary; ctx.fill(); }
-    ctx.textAlign="left"; ctx.fillStyle=win?BKC.onPrimary:(bye?BKC.t5:BKC.ink); ctx.font=`${win?700:400} 16px ${BKF}`;
-    ctx.fillText(bkClip(ctx,txt||"",w-22),x+12,ry+rowH/2+5);
-  };
-  drawRow(y,aTxt,aWin,aBye); drawRow(y+rowH,bTxt,bWin,bBye);
+/* the almanac's draw sheet, as on the site (sheetLayout, sheetRects): every name on its own line, a match's two lines joined at the
+   column's right end, the middle of that join the next round's line; the winner's line and its half of the join a 2px rule */
+const BX={ w:220 };
+// 한 단의 대진(라운드 열들과 끝의 우승)을 그린다 → {right, bottom}
+function bkDrawSection(ctx,cols,ev,nameOf,ox,oy,from,champ){
+  const layout=sheetLayout(cols.map(c=>c.ms),0,from);
+  layout.slots.forEach((col,c)=>col.forEach((s,j)=>{ s.m=cols[c].ms[j]; }));
+  const geo=[...cols,...(champ?[0]:[])].map((_,c)=>({ x:ox+c*BX.w, w:BX.w, y:oy }));
+  const won=(m,side)=>m.winner===side&&ev.sp(m.a)!==BYE&&ev.sp(m.b)!==BYE;
+  ctx.textAlign="left"; ctx.font=`700 13px ${BKF}`;
+  cols.forEach((col,c)=>{ if(col.label){ ctx.fillStyle=col.end?BKC.ink:BKC.t5; ctx.fillText(col.label,geo[c].x+(c?12:0),oy-20); } });
+  layout.slots.forEach((col,c)=>col.forEach(({ m, ya, yb })=>{
+    const decided=Boolean(m.winner);
+    [["a",ya],["b",yb]].forEach(([side,y])=>{
+      const pid=ev.sp(m[side]), win=decided&&m.winner===side, txt=pid===BYE?"부전승":(pid?nameOf(pid):""), score=sideScore(m,side);
+      const x=geo[c].x+(c?12:0), base=oy+y-8;
+      ctx.fillStyle=win||!decided&&pid&&pid!==BYE?BKC.ink:BKC.t5; ctx.font=`${win?700:400} 16px ${BKF}`;
+      let room=geo[c].x+BX.w-12-x;
+      if(score!=null&&!(decided&&!win&&m.forfeit)){ ctx.textAlign="right"; ctx.fillText(String(score),geo[c].x+BX.w-12,base); room-=ctx.measureText(String(score)).width+12; }
+      ctx.textAlign="left"; ctx.fillText(bkClip(ctx,txt,room),x,base);
+    });
+  }));
+  let right=geo[cols.length-1].x+BX.w;
+  if(champ){ const g=geo[cols.length], y=oy+layout.slots[cols.length-1][0].ym;
+    ctx.textAlign="left"; ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("우승",g.x+12,oy-20);
+    if(champ.name){ ctx.font=`700 32px ${BKF}`; ctx.fillText(bkClip(ctx,champ.name,BX.w-12),g.x+12,y-10); }
+    else { ctx.fillStyle=BKC.t5; ctx.font=`400 13px ${BKF}`; ctx.fillText("결승이 끝나면 켜집니다.",g.x+12,y-8); }
+    right=g.x+BX.w; }
+  sheetRects(geo,layout,won,champ).forEach(r=>{ ctx.fillStyle=r.lit?BKC.ink:BKC.rule; ctx.fillRect(r.x,r.y,r.w,r.h); });
+  return { right, bottom: oy+layout.totalH };
 }
-// 토너먼트 트리 그리기 → {centers: 라운드별 y중심배열, right:오른쪽끝x, bottom}
-function bkDrawTree(ctx,rounds,ev,nameOf,ox,oy,boxW,boxH,gapX,pitch0){
-  const centers=[];
-  for(let r=0;r<rounds.length;r++){
-    centers[r]=[]; const x=ox+r*(boxW+gapX);
-    for(let j=0;j<rounds[r].length;j++){
-      let cy; if(r===0) cy=oy+j*pitch0+boxH/2; else cy=(centers[r-1][2*j]+centers[r-1][2*j+1])/2;
-      centers[r][j]=cy; const m=rounds[r][j];
-      const aPid=ev.sp(m.a),bPid=ev.sp(m.b),wp=ev.win[m.id];
-      const aTxt=aPid===BYE?"부전승":(aPid?nameOf(aPid):""); const bTxt=bPid===BYE?"부전승":(bPid?nameOf(bPid):"");
-      bkDrawMatch(ctx,x,cy-boxH/2,boxW,boxH,aTxt,bTxt, wp&&wp!==BYE&&wp===aPid, wp&&wp!==BYE&&wp===bPid, aPid===BYE,bPid===BYE);
-      if(r>0){ // 연결선
-        const px=ox+(r-1)*(boxW+gapX)+boxW; const c1=centers[r-1][2*j],c2=centers[r-1][2*j+1]; const midx=px+gapX/2;
-        ctx.strokeStyle=BKC.line2; ctx.lineWidth=1.5; ctx.beginPath();
-        ctx.moveTo(px,c1); ctx.lineTo(midx,c1); ctx.moveTo(px,c2); ctx.lineTo(midx,c2); ctx.moveTo(midx,c1); ctx.lineTo(midx,c2); ctx.moveTo(midx,(c1+c2)/2); ctx.lineTo(x,(c1+c2)/2); ctx.stroke();
-      }
-    }
-  }
-  const right=ox+rounds.length*(boxW+gapX)-gapX;
-  const bottom=oy+rounds[0].length*pitch0;
-  return {centers,right,bottom};
+// 그래프 하나를 이미지의 단들로: 승자조(그리고 그랜드 파이널, 리셋 결승, 우승), 3위 결정전, 패자조. 사이트의 ElimBoard와 같은 순서다.
+function bkSections(g,nameOf){
+  const ev=evalGraph(g), res=elimResult(g);
+  const roundCols=g.rounds.map((r,ri)=>({ label:roundLabel(g,ri), ms:r }));
+  const gf=g.kind==="double"?[{ label:"그랜드 파이널", ms:[g.gf], end:true },...(g.reset&&g.gf.winner==="b"?[{ label:"리셋 결승", ms:[g.reset], end:true }]:[])]:[];
+  const from=m=>g.reset&&m===g.reset?{ none:true, center:g.gf }:null;
+  return [
+    { cols:[...roundCols,...gf], champ:{ name:res?.champ?nameOf(res.champ):"" } },
+    ...(g.third?[{ title:"3위 결정전", cols:[{ ms:[g.third] }] }]:[]),
+    ...(g.kind==="double"?[{ title:"패자조", cols:g.lb.map((r,ri)=>({ label:lbRoundName(ri), ms:r })) }]:[]),
+  ].map(s=>({ ...s, ev, from }));
 }
-
 async function downloadBracketPng(b,nameOf){
   await bkFonts();
-  const boxW=220,boxH=84,gapX=52,pitch0=boxH+52,padL=32,padT=136;
-  const S=2;
-  // 측정용 가상 계산
-  const blocks=[]; // {type, ...}
-  if(b.format==="group"){
-    blocks.push({type:"groups"});
-    if(b.knockout) blocks.push({type:"elim",g:b.knockout,label:"본선 토너먼트"});
-  } else { blocks.push({type:"elim",g:b.graph}); }
-  // 캔버스 크기 추정
-  let W=700,H=300;
-  const estElim=(g)=>{ const wbW=padL+g.rounds.length*(boxW+gapX)-gapX+padL; let h=padT+g.rounds[0].length*pitch0+40;
-    if(g.kind==="double"){ h+=70+ (g.lb.reduce((mx,r)=>Math.max(mx,r.length),0))*0+ g.lb.length? 0:0; h+= 60 + Math.max(...g.lb.map(r=>r.length))*(boxH+22)+60; }
-    if(g.third) h+=50+pitch0;
-    return {w:Math.max(wbW, g.kind==="double"? padL+(g.lb.length+2)*(boxW+gapX):0), h}; };
-  let gW=700,gH=0;
-  if(b.format==="group"){
-    const cols=Math.min(b.groups.length,3); const rows=Math.ceil(b.groups.length/cols);
-    const gboxW=250,gboxH=40+Math.max(...b.groups.map(g=>g.members.length))*26+20;
-    gW=padL+cols*(gboxW+24)-24+padL; gH=padT+rows*(gboxH+24);
-    W=Math.max(W,gW);
-    if(b.knockout){ const e=estElim(b.knockout); W=Math.max(W,e.w); gH+=60+e.h; }
-    H=gH+40;
-  } else { const e=estElim(b.graph); W=Math.max(700,e.w); H=e.h+24; }
-  W=Math.ceil(W); H=Math.ceil(H);
-  const cv=document.createElement("canvas"); cv.width=W*S; cv.height=H*S; const ctx=cv.getContext("2d"); ctx.scale(S,S);
-  bkPage(ctx,W,H);
-  ctx.textAlign="left"; ctx.fillStyle=BKC.ink; ctx.font=`700 32px ${BKF}`; ctx.fillText(bkClip(ctx,b.name,W-320),34,50);
-  const wmW=bkWordmark(ctx,34,77,14);
-  ctx.fillStyle=BKC.t5; ctx.font=`400 13px ${BKF}`;
-  ctx.fillText(formatDate(b.createdAt)+(b.private?", 사설 대진표 (공식 기록 아님)":""),34+wmW+12,76);
-  const res=b.format==="group"?(b.knockout?elimResult(b.knockout):null):elimResult(b.graph);
-  if(res&&res.done){ ctx.font=`700 16px ${BKF}`; const t="우승 "+nameOf(res.champ);
-    const tw=ctx.measureText(t).width+34; bkRR(ctx,W-34-tw,26,tw,38,0); ctx.fillStyle=BKC.primary; ctx.fill();
-    ctx.fillStyle=BKC.onPrimary; ctx.textAlign="center"; ctx.fillText(t,W-34-tw/2,51); ctx.textAlign="left"; }
-  let curY=padT;
-  const drawElimBlock=(g,oy,label)=>{
-    if(label){ ctx.fillStyle=BKC.ink; ctx.font=`700 16px ${BKF}`; ctx.fillText(label,34,oy-14); }
-    const ev=evalGraph(g);
-    const t=bkDrawTree(ctx,g.rounds,ev,nameOf,padL,oy,boxW,boxH,gapX,pitch0);
-    let bottom=t.bottom;
-    if(g.kind==="double"){
-      const lbY=t.bottom+50; ctx.fillStyle=BKC.t2; ctx.font=`700 16px ${BKF}`; ctx.fillText("패자조",padL,lbY-12);
-      // LB는 단순 컬럼
-      for(let r=0;r<g.lb.length;r++){ const x=padL+r*(boxW+gapX);
-        for(let j=0;j<g.lb[r].length;j++){ const m=g.lb[r][j]; const cy=lbY+j*pitch0+boxH/2;
-          const aPid=ev.sp(m.a),bPid=ev.sp(m.b),wp=ev.win[m.id];
-          bkDrawMatch(ctx,x,cy-boxH/2,boxW,boxH, aPid===BYE?"부전승":(aPid?nameOf(aPid):""), bPid===BYE?"부전승":(bPid?nameOf(bPid):""), wp&&wp!==BYE&&wp===aPid, wp&&wp!==BYE&&wp===bPid, aPid===BYE,bPid===BYE);
-        } }
-      // 그랜드 파이널
-      const gx=padL+g.lb.length*(boxW+gapX); const gy=lbY+boxH/2; const m=g.gf; const aPid=ev.sp(m.a),bPid=ev.sp(m.b),wp=ev.win[m.id];
-      ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("그랜드 파이널",gx,lbY-12);
-      bkDrawMatch(ctx,gx,gy-boxH/2,boxW,boxH, aPid?nameOf(aPid):"", bPid?nameOf(bPid):"", wp&&wp===aPid, wp&&wp===bPid,false,false);
-      if(g.reset&&g.gf.winner==="b"){ const rx=gx+boxW+gapX; const rm=g.reset; const raPid=ev.sp(rm.a),rbPid=ev.sp(rm.b),rwp=ev.win[rm.id];
-        ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("리셋 결승",rx,lbY-12);
-        bkDrawMatch(ctx,rx,gy-boxH/2,boxW,boxH, raPid?nameOf(raPid):"", rbPid?nameOf(rbPid):"", rwp&&rwp===raPid, rwp&&rwp===rbPid,false,false); }
-      bottom=lbY+Math.max(...g.lb.map(r=>r.length))*pitch0;
+  const padL=32,padT=136,S=2,gboxW=250;
+  const elim=b.format==="group"?b.knockout:b.graph;
+  const secs=elim?bkSections(elim,nameOf):[];
+  const gCols=b.format==="group"?Math.min(b.groups.length,3):1, gRowH=b.format==="group"?40+Math.max(...b.groups.map(g=>g.members.length))*26+38:0;
+  /* drawn twice: once to measure where the sheet ends, then on a canvas of that size */
+  const paint=(ctx,W)=>{
+    bkPage(ctx,W,99999);
+    ctx.textAlign="left"; ctx.fillStyle=BKC.ink; ctx.font=`700 32px ${BKF}`; ctx.fillText(bkClip(ctx,b.name,W-68),34,50);
+    const wmW=bkWordmark(ctx,34,77,14);
+    ctx.fillStyle=BKC.t5; ctx.font=`400 13px ${BKF}`;
+    ctx.fillText(formatDate(b.createdAt)+(b.private?", 사설 대진표 (공식 기록 아님)":""),34+wmW+12,76);
+    let y=padT, right=padL+gCols*(gboxW+24)-24;
+    if(b.format==="group"){
+      b.groups.forEach((gr,gi)=>{ const st=groupStandings(gr); const r=Math.floor(gi/gCols),c=gi%gCols;
+        const x=padL+c*(gboxW+24), gy=y+r*gRowH;
+        ctx.fillStyle=BKC.ink; ctx.fillRect(x,gy,gboxW,2);
+        ctx.font=`700 16px ${BKF}`; ctx.textAlign="left"; ctx.fillText(gr.name+"조",x,gy+26);
+        st.forEach((s,i)=>{ const ry=gy+44+i*26; const adv=i<b.groupCfg.adv; ctx.fillStyle=BKC.rule; ctx.fillRect(x,ry+8,gboxW,1);
+          ctx.fillStyle=adv?BKC.ink:BKC.t2; ctx.font=`${adv?700:400} 13px ${BKF}`; ctx.fillText(`${i+1}. ${nameOf(s.name)}`,x,ry+2); ctx.textAlign="right"; ctx.fillText(s.wins+"승",x+gboxW,ry+2); ctx.textAlign="left"; });
+      });
+      y+=Math.ceil(b.groups.length/gCols)*gRowH+40;
+      if(b.knockout){ ctx.fillStyle=BKC.ink; ctx.font=`700 16px ${BKF}`; ctx.fillText("본선 토너먼트",padL,y); y+=52; }
     }
-    if(g.third){ // 3위 결정전: 화면처럼 트리 아래 첫 열
-      const tx=padL, ty=bottom+50, m=g.third, aPid=ev.sp(m.a),bPid=ev.sp(m.b),wp=ev.win[m.id];
-      ctx.fillStyle=BKC.ink; ctx.font=`700 13px ${BKF}`; ctx.fillText("3위 결정전",tx,ty-12);
-      bkDrawMatch(ctx,tx,ty,boxW,boxH, aPid?nameOf(aPid):"", bPid?nameOf(bPid):"", wp&&wp===aPid, wp&&wp===bPid,false,false);
-      bottom=ty+pitch0;
-    }
-    return bottom;
-  };
-  if(b.format==="group"){
-    const cols=Math.min(b.groups.length,3); const gboxW=250;
-    b.groups.forEach((gr,gi)=>{ const st=groupStandings(gr); const r=Math.floor(gi/cols),c=gi%cols;
-      const gboxH=40+gr.members.length*26+14; const x=padL+c*(gboxW+24); const y=curY+r*( 40+Math.max(...b.groups.map(g=>g.members.length))*26+14 +24);
-      bkRR(ctx,x,y,gboxW,gboxH,0); ctx.fillStyle=BKC.card; ctx.fill();
-      ctx.fillStyle=BKC.ink; ctx.font=`700 16px ${BKF}`; ctx.textAlign="left"; ctx.fillText(gr.name+"조",x+14,y+26);
-      st.forEach((s,i)=>{ const ry=y+44+i*26; const adv=i<b.groupCfg.adv; if(adv){ bkRR(ctx,x+8,ry-15,gboxW-16,24,0); ctx.fillStyle=BKC.primary; ctx.fill(); }
-        ctx.fillStyle=adv?BKC.onPrimary:BKC.t2; ctx.font=`${adv?700:400} 13px ${BKF}`; ctx.fillText(`${i+1}. ${nameOf(s.name)}`,x+16,ry+2); ctx.textAlign="right"; ctx.fillText(s.wins+"승",x+gboxW-16,ry+2); ctx.textAlign="left"; });
+    secs.forEach(s=>{
+      if(s.title){ ctx.fillStyle=BKC.ink; ctx.fillRect(padL,y,W-padL*2,2); ctx.font=`700 16px ${BKF}`; ctx.textAlign="left"; ctx.fillText(s.title,padL,y+30); y+=s.cols[0].label?84:52; }
+      const r=bkDrawSection(ctx,s.cols,s.ev,nameOf,padL,y,s.from,s.champ); right=Math.max(right,r.right); y=r.bottom+40;
     });
-    const rows=Math.ceil(b.groups.length/cols); curY=curY+rows*(40+Math.max(...b.groups.map(g=>g.members.length))*26+14+24)+40;
-    if(b.knockout){ drawElimBlock(b.knockout,curY,"본선 토너먼트"); }
-  } else { drawElimBlock(b.graph,curY); }
+    return { right, bottom:y };
+  };
+  const probe=document.createElement("canvas").getContext("2d");
+  const size=paint(probe,4000);
+  const W=Math.ceil(Math.max(700,size.right+padL)), H=Math.ceil(size.bottom+24);
+  const cv=document.createElement("canvas"); cv.width=W*S; cv.height=H*S; const ctx=cv.getContext("2d"); ctx.scale(S,S);
+  paint(ctx,W);
   ctx.textAlign="right"; ctx.fillStyle=BKC.t5; ctx.font=`700 13px ${BKM}`;
   ctx.fillText("Yonsei Pokémon League",W-34,H-16); ctx.textAlign="left";
   bkDownload(cv,`${b.name}_대진표.png`);
@@ -628,7 +594,7 @@ function BracketWizard({ data, onClose, onCreate }){
   };
   return (<div className="bk-create">
     <BackLink to="대진표" onClick={onClose}/>
-    <header className="bk-head"><h1 className="t32">대진표 만들기</h1>{(linkedEvent?.name||name)&&<span className="t12 dim">{linkedEvent?.name||name}</span>}</header>
+    <header className="bk-head"><h1 className="page-title">대진표 만들기</h1>{(linkedEvent?.name||name)&&<span className="t12 dim">{linkedEvent?.name||name}</span>}</header>
     <Steps labels={placeable?["대회 설정","참가자 확정","대진 배치"]:["대회 설정","참가자 확정"]} at={step}/>
     <div className={"form-card swap"+(step===1?" bk-step1":"")} key={step}>
     {step===1&&<>
@@ -698,9 +664,9 @@ function BracketWizard({ data, onClose, onCreate }){
           <div className="bk-fill">{eventRegs.map((reg,i)=>{const checked=directRegistrationIds.includes(reg.id);return <label className="bk-pin" key={`direct-${reg.id}`} style={{animationDelay:(i*STAGGER.row)+"ms",cursor:"pointer"}}><span className="bk-pin-no gold">{i+1}</span><input type="checkbox" checked={checked} onChange={()=>{setDirectRegistrationIds(prev=>checked?prev.filter(id=>id!==reg.id):[...prev,reg.id]);setSelectedRegistrationIds(prev=>checked?prev:[...prev.filter(id=>id!==reg.id)]);}} /><span style={{flex:1,fontWeight: 600}}>{reg.registration_name}</span><span className="bk-hint" style={{margin:0}}>{[checked?"본선 직행":pickFor(reg.id)&&"추천",pickFor(reg.id)&&`시즌 ${pickFor(reg.id).rank}위`].filter(Boolean).join(", ")}</span></label>;})}</div>
         </div>}
         <div className="stack bk-counters">
-          <Counter label="신청" value={eventRegs.length} cells={Math.max(2,String(eventRegs.length).length)}/>
-          <Counter label="확정" value={confirmedCount} cells={Math.max(2,String(eventRegs.length).length)}/>
-          <Counter label="불참" value={Math.max(0,eventRegs.length-directRegistrationIds.length-confirmedCount)} cells={Math.max(2,String(eventRegs.length).length)}/>
+          <Counter label="신청" value={eventRegs.length}/>
+          <Counter label="확정" value={confirmedCount}/>
+          <Counter label="불참" value={Math.max(0,eventRegs.length-directRegistrationIds.length-confirmedCount)}/>
         </div>
         <div className="field">
           <span className="field-label">참가자 확정</span>
@@ -992,7 +958,7 @@ function MatchCard({ m, ev, nameOf, admin, onPick, teamMode, onOpenTeam, seedOf,
   /* a visitor presses the whole box (DESIGN.md "Open": the whole match box is the target): on a phone the names end in an ellipsis,
      so the sheet says them in full with the result */
   if(!admin&&onOpen&&[pa,pb].some(pid=>pid&&pid!==BYE))
-    return <button type="button" className={"mb can-open"} data-match={m.id} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
+    return <button type="button" className="mb can-open" data-match={m.id} onClick={()=>onOpen(m)} aria-label={`${slotName(pa,nameOf)}, ${slotName(pb,nameOf)}, ${live?"배틀 진행 중, ":""}경기 보기`}>{line("a",pa,"span")}{line("b",pb,"span")}{live}</button>;
   if(teamMode){
     const clickable=admin&&(bothReal||decided);
     const Box=clickable?"button":"div";
@@ -1154,7 +1120,7 @@ function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, bat
     // when the result went in (matches.played_at, 2026-11-22: kept since the start and shown nowhere)
     const when=win&&m.playedAt?formatDate(m.playedAt,{time:true}):"";
     return <Row key={key} className={win?"inv":""} title={me&&pid===me?<>{slotName(pid,nameOf)}<MeTag/></>:slotName(pid,nameOf)} line={win?(when?`승자, ${when} 결과 입력`:"승자"):lost?(m.forfeit?lossWord(battle,m):"패배"):"결과 전"}
-      value={score!=null&&!(lost&&m.forfeit)?<span className="num t20">{score}</span>:null}/>;
+      value={score!=null&&!(lost&&m.forfeit)?<Fig value={String(score)} h={40} label={`${score}점`}/>:null}/>;
   };
   const bout=(label,a,b,w)=><Row key={label} title={`${a||"미정"}, ${b||"미정"}`} line={`${label}, ${w==="a"?a:w==="b"?b:"결과 전"}${w?" 승리":""}`}/>;
   // the round's start as a clock and the match's table as a counter (docs/db/match_schedule.sql); a table the site did not number stays in the box's strip
@@ -1162,8 +1128,8 @@ function MatchSheet({ g, m, ev, nameOf, onClose, battle, startable, eventId, bat
   return (<Modal title={stageOf(g,m)} onClose={onClose}>
     <div className="stack">{side("a",ev.sp(m.a))}{side("b",ev.sp(m.b))}</div>
     {(start||tableNo)&&<div className={"stack mb-when"+(start&&tableNo?" two":"")}>
-      {start&&<Counter label={`${stageOf(g,m)} 시작`} value={start} cells={4}/>}
-      {tableNo&&<Counter label="테이블" value={tableNo} cells={tableNo.length} unit="번" after={<span className="t15">번</span>}/>}
+      {start&&<Counter label={`${stageOf(g,m)} 시작`} value={start}/>}
+      {tableNo&&<Counter label="테이블" value={tableNo} unit="번" after={<span className="t15">번</span>}/>}
     </div>}
     {boutCount?<TeamBouts m={m} ev={ev} battles={battles} boutCount={boutCount} startable={startable} eventId={eventId}/>
       :<MatchBattle m={m} ev={ev} battle={battle} startable={startable} eventId={eventId} need={need} battles={battles}/>}
@@ -1254,7 +1220,7 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
       </button>
       {scored&&<span className="bk-entry-score" role="group" aria-label={`${nameOf(pid)} 점수`}>
         <button type="button" className="bk-entry-step" onClick={()=>bump(i,-1)} disabled={busy||!shown[i]} aria-label={`${nameOf(pid)} 점수 내리기`}><Icon n="minus" size={20}/></button>
-        <Seg value={shown[i]==null?"":String(shown[i])} cells={1} h={40} label={shown[i]==null?"점수 없음":`${shown[i]}점`}/>
+        <Fig value={shown[i]==null?"":String(shown[i])} h={40} label={shown[i]==null?"점수 없음":`${shown[i]}점`}/>
         <button type="button" className="bk-entry-step" onClick={()=>bump(i,1)} disabled={busy||shown[i]>=top} aria-label={`${nameOf(pid)} 점수 올리기`}><Icon n="plus" size={20}/></button>
       </span>}
     </div>;
@@ -1281,7 +1247,7 @@ function ResultEntry({ g, nameOf, seedOf=()=>null, onPick, teamMode, onOpenTeam,
     {reports&&!teamMode&&!cur.m.winner&&(reports.get(cur.m.id)||[]).length>0&&(()=>{ const said=reports.get(cur.m.id);
       const agreed=said.length===2&&said[0].winner_entry_id===said[1].winner_entry_id?said[0].winner_entry_id:null;
       return <div className="stack bk-entry-actions">
-        <Row title={agreed?"선수 보고 일치":said.length===2?"선수 보고 다름":"선수 보고 하나"} line={said.map(r=>`${nameOf(r.entry_id)}: ${nameOf(r.winner_entry_id)} 승`).join(", ")} lamp={said.length===2&&!agreed}/>
+        <Row title={agreed?"선수 보고 일치":said.length===2?"선수 보고 다름":"선수 보고 하나"} line={said.map(r=>`${nameOf(r.entry_id)}: ${nameOf(r.winner_entry_id)} 승`).join(", ")}/>
         {agreed&&[cur.a,cur.b].includes(agreed)&&<Button variant="main" icon="check" disabled={busy} onClick={()=>onPick(cur.m.id,agreed===cur.a?"a":"b")}>보고대로 {nameOf(agreed)} 승리</Button>}
       </div>; })()}
     {/* 자리 교체 (2026-11-22, the owner's draft 3 A): a match not yet played can seat another applicant in either place */}
@@ -1342,16 +1308,18 @@ function BracketList({ g, nameOf, me=null, battles=[] }){
       const name=pid=>pid?(pid===me?<>{nameOf(pid)}<MeTag/></>:nameOf(pid)):"대기";
       return <Row key={m.id} title={<>{name(a)}, {name(b)}</>} lamp={live} sig={live}
         line={win?(m.forfeit?`${nameOf(win)} 승리, ${nameOf(lose)} ${lossWord(battle,m)}`:`${nameOf(win)} 승리`):live?"진행 중":"경기 전"}
-        value={win&&sa!=null&&sb!=null&&!m.forfeit?<span className="num t20">{sa}:{sb}</span>:null}/>;
+        value={win&&sa!=null&&sb!=null&&!m.forfeit?<Fig value={`${sa}:${sb}`} h={32} label={`${sa} 대 ${sb}`}/>:null}/>;
     })}</div></section>;
   })}</div>;
 }
 
 /* ===== 대진표 보드 =====
-   경기 상자는 74(36, 이음매 2, 36). 첫 열의 상자는 94 간격(상자와 20)으로 서고, 다음 열은 앞의 두 상자 사이에 선다.
-   끝난 경기의 승자 길은 2px의 켜진 선, 아직인 길은 1px 선이다. */
+   인쇄된 대진표(draw sheet)처럼: 이름 하나마다 제 줄 위에 서고, 한 경기의 두 줄은 열의 오른끝에서 세로줄로 이어지며, 그 세로줄의
+   한가운데에서 다음 라운드의 줄이 나간다. 그래서 첫 라운드에서 우승까지 한 번도 끊기지 않는 한 그림이다.
+   줄은 1px, 이긴 쪽이 지나온 줄(제 줄과 세로줄의 제 절반)은 2px의 켜진 선이다. */
 const WINS_OPTIONS=[{value:"1",label:"단판"},{value:"2",label:"2선승"},{value:"3",label:"3선승"}];
-const BK_ROW_H=36, BK_MATCH_H=BK_ROW_H*2+2, BK_PITCH0=BK_MATCH_H+20;
+/* a name's row is 32 and stands on its line; a match's two lines are 40 apart (a pair), matches 64 apart; the champion's 32 name 44 */
+const BK_ROW_H=32, BK_D=40, BK_GAP=64, BK_CHAMP_H=44, BK_INSET=12;
 /* a round has one name wherever it is written: the tree's columns, the draw, the match sheet, result entry */
 const roundName=(len)=>len===1?"결승":`${len*2}강`;
 const roundLabel=(g,ri)=>g.kind==="double"?`승자조 ${ri+1}라운드`:roundName(g.rounds[ri].length);
@@ -1370,20 +1338,98 @@ function liveProgress(b){
   const r=g.rounds[ri];
   return `${roundName(r.length)} ${r.filter(m=>ev.win[m.id]).length}/${r.length} 종료`;
 }
-/* once any match of the bracket has a table (docs/db/match_schedule.sql), every box carries a 32 head strip on the seam over its
-   two rows, so the boxes of a round stay one size; the centres are the two rows' middle, where the lines meet the box */
+/* once any match of the bracket has a table (docs/db/match_schedule.sql), every match carries a 32 head strip on the seam over its
+   upper name, so the matches of a round stay one size */
 const BK_STRIP_H=32+2;
-function treeCenters(rounds,strip=0){
-  const centers=[], pitch=BK_PITCH0+strip;
-  for(let r=0;r<rounds.length;r++){ centers[r]=[];
-    for(let j=0;j<rounds[r].length;j++){ centers[r][j]= r===0 ? (j*pitch+strip+BK_MATCH_H/2) : (centers[r-1][2*j]+centers[r-1][2*j+1])/2; } }
-  return { centers, totalH: Math.max(BK_MATCH_H+strip,(rounds[0]?.length||1)*pitch-20) };
+/* where every line of a section stands (y of each line in its column's body). The first column's matches are two lines BK_D apart,
+   BK_GAP between matches. A later slot fed by a match of the column before IS that match's outgoing line: it stands at the middle of
+   the feeding match's two lines. A slot fed from elsewhere (a loser dropping in, the grand final's losers' side) stands BK_D under or
+   over its partner, and a match fed by neither is stacked. `from(m)` may say { none, center }: no roads in, centred on that match. */
+function sheetLayout(cols,strip=0,from=()=>null){
+  const top=BK_ROW_H+strip, out=new Map();
+  const slots=cols.map((ms,c)=>{ let floor=top; return ms.map(m=>{
+    const o=from(m)||{};
+    const feed=s=>c&&!o.none&&s?.win?cols[c-1].find(x=>x.id===s.win)||null:null;
+    const fa=feed(m.a), fb=feed(m.b);
+    let ya=fa?out.get(fa.id):null, yb=fb?out.get(fb.id):null;
+    if(ya==null&&yb==null){ ya=o.center&&out.has(o.center.id)?Math.max(floor,out.get(o.center.id)-BK_D/2):floor; yb=ya+BK_D; }
+    else if(ya==null) ya=yb-BK_D;
+    else if(yb==null) yb=ya+BK_D;
+    const ym=Math.round((ya+yb)/2); out.set(m.id,ym); floor=yb+BK_GAP+strip;
+    return { ya, yb, ym, fa, fb }; }); });
+  return { slots, out, totalH: Math.max(top,...slots.flat().map(s=>s.yb))+BK_GAP/2 };
+}
+/* the lines of a section as filled rectangles on whole pixels, from its columns' left edges and widths (columns abut, so a match's
+   joining line at its column's right edge is where the next column's lines begin). Each name's line runs its column's width; the
+   two lines of a match are joined at the right end by a vertical, half each; the middle of that vertical is the next round's line.
+   A hairline is the pixel row [y, y+1) and column [x-1, x); a lit line (the winner's, and its half of the vertical) is [y-1, y+1)
+   and [x-2, x), so lit and hairline segments butt on the same edges. */
+function sheetRects(geo,layout,won,champ){
+  const rects=[];
+  const H=(x0,x1,y,lit)=>rects.push(lit?{ x:x0, y:y-1, w:x1-x0, h:2, lit }:{ x:x0, y, w:x1-x0, h:1, lit });
+  const V=(x,y0,y1,lit)=>rects.push(lit?{ x:x-2, y:y0-1, w:2, h:y1-y0+2, lit }:{ x:x-1, y:y0, w:1, h:y1-y0+1, lit });
+  layout.slots.forEach((col,c)=>{ const g=geo[c]; if(!g) return; const xr=g.x+g.w;
+    // a slot fed from elsewhere (a loser dropping in) has no road in: its line starts 12 in, where its name does, so it never touches
+    // the join of the column before and reads as joined to a match it did not come from
+    const x0=fed=>c&&!fed?g.x+BK_INSET:g.x;
+    col.forEach(({ ya, yb, ym, m, fa, fb })=>{ const wa=won(m,"a"), wb=won(m,"b");
+      H(x0(fa),xr,g.y+ya,wa); H(x0(fb),xr,g.y+yb,wb); V(xr,g.y+ya,g.y+ym,wa); V(xr,g.y+ym,g.y+yb,wb); }); });
+  const last=layout.slots.length-1, gc=geo[last+1];
+  if(champ&&gc&&layout.slots[last]?.[0]) H(gc.x,gc.x+gc.w,gc.y+layout.slots[last][0].ym,Boolean(champ.name));
+  rects.sort((a,b)=>a.lit-b.lit);
+  return rects;
+}
+/* one section of the draw sheet: its rounds as columns and, after them, the 우승 line. Every name stands on its own line; the lines
+   are one drawing over the section (sheetRects), laid over the names' rows, and no line passes through a name. */
+function SheetSection({ cols, strip=0, from, card, stripOf, champ=null, n, won, className="" }){
+  const layout=sheetLayout(cols.map(c=>c.ms),strip,from);
+  layout.slots.forEach((col,c)=>col.forEach((s,j)=>{ s.m=cols[c].ms[j]; }));
+  const ref=useRef(null);
+  const [geo,setGeo]=useState(null);
+  useLayoutEffect(()=>{
+    const tree=ref.current;
+    if(!tree) return undefined;
+    const measure=()=>{
+      const next=[...tree.querySelectorAll(":scope > .bk-col2")].map(col=>{ const body=col.querySelector(":scope > .bk-col-body");
+        return col.offsetParent&&body?{ x:col.offsetLeft, w:col.offsetWidth, y:col.offsetTop+body.offsetTop }:null; });
+      next.size={ w:tree.scrollWidth, h:tree.scrollHeight };
+      setGeo(prev=>JSON.stringify(prev)===JSON.stringify(next)&&prev?.size?.w===next.size.w&&prev?.size?.h===next.size.h?prev:next);
+    };
+    measure();
+    const watch=typeof ResizeObserver==="function"?new ResizeObserver(measure):null;
+    watch?.observe(tree);
+    return ()=>watch?.disconnect();
+  },[cols.length,strip,Boolean(champ)]);
+  const rects=geo?sheetRects(geo,layout,won,champ):[];
+  const lastY=layout.slots[cols.length-1]?.[0]?.ym??BK_ROW_H;
+  return <div className={"bk-tree "+className} ref={ref} style={{"--n":n}}>
+    {cols.map((col,c)=>(<div className="bk-col2" key={c}>
+      {col.head}
+      <div className="bk-col-body" style={{height:layout.totalH}}>
+        {col.ms.map((m,j)=>{ const { ya, yb }=layout.slots[c][j];
+          return <div className="bk-mpos" data-c={c} data-j={j} key={m.id} style={{top:(ya-BK_ROW_H-strip)+"px","--d":(yb-ya)+"px"}}>{strip?stripOf(m):null}{card(m)}</div>; })}
+      </div>
+    </div>))}
+    {/* the 우승 line: the final's middle runs on into it; the champion's name stands on it at 32 and lights when the final ends */}
+    {champ&&<div className={"bk-col2 bk-champ-col"+(champ.name?" on":"")}>
+      <div className="bk-col-h gf">우승</div>
+      <div className="bk-col-body" style={{height:layout.totalH}}>
+        <div className="bk-mpos bk-champ-pos" style={{top:(lastY-BK_CHAMP_H)+"px"}}>
+          {champ.name
+            ? <div className="bk-champ-node"><b className="t15">{champ.name}</b></div>
+            : <div className="bk-champ-node wait"><span className="t12">결승이 끝나면 켜집니다.</span></div>}
+        </div>
+      </div>
+    </div>}
+    {geo&&<svg className="bk-wires" width={geo.size.w} height={geo.size.h} shapeRendering="crispEdges" aria-hidden="true">
+      {rects.map((r,i)=><rect key={i} className={r.lit?"lit":"dim"} x={r.x} y={r.y} width={r.w} height={r.h}/>)}
+    </svg>}
+  </div>;
 }
 function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=false, seedOf, battles=[], startable=false, eventId=null, boutsOf=()=>0, schedule=null, me=null, onSchedule=null, reportOn=false, onReported, winsOf=()=>1 }){
   const ev=evalGraph(g);
   const finalRes=elimResult(g);
   const strip=schedule?.tables?.size?BK_STRIP_H:0;
-  const { centers, totalH }=treeCenters(g.rounds,strip);
   const startOf=ms=>{ const at=schedule?.rounds?.[roundKeyOf(ms[0]?.id)]; return at?dotDate(at)?.clock||"":""; };
   /* a column's head: the round and its start at the right end (13:00); for an operator it opens the schedule */
   const head=(label,ms,extra="t12 dim")=>{
@@ -1396,39 +1442,6 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   /* a match already decided (a winner, or a bye) is no longer waiting for a table: its strip stands empty, keeping the tree's line
      (2026-11-23 audit, Q-03: 테이블 미정 stood over finished matches) */
   const stripOf=m=>{ const label=schedule?.tables?.get(m.id)||""; const settled=Boolean(ev.win[m.id]); return <div className={"mb-strip t12"+(label||settled?"":" wait")} aria-hidden={!label&&settled?true:undefined}>{label?tableWord(label):settled?"":"테이블 미정"}</div>; };
-  /* the lines: one drawing over the whole tree, measured from the boxes as they stand (offsets, so a lighting rise never bends them).
-     Out of each box a road to the middle of its pair and on into the next box; a decided road is a 2px lit line drawn over the rest,
-     so it runs unbroken from the winner's box to the next. A double's winners' rounds are drawn the same; its 우승 stands with the
-     losers' rounds, outside this tree, so no road runs to it. */
-  const treeRef=useRef(null);
-  const [wires,setWires]=useState(null);
-  const won=m=>{ const w=ev.win[m.id]; return Boolean(w)&&w!==BYE; };
-  const winKey=g.rounds.map(r=>r.map(m=>ev.win[m.id]||"").join(",")).join("|")+(finalRes?.champ||"");
-  useLayoutEffect(()=>{
-    const tree=treeRef.current;
-    if(!tree) return undefined;
-    const at=el=>{ let x=0,y=0; for(let n=el;n&&n!==tree;n=n.offsetParent){ x+=n.offsetLeft; y+=n.offsetTop; } return { x, y, w:el.offsetWidth, h:el.offsetHeight }; };
-    const draw=()=>{
-      const box=(ri,j)=>{ const el=tree.querySelector(`[data-r="${ri}"][data-j="${j}"] > .mb`); return el?at(el):null; };
-      const dim=[], lit=[];
-      for(let ri=1;ri<g.rounds.length;ri++) g.rounds[ri].forEach((m,j)=>{
-        const t=box(ri,j); if(!t) return;
-        const ty=t.y+t.h/2; let xm=null; const roads=[];
-        [2*j,2*j+1].forEach(k=>{ const f=g.rounds[ri-1][k]; const b=f&&box(ri-1,k); if(!b) return;
-          const fy=b.y+b.h/2, fx=b.x+b.w; xm=Math.round((fx+t.x)/2);
-          (won(f)?lit:dim).push(`M${fx} ${fy}H${xm}V${ty}`); roads.push(won(f)); });
-        if(xm!=null) (roads.every(Boolean)?lit:dim).push(`M${xm} ${ty}H${t.x}`);
-      });
-      const fin=box(g.rounds.length-1,0), champ=tree.querySelector(".bk-champ-col .bk-champ-node");
-      // a phone with the result shown first hides the 우승 column (brackets.css, draft 5B): no leg runs to a column that is not drawn
-      if(fin&&champ&&champ.offsetParent){ const c=at(champ); (finalRes?.champ?lit:dim).push(`M${fin.x+fin.w} ${fin.y+fin.h/2}H${c.x}`); }
-      setWires({ w:tree.scrollWidth, h:tree.scrollHeight, dim:dim.join(""), lit:lit.join("") });
-    };
-    draw();
-    const watch=typeof ResizeObserver==="function"?new ResizeObserver(draw):null;
-    watch?.observe(tree);
-    return ()=>watch?.disconnect();
-  },[winKey,g.rounds.length,g.kind,strip]);
   /* the match open is in the address (?m=), so a reload or a shared link opens the same match: "이 경기" can be sent */
   const [seen,setSeenState]=useState(()=>{ const k=new URLSearchParams(window.location.search).get("m"); return k?collectGraphMatches(g).find(x=>String(x.id)===k)||null:null; });
   const setSeen=m=>{ setSeenState(m); const url=new URL(window.location.href); if(m) url.searchParams.set("m",m.id); else url.searchParams.delete("m");
@@ -1437,45 +1450,27 @@ function ElimBoard({ g, nameOf, admin, onPick, teamMode, onOpenTeam, qualifier=f
   const liveBout=m=>battles.find(x=>x.status!=="ended"&&parseBoutKey(x.source_node_key)?.parent===m.id)||null;
   const card=m=><MatchCard m={m} ev={ev} nameOf={nameOf} admin={admin} onPick={onPick} teamMode={teamMode} onOpenTeam={onOpenTeam} seedOf={seedOf} onOpen={setSeen} me={me} battle={teamMode?liveBout(m):battleForMatch(battles,m.id,[ev.sp(m.a),ev.sp(m.b)])}/>;
   const seenRound=seen&&[...g.rounds,...(g.lb||[]),[g.gf],[g.reset]].find(r=>r?.includes(seen));
+  // known: both entrants of the next match are named by it; on: it was played and decided (a bye is known but not lit)
+  // the line a winner stands on lights: a match played and decided (a bye's winner stays quiet)
+  const won=(m,side)=>m.winner===side&&ev.sp(m.a)!==BYE&&ev.sp(m.b)!==BYE;
+  const col=(label,ms,extra)=>({ head:head(label,ms,extra), ms });
+  /* a double's end stands on the winners' row: its final, the grand final (and the reset final once it is played for), then 우승, so the
+     road a champion takes runs on one line to the name (2026-11-24: the grand final and 우승 stood apart under the losers' rounds) */
+  const gfCols=g.kind==="double"&&!qualifier?[col("그랜드 파이널",[g.gf],"t12 gf"),...(g.reset&&g.gf.winner==="b"?[col("리셋 결승",[g.reset],"t12 gf")]:[])]:[];
+  const top=[...g.rounds.map((r,ri)=>col(roundLabel(g,ri),r)),...gfCols];
+  const champ=qualifier?null:{ name:finalRes?.champ?nameOf(finalRes.champ):"" };
+  const lbCols=g.kind==="double"?g.lb.map((r,ri)=>col(lbRoundName(ri),r)):[];
+  // the winners' and the losers' rows share one grid of columns, so a round's column stands over the same 1200 share in both
+  const n=Math.max(top.length+(champ?1:0),lbCols.length);
+  const from=m=>g.reset&&m===g.reset?{ none:true, center:g.gf }:null;
+  const section=(cols,extra={})=><SheetSection cols={cols} strip={strip} from={from} card={card} stripOf={stripOf} n={n} won={won} {...extra}/>;
   return (<div className="bk-scroll" role="region" aria-label="대진표" tabIndex={0}>
   {seen&&<MatchSheet g={g} m={seen} ev={ev} nameOf={nameOf} onClose={()=>setSeen(null)} battle={battleForMatch(battles,seen.id,[ev.sp(seen.a),ev.sp(seen.b)])} startable={startable} eventId={eventId} battles={battles} boutCount={teamMode?boutsOf(seen,ev):0}
     start={seenRound?startOf(seenRound):""} table={schedule?.tables?.get(seen.id)||""} me={me} reportOn={reportOn&&!teamMode} onReported={onReported} need={winsOf(seen.id)}/>}
-  <div className="bk-tree" ref={treeRef} style={{"--n":g.rounds.length+(g.kind!=="double"&&!qualifier?1:0)}}>
-    {wires&&<svg className="bk-wires" width={wires.w} height={wires.h} aria-hidden="true"><path className="dim" d={wires.dim}/><path className="lit" d={wires.lit}/></svg>}
-    {g.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
-      {head(roundLabel(g,ri),r)}
-      <div className="bk-col-body" style={{height:totalH,"--bk-pitch":((BK_PITCH0+strip)*Math.pow(2,ri))+"px"}}>
-        {r.map((m,j)=>(<div className="bk-mpos" data-r={ri} data-j={j} key={m.id} style={{top:(centers[ri][j]-BK_MATCH_H/2-strip)+"px"}}>{strip?stripOf(m):null}{card(m)}</div>))}
-      </div>
-    </div>))}
-    {/* the 우승 panel stands from the start and lights when the final ends */}
-    {g.kind!=="double"&&!qualifier&&<div className={"bk-col2 bk-champ-col"+(finalRes?.champ?" on":"")}>
-      <div className="bk-col-h t12 dim">우승</div>
-      <div className="bk-col-body" style={{height:totalH}}>
-        <div className="bk-mpos bk-champ-pos" style={{top:(centers[g.rounds.length-1][0]-BK_MATCH_H/2)+"px"}}>
-          {finalRes?.champ
-            ? <div className="bk-champ-node inv"><b className="t15">{nameOf(finalRes.champ)}</b></div>
-            : <div className="pn bk-champ-node wait"><span className="t12">결승이 끝나면 켜집니다.</span></div>}
-        </div>
-      </div>
-    </div>}
-  </div>
-  {/* 3위 결정전 (third_place_best_of.sql): under the tree, between the semifinal losers */}
-  {g.third&&<div className="bk-lb"><div className="bk-lb-h t15">3위 결정전</div><div className="bk-cols bk-third" style={{"--bk-n":g.rounds.length+(qualifier?0:1)}}><div className="bk-col">{card(g.third)}</div></div></div>}
-  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자조</div><div className="bk-cols" style={{"--n":g.lb.length}}>
-    {g.lb.map((r,ri)=>(<div className="bk-col" key={ri}>{head(lbRoundName(ri),r)}
-      {r.map(m=><React.Fragment key={m.id}>{strip?<div className="stack">{stripOf(m)}{card(m)}</div>:card(m)}</React.Fragment>)}
-    </div>))}
-  </div></div>}
-  {/* the grand final and the 우승 stand on a row of their own under the losers' rounds, on the same columns (2026-11-23 audit, C-09) */}
-  {g.kind==="double"&&!qualifier&&<div className="bk-lb bk-gf-row"><div className="bk-cols" style={{"--n":g.lb.length}}>
-    {!qualifier&&<div className="bk-col"><div className="bk-col-h gf">그랜드 파이널</div>{strip?<div className="stack">{stripOf(g.gf)}{card(g.gf)}</div>:card(g.gf)}</div>}
-    {!qualifier&&g.reset&&g.gf.winner==="b"&&<div className="bk-col"><div className="bk-col-h gf">리셋 결승</div>{strip?<div className="stack">{stripOf(g.reset)}{card(g.reset)}</div>:card(g.reset)}</div>}
-    {!qualifier&&finalRes&&finalRes.champ&&<div className="bk-col bk-champ-col">
-      <div className="bk-col-h gf">우승</div>
-      <div className="bk-champ-node inv"><b className="t15">{nameOf(finalRes.champ)}</b></div>
-    </div>}
-  </div></div>}
+  {section(top,{champ})}
+  {/* 3위 결정전 (third_place_best_of.sql): under the tree, between the semifinal losers, one column of the tree wide */}
+  {g.third&&<div className="bk-lb"><div className="bk-lb-h t15">3위 결정전</div>{section([{ head:null, ms:[g.third] }],{className:"bk-narrow"})}</div>}
+  {g.kind==="double"&&<div className="bk-lb"><div className="bk-lb-h t15">패자조</div>{section(lbCols,{className:"bk-narrow"})}</div>}
   </div>);
 }
 
@@ -1572,7 +1567,8 @@ function GroupStageBoard({b,admin,busy,run,nameOf,battles,startable,refresh}){
       return <section className="bk-gs-group" key={group.id}>
         <h2 className="t20">{group.name}조</h2>
         <div className="stack bk-gs-rank">{rows.map(row=><Row key={row.id} title={nameOf(row.id)}
-          line={[complete?(row.tied?`공동 ${row.rank}위`:`${row.rank}위`):null,`${row.wins}승`,row.reason==="승자승"?row.reason:null].filter(Boolean).join(", ")}
+          lead={complete?<Fig value={String(row.rank)} h={32} label={`${row.tied?"공동 ":""}${row.rank}위`}/>:null}
+          line={[complete&&row.tied?"공동 순위":null,`${row.wins}승`,row.reason==="승자승"?row.reason:null].filter(Boolean).join(", ")}
           value={ready?(qualified.includes(row.id)?"본선 진출":"조별 탈락"):null}/>)}</div>
         <div className="stack bk-gs-games">
         {group.matches.map(match=>renderMatch(match,admin&&!b.knockout&&!group.playoffs.length?true:admin?false:undefined))}
@@ -2501,7 +2497,7 @@ function BracketDraw({ b, onDone }){
     return ()=>clearInterval(iv);
   },[n]); // eslint-disable-line
   /* 대진표의 칸 그대로 그린다(.mb, .mb-row): 이름이 들어와도 칸의 크기가 바뀌지 않고, 추첨이 끝나 대진표로 바뀔 때 같은 자리에 선다.
-     아직 뽑지 않은 칸은 빈 줄, 뽑는 칸은 한 단 밝게, 부전승과 다음 라운드의 대기는 대진표와 같은 흐린 글자다. */
+     아직 뽑지 않은 칸은 빈 줄, 뽑는 칸은 한 단 밝은 바탕(--tint) 위에서 이름이 그 안을 지나가고, 부전승과 다음 라운드의 대기는 대진표와 같은 흐린 글자다. */
   const row=(cls,text,ref)=><div className={"mb-row"+cls} ref={ref}><i className="mb-seed num t12" aria-hidden="true"/><span className="mb-name">{text}</span></div>;
   const slotFor=(key,pid,bye)=>{
     if(bye) return row(" wait","부전승");
@@ -2517,21 +2513,17 @@ function BracketDraw({ b, onDone }){
     {group ? (
       <div className="bk-groups">{b.groups.map((g,gi)=>(
         <div className="bk-group" key={g.id}><div className="bk-group-h">{g.name}조</div>
-          <div className="mb">{g.members.map((mem,mi)=>slotFor("g"+gi+"_"+mi,mem,false))}</div>
+          <div className="mb mb-list">{g.members.map((mem,mi)=>slotFor("g"+gi+"_"+mi,mem,false))}</div>
         </div>))}</div>
-    ) : (()=>{ const {centers,totalH}=treeCenters(b.graph.rounds);
-      return (<div className="bk-scroll sq" role="region" aria-label="대진표" tabIndex={0}><div className="bk-tree">
-        {b.graph.rounds.map((r,ri)=>(<div className="bk-col2" key={ri}>
-          <div className="bk-col-h t12 dim">{roundLabel(b.graph,ri)}</div>
-          <div className="bk-col-body" style={{height:totalH,"--bk-pitch":(BK_PITCH0*Math.pow(2,ri))+"px"}}>
-            {r.map((m,j)=>(<div className="bk-mpos" key={m.id} style={{top:(centers[ri][j]-BK_MATCH_H/2)+"px"}}>
-              {ri===0
-                ? <div className="mb">{slotFor("m"+j+"_0",m.a.pid,m.a.bye)}{slotFor("m"+j+"_1",m.b.pid,m.b.bye)}</div>
-                : <div className="mb">{row(" wait","대기")}{row(" wait","대기")}</div>}
-            </div>))}
-          </div>
-        </div>))}
-      </div></div>);
+    ) : (()=>{ const rounds=b.graph.rounds;
+      /* the draw stands on the sheet's own lines (SheetSection), every slot on its line, none lit until the sheet takes its place */
+      const card=m=>{ const ri=rounds.findIndex(r=>r.includes(m)), j=rounds[ri].indexOf(m);
+        return ri===0
+          ? <div className="mb">{slotFor("m"+j+"_0",m.a.pid,m.a.bye)}{slotFor("m"+j+"_1",m.b.pid,m.b.bye)}</div>
+          : <div className="mb">{row(" wait","대기")}{row(" wait","대기")}</div>; };
+      return (<div className="bk-scroll sq" role="region" aria-label="대진표" tabIndex={0}>
+        <SheetSection cols={rounds.map((r,ri)=>({ head:<div className="bk-col-h t12 dim">{roundLabel(b.graph,ri)}</div>, ms:r }))} card={card} n={rounds.length} won={()=>false}/>
+      </div>);
     })()}
     <Dock><Button variant="main" icon={done?"check":"arrow"} onClick={onDone}>{done?"대진 확정":"건너뛰기"}</Button></Dock>
   </div>);
@@ -2756,7 +2748,7 @@ function PrivateBrackets({ admin, flash, tabs }){
   }
 
   return (<section className="bk">
-    <header className="bk-head"><h1 className="t32">대진표</h1></header>
+    <header className="bk-head"><h1 className="page-title">대진표</h1></header>
     {tabs}
     {/* 사설 explains in one panel that it never reaches the records (DESIGN.md "Brackets") */}
     <Row className="bk-private-note" title="사설 대진표는 리그 기록에 남지 않습니다."/>
@@ -3071,7 +3063,7 @@ export default function BracketsPage({ data, admin, save, flash, refresh }){
   const lineOf=(b)=>[`${(b.participants||[]).length}${b.mode==="team"?"팀":"명"}`, b.mode==="team"?"팀전":"", bracketFormat(b), statusTag(b)!=="진행 중"&&winnerOf(b)?`우승 ${winnerOf(b)}`:""].filter(Boolean).join(", ");
   return (<section className="bk">
     {!open&&!wizard&&<header className="bk-head">
-      <h1 className="t32">대진표</h1>
+      <h1 className="page-title">대진표</h1>
       {admin&&<Button variant="link" disabled={!!deletingId} onClick={()=>transition(()=>flushSync(()=>setWizard(true)))}>새 대진표</Button>}
     </header>}
     {!open&&!wizard&&normalizedLoadError&&<ErrorNote action="다시 불러오기" onRetry={()=>void loadNormalized({initial:true})}>대진표를 불러오지 못했습니다. {normalizedLoadError}</ErrorNote>}

@@ -1,7 +1,8 @@
 
 
-/* ---------- plate panels ---------- */
-.tb-panel, .tb-validation { padding: var(--pad); background: var(--panel); min-width: 0; }
+/* ---------- entries: nothing stands on a panel; a block opens with the 2px lit rule and closes on a hairline ---------- */
+.tb-panel { min-width: 0; }
+.tb-validation { min-width: 0; padding: var(--s5) 0; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); }
 
 /* ---------- validation + official submission ---------- */
 .tb-validation-wrap { margin-top: calc(var(--s5) - var(--s13)); }
@@ -25,23 +26,20 @@
    stands under the last step's edge (2026-11-06; a key ending in the middle of the panel read as floating) */
 .tb-official-lookup { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--seam); }
 .tb-official-lookup .in { grid-column: span 2; }
-.tb-official-lookup .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); width: auto; height: var(--h-row); padding-inline: var(--s3); }
-.tb-sub-field .in { background: var(--panel-2); }
+.tb-official-lookup .btn--second { width: auto; height: var(--h-row); padding-inline: var(--s3); }
 .tb-sub-field .tb-step-line { margin-top: var(--s1); }
 @media (min-width: 860px) { .q .tb-sub-pin { width: calc((100% - var(--seam) * 2) / 3 * 2 + var(--seam)); } }
 /* the panel: the event's name at 20 and its grey line 4 under it, then the steps and each step's block 20 apart; the panel's padding is
    never smaller than that gap. The main action stands last, as wide as the steps. */
-.official-submission { display: grid; gap: var(--s5); padding: var(--s5); }
+.official-submission { display: grid; gap: var(--s5); padding: var(--s5) 0; }
 /* the panel spaces its blocks by its gap; the list rule above (.tb-validation ul, 12) is more specific, so its lists are named too */
 .official-submission > *, .official-submission > ul { margin-top: 0; }
 .tb-sub-head { display: grid; gap: var(--s1); min-width: 0; }
 .tb-sub-head > b { overflow-wrap: anywhere; }
-/* inside the panel the steps and the second action stand one tone up, like a field inside a panel */
-.official-submission .step.pn, .official-submission > .btn--second { background: var(--panel-2); }
 .tb-step-line { display: flex; align-items: flex-start; gap: var(--s2); color: var(--lit); }
 .tb-step-line .ic, .tb-step-line .bang { flex: none; }
 .tb-step-line.off { color: var(--dim); }
-.tb-submitted { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--pad); }
+.tb-submitted { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) 0; }
 .tb-submitted > span { display: grid; gap: var(--s1); }
 
 /* ---------- layout ---------- */
@@ -67,10 +65,10 @@
 }
 .tb-pokemon-row {
   width: 100%; display: grid; grid-template-columns: var(--h-row2) minmax(0, 1fr) auto 32px; align-items: center; gap: var(--s1) var(--s3);
-  min-height: var(--h-row2); padding: var(--s3) var(--s3) var(--s3) 0; border: 0; background: transparent; text-align: left;
+  min-height: var(--h-row2); padding: var(--s3) var(--band); border: 0; background: transparent; text-align: left;
   transition: scale var(--move-press), background-color var(--move-tone), opacity var(--move-tone);
 }
-@media (hover: hover) { .tb-pokemon-row:hover:not(:disabled) { background: var(--panel-2); }
+@media (hover: hover) { .tb-pokemon-row:hover:not(:disabled) { background: var(--tint); }
 }
 /* the picture cell is a 64 square centred on the row, the Pokémon standing on its floor inside it: a taller row (name, tags and the
    stats under them) never leaves the picture low with an empty cell above it */
@@ -97,27 +95,22 @@
 .tb-pokemon-copy small { font-size: var(--t12); color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tb-add-mark {
   width: 32px; height: 32px; display: grid; place-items: center; color: var(--dim);
-  transition: background-color var(--move-tone), color var(--move-tone);
+  transition: color var(--move-tone);
 }
-@media (hover: hover) { .tb-pokemon-row:hover:not(:disabled) .tb-add-mark { background: var(--lit); color: var(--ground); }
+@media (hover: hover) { .tb-pokemon-row:hover:not(:disabled) .tb-add-mark { color: var(--lit); }
 }
-/* an empty list is one panel holding its line, as every empty place is (board.css .ypl-empty): on a sheet one step up */
-.tb-pool-empty, .tb-library-empty { padding: var(--s5) var(--pad); background: var(--panel); font-size: var(--t15); line-height: var(--l-read); font-weight: 700; color: var(--lit); }
-.sheet :is(.tb-pool-empty, .tb-library-empty) { background: var(--panel-2); }
+/* an empty list is its line between the lit rule and a hairline, as every empty place is (board.css .ypl-empty) */
+.tb-pool-empty, .tb-library-empty { padding: var(--s5) 0; box-shadow: inset 0 var(--line) 0 var(--lit), inset 0 -1px 0 var(--rule); font-size: var(--t15); line-height: var(--l-read); font-weight: 700; color: var(--lit); }
 
-/* ---------- a type (DESIGN.md "Colour and light", 2026-11-03): one mark for a Pokémon's type and a move's type. A square tag 24 tall,
-   an 8 square in the type's colour, then its name. Square and on whole pixels, never slanted, so every tag draws alike. ---------- */
-.tb-types { display: flex; flex-wrap: wrap; gap: var(--seam); }
+/* ---------- a type (DESIGN.md "Colour and light"): one mark for a Pokémon's type and a move's type, 24 tall: an 8 square in the type's
+   colour (a content colour), then its name. No box around it: the square is the mark. ---------- */
+.tb-types { display: flex; flex-wrap: wrap; gap: 0 var(--s3); }
 .tb-type, .pick-type {
-  --type: var(--mute); display: inline-flex; align-items: center; gap: var(--s2); height: 24px; padding: 0 var(--s2);
-  background: var(--tag-bg, var(--panel-2)); color: var(--lit); font-size: var(--t12); line-height: var(--l12); font-weight: 600; white-space: nowrap;
+  --type: var(--mute); display: inline-flex; align-items: center; gap: var(--s2); height: 24px; padding: 0;
+  color: var(--lit); font-size: var(--t12); line-height: var(--l12); font-weight: 600; white-space: nowrap;
 }
 .tb-type::before, .pick-type::before { content: ""; width: var(--s2); height: var(--s2); flex: none; background: var(--type); }
-/* on a surface already one tone up, the tag steps down to the ground so it still reads as its own square */
-:is(.sc-moves li, .sheet .pn, .records-round-detail) { --tag-bg: var(--ground); }
-/* only a real pointer lifts a row, so only a real pointer steps its tags down: a finger's tap leaves no hover behind */
-@media (hover: hover) { :is(.tb-pokemon-row:hover, .cell:hover) { --tag-bg: var(--ground); } }
-.tb-type-opt .tb-type { --tag-bg: transparent; padding: 0; color: inherit; }
+.tb-type-opt .tb-type { color: inherit; }
 /* the colours themselves live in tokens.css (content colours); each type names its own, and the words that read on it */
 .type-normal{--type:var(--type-normal);--type-ink:var(--on-type-dark)}.type-fire{--type:var(--type-fire);--type-ink:var(--on-type-light)}
 .type-water{--type:var(--type-water);--type-ink:var(--on-type-dark)}.type-electric{--type:var(--type-electric);--type-ink:var(--on-type-dark)}
@@ -137,7 +130,7 @@
 /* ---------- dialogs: rule change ---------- */
 .tb-rule-confirm-copy { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }
 .tb-rule-confirm-copy + .tb-rule-confirm-copy { margin-top: var(--s3); }
-.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) var(--pad); list-style: none; background: var(--panel); font-weight: 600; }
+.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) 0; list-style: none; box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--rule); font-weight: 600; }
 
 @media (max-width: 1099px) {
   .tb-layout { grid-template-columns: 1fr; }
@@ -208,12 +201,14 @@
 .tb-suggest-head { padding: var(--s2) var(--s3) var(--s1); font-size: var(--t12); font-weight: 600; color: var(--mute); }
 .tb-suggest .dd-opt { justify-content: flex-start; }
 .tb-suggest .dd-opt small { margin-left: auto; font-size: var(--t12); font-weight: 400; color: var(--mute); }
-.tb-suggest .dd-opt.sel { background: var(--panel-2); }
+.tb-suggest .dd-opt.sel { background: var(--tint); }
 .tb-chips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3); }
-/* an active condition is inverted, like a selected control */
-.tb-chip { padding: 0 var(--s2) 0 var(--s3); border: 0; background: var(--lit); color: var(--ground); }
+/* an active condition is chosen: bold on its thick lit rule, its x after it */
+.tb-chip { padding: 0 var(--s1) 0 0; border: 0; background: none; color: var(--lit); font-weight: 700; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .tb-chip small { font-size: var(--t12); font-weight: 400; }
-.tb-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) var(--h-row); gap: var(--seam); align-items: stretch; margin-top: var(--s3); }
-.tb-sort-dir { display: grid; place-items: center; min-height: var(--h-row); color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
-@media (hover: hover) { .tb-sort-dir:hover { background: var(--panel-2); } }
+/* the order and its direction stand on one control row (board.css .ctl-row): one line under the select and the key together */
+.tb-sort-row { margin-top: var(--s3); }
+.tb-sort-row > .dd { flex: 1 1 0; width: auto; }
+.tb-sort-dir { display: grid; place-items: center; flex: none; width: var(--h-row); min-height: var(--h-row); color: var(--lit); transition: scale var(--move-press), background-color var(--move-tone); }
+@media (hover: hover) { .tb-sort-dir:hover { background: var(--tint); } }
 

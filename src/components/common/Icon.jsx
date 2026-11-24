@@ -36,10 +36,14 @@ const P = {
   news: "M5.5 3.5h13v17h-13zM9 8.5h6M9 12h6M9 15.5h3.5",
   bracket: "M3.5 6H9v12H3.5M9 12h5.5M14.5 8.5h6v7h-6z",
   records: "M4 12h4v8H4zM10 5h4v15h-4zM16 9h4v11h-4z",
+  /* two lobes and a mitred point; filled by CSS (fill: currentColor) where it stands for something held */
+  heart: "M12 19.5l-7.4-7.6A3.9 3.9 0 0 1 12 7.1a3.9 3.9 0 0 1 7.4 4.8z",
+  /* 고대비: a ring with its left half filled, the theme button's third state (drawn filled; the right half is a hole wound the other way) */
+  contrast: "M12 3.75a8.25 8.25 0 1 1 0 16.5a8.25 8.25 0 1 1 0-16.5zM12 5.25v13.5a6.75 6.75 0 0 0 0-13.5z",
   /* three filled squares, like lamps */
   more: "M4.5 10.5h3v3h-3zM10.5 10.5h3v3h-3zM16.5 10.5h3v3h-3z",
 };
-const FILLED = new Set(["more"]);
+const FILLED = new Set(["more", "contrast"]);
 
 export default function Icon({ n, size = 16, className = "", style }) {
   const d = P[n];

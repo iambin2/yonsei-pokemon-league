@@ -28,7 +28,7 @@ test("Champions participant additions use phase-specific durable paths", () => {
   assert.match(championsService, /advancementType !== "manual"/);
   assert.match(brackets, /preflightChampionshipFinalBracket\(linkedEvent\.id\)/);
   assert.match(brackets, /qualifier=\{championshipEvent\?\.championship_phase==="qualifier"\}/);
-  assert.match(brackets, /!qualifier&&<div className="bk-col"><div className="bk-col-h gf">그랜드 파이널<\/div>/);
+  assert.match(brackets, /g\.kind==="double"&&!qualifier\?\[col\("그랜드 파이널"/);
 });
 
 test("Qualifier controls derive survivors and never expose manual survivor selection", () => {

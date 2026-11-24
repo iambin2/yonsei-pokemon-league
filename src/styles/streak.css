@@ -18,7 +18,7 @@
 /* with no run of one's own the choice alone heads the board it chooses, at a section head's distance */
 .streak-run:not(:has(.streak-hero)) + section { margin-top: calc(var(--s5) - var(--s13)); }
 
-/* the run lit: its label, the streak at 84 with 연승 on its baseline, and the rule as its grey line */
+/* the run lit: its label, the streak as a thin figure of 120 with 연승 on its baseline */
 .streak-hero { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); padding: var(--pad); text-align: left; }
 .streak-hero-label { display: flex; align-items: center; gap: var(--s2); }
 .streak-hero-board { display: flex; align-items: flex-end; gap: var(--s2); }
@@ -27,28 +27,32 @@
 
 /* ---------- the dark the camera walked into (tower.js; DESIGN.md "Battle", 도전의 탑, The tower) ----------
    Going into a game the camera walks in through the amber door, and the room's dark becomes the stage's own ground. That ground
-   stands fixed over the window where the stage stood, outlives the screen, goes to the next screen's stage, and the next screen
-   comes up out of it (2026-11-11: two doors parting on it read as the old lift's) */
-.tw-veil { position: fixed; z-index: var(--z-sticky); background: var(--ground); pointer-events: none; }
+   stands fixed over the window where the stage stood, outlives the screen, goes to the next screen's stage by transform alone
+   (tower.js liftArrive: it stands at the new box and moves from the old by translate and scale), and the next screen comes up out
+   of it as it fades (2026-11-11: two doors parting on it read as the old elevator's) */
+.tw-veil { position: fixed; z-index: var(--z-sticky); background: var(--ground); pointer-events: none; transform-origin: 0 0; }
 
-/* a game of a run, beside it: which game, the streak riding on it at 32 with 연승 on the baseline, the floor joined under it on the
-   seam. A floor's master inverts */
+/* a game of a run, beside it: which game, the streak riding on it as a figure of 52 with 연승 on the baseline, the floor under it.
+   A floor's gatekeeper is decided, over the 2px lit rule drawn in from the left (tower-play.css) */
 .streak-stake-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s3) var(--pad); text-align: left; }
 .streak-stake-board { display: flex; align-items: flex-end; gap: var(--s2); }
 .streak-stake-board > .t15 { line-height: 1; }
 
-/* the run's lamps: three on the line that names the game, at its right end, 4 apart (DESIGN.md 도전의 탑, The run's lamps) */
+/* the run's hearts: on the line that names the game, at its right end, 4 apart (DESIGN.md 도전의 탑, The hearts): filled while left,
+   outlined and dim once spent or not yet earned. Each is its dim outline with its lit fill over it, so a spent one empties in place
+   and one given back fills (Streak.jsx RunHearts, by opacity) */
 .streak-named { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); align-self: stretch; min-width: 0; }
-.streak-lamps { flex: none; display: inline-flex; gap: var(--s1); }
-/* on an inverted panel a lamp left is the ground's square (tokens.css), and one out is the same square nearly off */
-.inv .streak-lamps > .lamp.unlit { background: var(--ground); opacity: var(--opacity-disabled); }
-/* on the team preview's band the streak's counter stands at the right end, so the lamps follow the name instead of meeting its cells */
+.streak-hearts { flex: none; display: inline-flex; gap: var(--s1); color: var(--lit); }
+.streak-heart { display: inline-grid; }
+.streak-heart > .ic-heart { grid-area: 1 / 1; color: var(--dim); }
+.streak-heart > .ic-heart.on { color: var(--lit); fill: currentColor; opacity: 0; }
+.streak-heart.on > .ic-heart.on { opacity: 1; }
+/* on the team preview's band the streak's figure stands at the right end, so the hearts follow the name instead of meeting it */
 .streak-band > .streak-named { flex: none; align-self: center; justify-content: flex-start; }
 
-/* the head's floor window: the floor's number over its five games, small, as the lift shows them */
+/* the head's floor window: the floor's figure over its five games, small */
 .bt-win.bt-win-floor { flex-direction: column; justify-content: center; gap: var(--s1); }
 .streak-track-bar.mini { grid-template-columns: repeat(5, var(--s2)); }
-.streak-track-bar.mini > i { height: var(--s1); }
 
 /* ---------- 2026-11-11 (docs/BATTLE_STREAK.md 13장): the scene's kinds, the opening draft, the doors to the next game ---------- */
 /* the tower and the draft share the scene's place; the two kinds of run stand as a line of chips under the tabs */

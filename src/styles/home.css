@@ -1,81 +1,49 @@
 /* =============================================================================
-   YPL Scoreboard: home (HomePage.jsx), the stadium board (DESIGN.md "Layout and pages", draft B).
-   The big screen: the next event and the reigning champion as one device joined by the seam; under it
-   the line score and the notices; then the wall of past champions. Phone: one column, sections 52 apart. Desktop: 709 and 439 in
-   1200; the screen's champion half and the notices stand on one line, and both columns end on one line.
+   YPL League Almanac: home (HomePage.jsx), the league's cover (DESIGN.md "Layout and pages", Home; the owner's draft A, 2026-11-24).
+   One screen: a masthead line, then Yonsei, Pokémon and League, each standing on its own rule and filling the column, a fact of the
+   league at the end of each line (on a phone under the word, over its rule). The cover is exactly the first screen between the bars.
    ========================================================================== */
 
-/* ---------- the next event's half ---------- */
-.ho-next { display: flex; flex-direction: column; min-width: 0; padding: var(--pad); }
-.ho-label { display: flex; justify-content: space-between; align-items: center; gap: var(--s5); }
-.ho-lamp { display: flex; align-items: center; gap: var(--s2); }
-/* the event's name at 32 with its kind dim under it, 4 apart (Space) */
-.ho-name { display: grid; gap: var(--s1); margin-top: var(--s3); }
-.ho-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.ho-display { display: grid; gap: var(--s5); margin-top: var(--s5); }
-.ho-board { display: flex; align-items: flex-end; gap: var(--s3); }
-/* the unit stands on the display's baseline */
-.ho-unit { font-size: var(--t20); line-height: var(--l15); font-weight: 700; }
-/* where the day's four-cell clock and 시작 do not fit one line (under 390), 시작 wraps under the clock, which keeps its 84 (no breakpoint
-   of its own: the site has three, Layout) */
-.ho-board.today { flex-wrap: wrap; }
-/* the ranking read: its head stands at its size, unseen and out of reach (HomePage.jsx, T-95) */
-.ho-rank.off > .sh { visibility: hidden; }
-/* 일시, 신청 마감, 형식: spec rows on the next step, the key dim at the start, the fact lit at the end */
-.ho-spec { margin: 0; }
-.ho-spec-row { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
-.ho-spec-row > dt { flex: none; }
-.ho-spec-row > dd { margin: 0; min-width: 0; font-weight: 700; text-align: right; }
-.ho-due { margin-top: var(--s5); }
-.ho-due > .counter { background: var(--panel-2); }
-/* the main action stands at the half's foot */
-.ho-go { margin-top: auto; padding-top: var(--s5); }
+.ho {
+  display: flex; flex-direction: column;
+  min-height: calc(100svh - env(safe-area-inset-top, 0px) - var(--nav-height) - var(--s8) - var(--tab-height) - env(safe-area-inset-bottom, 0px));
+}
+.is-admin .ho { min-height: calc(100svh - env(safe-area-inset-top, 0px) - var(--nav-height) - var(--s8) - var(--tab-height) - var(--admin-height) - env(safe-area-inset-bottom, 0px)); }
 
-/* 지난 대회 (no event ahead): the lead panel and one strip a league's winner, the place in a cell of its own (the records' placings) */
-.ho-last { margin-top: var(--s3); }
-/* while a first visit reads the last event, its key keeps its place unseen, so nothing under it moves and no word changes in view */
-.ho-go.wait { visibility: hidden; }
-.ho-last > .pn { background: var(--panel-2); }
-.ho-win { display: flex; align-items: stretch; min-height: var(--h-row2); }
-.ho-win-place { flex: none; display: grid; place-items: center; width: var(--s21); font-weight: 700; }
-.ho-win-place.pn2 { background: var(--rule); }
-.ho-win > .row-main { align-content: center; padding-left: var(--pad); }
+/* the masthead: the league's name and today, dim, closed by a hairline */
+.ho-mast { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); padding-bottom: var(--s3); box-shadow: inset 0 -1px 0 var(--rule); color: var(--dim); font-weight: 600; }
+.ho-mast b { margin-right: var(--s2); color: var(--lit); font-family: var(--font-fig); }
+.ho-mast .num { font-family: var(--font-fig); }
+.ho > .error-note { padding-bottom: 0; }
 
-/* 지금 경기 (event day): under the main action, a head, the two players as rows of 52, the round's progress */
-.ho-live { margin-top: var(--s5); }
-.ho-live-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); margin: 0; }
-.ho-live-row { display: flex; align-items: center; min-height: var(--h-row); padding: 0 var(--pad); margin: 0; font-weight: 700; }
-@media (hover: hover) { .ho-live :is(button.pn2, button > .pn2):hover, .ho-live > button:hover > .pn2 { background: var(--rule); } }
-/* 내 다음 경기: my own row stays the lit one under the pointer, as an inverted key does (board.css) */
-@media (hover: hover) { .ho-live > button:hover > .pn2.inv { background: var(--dim); color: var(--ground); } }
+/* the name: the words stand at the foot of the room, each on its own rule */
+.ho-name { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--s8) 0 var(--s5); }
+.ho-entry { position: relative; display: grid; }
+.ho-entry::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--rule); transform-origin: left center; }
+/* the decided line: the champion's, lit on the 2px rule */
+.ho-entry.decided::after { height: var(--line); background: var(--lit); }
+/* each word's size is set by its width (useFit); its own leading is the face's, its descender clears the rule */
+.ho-fig { display: flex; align-items: flex-end; width: max-content; padding: .02em 0 .19em; white-space: nowrap; font-family: var(--font-fig); font-weight: 200; line-height: .8; letter-spacing: var(--ls-fig); }
+.ho-fig.heavy { font-weight: 700; }
+.ho-fig > span { display: block; }
+/* the Wing Y closes League as a mark at the end of a sentence */
+.ho-wing { width: .74em; height: auto; margin: 0 0 .07em .14em; }
 
-/* ---------- the sections ---------- */
-.ho-sec { margin-top: var(--s13); min-width: 0; }
-
-/* ---------- the wall: past champions side by side on one floor, a column each, the generation at 20, the name, the season ---------- */
-.ho-line { grid-template-columns: repeat(var(--n), minmax(var(--h-row2), 1fr)); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
-.ho-line::-webkit-scrollbar { display: none; }
-.ho-col { --floor: var(--s21); display: block; height: calc(var(--s21) * 2); min-width: 0; text-align: left; }
-.ho-col-who { display: grid; align-content: center; padding: 0 var(--s1); }
-.ho-col-who > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ho-col-who > b { font-weight: 700; }
-.ho-col .mon { left: 0; right: 0; height: calc(100% - var(--floor) - var(--s2)); margin-inline: auto; }
+/* the facts: on a phone under the word, over its rule, at the end edge */
+.ho-fact { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: var(--s2); padding: 0 0 var(--s3); color: var(--dim); font-size: var(--t12); line-height: var(--l12); text-align: right; }
+.ho-champ { color: var(--dim); }
+.ho-champ b { color: var(--lit); font-size: var(--t15); line-height: var(--l15); font-weight: 700; }
+.ho-keys { gap: var(--s2) var(--s8); }
+.ho-key { display: inline-flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; box-shadow: inset 0 -1px 0 var(--rule); color: var(--lit); font-size: var(--t15); line-height: var(--l15); font-weight: 700; text-align: left; }
+.ho-key.done { color: var(--dim); }
+.ho-key-sub { color: var(--dim); font-size: var(--t12); line-height: var(--l12); font-weight: 400; }
+.ho-key > b { font-weight: 400; transition: transform var(--move-tone); }
+@media (hover: hover) { .ho-key:hover > b { transform: translateX(var(--s1)); } }
 
 @media (min-width: 860px) {
-  /* 709 and 439 with 52 between; the big screen spans both and gives its champion half the 439's width, so the champion and the
-     notices stand on one line (Composing a screen 9) */
-  .ho { display: grid; grid-template-columns: minmax(0, 709fr) minmax(0, 439fr); column-gap: var(--s13); align-items: stretch; padding-top: var(--s5); }
-  .ho > :is(.ho-screen, .ho-hall, .error-note) { grid-column: 1 / -1; }
-  .ho-screen { grid-template-columns: minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148); align-items: stretch; }
-  /* the countdown at 120 with the spec rows beside it, both from the top line under the name (no band above the clock) */
-  .ho-display { grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: var(--s8); }
-  .ho-col { height: calc(var(--s21) * 3); }
-  .ho-col-who { padding: 0 var(--pad); }
-  /* the two columns end on one line: the ranking and the notices stretch their last panels */
-  .ho-rank, .ho-news { display: flex; flex-direction: column; }
-  .ho-news > .stack { flex: 1 0 auto; display: flex; flex-direction: column; }
-  /* what is left is shared by every notice, so no panel keeps a band without ink (Composing a screen 26) */
-  .ho-news > .stack > * { flex: 1 0 auto; }
-  .ho-news .row { height: auto; min-height: var(--h-row2); }
-  .ho-news .nt-lead { align-content: center; }
+  .ho-name { padding: var(--s13) 0 var(--s8); }
+  /* the fact stands in the word's own cell, at the end of its line, on its rule */
+  .ho-entry > * { grid-area: 1 / 1; }
+  .ho-fact { align-self: end; justify-self: end; max-width: 50%; }
+  .ho-champ b { font-size: var(--t20); line-height: var(--l32); }
 }

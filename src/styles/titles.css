@@ -1,17 +1,19 @@
 /* =============================================================================
-   Titles (DESIGN.md "Titles and hall of fame", 2026-11-13): every title is a struck medal (src/components/titleMedal.js) in a square
-   cell with its name under it. The medal is a picture; its cell, the boards and every word stay on the board's own rules.
+   Titles (DESIGN.md "Titles and hall of fame", 2026-11-13): every title is a struck medal (src/components/titleMedal.js) with its name
+   under it. The medal is a picture; around it the page is the almanac's: entries closed by hairlines, a group opened by a thick rule.
    TitlesPage.jsx, TitleFaces.jsx.
    ========================================================================== */
 
 .tl-board { margin-top: var(--s5); }
-/* the group's rule, as a strip the board hangs from */
-.tl-rule { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: var(--s3) var(--pad); }
+/* the group's rule, closed by the thick rule the board hangs from */
+.tl-rule { display: flex; align-items: center; gap: var(--s3); min-height: var(--h-control); padding: var(--s3) 0; box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .tl-rule > span { flex: none; }
 .tl-rule > b { min-width: 0; font-weight: 700; }
 
-/* ---------- a board of medals: square cells on the seam, a medal and its name in each ---------- */
+/* ---------- a board of medals: a medal and its name in each cell, each closed by a hairline ---------- */
 .tl-board-medals { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+/* a board's hairlines run unbroken across its columns, as a table's */
+.tl-board-medals, .tl-regions, .tl-lamps { column-gap: 0; }
 /* fewer columns than the base: the board is as wide as its cells at the base width, from the start edge */
 .tl-board-medals { width: calc((100% + var(--seam)) * min(var(--cols), var(--base)) / var(--base) - var(--seam)); }
 .tl-cell { display: flex; flex-direction: column; align-items: center; min-width: 0; padding: var(--s2) var(--s1) var(--s3); text-align: center; }
@@ -36,12 +38,13 @@
 /* ---------- each group as its kind reads (2026-11-24, draft C) ---------- */
 .tl-gen { display: flex; align-items: flex-end; gap: var(--s1); flex: none; }
 .tl-rmain { display: grid; gap: var(--s2); min-width: 0; }
-.tl-names { display: flex; flex-wrap: wrap; gap: var(--s1); }
-.tl-chip { display: flex; align-items: center; height: var(--h-strip); padding: 0 var(--s2); background: var(--panel-2); font-weight: 600; }
+.tl-names { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
+.tl-chip { font-weight: 600; }
 .off .tl-rmain > b, .tl-tick.off > b { color: var(--mute); }
 /* the champions, newest first: the reigning one stands largest at the top */
-.tl-crow { display: flex; align-items: center; text-align: left; gap: var(--s5); padding: var(--s3) var(--pad); }
-.tl-crow > .tl-gen { width: 52px; }
+.tl-crow { display: flex; align-items: center; text-align: left; gap: var(--s3); padding: var(--s5) 0; }
+.tl-crow > .tl-gen { width: var(--s13); }
+.tl-crow.now > .tl-gen { width: var(--s21); }
 .tl-crow > .tl-medal { flex: none; width: 84px; }
 .tl-crow.now > .tl-medal { width: 132px; }
 /* the regions in their generations' order, the generation over each */
@@ -51,15 +54,16 @@
 .tl-tick > .tl-medal { padding: var(--s2); }
 .tl-tick > .tl-names { justify-content: center; }
 /* the partners by trainer */
-.tl-trainer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--pad); }
+.tl-trainer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s5) 0; }
 .tl-tname { display: grid; gap: var(--s1); }
 .tl-shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .tl-shelf-cell { display: grid; justify-items: center; gap: var(--s1); min-width: 0; }
 /* one title a row */
-.tl-trow { display: flex; align-items: center; text-align: left; gap: var(--s5); padding: var(--s3) var(--pad); }
+.tl-trow { display: flex; align-items: center; text-align: left; gap: var(--s5); padding: var(--s5) 0; }
 .tl-trow > .tl-medal { flex: none; width: 84px; }
 @media (min-width: 860px) {
-  .tl-crow > .tl-gen { width: 84px; }
+  .tl-crow { gap: var(--s5); }
+  .tl-crow > .tl-gen, .tl-crow.now > .tl-gen { width: calc(var(--s21) + var(--s13)); }
   .tl-crow > .tl-medal { width: 120px; }
   .tl-crow.now > .tl-medal { width: 204px; }
   .tl-regions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -67,7 +71,7 @@
   .tl-tname { flex: none; width: 204px; }
   .tl-shelf { display: flex; flex-wrap: wrap; gap: var(--s5); }
   .tl-shelf-cell { width: 120px; }
-  .tl-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tl-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s8); }
   .tl-trow > .tl-medal { width: 120px; }
 }
 
@@ -84,10 +88,10 @@
 .tl-mine { display: grid; gap: var(--s3); }
 .tl-lampset { display: grid; gap: var(--s3); }
 .tl-mhead { display: flex; align-items: flex-end; justify-content: space-between; margin-top: var(--s5); }
-/* a lamp board: one cell a type or a region, lit (inverted) where it is held and off where it is not; six (types) or five (regions) a row on a phone, one row on desktop */
-.tl-lamps { grid-template-columns: repeat(var(--m), minmax(0, 1fr)); }
-.tl-lamp { display: flex; align-items: center; justify-content: center; min-width: 0; height: var(--h-strip); overflow: hidden; white-space: nowrap; color: var(--mute); }
-.tl-lamp.inv { color: var(--ground); font-weight: 700; }
+/* a table of names: one a type or a region, lit and bold where it is held and muted where it is not; six (types) or five (regions) a row on a phone, one row on desktop */
+.tl-lamps { grid-template-columns: repeat(var(--m), minmax(0, 1fr)); box-shadow: inset 0 var(--line) 0 var(--lit); }
+.tl-lamp { display: flex; align-items: center; justify-content: center; min-width: 0; height: var(--h-strip); overflow: hidden; white-space: nowrap; font-weight: 400; color: var(--mute); }
+.tl-lamp.on { color: var(--lit); font-weight: 700; }
 @media (min-width: 860px) { .tl-lamps { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); } }
 .tl-mhead .counter-board > .t15 { line-height: 1; }
 .tl-mine .tl-cell { padding: var(--s1) var(--s1) var(--s2); }
@@ -95,5 +99,3 @@
 
 /* ---------- the operators' editor: the colours as chips ---------- */
 .tl-look-devices { display: flex; flex-wrap: wrap; gap: var(--s2); }
-/* a row lifted under a pointer keeps its holders' chips one step above it */
-@media (hover: hover) and (min-width: 860px) { :is(.tl-trow, .tl-tick):hover:not(:disabled) .tl-chip { background: var(--panel); } }
