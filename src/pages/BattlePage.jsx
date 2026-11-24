@@ -376,7 +376,12 @@ let courtDim = false;
 export const goingIn = scope => {
   const page = document.querySelector(scope)?.closest(".bt-page");
   headStays = Boolean(page?.classList.contains("bt-match"));
-  if (page) dimmed = goOut([...leavers(page), ...page.querySelectorAll(".bt-head .bt-win")]);
+  /* a run's break already stands the tower in the stage's place (Streak.jsx BreakTower): the camera goes on from there into the door,
+     so the break stays and the game it covers is never shown again (2026-11-24, recorded: the tower vanished at 250, the ended court
+     came back to call its Pokémon to their balls, and the walk in through the door played unseen under it) */
+  const hall = document.querySelector(`${scope} .bt-stagebox .streak-break .tw-hall`);
+  if (page) dimmed = goOut([...leavers(page, hall ? `${KEEP}, .streak-break` : KEEP), ...page.querySelectorAll(".bt-head .bt-win")]);
+  if (hall) { courtDim = false; return Promise.resolve(); }
   /* going in from a page scrolled past its stage (a phone choosing a 연승 도전 swap, a rematch under the result) comes back to the
      stage first, so the court is seen going dark and the floor called on it (2026-11-09) */
   const stage = document.querySelector(`${scope} .bs-stage`);
@@ -845,7 +850,9 @@ function BattleRoom({ id, res, say, go, onLeave, onOpen, start, code }) {
     } catch (e) { say?.(failText(e, res)); }
   };
   // a game of a 연승 도전 run ends on the run's keys: 다음 판 or 다시 도전, and 나가기 back to the 연승 도전 tab
-  const streak = seat && row.kind === "streak" ? { onOpen, onOut: () => onOpen(null, null, "streak"), enter: enterBattle, goingIn, standUp, leaveNow } : null;
+  /* 나가기 (and 다시 도전) back to the tab: the battle screen goes out (260) before the tab lights, as the head's back key does; it
+     vanished in one frame (2026-11-24, recorded) */
+  const streak = seat && row.kind === "streak" ? { onOpen, onOut: async () => { await leaveNow(); onOpen(null, null, "streak"); }, enter: enterBattle, goingIn, standUp, leaveNow } : null;
   return <Arena row={row} view={view} seat={seat} res={res} onView={show} go={go} api={api} say={say} start={start} onRematch={rematch} onLeave={onLeave} streak={streak} watchers={watchers} onOpen={onOpen} lost={lost} />;
 }
 

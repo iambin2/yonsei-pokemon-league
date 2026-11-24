@@ -408,7 +408,7 @@ async function entrance(el) {
   const tw = el.tower;
   if (!tw || reduced()) return;
   if (tw.waiting) { await tw.waiting; if (el.tower !== tw) return; }
-  const top = topOf(tw.st.floor), a = viewOf("whole", tw.s, tw.m, top), b = viewOf("hall", tw.s, tw.m, top), target = tw.doors.slice(), k = doorOf(tw.st);
+  const top = topOf(tw.st.floor), target = tw.doors.slice(), k = doorOf(tw.st);
   marksOf(el).forEach(x => { x.style.opacity = "0"; });
   // a frame of its own first: the screen goes up in one, the tower's first picture in the next (drawTower coming); unpainted, the canvas
   // shows nothing, as it showed nothing at the fade's start
@@ -416,8 +416,11 @@ async function entrance(el) {
   if (el.tower !== tw) return;
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.light);
   tw.doors.fill(0);
+  /* the two views are taken from the box as it is at each frame: the hall coming back from a battle is drawn at the battle's width and
+     the page's own margins come back a frame later, and views fixed at the start jumped to the new box as the entrance ended
+     (2026-11-24, recorded at 1385 of going back from a run's end) */
   await animate(el, ENTRANCE, e => {
-    tw.cam = e >= 1 ? null : mixView(a, b, inout(e));
+    tw.cam = e >= 1 ? null : mixView(viewOf("whole", tw.s, tw.m, top), viewOf("hall", tw.s, tw.m, top), inout(e));
     for (let i = 0; i < ND; i++) {
       if (!target[i]) continue;
       const at = i >= k ? .8 : .14 + .56 * i / Math.max(1, k);
@@ -432,8 +435,11 @@ async function arrive(el) {
   void fade(el.querySelector(".tw-body"), 0, 1, DUR.leave);
   const tw = el.tower;
   if (!tw) return;
-  const b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
-  return animate(el, ARRIVE, e => { tw.cam = e >= 1 ? null : mixView(a, b, e); }, out3);
+  // the views from the box as it is at each frame, as the entrance's
+  return animate(el, ARRIVE, e => {
+    const b = viewOf(tw.kind, tw.s, tw.m, topOf(tw.st.floor)), a = { ...b, phi: b.phi - .3, dist: b.dist * 1.3, camY: b.camY + .4 };
+    tw.cam = e >= 1 ? null : mixView(a, b, e);
+  }, out3);
 }
 /* 2. a game won: its lamp goes out where it stands (the amber room cools to the warm of a game won), the camera walks the terrace
    to the next door, and that door's lamp comes on. A lamp never moves: no light crosses the terrace between the two (2026-11-16,
