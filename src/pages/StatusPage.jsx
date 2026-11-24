@@ -3,6 +3,7 @@ import { Bang } from "../components/common/Board.jsx";
 import Button from "../components/common/Button.jsx";
 import Seg from "../components/common/Seg.jsx";
 import { BrandMark, Wordmark } from "../components/layout/SiteHeader.jsx";
+import { titled } from "../components/layout/title.js";
 
 const HOME = import.meta.env.BASE_URL;
 const LINKS = [["공지", "news"], ["대진표", "bracket"], ["기록", "records"]];
@@ -11,7 +12,7 @@ const LINKS = [["공지", "news"], ["대진표", "bracket"], ["기록", "records
    주소가 사이트 루트로 돌아와야 하므로 새로 불러오는 것이 맞다. (DESIGN.md "Errors and empty")
    없는 주소는 판에 404를 켜고, 오류는 ! 칸과 문장 뒤에 새로고침 하나를 둔다. 아래에 지름길 셋. */
 export default function StatusPage({ title, desc, onRetry }) {
-  useEffect(() => { document.title = `${title} | YPL`; }, [title]);
+  useEffect(() => { document.title = titled(title.replace(/\.$/, "")); }, [title]);
   return (
     <>
       <header className="topbar">

@@ -116,20 +116,18 @@
 .admin-dock-desk + .admin-dock-out { margin-left: 0; }
 .admin-dock-desk { margin-right: 0; font-weight: 700; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: var(--hair); }
 
-/* ---------- footer: on the ground under a hairline ---------- */
+/* ---------- footer: two low lines on the ground under a hairline (2026-11-24, the owner's draft A) ---------- */
 .site-foot { position: relative; flex: none; margin-top: auto; background: var(--ground); color: var(--dim); box-shadow: inset 0 1px 0 var(--rule); }
-.site-foot-in { width: min(100% - var(--gutter) * 2, var(--content)); margin: 0 auto; padding: var(--s13) 0 calc(env(safe-area-inset-bottom, 0px) + var(--tab-height) + var(--s13)); display: grid; gap: var(--s8); }
-.is-admin .site-foot-in { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-height) + var(--admin-height) + var(--s13)); }
-.site-foot-mark { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); }
-.site-foot .brand .logo { height: 24px; width: auto; }
-.site-foot .brand .wordmark { height: calc(24px * .84); }
-.site-foot-tag { font-size: var(--t15); line-height: var(--l15); color: var(--dim); }
-.site-foot-links { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s8); }
-.site-foot-dc, .site-foot-login { display: inline-flex; align-items: center; gap: var(--s1); min-height: var(--h-control); font-size: var(--t15); line-height: var(--l15); font-weight: 600; color: var(--lit); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
-.site-foot-rule { display: grid; gap: var(--s1); justify-items: start; font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
-.site-foot-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); }
-/* the privacy word keeps a finger's 44 without making its line taller than its 16 */
-.site-foot-admin { display: inline-flex; align-items: center; margin-block: calc((var(--h-control) - var(--l12)) / -2); min-height: var(--h-control); font-weight: 600; color: var(--dim); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
-/* the fan-site note runs past two lines, so it is reading (DESIGN.md "Typesetting"): 15/24 on the 709's measure, never across the 1200 */
-.site-foot-fine { max-width: 709px; font-size: var(--t15); line-height: var(--l-read); }
-@media (max-width: 639px) { .site-foot-links { margin-left: 0; } .site-foot-tag { flex-basis: 100%; } }
+.site-foot-in { width: min(100% - var(--gutter) * 2, var(--content)); margin: 0 auto; padding: var(--s8) 0 calc(env(safe-area-inset-bottom, 0px) + var(--tab-height) + var(--s8)); display: grid; gap: var(--s3); }
+.is-admin .site-foot-in { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-height) + var(--admin-height) + var(--s8)); }
+.site-foot-mark { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s5); }
+.site-foot .brand .logo { height: 20px; width: auto; }
+.site-foot .brand .wordmark { height: calc(20px * .84); }
+.site-foot-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
+.site-foot-links { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); }
+/* every word that goes somewhere keeps a finger's 44 without making its line taller than its 16 */
+.site-foot-dc, .site-foot-login, .site-foot-admin { display: inline-flex; align-items: center; gap: var(--s1); margin-block: calc((var(--h-control) - var(--l12)) / -2); min-height: var(--h-control); font-size: var(--t12); line-height: var(--l12); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.site-foot-dc, .site-foot-login { color: var(--lit); }
+.site-foot-admin { color: var(--dim); }
+.site-foot-fine { font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
+@media (max-width: 639px) { .site-foot-links { margin-left: 0; } }

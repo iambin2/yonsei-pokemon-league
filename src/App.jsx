@@ -333,7 +333,7 @@ export default function App() {
       </main>
       {going&&<div className="y-going" role="status" aria-label="불러오는 중"><Busy/></div>}
       </div>
-      {data&&<SiteFooter onNavigate={go} tagline={data.meta&&data.meta.tagline} onAdmin={!admin?onAdmin:null}/>}
+      {data&&<SiteFooter onNavigate={go} onAdmin={!admin?onAdmin:null}/>}
 
       <TabBar view={going||view} onNavigate={go} live={live}/>
       {admin&&<AdminModeBar onLogout={logout} requests={linkPending} onDesk={view==="admin"?null:()=>go("admin")}/>}

@@ -341,7 +341,7 @@ function TrainerView({ snapshot, onOpen, finding = false }) {
 
   return (
     <div className="rc-list">
-      {finding && <FindMe query={query} exact={exact} onOpen={onOpen} />}
+      <FindMe query={query} exact={exact} onOpen={onOpen} shown={finding} />
       <ListSearch q={query} setQ={setQuery} placeholder={finding ? "내 트레이너 이름" : "트레이너 검색"} count={visible.length} />
       {!finding && <div className="stack rc-sort">
         <Chips value={order} onChange={setOrder} options={[["wins", "우승순"], ["games", "출전순"], ["name", "이름순"]]} label="정렬" />
@@ -663,11 +663,12 @@ function TrainerLink({ profile, lead = false, linkedOnly = false }) {
    looks for their own name in the list they already know, and tapping it opens their sheet with the link right under its numbers:
    what an account is for is seen on their own record, not read in a dialog. A name the records do not have yet starts as the
    account's own name (approved at once). Signed in, the head says where the account stands, and the sign-out is here. */
-function FindMe({ query, exact, onOpen, part = "head" }) {
+function FindMe({ query, exact, onOpen, part = "head", shown = true }) {
   const [busy, setBusy] = useState(false);
   // a sheet open in the address takes its own pending name (TrainerLink); this list takes only a new name's
   const { ready, signedIn, link, note, ask } = useAccount(() => (new URLSearchParams(window.location.search).has("trainer") ? "" : takePendingLink()));
-  if (!ready) return null;
+  // signed in, the account stands at the head of the trainer list on every visit, not only through the bar's G (2026-11-24)
+  if (!ready || (part === "head" && !shown && !signedIn)) return null;
   const name = query.trim();
   const holds = Boolean(signedIn && link && link.status !== "rejected");
   const line = !signedIn ? "목록에서 내 이름을 누르면 그 기록을 구글 계정과 연결할 수 있습니다."

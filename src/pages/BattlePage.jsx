@@ -12,6 +12,7 @@ import Pager from "../components/common/Pager.jsx";
 import { siteConfirm } from "../components/common/SiteDialog.jsx";
 import Modal from "../components/common/Modal.jsx";
 import { checkBuild, pushHistory } from "../components/layout/history.js";
+import { titled } from "../components/layout/title.js";
 import { championsData } from "../services/index.js";
 import { onSpriteError, spriteUrl } from "../services/teamBuilderCore.js";
 import { readSavedTeams, showdownTeam } from "../services/battleTeams.js";
@@ -1385,7 +1386,7 @@ export function Arena({ row, view, seat, res, onView, go, say, start, onLeave, o
   useEffect(() => {
     if (!choosing) return undefined;
     const base = document.title;
-    const mark = () => { document.title = document.hidden ? `선택할 차례 | ${base}` : base; };
+    const mark = () => { document.title = document.hidden ? titled("선택할 차례") : base; };
     mark();
     document.addEventListener("visibilitychange", mark);
     return () => { document.removeEventListener("visibilitychange", mark); document.title = base; };

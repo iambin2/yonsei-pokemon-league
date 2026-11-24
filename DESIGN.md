@@ -591,7 +591,9 @@ The climb moves as the board's motion (motion.js `climb`): at a won game's end t
 
 **Errors and empty.** An error is the `!` square and a sentence, then one way out (다시 시도). A connection drop keeps the board switched off with a toast. A read that failed is not an empty list: 아직 … 없습니다 is said only of a list that was read (2026-11-10: 샘플, 파티 and 사설 대진표 said it under their own read error), its sentence is the site's Korean and never the browser's exception (TypeError: Failed to fetch), and its key reads 다시 불러오기. With no connection a screen whose file was never fetched keeps the note with 새로고침; it does not reload onto the browser's own error page. An empty search is one line on its panel, the same on every list; its count is the field's own (0건 in the search), so no display repeats it (2026-11-23 audit, Q-11). An empty place (no room waiting, no post yet, no record) is one panel holding its line and, where there is one, its grey line, on a sheet one step up as every panel there: never two lines on the open ground (2026-11-10, the user: "텍스트 홀로 둥 떠있는 걸 안 좋아해"; `Empty.jsx`). 404 lights 404 on the board with 홈으로 and three shortcuts (공지, 대진표, 기록).
 
-**Footer.** On the ground under a hairline: the brand at 24 and the league's line, with 관리자 로그인 and 디스코드 참여 at the right end of the same line as 15 underlined words, 32 apart (2026-11-06: operators could not find the login as small type at the bottom); then one 12 line, the copyright with 개인정보처리방침 20 after it, and the fan-site notice in 12px muted type under it. Signed in, 관리자 로그인 leaves the footer (the admin strip has 로그아웃).
+**Footer.** Two low lines on the ground under a hairline, 32 above and below (2026-11-24, the owner's draft A: at 252 it took too much of the page's end). The first: the brand at 20, then the copyright with 개인정보처리방침 20 after it, and 관리자 로그인 and 디스코드 참여 at the right end, all 12 underlined words that keep a finger's 44 (2026-11-06: operators could not find the login, so it stays on the first line at every width). The second, 12 under it: the fan-site notice in 12px muted type. No league line; the top bar already names the league. Signed in, 관리자 로그인 leaves the footer (the admin strip has 로그아웃).
+
+**The tab's title.** What one is looking at, then the one brand: `칭호 – YPL`; a thing open takes the page's place, `38회 파이컵 공지 – YPL`; home alone leads with the brand, `YPL – 포켓몬 센터 연세점 배틀 리그` (2026-11-24, the owner's draft A, after Apple and GitHub). One brand, YPL, an en dash with a space either side, never `|` or a middle dot, never three names deep. `src/components/layout/title.js` holds it.
 
 ## Battle
 
@@ -718,7 +720,7 @@ The climb moves as the board's motion (motion.js `climb`): at a won game's end t
 
 ## Head and share surfaces
 
-The tab's title names the thing open before the page (38회 파이컵 공지 | 공지 | YPL, 정두호 | 기록 | YPL; 2026-11-16: every notice read 공지 | YPL), so the back list and a shared link's preview tell them apart.
+The tab's title names the thing open in the page's place (38회 파이컵 공지 – YPL, 정두호 – YPL; 2026-11-16: every notice read 공지 | YPL), so the back list and a shared link's preview tell them apart ("The tab's title").
 
 - **Tab icon:** the Wing Y alone, 64 wide on a transparent ground, no tile. the one SVG (`favicon-wing-<date>.svg`) is navy on a light browser and white on a dark one; `search-icon-192.png` stands the mark in a circle for search results; `favicon-32.png` and `favicon.ico` are the fallbacks. The YPL letters are not used at tab size: at 16 they are about 5px tall and cannot be read.
 - **App icons:** a navy square with the white Wing Y inside the maskable safe zone, because a home screen fills transparency with black.
