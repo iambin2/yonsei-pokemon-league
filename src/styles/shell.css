@@ -116,10 +116,15 @@
 .site-foot .brand .logo { height: 20px; width: auto; }
 .site-foot .brand .wordmark { height: calc(20px * .84); }
 .site-foot-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
-.site-foot-links { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); }
+/* two doors opened by the 2px rule, as 더보기's rows (the owner's draft C, 2026-11-24): 디스코드 참여 lit, 관리자 로그인 dim */
+.site-foot-doors { color: var(--lit); }
+.site-foot-login .row-main > b { font-weight: 600; color: var(--dim); }
 /* every word that goes somewhere keeps a finger's 44 without making its line taller than its 16 */
-.site-foot-dc, .site-foot-login, .site-foot-admin { display: inline-flex; align-items: center; gap: var(--s1); margin-block: calc((var(--h-control) - var(--l12)) / -2); min-height: var(--h-control); font-size: var(--t12); line-height: var(--l12); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
-.site-foot-dc, .site-foot-login { color: var(--lit); }
-.site-foot-admin { color: var(--dim); }
+.site-foot-admin { display: inline-flex; align-items: center; margin-block: calc((var(--h-control) - var(--l12)) / -2); min-height: var(--h-control); font-size: var(--t12); line-height: var(--l12); font-weight: 600; color: var(--dim); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 .site-foot-fine { font-size: var(--t12); line-height: var(--l12); color: var(--mute); }
-@media (max-width: 639px) { .site-foot-links { margin-left: 0; } }
+/* from 860 the league's words in the 709, the doors in the 439 beside them, from the top */
+@media (min-width: 860px) {
+  .site-foot-in { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr); column-gap: var(--s13); align-items: start; }
+  .site-foot-mark, .site-foot-fine { grid-column: 1; }
+  .site-foot-doors { grid-column: 2; grid-row: 1 / span 2; }
+}

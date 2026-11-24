@@ -358,14 +358,14 @@
 /* ---------- the cursor (2026-11-03): a desktop pointer gets an answer from everything it can press, by tone and a 4 nudge.
    A Pokémon in a door steps up 4 off its floor; an arrow leans 4 toward where it goes; a word brightens. Nothing grows. ---------- */
 .mon { transition: transform var(--move-tone), opacity var(--move-tone); }
-:is(.btn, .ab-go, .back, .sh-link, .site-foot-dc) .ic { transition: transform var(--move-tone); }
-.sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: scale var(--move-press), color var(--move-tone); }
+:is(.btn, .ab-go, .back, .sh-link) .ic { transition: transform var(--move-tone); }
+.sh-link, .btn--link, .site-foot-admin { transition: scale var(--move-press), color var(--move-tone); }
 @media (hover: hover) {
   :is(button, a):hover:not(:disabled) .mon { transform: translateY(calc(var(--s1) * -1)); }
   /* only an arrow leans, toward where it goes (DESIGN.md "Motion", the pointer); a check or a + stays still */
-  :is(.btn--main, .ab-go, .site-foot-dc):hover:not(:disabled) :is(.ic-arrow, .ic-ext) { transform: translateX(var(--s1)); }
+  :is(.btn--main, .ab-go):hover:not(:disabled) :is(.ic-arrow, .ic-ext) { transform: translateX(var(--s1)); }
   .back:hover .ic { transform: translateX(calc(var(--s1) * -1)); }
-  .site-foot-admin:hover, .site-foot-dc:hover, .site-foot-login:hover { color: var(--lit); }
+  .site-foot-admin:hover { color: var(--lit); }
   .row:not(.inv):hover .row-main > b { color: var(--lit); }
 }
 @media (prefers-reduced-motion: reduce) { .mon { transition: none; } }
@@ -407,7 +407,7 @@
 :root[data-contrast="more"] { accent-color: var(--act); caret-color: var(--act); }
 :root[data-contrast="more"] ::selection { background: var(--hl); color: var(--on-lit); }
 :root[data-contrast="more"] :is(.btn.btn--link, .btn.btn--second, .modal-actions .btn:is(.btn--link, .btn--second)):not(.bt-forfeit) { --btn-fg: var(--act); }
-:root[data-contrast="more"] :is(.back, .sh-link, .ho-key:not(.done), .site-foot-dc, .site-foot-login, .site-foot-admin, .admin-dock-desk) { color: var(--act); }
+:root[data-contrast="more"] :is(.back, .sh-link, .ho-key:not(.done), .site-foot-admin, .admin-dock-desk) { color: var(--act); }
 :root[data-contrast="more"] :is(.tabsline > button.on, .navlink:is([aria-current="page"], [data-current]), .tab:is([aria-current="page"], [data-current]),
   .seg-track > button[aria-selected="true"], .mi.on, .mi.on .check, .dd-opt.sel, .dd-tick, .pick-row > .check) { color: var(--act); }
 :root[data-contrast="more"] :is(.tabsline > button.on, .navlink:is([aria-current="page"], [data-current]), .tab:is([aria-current="page"], [data-current]),
