@@ -6,7 +6,7 @@
    ========================================================================== */
 
 .bk-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
-.bk-tabs { margin-top: var(--s8); }
+.bk-tabs { margin-top: var(--s5); }
 .bk-list, .bk-new { margin-top: var(--s5); }
 .bk-search, .bk-rows, .bk-private-note { margin-top: var(--s5); }
 .bk-rows .row { height: var(--h-row2); }

@@ -222,7 +222,7 @@ These cover the site's own words and screens only. What people write in it (a no
 | 4 | a label and its value; a title and its grey line |
 | 8 | a field label to its field; inside a control |
 | 12 | a section title to its content; a panel's padding; a counter's label to its digits |
-| 20 | the phone's gutter; between blocks in one section; a field to the next |
+| 20 | the phone's gutter; between blocks in one section; a field to the next; a page title to what follows it (its tabs, its search, its first panel) |
 | 32 | between groups; a page title under the bar; the desktop gutter |
 | 52 | between sections; the desktop column gap |
 | 84 | between chapters on desktop |

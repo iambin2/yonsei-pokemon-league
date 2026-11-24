@@ -3,7 +3,7 @@
    rows of 64, a back link, the date line, the title; a party post stands as six cells on their floors; comments are panels.
    ========================================================================== */
 
-.bd-tabs { margin-top: var(--s8); }
+.bd-tabs { margin-top: var(--s5); }
 .bd-format { margin-top: var(--s3); }
 .bd-tools { margin-top: var(--s5); }
 .bd-list { margin-top: var(--s5); }

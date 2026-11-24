@@ -39,7 +39,7 @@
   .bt-lobby-arena > .bs-stage { align-self: stretch; width: 100%; }
 }
 /* the battle page's tabs: 배틀 열기, 연승 도전, 방 목록 and 중계, under the title */
-.bt-tabs { margin-top: calc(var(--s8) - var(--s5)); }
+.bt-tabs { margin-top: 0; }
 /* 방 목록 (The rooms): the counts, the search with 방 만들기, the filters on one line, the rooms three to a line on a wide screen */
 .bt-hall-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .bt-hall-tools { grid-template-columns: minmax(0, 1fr) auto; }

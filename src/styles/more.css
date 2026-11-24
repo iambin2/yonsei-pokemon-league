@@ -24,7 +24,7 @@
 
 /* ---------- 알림 (AlertsPage.jsx, draft B 2026-11-19): the alerts this week in the 709, this device's switch and the kinds board in the 439 held in
    view; on a phone the settings stand under the alerts. A day is a 12 label over its stack, days 32 apart; a read alert steps its words to dim ---------- */
-.alerts > h1 { margin-bottom: var(--s8); }
+.alerts > h1 { margin-bottom: var(--s5); }
 .alerts-day + .alerts-day { margin-top: var(--s8); }
 .alerts-row .row-main { padding-left: var(--pad); }
 .alerts-row.read b { color: var(--dim); font-weight: 600; }

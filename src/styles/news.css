@@ -6,8 +6,9 @@
 
 .nw-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s5); }
 .nw-tools { display: flex; align-items: baseline; gap: var(--s5); }
-/* a page title stands 32 over what follows it (Space: a page title under the bar), and the search heads the list */
-.nw-search, .nw-upcoming { margin-top: var(--s8); }
+/* a page title stands 20 over what follows it (Space: a page title to what follows it), and the search heads the list; 다가오는 대회 is a group, 32 */
+.nw-search { margin-top: var(--s5); }
+.nw-upcoming { margin-top: var(--s8); }
 .nw-list { margin-top: var(--s5); }
 .nw-list .row { height: var(--h-row2); }
 /* 고정 stands first in a notice's grey line, as on the lead panel and the notice itself: 고정, 10.28 수 */
