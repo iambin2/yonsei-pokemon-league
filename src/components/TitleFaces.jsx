@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import Seg from "./common/Seg.jsx";
 import { medalDrawn, medalUrl } from "./titleMedal.js";
 import { loadRecordsPokemonDirectory } from "../services/recordsPokemon.js";
@@ -42,7 +42,9 @@ export const bigMedal = (n, desk) => (desk ? 1200 : window.innerWidth) / n * .8 
 
 /* one medal: nothing until it is drawn, then it is there (a medal switches on, it does not arrive). While it waits it says so
    (data-wait), and tells its board when that changes */
-export function Medal({ spec, off = false, big = false, onDrawn }) {
+const Drawn = createContext(null);
+export function Medal({ spec, off = false, big = false }) {
+  const onDrawn = useContext(Drawn);
   const ground = useGround(), key = JSON.stringify(spec) + off + big + ground;
   const [drawn, setDrawn] = useState(() => { const src = spec ? medalDrawn(spec, off, big) : ""; return { key, src, done: Boolean(src) }; });
   useEffect(() => {
@@ -60,9 +62,15 @@ export function Medal({ spec, off = false, big = false, onDrawn }) {
   return <span className="tl-medal" aria-hidden="true" data-wait={wait ? "" : undefined}>{shown && <img src={shown} alt="" decoding="async" />}</span>;
 }
 
-/* a board of medals, each its name under it; a short last row is closed with empty panels so the board stays a rectangle.
-   The board's medals switch on together, once the last is drawn (2026-11-22: they came on one by one, some 100 apart at a phone's
-   speed, 1.7 s for the eighteen types, and the board read as stuttering) */
+/* anything that holds medals switches them on together, once the last is drawn (2026-11-22: they came on one by one, some 100 apart
+   at a phone's speed, 1.7 s for the eighteen types, and the board read as stuttering) */
+export function LitBoard({ className = "", children, ...rest }) {
+  const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
+  useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });
+  return <Drawn.Provider value={drawn}><div ref={board} className={"tl-lit " + className + (lit ? " lit" : "")} {...rest}>{children}</div></Drawn.Provider>;
+}
+
+/* a board of medals, each its name under it */
 export function MedalBoard({ medals, cols, className = "", label }) {
   const desk = useDesk();
   // the columns follow the medals (Composing a screen 29): a board of fewer medals than columns is that many wide from the start edge,
@@ -70,12 +78,10 @@ export function MedalBoard({ medals, cols, className = "", label }) {
   // is never split into short rows to look even (2026-11-23, the owner: eight events as four and four left "무의미한 공백")
   const base = desk ? cols[0] : cols[1], fit = Math.min(medals.length, base);
   const n = Math.max(1, fit), big = bigMedal(base, desk);
-  const board = useRef(null), [lit, setLit] = useState(false), [, drawn] = useReducer(x => x + 1, 0);
-  useLayoutEffect(() => { const all = !board.current.querySelector("[data-wait]"); if (all !== lit) setLit(all); });
-  return <div ref={board} className={"stack tl-board-medals " + className + (lit ? " lit" : "")} style={{ "--cols": n, "--base": base }} role="list" aria-label={label}>
+  return <LitBoard className={"stack tl-board-medals " + className} style={{ "--cols": n, "--base": base }} role="list" aria-label={label}>
     {medals.map(m => {
       const body = <>
-        <Medal spec={m.spec} off={!m.on} big={big} onDrawn={drawn} />
+        <Medal spec={m.spec} off={!m.on} big={big} />
         <span className="tl-name"><b className={m.big ? "t20" : ""}>{m.name}</b>{m.n > 1 && <i>×{m.n}</i>}</span>
         {m.sub && <span className={"t12 tl-sub" + (m.reign ? " reign" : "")}>{m.sub}</span>}
       </>;
@@ -84,7 +90,7 @@ export function MedalBoard({ medals, cols, className = "", label }) {
         ? <button type="button" key={m.key} role="listitem" className={cls} onClick={m.onClick} aria-label={m.label || m.name}>{body}</button>
         : <span key={m.key} role="listitem" className={cls} aria-label={m.label || m.name}>{body}</span>;
     })}
-  </div>;
+  </LitBoard>;
 }
 
 /* 트레이너 시트의 칭호: 챔피언은 제 판에 크게(그 사람의 가장 큰 사실), 그 밖의 가진 칭호는 모두 한 판의 메달로(타입, 지방, 그 밖의 순). 그 아래 타입 18개와 지방 10개는

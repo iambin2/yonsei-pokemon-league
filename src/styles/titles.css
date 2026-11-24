@@ -19,7 +19,7 @@
 .tl-medal { display: block; width: 100%; aspect-ratio: 1; padding: var(--s1); }
 .tl-medal > img { display: block; width: 100%; height: 100%; }
 /* a board's medals switch on together: one drawn early waits unseen for the last */
-.tl-board-medals:not(.lit) .tl-medal > img { visibility: hidden; }
+.tl-lit:not(.lit) .tl-medal > img { visibility: hidden; }
 .tl-name { display: flex; align-items: center; justify-content: center; gap: var(--s1); max-width: 100%; min-height: var(--s5); margin-top: var(--s1); }
 .tl-name > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t12); line-height: var(--l12); font-weight: 700; }
 .tl-name > b.t20 { font-size: var(--t15); line-height: var(--l15); }
@@ -31,6 +31,44 @@
   .tl-cell { padding: var(--s3) var(--s2) var(--s5); }
   .tl-medal { padding: var(--s2); }
   .tl-name > b.t20 { font-size: var(--t20); line-height: var(--l20); }
+}
+
+/* ---------- each group as its kind reads (2026-11-24, draft C) ---------- */
+.tl-gen { display: flex; align-items: flex-end; gap: var(--s1); flex: none; }
+.tl-rmain { display: grid; gap: var(--s2); min-width: 0; }
+.tl-names { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.tl-chip { display: flex; align-items: center; height: var(--h-strip); padding: 0 var(--s2); background: var(--panel-2); font-weight: 600; }
+.off .tl-rmain > b, .tl-tick.off > b { color: var(--mute); }
+/* the champions, newest first: the reigning one stands largest at the top */
+.tl-crow { display: flex; align-items: center; text-align: left; gap: var(--s5); padding: var(--s3) var(--pad); }
+.tl-crow > .tl-gen { width: 52px; }
+.tl-crow > .tl-medal { flex: none; width: 84px; }
+.tl-crow.now > .tl-medal { width: 132px; }
+/* the regions in their generations' order, the generation over each */
+.tl-regions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tl-tick { display: flex; flex-direction: column; align-items: center; gap: var(--s1); min-width: 0; padding: var(--s3) var(--s2) var(--s5); text-align: center; }
+.tl-tick > .tl-gen { align-self: flex-start; }
+.tl-tick > .tl-medal { padding: var(--s2); }
+.tl-tick > .tl-names { justify-content: center; }
+/* the partners by trainer */
+.tl-trainer { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3) var(--pad); }
+.tl-tname { display: grid; gap: var(--s1); }
+.tl-shelf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.tl-shelf-cell { display: grid; justify-items: center; gap: var(--s1); min-width: 0; }
+/* one title a row */
+.tl-trow { display: flex; align-items: center; text-align: left; gap: var(--s5); padding: var(--s3) var(--pad); }
+.tl-trow > .tl-medal { flex: none; width: 84px; }
+@media (min-width: 860px) {
+  .tl-crow > .tl-gen { width: 84px; }
+  .tl-crow > .tl-medal { width: 120px; }
+  .tl-crow.now > .tl-medal { width: 204px; }
+  .tl-regions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tl-trainer { flex-direction: row; align-items: center; gap: var(--s8); }
+  .tl-tname { flex: none; width: 204px; }
+  .tl-shelf { display: flex; flex-wrap: wrap; gap: var(--s5); }
+  .tl-shelf-cell { width: 120px; }
+  .tl-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tl-trow > .tl-medal { width: 120px; }
 }
 
 /* ---------- a title's sheet: its medal, then its holders in the order they took it ---------- */
@@ -57,3 +95,5 @@
 
 /* ---------- the operators' editor: the colours as chips ---------- */
 .tl-look-devices { display: flex; flex-wrap: wrap; gap: var(--s2); }
+/* a row lifted under a pointer keeps its holders' chips one step above it */
+@media (hover: hover) and (min-width: 860px) { :is(.tl-trow, .tl-tick):hover:not(:disabled) .tl-chip { background: var(--panel); } }
