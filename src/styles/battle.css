@@ -21,6 +21,9 @@
   .bt-lobby-main > :is(.bt-after, .bt-cancel) { order: 2; }
   .bt-lobby-main > .bt-cancel { display: none; }
   .bt-wait-keys { grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }
+  /* a phone's waiting room puts its line and its counters (방 코드, 기다린 시간) over the arena, so what is read out stands above the dock
+     (2026-11-24, T-132: at 375 by 667 the arena alone reached the dock and the counters stood under it) */
+  .bt-lobby-wait > .bt-lobby-set { order: -1; }
 }
 @media (min-width: 860px) { .bt-cancel-dock { display: none; } }
 @media (min-width: 860px) {

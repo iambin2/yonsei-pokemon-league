@@ -832,7 +832,7 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
   return (
     <div className="bt-page">
       <h1 className="t32">배틀</h1>
-      <div className="bt-lobby">
+      <div className="bt-lobby bt-lobby-wait">
         <div className="bt-lobby-main">
           {res && <LobbyArena res={res} foe="참가 대기" foeMuted waiting six={six} ours={<b className="bt-trainer">{row.p1_name || "나"}</b>}>
             <LobbyStage leads={leads} doubles={doubles} awaiting random={Boolean(team?.random)} label={`경기장, ${leads.length ? leads.map(s => nameOf(res, s)).join(", ") : "우리 쪽"}, 상대 쪽은 비어 있음`} />
