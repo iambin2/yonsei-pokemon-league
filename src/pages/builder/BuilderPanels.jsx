@@ -13,7 +13,7 @@ export function TypeBadges({ types = [] }) {
 }
 
 /* Showdown 목록처럼 행마다 여섯 종족값과 합계. 한국 커뮤니티의 HABCDS 표기, 정렬 중인 값은 굵고 밝게. */
-const STAT_LETTERS = { hp: "H", atk: "A", def: "B", spa: "C", spd: "D", spe: "S", bst: "합" };
+export const STAT_LETTERS = { hp: "H", atk: "A", def: "B", spa: "C", spd: "D", spe: "S", bst: "합" };
 export function BaseStatStrip({ stats, sortId }) {
   if (!stats) return null;
   const values = { ...stats, bst: STAT_KEYS.reduce((sum, key) => sum + (stats[key] || 0), 0) };
@@ -23,9 +23,6 @@ export function BaseStatStrip({ stats, sortId }) {
     </span>
   );
 }
-
-/* "2026.09.09 – 2026.12.02" → "9월 9일 (수) – 12월 2일 (수)": 날짜는 사이트의 한 표기로 */
-const periodText = period => String(period || "").replace(/\d{4}\.\d{2}\.\d{2}/g, d => formatDate(d));
 
 /* 목록은 편집과 따로 그린다. 359행(화면 요소 약 9천 개)을 능력 포인트나 기술이 바뀔 때마다 다시 그리면
    슬라이더 한 칸에 100ms가 걸렸다. 목록이 받는 값은 팀의 종 구성이 바뀔 때만 새로 만들어진다. */

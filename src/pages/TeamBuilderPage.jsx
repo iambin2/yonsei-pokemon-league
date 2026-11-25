@@ -68,7 +68,7 @@ import { multiplierMark, teamMatchups } from "../services/teamTypeChart.js";
 import { deleteAccountTeam, deviceCopy, onlyOnDevice, putAccountTeams, readAccountTeams } from "../services/accountTeams.js";
 import { VISITOR_EVENT, visitorSignedIn } from "../services/visitorAuth.js";
 import Button from "../components/common/Button.jsx";
-import { BaseStatStrip, OffEditor, OfficialSubmissionPanel, PoolList, TeamSlot, TypeBadges, TypeMatchups, ValidationPanel } from "./builder/BuilderPanels.jsx";
+import { BaseStatStrip, OffEditor, OfficialSubmissionPanel, PoolList, STAT_LETTERS, TeamSlot, TypeBadges, TypeMatchups, ValidationPanel } from "./builder/BuilderPanels.jsx";
 
 
 function readInitialRuleState() {
@@ -134,6 +134,9 @@ const MOVE_CATEGORY_OPTIONS = [
   { value: "Special", label: "특수" },
   { value: "Status", label: "변화" },
 ];
+
+/* "2026.09.09 – 2026.12.02" → "9월 9일 (수) – 12월 2일 (수)": 날짜는 사이트의 한 표기로 */
+const periodText = period => String(period || "").replace(/\d{4}\.\d{2}\.\d{2}/g, d => formatDate(d));
 
 export default function TeamBuilderPage({ go, flash, admin = false } = {}) {
   const initialRuleStateRef = useRef(null);
