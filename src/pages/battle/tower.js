@@ -94,6 +94,8 @@ function paint(el, draw = true) {
     v = { ...v, eyeX: v.tgtX + dx * c + dz * sn, eyeZ: v.tgtZ - dx * sn + dz * c, eyeY: v.eyeY + dy, tgtY: v.tgtY + dy };
   }
   tw.view = cameraOf(tw.m, v);
+  const showLeads = tw.m.hall && !el.twIn && tw.leadAlpha > 0.01;
+  const cm = showLeads ? computeClimbers(tw) : null;
   render(canvas, tw.model, tw.view, tw.pal, {
     doors: tw.doors,
     reveal: tw.reveal,
@@ -102,6 +104,9 @@ function paint(el, draw = true) {
     lift: tw.lift,
     diveDim: tw.diveDim,
     held: tw.held,
+    topFade: tw.m.hall && tw.diveDim < 0.01 && !tw.lift,
+    leads: cm ? cm.leads : null,
+    leadAlpha: tw.leadAlpha,
   }, tw.m);
 }
 
@@ -147,11 +152,11 @@ function tweenTo(el, st, dur = DUR.tone) {
   return animate(el, dur, e => { for (let i = 0; i < to.length; i++) tw.doors[i] = from[i] + (to[i] - from[i]) * e; }, out3);
 }
 
-/* ---------- climbers' architectural dimension lines ---------- */
+/* ---------- climbers' architectural dimension lines (rendered in WebGL, labels in DOM — zero SVG) ---------- */
 const escapeHTML = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-function climbersHTML(tw) {
+function computeClimbers(tw) {
   const { m, st, view } = tw;
-  if (!view || !st.climbers?.length) return "";
+  if (!view || !st.climbers?.length) return null;
   const floors = new Map(), top = topOf(st.floor);
   for (const c of st.climbers) {
     const k = Math.min(ND - 1, c.wins), f = Math.floor(k / 5) + 1;
@@ -161,48 +166,68 @@ function climbersHTML(tw) {
     x.n++; x.live ||= Boolean(c.live);
   }
   const items = [...floors.values()].sort((a, b) => b.f - a.f);
-  if (!items.length) return "";
+  if (!items.length) return null;
 
   const col = Math.min(m.W - (m.phone ? 74 : 112), m.W * (m.phone ? 0.80 : 0.82));
   const marks = [];
   for (const it of items) {
     const edge = rightEdgeOf(it.f - 1);
     const [x, y, w] = view.project([edge.x, edge.y, edge.z]);
-    if (w <= 0 || y < 22 || y > m.H - 22 || x > col - 14) continue;
+    if (w <= 0 || y < 26 || y > m.H - 22 || x > col - 18) continue;
     marks.push({ it, on: it.f === st.floor, x, y });
   }
-  if (!marks.length) return "";
+  if (!marks.length) return null;
 
   let last = -Infinity;
   const gap = m.phone ? 26 : 34;
   for (const k of marks) { k.ly = Math.max(k.y, last + gap); last = k.ly; }
   const kept = marks.filter(k => k.ly < m.H - 18);
-  if (!kept.length) return "";
+  if (!kept.length) return null;
 
-  const lines = kept.map(k => {
-    const mid = Math.min(col - 10, k.x + 16);
-    const d = Math.abs(k.ly - k.y) < 1.5
-      ? `M${f1(k.x)} ${f1(k.y)}H${f1(col - 6)}`
-      : `M${f1(k.x)} ${f1(k.y)}H${f1(mid)}L${f1(col - 14)} ${f1(k.ly)}H${f1(col - 6)}`;
-    return `<path class="${k.on ? "on" : ""}" d="${d}"/>`;
-  }).join("");
-  const labels = kept.map(k =>
+  // Clean 6px architectural breathing gap from 3D edge so horizontal WebGL rules never kink awkwardly against perspective lines
+  const leads = [];
+  for (const k of kept) {
+    const sx = k.x + 6;
+    const ex = col - 8;
+    if (ex <= sx + 4) continue;
+    if (Math.abs(k.ly - k.y) < 1.5) {
+      leads.push({ x0: sx, y0: k.ly, x1: ex, y1: k.ly, on: k.on });
+    } else {
+      const mid = Math.min(ex - 10, sx + 12);
+      const knee = ex - 8;
+      leads.push({ x0: sx, y0: k.y, x1: mid, y1: k.y, on: k.on });
+      leads.push({ x0: mid, y0: k.y, x1: knee, y1: k.ly, on: k.on });
+      leads.push({ x0: knee, y0: k.ly, x1: ex, y1: k.ly, on: k.on });
+    }
+  }
+  const html = kept.map(k =>
     `<span class="tw-tag${k.on ? " on" : ""}" style="left:${f1(col)}px;top:${f1(k.ly)}px">`
     + `<b>${k.it.live ? `<i class="lamp sig" aria-hidden="true"></i>` : ""}${escapeHTML(`${k.it.f}층`)}</b>`
     + `<span>${k.it.n}<small>명</small></span></span>`
   ).join("");
-  return `<svg class="tw-leads" width="${m.W}" height="${m.H}" viewBox="0 0 ${m.W} ${m.H}" aria-hidden="true">${lines}</svg>${labels}`;
+  return { leads, html };
 }
 
 const themeOf = () => `${document.documentElement.dataset.theme || ""}${document.documentElement.dataset.contrast || ""}`;
-const marksOf = el => [...el.querySelectorAll(".tw-tag, .tw-leads")];
+const marksOf = el => [...el.querySelectorAll(".tw-tag")];
 
 function mark(el, show = true) {
   const tw = el.tower;
   marksOf(el).forEach(x => x.remove());
-  if (!tw?.m.hall || el.twIn) return;
-  el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", climbersHTML(tw));
-  if (show && !reduced()) marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.tone, { delay: i * STAGGER.row }));
+  if (!tw?.m.hall || el.twIn) {
+    if (tw) { tw.leadAlpha = 0; paint(el); }
+    return;
+  }
+  const cm = computeClimbers(tw);
+  if (!cm) { tw.leadAlpha = 0; paint(el); return; }
+  el.querySelector(".tw-cam")?.insertAdjacentHTML("beforeend", cm.html);
+  if (show && !reduced()) {
+    marksOf(el).forEach((x, i) => void fade(x, 0, 1, DUR.tone, { delay: i * STAGGER.row }));
+    void animate(el, DUR.tone, e => { tw.leadAlpha = e; }, out3);
+  } else {
+    tw.leadAlpha = 1;
+    paint(el);
+  }
 }
 
 /* ---------- hand interaction: vertical elevation scrub + ±18° architectural parallax ---------- */
@@ -316,6 +341,7 @@ export function drawTower(el, st, coming = false) {
     view: null,
     lift: null,
     diveDim: 0,
+    leadAlpha: coming ? 0 : 1,
     held: false,
     anims: new Set(),
     loop: 0,
@@ -354,7 +380,10 @@ async function moveTo(el, st) {
   const tw = el.tower;
   if (reduced()) { drawTower(el, st); return; }
   const from = tw.s, to = doorOf(st), walks = from !== to, climbing = st.floor !== tw.st.floor;
-  if (walks) marksOf(el).forEach(x => void fade(x, 1, 0, DUR.tone, { easing: EASE_IN }));
+  if (walks) {
+    marksOf(el).forEach(x => void fade(x, 1, 0, DUR.tone, { easing: EASE_IN }));
+    void animate(el, DUR.tone, e => { tw.leadAlpha = 1 - e; }, in3);
+  }
   const moveDur = climbing ? STEP_CLIMB : STEP_SAME;
   await Promise.all([
     tweenTo(el, st, DUR.light),
@@ -388,6 +417,7 @@ async function entrance(el) {
   if (el.tower !== tw) return;
   tw.doors.fill(0);
   tw.reveal = 0;
+  tw.leadAlpha = 0;
   await animate(el, ENTRANCE, e => {
     tw.reveal = Math.min(1, e / 0.74);
     tw.cam = e >= 1 ? null : mixView(viewOf("whole", tw.s, tw.m, top), viewOf("hall", tw.s, tw.m, top), out3(e));
@@ -424,6 +454,7 @@ async function step(el, st) {
   const tw = el.tower, from = tw.s, to = doorOf(st), climbing = st.floor > tw.st.floor;
   sfx("select");
   marksOf(el).forEach(x => void fade(x, 1, 0, DUR.tone, { easing: EASE_IN }));
+  tw.leadAlpha = 0;
   await tweenTo(el, { ...tw.st, hold: true }, DUR.tone);
   sfx("swoosh", { sec: 0.6 });
   const moveDur = climbing ? STEP_CLIMB : STEP_SAME;
@@ -502,6 +533,7 @@ export async function towerDive() {
     const diveV = viewOf("dive", door, tw.m, top);
     const d0 = tw.doors[door];
     for (const x of marksOf(el)) void fade(x, 1, 0, DUR.tone, { easing: EASE_IN });
+    tw.leadAlpha = 0;
     sfx("swoosh", { sec: 0.45 });
     await animate(el, ALIGN, e => {
       tw.cam = mixView(startV, alignV, out3(e));

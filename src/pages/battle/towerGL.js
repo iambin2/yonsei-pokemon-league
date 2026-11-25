@@ -1,12 +1,11 @@
-/* 도전의 탑's tower modelled in 3D (DESIGN.md "Battle", 도전의 탑, The tower; the Almanac Monolith pass, 2026-11-25).
+/* 도전의 탑's tower modelled in 3D (DESIGN.md "Battle", 도전의 탑, The tower; sculptural 3D monolith pass).
    One WebGL2 context, shared and never on the page: each draw renders into it and copies the picture into the scene's own 2D canvas,
    so a scene costs no context of its own and a removed one leaves nothing behind.
 
-   An architectural monolith set directly on the page's own ground (--ground), with no box, no sky gradient, no fog, no glow and no
-   fantasy scenery: each floor tapers gently up the vertical axis into a Wing Y crown, holding five full-height colonnade portals
-   (four regular bouts and the golden-ratio gatekeeper sanctuary portal) beside a left numeral pylon carved with thin Albert Sans (200)
-   floor figures. Every vertex stores semantic material IDs rather than baked colours, so Dark, Light, High-Contrast Dark and
-   High-Contrast Light switch in one frame with zero mesh rebuild. */
+   An architectural monolith set directly on the page's own ground (--ground): sculpted 3D mass with directional architectural
+   lighting, soffit contact AO, deep recessed colonnade portals, minimal datum rules (no noisy wireframe outlines), smooth top
+   recession into --ground, and unified WebGL2 screen-space leader lines (zero SVG). Every vertex stores semantic material IDs rather
+   than baked colours, so Dark, Light, High-Contrast Dark and High-Contrast Light switch in one frame with zero mesh rebuild. */
 
 export const PHI = 1.6180339887;
 export const FLOOR_H = 1.08;
@@ -20,24 +19,24 @@ const BASE_PYLON_X1 = -1.92;
 const BASE_FACADE_X0 = -1.92;
 const BASE_FACADE_X1 = 2.72;
 const FRONT_Z = 0.24;
-const PYLON_Z = 0.34;
-const TERRACE_Z = 0.60;
+const PYLON_Z = 0.36;
+const TERRACE_Z = 0.62;
 const BACK_Z = -2.50;
 
 export function baySpec(i, f = 0) {
   const sc = scaleOf(f);
   if (i === 4) {
-    return { cx: 2.04 * sc, w: 0.70 * sc, h: 0.90, sill: 0.08, depth: 0.88, faceZ: FRONT_Z + 0.12, gate: true };
+    return { cx: 2.04 * sc, w: 0.70 * sc, h: 0.88, sill: 0.09, depth: 0.90, faceZ: FRONT_Z + 0.14, gate: true };
   }
   const centers = [-1.42, -0.66, 0.10, 0.86];
-  return { cx: centers[i] * sc, w: 0.38 * sc, h: 0.86, sill: 0.08, depth: 0.84, faceZ: FRONT_Z, gate: false };
+  return { cx: centers[i] * sc, w: 0.38 * sc, h: 0.84, sill: 0.09, depth: 0.86, faceZ: FRONT_Z, gate: false };
 }
 
 export const topOf = floor => Math.min(MAX_FLOORS, Math.max(9, floor + 4));
 
 export function rightEdgeOf(f) {
   const sc = scaleOf(f);
-  return { x: BASE_FACADE_X1 * sc + 0.12, y: f * FLOOR_H + 0.08, z: TERRACE_Z - Math.max(0, f) * 0.012 };
+  return { x: BASE_FACADE_X1 * sc + 0.14, y: f * FLOOR_H + 0.09, z: TERRACE_Z - Math.max(0, f) * 0.012 };
 }
 
 /* ---------- the camera ---------- */
@@ -67,7 +66,7 @@ export function viewOf(kind, s, m, top) {
   const b0 = baySpec(i0, f), b1 = baySpec(i1, f);
   const frac = i - Math.floor(i);
   const bx = b0.cx + (b1.cx - b0.cx) * frac;
-  const by = f * FLOOR_H + 0.08 + (b0.h + (b1.h - b0.h) * frac) * 0.5;
+  const by = f * FLOOR_H + 0.09 + (b0.h + (b1.h - b0.h) * frac) * 0.5;
   const yFloor = f * FLOOR_H;
   const asp = m.W / Math.max(1, m.H);
   const narrow = Math.max(1, 1.54 / Math.max(0.75, asp));
@@ -94,16 +93,16 @@ export function viewOf(kind, s, m, top) {
     };
   }
   const isFirst = f === 0;
-  const liftY = isFirst ? 2.18 : (m.phone ? 2.28 : 2.34);
+  const liftY = isFirst ? 2.15 : (m.phone ? 2.25 : 2.32);
   return {
-    eyeX: -3.65 * narrow + (bx - 0.1) * 0.05,
-    eyeY: isFirst ? 0.36 : yFloor - 0.12,
-    eyeZ: 9.15 * narrow,
+    eyeX: -3.70 * narrow + (bx - 0.1) * 0.05,
+    eyeY: isFirst ? 0.42 : yFloor - 0.08,
+    eyeZ: 9.25 * narrow,
     tgtX: 0.42 + (bx - 0.1) * 0.04,
     tgtY: yFloor + liftY,
     tgtZ: -0.25,
     focal: 1.40,
-    shift: m.phone ? -0.05 : -0.10,
+    shift: m.phone ? -0.06 : -0.10,
   };
 }
 
@@ -174,49 +173,49 @@ export function paletteOf() {
   const lit = readToken(cs, "--lit", light ? "#081C3D" : "#FFFFFF");
   const dim = readToken(cs, "--dim", light ? "#46536C" : "#A8B8D3");
   const mute = readToken(cs, "--mute", light ? "#56637A" : "#8196B9");
-  const rule = readToken(cs, "--rule", light ? "#CED5E0" : "#1D365F");
-  const tint = readToken(cs, "--tint", light ? "#E8ECF2" : "#0E2449");
   const signal = readToken(cs, "--signal", light ? "#B36F00" : "#FFB21A");
   const act = hc ? readToken(cs, "--act", light ? "#00009F" : "#FFFF00") : lit;
   const hl = hc ? readToken(cs, "--hl", light ? "#37006E" : "#1AEBFF") : lit;
 
   if (hc && !light) {
+    // High-contrast dark: sculpted monochrome monolith mass on pure black ground, restrained rules, crisp --act datum
     return {
       light, hc, ground,
-      faceLit: ground, faceShade: hexRgb("#242424"), faceDeep: hexRgb("#141414"),
-      tread: hexRgb("#303030"), recess: ground, won: lit,
-      signal: act, signalCore: ground, rule, ruleSub: hexRgb("#7A7A7A"), ruleLit: act,
-      gateLeaf: hexRgb("#1C1C1C"), numLit: act, numMute: dim, hl,
-      hairPx: 1.4, rulePx: 2.6,
+      faceLit: hexRgb("#1B1B1B"), faceShade: hexRgb("#101010"), faceDeep: hexRgb("#070707"),
+      tread: hexRgb("#323232"), recess: ground, won: lit,
+      signal: act, signalCore: ground, rule: hexRgb("#686868"), ruleSub: hexRgb("#3A3A3A"), ruleLit: act,
+      gateLeaf: hexRgb("#222222"), numLit: act, numMute: dim, hl,
+      hairPx: 1.05, rulePx: 2.1,
     };
   }
   if (hc && light) {
+    // High-contrast light: solid stone-grey monolith mass on pure white ground, clean dark rules, crisp --act datum
     return {
       light, hc, ground,
-      faceLit: ground, faceShade: hexRgb("#DCDCDC"), faceDeep: hexRgb("#C4C4C4"),
-      tread: hexRgb("#EAEAEA"), recess: ground, won: lit,
-      signal: act, signalCore: ground, rule: lit, ruleSub: hexRgb("#444444"), ruleLit: act,
-      gateLeaf: hexRgb("#D2D2D2"), numLit: act, numMute: dim, hl,
-      hairPx: 1.4, rulePx: 2.6,
+      faceLit: hexRgb("#E8E8E8"), faceShade: hexRgb("#CFCFCF"), faceDeep: hexRgb("#B0B0B0"),
+      tread: hexRgb("#F5F5F5"), recess: ground, won: lit,
+      signal: act, signalCore: ground, rule: hexRgb("#4A4A4A"), ruleSub: hexRgb("#888888"), ruleLit: act,
+      gateLeaf: hexRgb("#DCDCDC"), numLit: act, numMute: dim, hl,
+      hairPx: 1.05, rulePx: 2.1,
     };
   }
   if (light) {
     return {
       light, hc, ground,
-      faceLit: ground, faceShade: hexRgb("#DAE2EE"), faceDeep: hexRgb("#C5D0E2"),
-      tread: hexRgb("#EEF2F7"), recess: hexRgb("#E2E8F2"), won: lit,
-      signal, signalCore: signal, rule: hexRgb("#AAB9CF"), ruleSub: hexRgb("#C4CFDF"), ruleLit: lit,
-      gateLeaf: hexRgb("#D3DCE8"), numLit: lit, numMute: mute, hl: lit,
-      hairPx: 1.05, rulePx: 2.2,
+      faceLit: hexRgb("#EBF0F7"), faceShade: hexRgb("#D2DCEB"), faceDeep: hexRgb("#B6C5DC"),
+      tread: hexRgb("#F6F8FC"), recess: hexRgb("#CFD9E8"), won: lit,
+      signal, signalCore: signal, rule: hexRgb("#9BB0CC"), ruleSub: hexRgb("#C6D3E3"), ruleLit: lit,
+      gateLeaf: hexRgb("#DCE4F0"), numLit: lit, numMute: mute, hl: lit,
+      hairPx: 1.0, rulePx: 2.0,
     };
   }
   return {
     light, hc, ground,
-    faceLit: tint, faceShade: hexRgb("#051229"), faceDeep: hexRgb("#030B1A"),
-    tread: hexRgb("#15305E"), recess: hexRgb("#040E21"), won: lit,
-    signal, signalCore: signal, rule: hexRgb("#244274"), ruleSub: hexRgb("#183058"), ruleLit: lit,
-    gateLeaf: hexRgb("#112952"), numLit: lit, numMute: mute, hl: lit,
-    hairPx: 1.0, rulePx: 2.2,
+    faceLit: hexRgb("#132D58"), faceShade: hexRgb("#0B1F42"), faceDeep: hexRgb("#051229"),
+    tread: hexRgb("#21437A"), recess: hexRgb("#040E21"), won: lit,
+    signal, signalCore: signal, rule: hexRgb("#31548C"), ruleSub: hexRgb("#1C3764"), ruleLit: lit,
+    gateLeaf: hexRgb("#183769"), numLit: lit, numMute: mute, hl: lit,
+    hairPx: 1.0, rulePx: 2.0,
   };
 }
 
@@ -249,14 +248,14 @@ function buildNumberAtlas() {
   return c;
 }
 
-/* ---------- semantic 3D mesh + screen-space line builder (theme-independent) ---------- */
+/* ---------- semantic 3D mesh + restrained architectural datum line builder ---------- */
 const F_STRIDE = 12;
 const L_STRIDE = 12;
 const TRI = [0, 1, 2, 0, 2, 3];
 
 function createBuilder() {
   const F = { a: new Float32Array(F_STRIDE * 6 * 2048), n: 0 };
-  const L = { a: new Float32Array(L_STRIDE * 6 * 2048), n: 0 };
+  const L = { a: new Float32Array(L_STRIDE * 6 * 512), n: 0 };
   const grow = (B, need) => {
     if (B.n + need <= B.a.length) return;
     let sz = B.a.length * 2;
@@ -298,121 +297,110 @@ function createBuilder() {
     const pts = [[0, -1], [1, -1], [1, 1], [0, 1]];
     for (const idx of TRI) lv(p0, p1, pts[idx][0], pts[idx][1], meta);
   };
-  const rectLines = (x0, y0, x1, y1, z, kind, fIdx, doorId = -1, order = 0.5) => {
-    line([x0, y0, z], [x1, y0, z], kind, fIdx, doorId, order);
-    line([x0, y1, z], [x1, y1, z], kind, fIdx, doorId, order + 0.02);
-    line([x0, y0, z], [x0, y1, z], kind, fIdx, doorId, order + 0.01);
-    line([x1, y0, z], [x1, y1, z], kind, fIdx, doorId, order + 0.01);
-  };
-  return { quad, box, line, rectLines, done: () => ({ faces: F.a.slice(0, F.n), lines: L.a.slice(0, L.n) }) };
+  return { quad, box, line, done: () => ({ faces: F.a.slice(0, F.n), lines: L.a.slice(0, L.n) }) };
 }
 
 function* monolithPieces(B, top) {
+  // 3-step sculptural golden-ratio plinth — shaded 3D treads & risers, only one quiet ground baseline
   const plinths = [
-    [-3.48, -0.36, -2.65, 3.22, -0.24, 1.24],
-    [-3.24, -0.24, -2.58, 3.00, -0.12, 0.96],
-    [-3.02, -0.12, -2.52, 2.82, 0.00, 0.72],
+    [-3.48, -0.36, -2.65, 3.22, -0.24, 1.26],
+    [-3.24, -0.24, -2.58, 3.00, -0.12, 0.98],
+    [-3.02, -0.12, -2.52, 2.82, 0.00, 0.74],
   ];
   plinths.forEach(([x0, y0, z0, x1, y1, z1], idx) => {
     B.box(x0, y0, z0, x1, y1, z1, -1, { front: 1, side: 2, top: 4, bot: -1, back: -1 });
-    // clean closed plinth edges (no stray horizon line protruding beyond the plinth)
-    B.line([x0, y1, z1], [x1, y1, z1], idx === 2 ? 3 : 0, -1, -1, idx === 2 ? 0.0 : 0.45);
-    B.line([x0, y1, z0], [x0, y1, z1], 0, -1, -1, 0.46);
-    B.line([x0, y0, z1], [x0, y1, z1], 0, -1, -1, 0.46);
-    B.line([x1, y0, z1], [x1, y1, z1], 0, -1, -1, 0.46);
+    // single quiet architectural baseline on bottom plinth front edge
     if (idx === 0) {
       B.line([x0, y0, z1], [x1, y0, z1], 3, -1, -1, 0.0);
-      B.line([x0, y0, z0], [x0, y0, z1], 0, -1, -1, 0.46);
     }
   });
 
   for (let f = 0; f < top; f++) {
     if (f > 0 && f % 3 === 0) yield;
     const sc = scaleOf(f);
-    const y0 = f * FLOOR_H, y1 = y0 + FLOOR_H, slabH = 0.08, wallY0 = y0 + slabH, wallY1 = y1;
+    const y0 = f * FLOOR_H, y1 = y0 + FLOOR_H, slabH = 0.09, wallY0 = y0 + slabH, wallY1 = y1;
     const ordPrimary = 0.02 + (f / Math.max(1, top)) * 0.36;
-    const ordDetail = 0.48 + (f / Math.max(1, top)) * 0.34;
 
     const px0 = BASE_PYLON_X0 * sc, px1 = BASE_PYLON_X1 * sc;
     const fx0 = BASE_FACADE_X0 * sc, fx1 = BASE_FACADE_X1 * sc;
     const tz = TERRACE_Z - f * 0.012, bz = BACK_Z + f * 0.045;
 
-    B.box(px0 - 0.12, y0, bz, fx1 + 0.12, wallY0, tz, f, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
-    B.line([px0 - 0.12, wallY0, tz], [fx1 + 0.12, wallY0, tz], 4, f, -1, ordPrimary);
-    B.line([px0 - 0.12, wallY0, bz], [px0 - 0.12, wallY0, tz], 4, f, -1, ordPrimary + 0.01);
-    B.line([px0 - 0.12, y0, tz], [fx1 + 0.12, y0, tz], 0, f, -1, ordDetail);
-    B.line([px0 - 0.12, y0, bz], [px0 - 0.12, y0, tz], 0, f, -1, ordDetail);
+    // Projecting floor terrace slab (overhangs piers slightly, creating crisp 3D shadow soffit)
+    B.box(px0 - 0.14, y0, bz, fx1 + 0.14, wallY0, tz, f, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
 
-    // clean monolithic left pylon + deep reveal (removed cluttered extra left rib lines)
-    B.box(px0, wallY0, bz, px1 - 0.05, wallY1, PYLON_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
-    B.box(px1 - 0.05, wallY0, bz, fx0, wallY1, FRONT_Z - 0.16, f, { front: 3, side: 3, top: -1, bot: -1, back: -1 });
+    // SINGLE crisp datum rule along the terrace upper front & left edge (no double lower slab line!)
+    B.line([px0 - 0.14, wallY0, tz], [fx1 + 0.14, wallY0, tz], 4, f, -1, ordPrimary);
+    B.line([px0 - 0.14, wallY0, bz], [px0 - 0.14, wallY0, tz], 4, f, -1, ordPrimary + 0.01);
 
+    // Left numeral pylon + deep architectural reveal separating pylon from colonnade
+    B.box(px0, wallY0, bz, px1 - 0.06, wallY1, PYLON_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+    B.box(px1 - 0.06, wallY0, bz, fx0, wallY1, FRONT_Z - 0.18, f, { front: 3, side: 3, top: -1, bot: -1, back: -1 });
+
+    // Subtle outer vertical silhouette hairlines only (clean mass boundary)
     B.line([px0, wallY0, PYLON_Z], [px0, wallY1, PYLON_Z], 7, f, -1, ordPrimary + 0.015);
-    B.line([px0, wallY0, bz], [px0, wallY1, bz], 7, f, -1, ordPrimary + 0.02);
     B.line([fx1, wallY0, FRONT_Z], [fx1, wallY1, FRONT_Z], 7, f, -1, ordPrimary + 0.015);
-    B.line([px1 - 0.05, wallY0, PYLON_Z], [px1 - 0.05, wallY1, PYLON_Z], 0, f, -1, ordDetail);
 
+    // Floor numeral carved on pylon face
     const col = f % ATLAS_COLS, row = Math.floor(f / ATLAS_COLS);
     const u0 = col / ATLAS_COLS, u1 = (col + 1) / ATLAS_COLS, v0 = row / ATLAS_ROWS, v1 = (row + 1) / ATLAS_ROWS;
-    const numCx = (px0 + px1 - 0.05) * 0.5, numHalfW = Math.min(0.38 * sc, (px1 - 0.05 - px0) * 0.46);
+    const numCx = (px0 + px1 - 0.06) * 0.5, numHalfW = Math.min(0.38 * sc, (px1 - 0.06 - px0) * 0.46);
     const numY0 = wallY0 + 0.10, numY1 = wallY1 - 0.10;
     B.quad(
       [[numCx - numHalfW, numY0, PYLON_Z + 0.005], [numCx + numHalfW, numY0, PYLON_Z + 0.005], [numCx + numHalfW, numY1, PYLON_Z + 0.005], [numCx - numHalfW, numY1, PYLON_Z + 0.005]],
       [0, 0, 1], [9, f, -1, 0], [[u0, v1], [u1, v1], [u1, v0], [u0, v0]]
     );
 
-    B.box(fx0, wallY0, bz, fx1, wallY1, FRONT_Z - 0.90, f, { front: -1, side: 2, top: -1, bot: -1, back: 3 });
+    // Solid core backing behind colonnade
+    B.box(fx0, wallY0, bz, fx1, wallY1, FRONT_Z - 0.92, f, { front: -1, side: 2, top: -1, bot: -1, back: 3 });
 
     let curX = fx0;
     for (let i = 0; i < 5; i++) {
       const k = f * 5 + i, b = baySpec(i, f);
       const bx0 = b.cx - b.w * 0.5, bx1 = b.cx + b.w * 0.5, by0 = y0 + b.sill, by1 = by0 + b.h, backZ = b.faceZ - b.depth;
 
-      if (bx0 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.90, bx0, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+      // Colonnade piers between portals and lintel above portal
+      if (bx0 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.92, bx0, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
       if (wallY1 > by1 + 0.001) B.box(bx0, by1, backZ, bx1, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: 3, back: -1 });
 
+      // 5th bay: sculpted 3D gatekeeper sanctuary (projecting pilasters + deep stepped pediment lintel, no wireframe clutter)
       if (b.gate) {
-        const fw = 0.08 * sc;
+        const fw = 0.09 * sc;
         B.box(bx0 - fw, wallY0, FRONT_Z, bx0, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
         B.box(bx1, wallY0, FRONT_Z, bx1 + fw, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
-        B.box(bx0 - fw, by1, FRONT_Z, bx1 + fw, wallY1, b.faceZ + 0.025, f, { front: 1, side: 2, top: -1, bot: 3, back: -1 });
-        B.rectLines(bx0 - fw, wallY0, bx1 + fw, wallY1 - 0.01, b.faceZ + 0.028, 1, f, k, ordDetail + 0.02);
-        const vy = by1 + 0.02;
-        B.line([b.cx - 0.14 * sc, vy + 0.055, b.faceZ + 0.028], [b.cx, vy + 0.01, b.faceZ + 0.028], 1, f, k, ordDetail + 0.03);
-        B.line([b.cx, vy + 0.01, b.faceZ + 0.028], [b.cx + 0.14 * sc, vy + 0.055, b.faceZ + 0.028], 1, f, k, ordDetail + 0.03);
+        B.box(bx0 - fw - 0.02 * sc, by1, FRONT_Z, bx1 + fw + 0.02 * sc, wallY1, b.faceZ + 0.04, f, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
       }
 
+      // Deep 3D portal jambs, soffit, and threshold sill (reads purely by 3D face shading & depth AO)
       B.quad([[bx0, by0, b.faceZ], [bx0, by0, backZ], [bx0, by1, backZ], [bx0, by1, b.faceZ]], [1, 0, 0], [6, f, k, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
       B.quad([[bx1, by0, backZ], [bx1, by0, b.faceZ], [bx1, by1, b.faceZ], [bx1, by1, backZ]], [-1, 0, 0], [6, f, k, 0], [[1, 0], [0, 0], [0, 1], [1, 1]]);
       B.quad([[bx0, by1, b.faceZ], [bx1, by1, b.faceZ], [bx1, by1, backZ], [bx0, by1, backZ]], [0, -1, 0], [6, f, k, 0], [[0, 0], [0, 0], [1, 0], [1, 0]]);
       B.quad([[bx0, by0, backZ], [bx1, by0, backZ], [bx1, by0, b.faceZ], [bx0, by0, b.faceZ]], [0, 1, 0], [6, f, k, 1], [[1, 0], [1, 0], [0, 0], [0, 0]]);
 
-      const planeZ = b.gate ? backZ + 0.06 : b.faceZ - 0.22;
+      // Recessed portal interior plane (shows locked void, won monolith, or illuminated active threshold)
+      const planeZ = b.gate ? backZ + 0.08 : b.faceZ - 0.24;
       B.quad([[bx0, by0, planeZ], [bx1, by0, planeZ], [bx1, by1, planeZ], [bx0, by1, planeZ]], [0, 0, 1], [5, f, k, b.gate ? 1 : 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
 
+      // Twin sliding monolith slabs for the gatekeeper sanctuary
       if (b.gate) {
-        const lz = b.faceZ - 0.12, gap = 0.015 * sc;
+        const lz = b.faceZ - 0.14, gap = 0.016 * sc;
         B.quad([[bx0, by0, lz], [b.cx - gap, by0, lz], [b.cx - gap, by1, lz], [bx0, by1, lz]], [0, 0, 1], [7, f, k, -1], [[0, 0], [1, 0], [1, 1], [0, 1]]);
         B.quad([[b.cx + gap, by0, lz], [bx1, by0, lz], [bx1, by1, lz], [b.cx + gap, by1, lz]], [0, 0, 1], [7, f, k, 1], [[0, 0], [1, 0], [1, 1], [0, 1]]);
         B.quad([[b.cx - gap, by0, lz + 0.002], [b.cx + gap, by0, lz + 0.002], [b.cx + gap, by1, lz + 0.002], [b.cx - gap, by1, lz + 0.002]], [0, 0, 1], [8, f, k, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
       }
 
-      B.rectLines(bx0, by0, bx1, by1, b.faceZ + 0.004, 6, f, k, ordDetail + 0.015);
-      B.line([bx0, by0 + 0.005, b.faceZ + 0.006], [bx1, by0 + 0.005, b.faceZ + 0.006], 2, f, k, ordDetail + 0.03);
       curX = bx1;
     }
-    if (fx1 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.90, fx1, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
-    B.line([fx1, wallY0, bz], [fx1, wallY1, bz], 0, f, -1, ordDetail);
+    if (fx1 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.92, fx1, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
   }
 
   yield;
   const yTop = top * FLOOR_H, scTop = scaleOf(top - 1);
-  const tx0 = BASE_PYLON_X0 * scTop - 0.12, tx1 = BASE_FACADE_X1 * scTop + 0.12;
+  const tx0 = BASE_PYLON_X0 * scTop - 0.14, tx1 = BASE_FACADE_X1 * scTop + 0.14;
   const bzTop = BACK_Z + (top - 1) * 0.045, tzTop = TERRACE_Z - (top - 1) * 0.012;
   B.box(tx0, yTop, bzTop, tx1, yTop + 0.14, tzTop, top, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
   B.line([tx0, yTop + 0.14, tzTop], [tx1, yTop + 0.14, tzTop], 5, top, -1, 0.84);
-  B.line([tx0, yTop, tzTop], [tx1, yTop, tzTop], 0, top, -1, 0.84);
 
+  // Split Wing Y architectural crown
   const cxCrown = (tx0 + tx1) * 0.5, yC0 = yTop + 0.14;
   for (const sg of [-1, 1]) {
     const innerX = cxCrown + sg * 0.20 * scTop, outerX = cxCrown + sg * 1.75 * scTop;
@@ -425,9 +413,6 @@ function* monolithPieces(B, top) {
     B.quad([[xA, yL, zF], [xB, yR, zF], [xB, yR, zB], [xA, yL, zB]], [nx / nl, ny / nl, 0], [4, top, -1, 0]);
     B.quad([[xA, yC0, zB], [xA, yC0, zF], [xA, yL, zF], [xA, yL, zB]], [-1, 0, 0], [2, top, -1, 0]);
     B.quad([[xB, yC0, zF], [xB, yC0, zB], [xB, yR, zB], [xB, yR, zF]], [1, 0, 0], [2, top, -1, 0]);
-    B.line([xA, yL, zF], [xB, yR, zF], 5, top, -1, 0.86);
-    B.line([xA, yC0, zF], [xA, yL, zF], 5, top, -1, 0.85);
-    B.line([xB, yC0, zF], [xB, yR, zF], 5, top, -1, 0.85);
   }
 }
 
@@ -467,7 +452,7 @@ uniform mat4 uVP;
 uniform float uDoor[${ND}];
 uniform float uReveal;
 uniform float uTop;
-out vec3 vN; out vec4 vM; out vec2 vU; out float vV; out float vVis;
+out vec3 vP; out vec3 vN; out vec4 vM; out vec2 vU; out float vV; out float vVis;
 void main() {
   vec3 p = aP;
   int dId = int(aM.z + 0.5);
@@ -477,90 +462,136 @@ void main() {
     p.x += aM.w * open * 0.34;
   }
   float ord = clamp((aM.y + 1.0) / max(1.0, uTop + 1.0), 0.0, 1.0);
-  float start = 0.24 + ord * 0.34;
-  float vis = smoothstep(start, start + 0.26, uReveal);
+  float start = 0.20 + ord * 0.34;
+  float vis = smoothstep(start, start + 0.24, uReveal);
   p.y -= (1.0 - vis) * 0.14;
-  vN = aN; vM = aM; vU = aU; vV = v; vVis = vis;
+  vP = p; vN = aN; vM = aM; vU = aU; vV = v; vVis = vis;
   gl_Position = uVP * vec4(p, 1.0);
 }`;
 
 const FFS = `#version 300 es
 precision highp float;
-in vec3 vN; in vec4 vM; in vec2 vU; in float vV; in float vVis;
+in vec3 vP; in vec3 vN; in vec4 vM; in vec2 vU; in float vV; in float vVis;
 uniform vec3 uGround, uFaceLit, uFaceShade, uFaceDeep, uTread, uRecess;
 uniform vec3 uWon, uSignal, uSignalCore, uGateLeaf, uNumLit, uNumMute;
-uniform float uCurFloor, uLiftDoor, uLiftMix, uDiveDim, uHC;
+uniform vec2 uRes;
+uniform float uCurFloor, uLiftDoor, uLiftMix, uDiveDim, uHC, uLight, uTopFade;
 uniform sampler2D uNumTex;
 out vec4 o;
+
+const float FLOOR_H = 1.08;
+
 void main() {
   if (vVis < 0.01) discard;
   float mat = vM.x, fIdx = vM.y, v = vV;
   bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
   bool isLiftBay = abs(vM.z - uLiftDoor) < 0.5;
+
+  // Crisp architectural directional lighting + overhang soffit contact AO
+  vec3 n = normalize(vN);
+  vec3 keyDir = normalize(vec3(0.38, 0.68, 0.62));
+  float ndl = clamp(dot(n, keyDir), 0.0, 1.0);
+  float localY = fract(max(0.0, vP.y) / FLOOR_H);
+  float soffitAO = (fIdx >= -0.5) ? (1.0 - smoothstep(0.76, 0.99, localY) * (uHC > 0.5 ? 0.32 : 0.24)) : 1.0;
+  float baseAO = (fIdx >= -0.5) ? (1.0 - (1.0 - smoothstep(0.08, 0.18, localY)) * 0.10) : 1.0;
+  float ao = soffitAO * baseAO;
+
+  // Smooth vertical fade at top edge of viewport so upper stories recede intentionally into --ground
+  float topMask = uTopFade > 0.5 ? smoothstep(0.995, 0.78, gl_FragCoord.y / max(1.0, uRes.y)) : 1.0;
+
   vec3 c = uFaceLit;
 
-  if (mat < 0.5) c = uGround;
-  else if (mat < 1.5) c = uFaceLit;
-  else if (mat < 2.5) c = uFaceShade;
-  else if (mat < 3.5) c = uFaceDeep;
-  else if (mat < 4.5) c = uTread;
-  else if (mat < 5.5) {
+  if (mat < 0.5) {
+    c = uGround;
+  } else if (mat < 1.5) {
+    // Front architectural facade: subtle directional lift + soffit contact shadow under slab above
+    vec3 litFace = mix(uFaceShade, uFaceLit, 0.78 + 0.22 * ndl);
+    c = mix(uFaceDeep, litFace, ao);
+    if (isCurFloor && uHC < 0.5) c = mix(c, uTread, 0.14);
+  } else if (mat < 2.5) {
+    // Side walls & left pylon flanks: distinct shadow plane
+    c = mix(uFaceDeep, uFaceShade, (0.68 + 0.32 * ndl) * ao);
+  } else if (mat < 3.5) {
+    // Deep reveals & soffits
+    c = uFaceDeep;
+  } else if (mat < 4.5) {
+    // Horizontal terrace & plinth treads: bright upper plane catching sky/key light
+    float edgeHighlight = smoothstep(0.65, 1.0, ndl);
+    c = mix(uFaceLit, uTread, 0.72 + 0.28 * edgeHighlight);
+  } else if (mat < 5.5) {
+    // Recessed portal interior plane: locked void, won monolith, or sculpted active doorway
     float isLive = v < -0.01 ? clamp(-v, 0.0, 1.0) : smoothstep(1.05, 1.95, v);
     float isNext = (v > 0.1 && v < 0.8) ? smoothstep(0.05, 0.38, v) : 0.0;
     float isWon = smoothstep(0.75, 1.0, v) * (1.0 - isLive);
     c = mix(uRecess, uWon, isWon);
+
     float activeAmt = max(isLive, isNext);
     if (activeAmt > 0.01) {
-      float dx = abs(vU.x - 0.5), aa = max(0.012, fwidth(dx) * 1.2);
+      // Crisp recessed illuminated doorway slab (never a skinny vertical stick!)
+      float padX = isLive > 0.5 ? 0.04 : 0.11;
+      float padY = isLive > 0.5 ? 0.02 : 0.06;
+      float aaX = max(0.015, fwidth(vU.x) * 1.25);
+      float aaY = max(0.015, fwidth(vU.y) * 1.25);
+      float inX = smoothstep(padX - aaX, padX + aaX, vU.x) * (1.0 - smoothstep(1.0 - padX - aaX, 1.0 - padX + aaX, vU.x));
+      float inY = smoothstep(padY - aaY, padY + aaY, vU.y) * (1.0 - smoothstep(1.0 - padY - aaY, 1.0 - padY + aaY, vU.y));
+      float insetMask = inX * inY;
+      // Subtle vertical architectural light gradient inside the illuminated doorway (brighter toward threshold)
+      vec3 portalCol = mix(uSignal, mix(uSignal, uWon, 0.18), (1.0 - vU.y) * (uHC > 0.5 ? 0.0 : 0.65));
       if (isLive > 0.05) {
-        vec3 activeCol = uSignal;
-        if (uHC > 0.5) {
-          float core = 1.0 - smoothstep(0.11 - aa, 0.11 + aa, dx);
-          activeCol = mix(uSignal, uSignalCore, core);
-        }
-        c = mix(c, activeCol, isLive);
+        c = mix(c, portalCol, isLive * mix(0.85, 1.0, insetMask));
       } else {
-        float slit = 1.0 - smoothstep(0.14 - aa, 0.14 + aa, dx);
-        c = mix(c, uSignal, slit * isNext);
+        // Resting active door: clean inset illuminated monolith inside the recessed cavity
+        c = mix(c, portalCol, insetMask * isNext);
       }
     }
-  }
-  else if (mat < 6.5) {
+  } else if (mat < 6.5) {
+    // Deep 3D portal jambs, ceiling soffit, and threshold sill
     float isLive = v < -0.01 ? clamp(-v, 0.0, 1.0) : smoothstep(1.05, 1.95, v);
+    float isNext = (v > 0.1 && v < 0.8) ? smoothstep(0.05, 0.38, v) : 0.0;
     float isWon = smoothstep(0.75, 1.0, v) * (1.0 - isLive);
     float isSill = vM.w;
-    c = isSill > 0.5 ? mix(uFaceShade, uTread, 0.45) : mix(uFaceShade, uFaceDeep, clamp(vU.x * 0.9, 0.0, 1.0));
+    float depth = clamp(vU.x, 0.0, 1.0);
+    // Right-facing inner jamb catches directional key light; left-facing jamb sits in deeper shadow
+    float jambLight = 0.55 + 0.45 * ndl;
+    vec3 baseJamb = isSill > 0.5
+      ? mix(uTread, uFaceDeep, depth * 0.72)
+      : mix(mix(uFaceShade, uFaceLit, jambLight * 0.45), uFaceDeep, depth * 0.88);
+    c = baseJamb;
+    // Architectural bounce light from won or active doorway onto inner sill and jambs
+    float bounce = 1.0 - depth * 0.55;
     if (uHC < 0.5) {
-      c = mix(c, uWon, isWon * (isSill > 0.5 ? 0.38 : 0.16));
-      c = mix(c, uSignal, isLive * (isSill > 0.5 ? 0.48 : 0.15) * (1.0 - vU.x * 0.6));
-    } else if (isSill > 0.5 && isLive > 0.5) {
-      c = mix(c, uSignal, 0.65);
+      c = mix(c, uWon, isWon * (isSill > 0.5 ? 0.42 : 0.18) * bounce);
+      c = mix(c, uSignal, max(isLive, isNext * 0.65) * (isSill > 0.5 ? 0.52 : 0.22) * bounce);
+    } else if (isSill > 0.5) {
+      c = mix(c, uSignal, max(isLive, isNext * 0.85) * 0.65 * bounce);
     }
-  }
-  else if (mat < 7.5) {
-    c = uGateLeaf;
+  } else if (mat < 7.5) {
+    // Gatekeeper twin sliding monolith doors
+    c = mix(uFaceDeep, uGateLeaf, (0.76 + 0.24 * ndl) * ao);
     if (smoothstep(0.45, 1.0, abs(v)) > 0.96) discard;
-  }
-  else if (mat < 8.5) {
+  } else if (mat < 8.5) {
+    // Gatekeeper central parting seam
     if (abs(v) > 0.5) discard;
     c = mix(uFaceDeep, uSignal, smoothstep(0.05, 0.38, v));
-  }
-  else if (mat < 9.5) {
+  } else if (mat < 9.5) {
+    // Thin Albert Sans floor numerals on pylon
     float a = texture(uNumTex, vU).r;
     if (a < 0.04) discard;
     vec3 ink = isCurFloor ? uNumLit : uNumMute;
-    float alpha = a * (isCurFloor ? 1.0 : (uHC > 0.5 ? 0.95 : 0.72)) * vVis * (1.0 - uDiveDim * 0.85);
+    float alpha = a * (isCurFloor ? 1.0 : (uHC > 0.5 ? 0.82 : 0.68)) * vVis * topMask * (1.0 - uDiveDim * 0.85);
     o = vec4(ink, alpha);
     return;
+  } else {
+    c = mix(uFaceShade, uFaceLit, 0.75 + 0.25 * ndl);
   }
-  else c = uFaceLit;
 
   if (isLiftBay && mat > 4.5 && mat < 5.5) c = mix(c, uGround, uLiftMix);
   if (isLiftBay && mat > 5.5 && mat < 6.5) c = mix(c, uGround, smoothstep(0.55, 1.0, uLiftMix));
-  if (!isLiftBay && uDiveDim > 0.001) c = mix(c, uGround, uDiveDim * 0.72);
-  o = vec4(mix(uGround, c, vVis), 1.0);
+  if (!isLiftBay && uDiveDim > 0.001) c = mix(c, uGround, uDiveDim * 0.76);
+  o = vec4(mix(uGround, c, vVis * topMask), 1.0);
 }`;
 
+/* 3D architectural datum lines */
 const LVS = `#version 300 es
 in vec3 aP0; in vec3 aP1; in vec2 aSide; in vec4 aMeta;
 uniform mat4 uVP;
@@ -570,11 +601,6 @@ out vec4 vMeta; out float vEdge; out float vAlpha;
 void main() {
   float kind = aMeta.x, fIdx = aMeta.y, dId = aMeta.z, ord = aMeta.w;
   bool isActiveDoor = dId >= -0.5 && abs(dId - uActiveDoor) < 0.5;
-  if (kind > 1.5 && kind < 2.5 && !isActiveDoor) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-    vAlpha = 0.0; vEdge = 0.0; vMeta = vec4(0.0);
-    return;
-  }
   float span = ord < 0.44 ? 0.26 : 0.22;
   float draw = clamp((uReveal - ord) / span, 0.0, 1.0);
   draw = draw * draw * (3.0 - 2.0 * draw);
@@ -589,17 +615,15 @@ void main() {
   vec2 nrm = vec2(-dir.y, dir.x);
 
   bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
-  bool isGateHere = kind > 0.5 && kind < 1.5 && isActiveDoor;
-  bool thick = (kind > 3.5 && kind < 4.5 && isCurFloor) || (kind > 1.5 && kind < 2.5 && isActiveDoor) || isGateHere;
+  bool thick = (kind > 3.5 && kind < 4.5 && isCurFloor);
   float px = (thick ? uRulePx : uHairPx) * uDpr;
-  float halfW = px * 0.5 + 0.9;
-  // square architectural cap extension (half line width) so corners close flush with zero 1px notches
-  float cap = (aSide.x < 0.5 ? -1.0 : 1.0) * (px * 0.45);
+  float halfW = px * 0.5 + 0.85;
+  float cap = (aSide.x < 0.5 ? -1.0 : 1.0) * (px * 0.42);
 
   vec4 base = aSide.x < 0.5 ? c0 : c1;
   vec2 offPx = nrm * aSide.y * halfW + dir * cap;
   base.xy += offPx / (uRes * 0.5) * base.w;
-  base.z -= (thick ? 0.00075 : 0.00045) * base.w;
+  base.z -= 0.00012 * base.w;
 
   vMeta = vec4(kind, isCurFloor ? 1.0 : 0.0, isActiveDoor ? 1.0 : 0.0, px);
   vEdge = aSide.y * halfW;
@@ -610,8 +634,9 @@ void main() {
 const LFS = `#version 300 es
 precision highp float;
 in vec4 vMeta; in float vEdge; in float vAlpha;
+uniform vec2 uRes;
 uniform vec3 uRule, uRuleSub, uRuleLit, uSignal, uHL;
-uniform float uHC, uHeld, uDiveDim;
+uniform float uHC, uHeld, uDiveDim, uTopFade;
 out vec4 o;
 void main() {
   if (vAlpha < 0.02) discard;
@@ -619,33 +644,84 @@ void main() {
   bool isCurFloor = vMeta.y > 0.5;
   bool isActiveDoor = vMeta.z > 0.5;
   float halfCore = vMeta.w * 0.5;
-  float cov = (1.0 - smoothstep(halfCore - 0.65, halfCore + 0.65, abs(vEdge))) * vAlpha;
+  float cov = (1.0 - smoothstep(halfCore - 0.55, halfCore + 0.55, abs(vEdge))) * vAlpha;
   if (cov < 0.02) discard;
 
+  float topMask = uTopFade > 0.5 ? smoothstep(0.995, 0.78, gl_FragCoord.y / max(1.0, uRes.y)) : 1.0;
+
   vec3 col = uRule;
-  if (kind > 3.5 && kind < 4.5) col = isCurFloor ? uRuleLit : uRule;
-  else if (kind > 0.5 && kind < 1.5) col = isActiveDoor ? uRuleLit : (isCurFloor ? uRule : uRuleSub);
-  else if (kind > 1.5 && kind < 2.5) col = uHC > 0.5 ? uRuleLit : uSignal;
-  else if (kind > 4.5 && kind < 5.5) col = uRule;
-  else if (kind > 5.5 && kind < 6.5) col = isCurFloor ? uRule : uRuleSub;
+  float weightAlpha = 1.0;
+  if (kind > 3.5 && kind < 4.5) {
+    col = isCurFloor ? uRuleLit : uRule;
+    weightAlpha = isCurFloor ? 1.0 : 0.62;
+  } else if (kind > 6.5) {
+    // Outer vertical silhouette: quiet structural anchor
+    col = uRuleSub;
+    weightAlpha = 0.72;
+  } else if (kind > 2.5 && kind < 3.5) {
+    col = uRuleSub;
+    weightAlpha = 0.65;
+  }
 
   if (uHC > 0.5 && uHeld > 0.5 && kind > 3.5 && kind < 4.5 && isCurFloor) col = uHL;
   if (!isActiveDoor && uDiveDim > 0.001) cov *= (1.0 - uDiveDim * 0.88);
-  o = vec4(col, cov);
+  o = vec4(col, cov * weightAlpha * topMask);
+}`;
+
+/* Unified 2D screen-space climber leader lines (replaces SVG .tw-leads with identical WebGL AA & palette) */
+const SVS = `#version 300 es
+in vec2 aP0; in vec2 aP1; in vec2 aSide; in float aOn;
+uniform vec2 uRes;
+uniform float uDpr, uHairPx, uRulePx;
+out float vEdge; out float vPx; out float vOn;
+void main() {
+  vec2 s0 = aP0 * uDpr;
+  vec2 s1 = aP1 * uDpr;
+  vec2 d = s1 - s0;
+  float len = length(d);
+  vec2 dir = len > 0.001 ? d / len : vec2(1.0, 0.0);
+  vec2 nrm = vec2(-dir.y, dir.x);
+  float px = (aOn > 0.5 ? uRulePx : uHairPx) * uDpr;
+  float halfW = px * 0.5 + 0.85;
+  vec2 p = (aSide.x < 0.5 ? s0 : s1) + nrm * aSide.y * halfW;
+  vec2 ndc = vec2(p.x / uRes.x * 2.0 - 1.0, 1.0 - p.y / uRes.y * 2.0);
+  vEdge = aSide.y * halfW;
+  vPx = px;
+  vOn = aOn;
+  gl_Position = vec4(ndc, 0.0, 1.0);
+}`;
+
+const SFS = `#version 300 es
+precision highp float;
+in float vEdge; in float vPx; in float vOn;
+uniform vec3 uRule, uRuleLit;
+uniform float uLeadAlpha;
+out vec4 o;
+void main() {
+  float halfCore = vPx * 0.5;
+  float cov = 1.0 - smoothstep(halfCore - 0.55, halfCore + 0.55, abs(vEdge));
+  if (cov < 0.02) discard;
+  vec3 col = vOn > 0.5 ? uRuleLit : uRule;
+  float a = cov * (vOn > 0.5 ? 1.0 : 0.72) * uLeadAlpha;
+  o = vec4(col, a);
 }`;
 
 /* ---------- shared WebGL2 context with parallel shader compile warm-up ---------- */
 let ctx = null, begun = null;
+const S_STRIDE = 7;
 const UNIFORMS = {
   face: [
-    "uVP", "uDoor", "uReveal", "uTop",
+    "uVP", "uDoor", "uReveal", "uTop", "uRes",
     "uGround", "uFaceLit", "uFaceShade", "uFaceDeep", "uTread", "uRecess",
     "uWon", "uSignal", "uSignalCore", "uGateLeaf", "uNumLit", "uNumMute",
-    "uCurFloor", "uLiftDoor", "uLiftMix", "uDiveDim", "uHC", "uNumTex",
+    "uCurFloor", "uLiftDoor", "uLiftMix", "uDiveDim", "uHC", "uLight", "uTopFade", "uNumTex",
   ],
   line: [
     "uVP", "uRes", "uDpr", "uHairPx", "uRulePx", "uCurFloor", "uActiveDoor", "uReveal",
-    "uRule", "uRuleSub", "uRuleLit", "uSignal", "uHL", "uHC", "uHeld", "uDiveDim",
+    "uRule", "uRuleSub", "uRuleLit", "uSignal", "uHL", "uHC", "uHeld", "uDiveDim", "uTopFade",
+  ],
+  lead: [
+    "uRes", "uDpr", "uHairPx", "uRulePx", "uRule", "uRuleLit", "uLeadAlpha",
   ],
 };
 
@@ -655,7 +731,11 @@ function begin() {
   if (!gl) return null;
   const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const link = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
-  return { canvas, gl, parallel: gl.getExtension("KHR_parallel_shader_compile"), progs: { face: link(FVS, FFS), line: link(LVS, LFS) } };
+  return {
+    canvas, gl,
+    parallel: gl.getExtension("KHR_parallel_shader_compile"),
+    progs: { face: link(FVS, FFS), line: link(LVS, LFS), lead: link(SVS, SFS) },
+  };
 }
 const compiled = b => !b.parallel || Object.values(b.progs).every(p => b.gl.getProgramParameter(p, b.parallel.COMPLETION_STATUS_KHR));
 
@@ -680,8 +760,8 @@ function finish(b) {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.warn(gl.getProgramInfoLog(p)); return null; }
     return { p, u: Object.fromEntries(UNIFORMS[name].map(n => [n, gl.getUniformLocation(p, n)])) };
   };
-  const face = program("face"), line = program("line");
-  if (!face || !line) return null;
+  const face = program("face"), line = program("line"), lead = program("lead");
+  if (!face || !line || !lead) return null;
   const bind = (prog, buf, stride, attrs) => {
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -692,9 +772,10 @@ function finish(b) {
     }
     return vao;
   };
-  const fBuf = gl.createBuffer(), lBuf = gl.createBuffer();
+  const fBuf = gl.createBuffer(), lBuf = gl.createBuffer(), sBuf = gl.createBuffer();
   const fVao = bind(face, fBuf, F_STRIDE, [["aP", 3, 0], ["aN", 3, 3], ["aM", 4, 6], ["aU", 2, 10]]);
   const lVao = bind(line, lBuf, L_STRIDE, [["aP0", 3, 0], ["aP1", 3, 3], ["aSide", 2, 6], ["aMeta", 4, 8]]);
+  const sVao = bind(lead, sBuf, S_STRIDE, [["aP0", 2, 0], ["aP1", 2, 2], ["aSide", 2, 4], ["aOn", 1, 6]]);
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
@@ -703,7 +784,7 @@ function finish(b) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
   if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
-  const c = { canvas, gl, face, line, fBuf, lBuf, fVao, lVao, tex, key: null, fCount: 0, lCount: 0 };
+  const c = { canvas, gl, face, line, lead, fBuf, lBuf, sBuf, fVao, lVao, sVao, tex, key: null, fCount: 0, lCount: 0 };
   uploadNumberAtlas(c);
   return c;
 }
@@ -734,10 +815,28 @@ export function warmTower() {
   requestAnimationFrame(wait);
 }
 
+/* Pack 2D screen-space leader segments into vertex array for unified WebGL pass */
+function packLeads(leads) {
+  if (!leads?.length) return null;
+  const arr = new Float32Array(leads.length * 6 * S_STRIDE);
+  let n = 0;
+  const pts = [[0, -1], [1, -1], [1, 1], [0, 1]];
+  for (const s of leads) {
+    const on = s.on ? 1 : 0;
+    for (const idx of TRI) {
+      arr[n++] = s.x0; arr[n++] = s.y0;
+      arr[n++] = s.x1; arr[n++] = s.y1;
+      arr[n++] = pts[idx][0]; arr[n++] = pts[idx][1];
+      arr[n++] = on;
+    }
+  }
+  return arr;
+}
+
 /* 2D fallback without WebGL2: architectural elevation in the same semantic tokens */
 function flat(out, model, cam, pal, state) {
   const g = out.getContext("2d"), w = out.width, h = out.height;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
   const css = c => `rgb(${c.map(x => Math.round(x * 255)).join(",")})`;
   g.fillStyle = css(pal.ground); g.fillRect(0, 0, w, h);
   g.save(); g.scale(dpr, dpr);
@@ -757,11 +856,19 @@ function flat(out, model, cam, pal, state) {
       g.fillRect(Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.abs(p1[0] - p0[0]), Math.abs(p1[1] - p0[1]));
     }
   }
+  if (state.leads?.length && (state.leadAlpha ?? 1) > 0.01) {
+    g.globalAlpha = state.leadAlpha ?? 1;
+    for (const s of state.leads) {
+      g.strokeStyle = css(s.on ? pal.ruleLit : pal.rule);
+      g.lineWidth = s.on ? pal.rulePx : pal.hairPx;
+      g.beginPath(); g.moveTo(s.x0, s.y0); g.lineTo(s.x1, s.y1); g.stroke();
+    }
+  }
   g.restore();
 }
 
 export function render(out, model, cam, pal, state, m) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
   const w = Math.round((m?.W || out.clientWidth) * dpr) || out.width;
   const h = Math.round((m?.H || out.clientHeight) * dpr) || out.height;
   if (!w || !h) return false;
@@ -769,7 +876,7 @@ export function render(out, model, cam, pal, state, m) {
 
   const c = context();
   if (!c) { flat(out, model, cam, pal, state); return false; }
-  const { gl, canvas, face, line } = c;
+  const { gl, canvas, face, line, lead } = c;
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   if (c.key !== model) {
     gl.bindBuffer(gl.ARRAY_BUFFER, c.fBuf); gl.bufferData(gl.ARRAY_BUFFER, model.faces, gl.STATIC_DRAW);
@@ -783,6 +890,7 @@ export function render(out, model, cam, pal, state, m) {
   const activeDoor = state.activeDoor ?? -1;
   const held = state.held ? 1 : 0;
   const diveDim = state.diveDim ?? 0;
+  const topFade = state.topFade ? 1 : 0;
 
   gl.viewport(0, 0, w, h);
   gl.clearColor(pal.ground[0], pal.ground[1], pal.ground[2], 1);
@@ -791,6 +899,9 @@ export function render(out, model, cam, pal, state, m) {
   gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true);
   gl.disable(gl.CULL_FACE);
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  // Real slope-scaled polygon offset so architectural datum lines never Z-fight faces at oblique angles
+  gl.enable(gl.POLYGON_OFFSET_FILL);
+  gl.polygonOffset(1.0, 1.0);
 
   gl.useProgram(face.p); gl.bindVertexArray(c.fVao);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, c.tex);
@@ -798,6 +909,7 @@ export function render(out, model, cam, pal, state, m) {
   gl.uniformMatrix4fv(u.uVP, false, cam.vp);
   gl.uniform1fv(u.uDoor, state.doors);
   gl.uniform1f(u.uReveal, reveal); gl.uniform1f(u.uTop, model.top);
+  gl.uniform2f(u.uRes, w, h);
   gl.uniform3fv(u.uGround, pal.ground); gl.uniform3fv(u.uFaceLit, pal.faceLit);
   gl.uniform3fv(u.uFaceShade, pal.faceShade); gl.uniform3fv(u.uFaceDeep, pal.faceDeep);
   gl.uniform3fv(u.uTread, pal.tread); gl.uniform3fv(u.uRecess, pal.recess);
@@ -806,9 +918,11 @@ export function render(out, model, cam, pal, state, m) {
   gl.uniform3fv(u.uNumLit, pal.numLit); gl.uniform3fv(u.uNumMute, pal.numMute);
   gl.uniform1f(u.uCurFloor, curFloor); gl.uniform1f(u.uLiftDoor, lift.door);
   gl.uniform1f(u.uLiftMix, lift.mix); gl.uniform1f(u.uDiveDim, diveDim);
-  gl.uniform1f(u.uHC, pal.hc ? 1 : 0); gl.uniform1i(u.uNumTex, 0);
+  gl.uniform1f(u.uHC, pal.hc ? 1 : 0); gl.uniform1f(u.uLight, pal.light ? 1 : 0);
+  gl.uniform1f(u.uTopFade, topFade); gl.uniform1i(u.uNumTex, 0);
   gl.drawArrays(gl.TRIANGLES, 0, c.fCount);
 
+  gl.disable(gl.POLYGON_OFFSET_FILL);
   gl.depthMask(false);
   gl.useProgram(line.p); gl.bindVertexArray(c.lVao);
   u = line.u;
@@ -821,7 +935,28 @@ export function render(out, model, cam, pal, state, m) {
   gl.uniform3fv(u.uRuleLit, pal.ruleLit); gl.uniform3fv(u.uSignal, pal.signal);
   gl.uniform3fv(u.uHL, pal.hl); gl.uniform1f(u.uHC, pal.hc ? 1 : 0);
   gl.uniform1f(u.uHeld, held); gl.uniform1f(u.uDiveDim, diveDim);
+  gl.uniform1f(u.uTopFade, topFade);
   gl.drawArrays(gl.TRIANGLES, 0, c.lCount);
+
+  // Unified WebGL2 climber leader lines (zero SVG; identical AA & palette)
+  const leadAlpha = state.leadAlpha ?? 1;
+  if (state.leads?.length && leadAlpha > 0.01) {
+    const packed = packLeads(state.leads);
+    if (packed) {
+      gl.disable(gl.DEPTH_TEST);
+      gl.useProgram(lead.p); gl.bindVertexArray(c.sVao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, c.sBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, packed, gl.DYNAMIC_DRAW);
+      u = lead.u;
+      gl.uniform2f(u.uRes, w, h); gl.uniform1f(u.uDpr, dpr);
+      gl.uniform1f(u.uHairPx, pal.hairPx); gl.uniform1f(u.uRulePx, pal.rulePx);
+      gl.uniform3fv(u.uRule, pal.rule); gl.uniform3fv(u.uRuleLit, pal.ruleLit);
+      gl.uniform1f(u.uLeadAlpha, leadAlpha * (1 - diveDim));
+      gl.drawArrays(gl.TRIANGLES, 0, packed.length / S_STRIDE);
+      gl.enable(gl.DEPTH_TEST);
+    }
+  }
+
   gl.depthMask(true);
 
   const g = out.getContext("2d");
