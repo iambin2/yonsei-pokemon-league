@@ -93,10 +93,10 @@ export function viewOf(kind, s, m, top) {
     };
   }
   const isFirst = f === 0;
-  const liftY = isFirst ? 2.15 : (m.phone ? 2.25 : 2.32);
+  const liftY = isFirst ? (m.phone ? 1.72 : 1.88) : (m.phone ? 2.18 : 2.28);
   return {
     eyeX: -3.70 * narrow + (bx - 0.1) * 0.05,
-    eyeY: isFirst ? 0.42 : yFloor - 0.08,
+    eyeY: isFirst ? 0.34 : yFloor - 0.08,
     eyeZ: 9.25 * narrow,
     tgtX: 0.42 + (bx - 0.1) * 0.04,
     tgtY: yFloor + liftY,
@@ -328,17 +328,14 @@ function* monolithPieces(B, top) {
     // Projecting floor terrace slab (overhangs piers slightly, creating crisp 3D shadow soffit)
     B.box(px0 - 0.14, y0, bz, fx1 + 0.14, wallY0, tz, f, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
 
-    // SINGLE crisp datum rule along the terrace upper front & left edge (no double lower slab line!)
-    B.line([px0 - 0.14, wallY0, tz], [fx1 + 0.14, wallY0, tz], 4, f, -1, ordPrimary);
-    B.line([px0 - 0.14, wallY0, bz], [px0 - 0.14, wallY0, tz], 4, f, -1, ordPrimary + 0.01);
+    // SINGLE crisp datum rule along the terrace upper front & left edge (kind 4.0 = corner at start, 4.2 = corner at end)
+    // No vertical silhouette lines: 3D directional face shading forms clean vertical corners without ever intruding on horizontal rules.
+    B.line([px0 - 0.14, wallY0, tz], [fx1 + 0.14, wallY0, tz], 4.0, f, -1, ordPrimary);
+    B.line([px0 - 0.14, wallY0, bz], [px0 - 0.14, wallY0, tz], 4.2, f, -1, ordPrimary + 0.01);
 
     // Left numeral pylon + deep architectural reveal separating pylon from colonnade
     B.box(px0, wallY0, bz, px1 - 0.06, wallY1, PYLON_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
     B.box(px1 - 0.06, wallY0, bz, fx0, wallY1, FRONT_Z - 0.18, f, { front: 3, side: 3, top: -1, bot: -1, back: -1 });
-
-    // Subtle outer vertical silhouette hairlines only (clean mass boundary)
-    B.line([px0, wallY0, PYLON_Z], [px0, wallY1, PYLON_Z], 7, f, -1, ordPrimary + 0.015);
-    B.line([fx1, wallY0, FRONT_Z], [fx1, wallY1, FRONT_Z], 7, f, -1, ordPrimary + 0.015);
 
     // Floor numeral carved on pylon face
     const col = f % ATLAS_COLS, row = Math.floor(f / ATLAS_COLS);
@@ -596,10 +593,18 @@ const LVS = `#version 300 es
 in vec3 aP0; in vec3 aP1; in vec2 aSide; in vec4 aMeta;
 uniform mat4 uVP;
 uniform vec2 uRes;
-uniform float uDpr, uHairPx, uRulePx, uCurFloor, uActiveDoor, uReveal;
+uniform float uDpr, uHairPx, uRulePx, uCurFloor, uActiveDoor, uReveal, uLinePass;
 out vec4 vMeta; out float vEdge; out float vAlpha;
 void main() {
   float kind = aMeta.x, fIdx = aMeta.y, dId = aMeta.z, ord = aMeta.w;
+  bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
+  bool isHeroRule = (kind > 3.5 && kind < 4.5 && isCurFloor);
+  // Two-pass order guarantee: secondary lines in pass 0, active floor datum rule in pass 1 so nothing ever overlaps it
+  if ((uLinePass < 0.5 && isHeroRule) || (uLinePass > 0.5 && !isHeroRule)) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    vMeta = vec4(0.0); vEdge = 0.0; vAlpha = 0.0;
+    return;
+  }
   bool isActiveDoor = dId >= -0.5 && abs(dId - uActiveDoor) < 0.5;
   float span = ord < 0.44 ? 0.26 : 0.22;
   float draw = clamp((uReveal - ord) / span, 0.0, 1.0);
@@ -614,11 +619,12 @@ void main() {
   vec2 dir = len > 0.001 ? d / len : vec2(1.0, 0.0);
   vec2 nrm = vec2(-dir.y, dir.x);
 
-  bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
-  bool thick = (kind > 3.5 && kind < 4.5 && isCurFloor);
-  float px = (thick ? uRulePx : uHairPx) * uDpr;
+  float px = (isHeroRule ? uRulePx : uHairPx) * uDpr;
   float halfW = px * 0.5 + 0.85;
-  float cap = (aSide.x < 0.5 ? -1.0 : 1.0) * (px * 0.42);
+  // Extend cap ONLY at the shared front-left terrace corner (kind 4.0 start, kind 4.2 end); free ends terminate dead-flush
+  float cap = 0.0;
+  if (kind > 3.9 && kind < 4.1 && aSide.x < 0.5) cap = -px * 0.35;
+  else if (kind > 4.1 && kind < 4.3 && aSide.x > 0.5) cap = px * 0.35;
 
   vec4 base = aSide.x < 0.5 ? c0 : c1;
   vec2 offPx = nrm * aSide.y * halfW + dir * cap;
@@ -717,7 +723,7 @@ const UNIFORMS = {
     "uCurFloor", "uLiftDoor", "uLiftMix", "uDiveDim", "uHC", "uLight", "uTopFade", "uNumTex",
   ],
   line: [
-    "uVP", "uRes", "uDpr", "uHairPx", "uRulePx", "uCurFloor", "uActiveDoor", "uReveal",
+    "uVP", "uRes", "uDpr", "uHairPx", "uRulePx", "uCurFloor", "uActiveDoor", "uReveal", "uLinePass",
     "uRule", "uRuleSub", "uRuleLit", "uSignal", "uHL", "uHC", "uHeld", "uDiveDim", "uTopFade",
   ],
   lead: [
@@ -936,6 +942,10 @@ export function render(out, model, cam, pal, state, m) {
   gl.uniform3fv(u.uHL, pal.hl); gl.uniform1f(u.uHC, pal.hc ? 1 : 0);
   gl.uniform1f(u.uHeld, held); gl.uniform1f(u.uDiveDim, diveDim);
   gl.uniform1f(u.uTopFade, topFade);
+  // Pass 0: secondary rules; Pass 1: active floor datum rule on top (zero intrusion possible)
+  gl.uniform1f(u.uLinePass, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, c.lCount);
+  gl.uniform1f(u.uLinePass, 1);
   gl.drawArrays(gl.TRIANGLES, 0, c.lCount);
 
   // Unified WebGL2 climber leader lines (zero SVG; identical AA & palette)

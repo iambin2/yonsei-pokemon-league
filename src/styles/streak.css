@@ -75,8 +75,8 @@
 /* the tab's list stands under the tower's key, a section's distance down; on a desktop its rows take what is left of the column, so
    the two columns end on one line as the month's board does beside it */
 .streak-cups { display: grid; align-content: start; }
-/* on a phone it stands right under the tower, before the run and the month: a meet comes to it first */
-@media (max-width: 859px) { .streak-cups { margin-block: calc(var(--s13) - var(--s5)); } }
+/* on a phone it stands right under the tower, before the run and the month: a meet comes to it first; keep the top gap tight to the tower's plinth */
+@media (max-width: 859px) { .streak-cups { margin-top: 0; margin-bottom: calc(var(--s13) - var(--s5)); } }
 @media (min-width: 860px) {
   .bt-lobby-main:has(> .streak-cups) > .dock { margin-top: 0; }
   .bt-lobby-main > .streak-cups { margin-top: calc(var(--s13) - var(--s3)); flex: 1 0 auto; display: flex; flex-direction: column; }
