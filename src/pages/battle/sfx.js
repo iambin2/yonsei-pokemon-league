@@ -15,12 +15,13 @@ export const setSfxSpeed = s => { speed = s; };
 let moveType = "normal";
 export const setMoveType = t => { moveType = String(t || "normal").toLowerCase(); };
 
-let bus = null, wetIn = null, buses = null;
+let bus = null, wetIn = null, buses = null, roomCtx = null, roomBuf = null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* the air behind a sound: the music's own room (compose-music.py room(): noise falling as exp(-t / 0.25 s), 1.2 s), a little different
    in each ear, so the effects and the music stand in one place (2026-11-22; it was a stadium of 1.6 s while the music moved to a small room) */
 function room(ctx) {
+  if (roomBuf && roomCtx === ctx) return roomBuf;
   const len = Math.round(ctx.sampleRate * 1.2), buf = ctx.createBuffer(2, len, ctx.sampleRate), tau = ctx.sampleRate * .25;
   // the fall-off taken every 256 samples and drawn straight between (a power for each sample was 60 ms of a phone's frame, 2026-11-18)
   const fall = i => Math.exp(-Math.min(len, i) / tau);
@@ -31,6 +32,8 @@ function room(ctx) {
       for (let i = i0; i < end; i++) d[i] = (Math.random() * 2 - 1) * (a + (b - a) * (i - i0) / 256) * (i < 400 ? i / 400 : 1);
     }
   }
+  roomCtx = ctx;
+  roomBuf = buf;
   return buf;
 }
 // how much of each sound's own send reaches the room: the music's went from .9 to .35 of its send, and the effects follow it
@@ -51,9 +54,16 @@ function strip(ctx, out) {
   const w = ctx.createGain(); w.connect(verb).connect(b);
   return [b, w];
 }
-function wire(ctx) {
-  buses = { fx: strip(ctx, channel(ctx, "fx")), ui: strip(ctx, channel(ctx, "ui")) };
-  [bus, wetIn] = buses.fx;
+let wireCtx = null;
+function ensureBus(ctx, ch) {
+  if (!buses || wireCtx !== ctx) { buses = {}; wireCtx = ctx; }
+  return buses[ch] ||= strip(ctx, channel(ctx, ch));
+}
+function warmWire() {
+  const ctx = madeAudio();
+  if (!ctx || ctx.state !== "running") return;
+  const idle = typeof requestIdleCallback === "function" ? requestIdleCallback : f => setTimeout(f, 0);
+  idle(() => { ensureBus(ctx, "ui"); idle(() => ensureBus(ctx, "fx")); });
 }
 
 /* the sprite: one file fetched and decoded once, by a context that never sounds (as the cries are, cries.js). Its clips are counted
@@ -68,7 +78,7 @@ function loadSprite() {
   loading = fetch(`${import.meta.env?.BASE_URL ?? "/"}sfx/sprite.m4a`)
     .then(res => (res.ok ? res.arrayBuffer() : null))
     .then(data => data && new Promise(resolve => new OAC(2, 1, SPRITE.rate).decodeAudioData(data, resolve, () => resolve(null))))
-    .then(buffer => { if (buffer) { sprite = buffer; lead = Math.max(0, buffer.length - SPRITE.length); } })
+    .then(buffer => { if (buffer) { sprite = buffer; lead = Math.max(0, buffer.length - SPRITE.length); warmWire(); } })
     .catch(() => {});
   for (const id of ["win", "lose", "draw"]) {
     fetch(`${import.meta.env?.BASE_URL ?? "/"}sfx/${id}.m4a`)
@@ -85,11 +95,10 @@ function ready(always) {
   if (!ctx) primeAudio();
   loadSprite();
   if (!ctx || ctx.state !== "running" || !sprite || (!speed && !always)) return null;
-  if (!bus || bus.context !== ctx) wire(ctx);
   return ctx;
 }
 // the sprite fetched and the graph built before the first sound needs them (stageFx warm)
-export const warmSound = () => { loadSprite(); ready(true); };
+export const warmSound = () => { loadSprite(); warmWire(); };
 
 /* ---------------------------------------------------------------- the voice ---------------------------------------------------------------- */
 function outlet(ctx, pan, wet) {
@@ -348,7 +357,7 @@ export function sfx(name, o = {}) {
   const ch = UI.has(name) ? "ui" : "fx";
   const make = LIB[name], ctx = make && heard(ch) && ready(ALWAYS.has(name));
   if (!ctx) return;
-  [bus, wetIn] = buses[ch];
+  [bus, wetIn] = ensureBus(ctx, ch);
   const t = ctx.currentTime + .008 + Math.max(0, o.at || 0) * (speed || 1) / 1000;
   const key = name + (o.type || "");
   if (Math.abs((last.get(key) ?? -1) - t) < .045) return;

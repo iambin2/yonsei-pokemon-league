@@ -59,14 +59,11 @@ const unit = a => { const n = Math.hypot(...a) || 1; return a.map(x => x / n); }
    - close: between-games arrival view over the battle stage
    - align: battle entry beat 1, centred on the active portal
    - dive: battle entry beat 2, passing through the 3D portal jambs into --ground */
-export function viewOf(kind, s, m, top) {
-  const f = Math.floor(s / 5), i = s - f * 5;
-  const i0 = Math.min(4, Math.max(0, Math.floor(i)));
-  const i1 = Math.min(4, Math.max(0, Math.ceil(i)));
-  const b0 = baySpec(i0, f), b1 = baySpec(i1, f);
-  const frac = i - Math.floor(i);
-  const bx = b0.cx + (b1.cx - b0.cx) * frac;
-  const by = f * FLOOR_H + 0.09 + (b0.h + (b1.h - b0.h) * frac) * 0.5;
+function viewAt(kind, s, m, top) {
+  const f = Math.floor(s / 5), i = Math.min(4, Math.max(0, s - f * 5));
+  const b0 = baySpec(i, f);
+  const bx = b0.cx;
+  const by = f * FLOOR_H + 0.09 + b0.h * 0.5;
   const yFloor = f * FLOOR_H;
   const asp = m.W / Math.max(1, m.H);
   const narrow = Math.max(1, 1.54 / Math.max(0.75, asp));
@@ -104,6 +101,13 @@ export function viewOf(kind, s, m, top) {
     focal: 1.40,
     shift: m.phone ? -0.06 : -0.10,
   };
+}
+
+export function viewOf(kind, s, m, top) {
+  const clamped = Math.max(0, Math.min(ND - 1, s));
+  const s0 = Math.floor(clamped), s1 = Math.ceil(clamped);
+  if (s0 === s1) return viewAt(kind, s0, m, top);
+  return mixView(viewAt(kind, s0, m, top), viewAt(kind, s1, m, top), clamped - s0);
 }
 
 export const mixView = (a, b, e) => Object.fromEntries(Object.keys(a).map(k => [k, a[k] + (b[k] - a[k]) * e]));
@@ -525,8 +529,8 @@ void main() {
     float activeAmt = max(isLive, isNext);
     if (activeAmt > 0.01) {
       // Crisp recessed illuminated doorway slab (never a skinny vertical stick!)
-      float padX = isLive > 0.5 ? 0.04 : 0.11;
-      float padY = isLive > 0.5 ? 0.02 : 0.06;
+      float padX = mix(0.11, 0.04, isLive);
+      float padY = mix(0.06, 0.02, isLive);
       float aaX = max(0.015, fwidth(vU.x) * 1.25);
       float aaY = max(0.015, fwidth(vU.y) * 1.25);
       float inX = smoothstep(padX - aaX, padX + aaX, vU.x) * (1.0 - smoothstep(1.0 - padX - aaX, 1.0 - padX + aaX, vU.x));
@@ -575,7 +579,7 @@ void main() {
     float a = texture(uNumTex, vU).r;
     if (a < 0.04) discard;
     vec3 ink = isCurFloor ? uNumLit : uNumMute;
-    float alpha = a * (isCurFloor ? 1.0 : (uHC > 0.5 ? 0.82 : 0.68)) * vVis * topMask * (1.0 - uDiveDim * 0.85);
+    float alpha = a * (isCurFloor ? 1.0 : (uHC > 0.5 ? 0.82 : 0.68)) * vVis * topMask * (1.0 - uDiveDim);
     o = vec4(ink, alpha);
     return;
   } else {
@@ -584,7 +588,7 @@ void main() {
 
   if (isLiftBay && mat > 4.5 && mat < 5.5) c = mix(c, uGround, uLiftMix);
   if (isLiftBay && mat > 5.5 && mat < 6.5) c = mix(c, uGround, smoothstep(0.55, 1.0, uLiftMix));
-  if (!isLiftBay && uDiveDim > 0.001) c = mix(c, uGround, uDiveDim * 0.76);
+  if (!isLiftBay && uDiveDim > 0.001) c = mix(c, uGround, uDiveDim);
   o = vec4(mix(uGround, c, vVis * topMask), 1.0);
 }`;
 
@@ -670,7 +674,7 @@ void main() {
   }
 
   if (uHC > 0.5 && uHeld > 0.5 && kind > 3.5 && kind < 4.5 && isCurFloor) col = uHL;
-  if (!isActiveDoor && uDiveDim > 0.001) cov *= (1.0 - uDiveDim * 0.88);
+  if (!isActiveDoor && uDiveDim > 0.001) cov *= (1.0 - uDiveDim);
   o = vec4(col, cov * weightAlpha * topMask);
 }`;
 
@@ -969,7 +973,7 @@ export function render(out, model, cam, pal, state, m) {
 
   gl.depthMask(true);
 
-  const g = out.getContext("2d");
+  const g = out.__ctx2d ||= out.getContext("2d", { alpha: false });
   g.drawImage(canvas, 0, 0);
   return true;
 }

@@ -72,7 +72,7 @@ function doorsOf(st) {
 
 /* ---------- rendering & 0fps-at-rest frame loop ---------- */
 function paint(el, draw = true) {
-  const tw = el.tower, canvas = el.querySelector("canvas.tw-body");
+  const tw = el.tower, canvas = tw?.canvas || el.querySelector("canvas.tw-body");
   if (!tw || !canvas) return;
   const top = topOf(tw.st.floor);
   if (tw.model?.top !== top) {
@@ -117,8 +117,8 @@ function run(el) {
   const frame = now => {
     if (el.tower !== tw || !el.isConnected) { tw.loop = 0; return; }
     for (const a of [...tw.anims]) {
-      a.t0 ??= now;
-      const t = Math.min(1, (now - a.t0) / a.dur);
+      if (a.t0 == null) a.t0 = now;
+      const t = Math.min(1, Math.max(0, (now - a.t0) / a.dur));
       a.step(a.ease(t));
       if (t >= 1) { tw.anims.delete(a); a.done(); }
     }
@@ -131,7 +131,7 @@ function run(el) {
 function animate(el, dur, step, ease = inout) {
   const tw = el.tower;
   if (!tw) return Promise.resolve();
-  return new Promise(done => { tw.anims.add({ t0: null, dur, step, ease, done }); run(el); });
+  return new Promise(done => { tw.anims.add({ t0: performance.now(), dur, step, ease, done }); run(el); });
 }
 
 function finish(el) {
@@ -323,8 +323,10 @@ export function drawTower(el, st, coming = false) {
   el.tower?.anims.forEach(a => a.done());
   const hall = el.classList.contains("tw-hall");
   el.innerHTML = `<div class="tw-cam"><canvas class="tw-body" aria-hidden="true"></canvas></div>`;
+  const canvas = el.querySelector("canvas.tw-body");
   const k = doorOf(st);
   el.tower = {
+    canvas,
     m: { W, H, hall, phone: W < 520 },
     st: { ...st },
     theme: themeOf(),
@@ -451,11 +453,14 @@ async function arrive(el) {
 
 /* 2. a game won: previous portal solidifies to --lit, camera steps or climbs, next portal lights */
 async function step(el, st) {
-  const tw = el.tower, from = tw.s, to = doorOf(st), climbing = st.floor > tw.st.floor;
+  const tw = el.tower, from = tw.s, fromDoor = Math.round(from), to = doorOf(st), climbing = st.floor > tw.st.floor;
   sfx("select");
   marksOf(el).forEach(x => void fade(x, 1, 0, DUR.tone, { easing: EASE_IN }));
   tw.leadAlpha = 0;
-  await tweenTo(el, { ...tw.st, hold: true }, DUR.tone);
+  const dFrom = tw.doors[fromDoor];
+  await animate(el, DUR.tone, e => { tw.doors[fromDoor] = dFrom + (1 - dFrom) * e; }, out3);
+  if (el.tower !== tw) return;
+  tw.doors[fromDoor] = 1;
   sfx("swoosh", { sec: 0.6 });
   const moveDur = climbing ? STEP_CLIMB : STEP_SAME;
   await animate(el, moveDur, e => {
@@ -466,12 +471,11 @@ async function step(el, st) {
   tw.st = { ...tw.st, ...st, hold: false };
   tw.curFloor = tw.st.floor - 1;
   tw.activeDoor = to;
-  mark(el);
   sfx("turn");
   await animate(el, DUR.leave, e => { tw.doors[to] = -e; }, out3);
   if (el.tower !== tw) return;
   tw.doors = doorsOf(tw.st);
-  paint(el);
+  if (tw.st.climbers?.length) mark(el);
 }
 
 export async function towerBreak(el, { floor, at: game, climbing = false, again = false }) {
@@ -499,7 +503,7 @@ export async function towerShow(target, { floor, at: game, climbing = false, aga
     finish(el);
     if (el.tower) el.tower.look = null;
     const was = el.tower?.st;
-    if (was && was.floor === floor && was.at === game) void tweenTo(el, { ...was, live: true }, DUR.tone);
+    if (was && was.floor === floor && was.at === game) { if (!was.live) void tweenTo(el, { ...was, live: true }, DUR.tone); }
     else drawTower(el, now);
     sfx("turn");
   } else {
@@ -517,14 +521,15 @@ export async function towerDive() {
   if (!scene) return;
   const { el, own } = scene;
   scene = null;
+  const tw = el.tower, box = el.getBoundingClientRect();
   if (!reduced()) {
     const main = document.getElementById("ypl-main"), rest = [];
     for (let x = el; x && x !== main && x.parentElement; x = x.parentElement) {
       rest.push(...[...x.parentElement.children].filter(y => y !== x && !y.classList.contains("tw")));
     }
-    left = rest.map(x => x.animate([{ opacity: getComputedStyle(x).opacity }, { opacity: 0 }], { duration: DUR.leave, delay: ALIGN * 0.6, easing: EASE_IN, fill: "both" }));
+    const ops = rest.map(x => getComputedStyle(x).opacity);
+    left = rest.map((x, i) => x.animate([{ opacity: ops[i] }, { opacity: 0 }], { duration: DUR.leave, delay: ALIGN * 0.6, easing: EASE_IN, fill: "both" }));
   }
-  const tw = el.tower, box = el.getBoundingClientRect();
   if (tw?.model && !reduced()) {
     finish(el);
     const top = topOf(tw.st.floor), door = doorOf(tw.st);
@@ -534,17 +539,25 @@ export async function towerDive() {
     const d0 = tw.doors[door];
     for (const x of marksOf(el)) void fade(x, 1, 0, DUR.tone, { easing: EASE_IN });
     tw.leadAlpha = 0;
+    tw.lift = { door, mix: 0 };
     sfx("swoosh", { sec: 0.45 });
-    await animate(el, ALIGN, e => {
-      tw.cam = mixView(startV, alignV, out3(e));
-      tw.doors[door] = d0 + (2 - d0) * e;
-      tw.diveDim = smooth(0.1, 1.0, e);
-    }, linear);
-    sfx("swoosh", { sec: 0.4 });
-    await animate(el, DIVE, e => {
-      tw.cam = mixView(alignV, diveV, in3(e));
-      tw.lift = { door, mix: smooth(0.05, 0.55, e) };
-      tw.diveDim = 1;
+    let dived = false;
+    const total = ALIGN + DIVE, split = ALIGN / total;
+    await animate(el, total, e => {
+      if (e < split) {
+        const a = e / split;
+        tw.cam = mixView(startV, alignV, out3(a));
+        tw.doors[door] = d0 + (2 - d0) * a;
+        tw.diveDim = smooth(0.1, 1.0, a) * 0.76;
+        tw.lift = { door, mix: 0 };
+      } else {
+        if (!dived) { dived = true; sfx("swoosh", { sec: 0.4 }); }
+        const b = (e - split) / (1 - split);
+        tw.cam = mixView(alignV, diveV, in3(b));
+        tw.doors[door] = 2;
+        tw.lift = { door, mix: smooth(0.05, 0.55, b) };
+        tw.diveDim = 0.76 + 0.24 * smooth(0.15, 0.92, b);
+      }
     }, linear);
   }
   const dark = Object.assign(document.createElement("div"), { className: "tw-veil" });
