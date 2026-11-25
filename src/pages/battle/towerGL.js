@@ -1,31 +1,44 @@
-/* 도전의 탑's tower modelled in 3D (DESIGN.md "Battle", The tower, the tenth pass; 2026-11-16, the user: the ninth pass stood "빈 공간에
-   탑만 덩그러니 놓인 느낌이라, 가상의 요소처럼 느껴져서 몰입이 깨져", and its lamp's light ran from door to door). One WebGL2 context,
-   shared and never on the page: each draw renders into it and copies the picture into the scene's own 2D canvas, so a scene costs
-   no context of its own and a removed one leaves nothing behind.
+/* 도전의 탑's tower modelled in 3D (DESIGN.md "Battle", 도전의 탑, The tower; the Almanac Monolith pass, 2026-11-25).
+   One WebGL2 context, shared and never on the page: each draw renders into it and copies the picture into the scene's own 2D canvas,
+   so a scene costs no context of its own and a removed one leaves nothing behind.
 
-   One place: a round tower whose terrace winds up round it, one turn a floor, a floor's five games five doors on that road (the
-   fifth the gatekeeper's gate). It stands somewhere: a plaza with a low wall, the road in with its lamps, a wood, two ridges on
-   the horizon, a sea of cloud at the fifth floor, and a moon that keeps its place in the world. The mesh holds the stone only;
-   which doors are lit is a uniform per door (uDoor), so a lamp changing is a value going from one to the other, never a new mesh. */
+   An architectural monolith set directly on the page's own ground (--ground), with no box, no sky gradient, no fog, no glow and no
+   fantasy scenery: each floor tapers gently up the vertical axis into a Wing Y crown, holding five full-height colonnade portals
+   (four regular bouts and the golden-ratio gatekeeper sanctuary portal) beside a left numeral pylon carved with thin Albert Sans (200)
+   floor figures. Every vertex stores semantic material IDs rather than baked colours, so Dark, Light, High-Contrast Dark and
+   High-Contrast Light switch in one frame with zero mesh rebuild. */
 
-export const PITCH = 0.86;             // a floor's height (one turn of the terrace) to the wall's radius
-export const RW = 1;                   // the wall's radius
-export const RR = 1.36;                // the terrace's outer edge
-export const GY = -0.38;               // the ground
-/* the road's lamps at .55 of their first height, two thirds of a door (2026-11-18, the owner's draft B: they stood taller than the doors
-   and gave the tower no size) */
-export const LAMP = 0.55;
-export const YC = 4.75;                // the sea of cloud, between the fifth floor and the sixth
-export const ND = 120;                 // doors a tower can hold (uDoor): twenty-four floors
-const RAD = Math.PI / 180, SEG = 72;
-// ponytail: a run past the twenty-second floor (110 wins) stands on the last floors of a 24-floor tower; window the mesh if one ever does
-export const topOf = floor => Math.min(ND / 5, Math.max(10, floor + 2));
-// door k (0 the first floor's first; any real number along the road) at radius r, dy over its sill
-export const doorPoint = (k, r = RW, dy = 0) => { const th = (k + .5) * SEG * RAD; return [r * Math.sin(th), (k + .5) / 5 * PITCH + dy, r * Math.cos(th)]; };
-// the moon's place in the world, low over the far ridges where the road comes in, so a floor's first door and its gate stand in its
-// light and its third has the moon behind it; the light falls from a little higher so the terraces take some of it
-const MOON = [.1384, .1045, .9848];
-const LIGHT = (() => { const v = [MOON[0], MOON[1] + .16, MOON[2]], n = Math.hypot(...v); return v.map(x => x / n); })();
+export const PHI = 1.6180339887;
+export const FLOOR_H = 1.08;
+export const MAX_FLOORS = 24;
+export const ND = MAX_FLOORS * 5;
+
+export const scaleOf = f => Math.max(0.64, 1.0 - Math.max(0, f) * 0.028);
+
+const BASE_PYLON_X0 = -2.84;
+const BASE_PYLON_X1 = -1.92;
+const BASE_FACADE_X0 = -1.92;
+const BASE_FACADE_X1 = 2.72;
+const FRONT_Z = 0.24;
+const PYLON_Z = 0.34;
+const TERRACE_Z = 0.60;
+const BACK_Z = -2.50;
+
+export function baySpec(i, f = 0) {
+  const sc = scaleOf(f);
+  if (i === 4) {
+    return { cx: 2.04 * sc, w: 0.70 * sc, h: 0.90, sill: 0.08, depth: 0.88, faceZ: FRONT_Z + 0.12, gate: true };
+  }
+  const centers = [-1.42, -0.66, 0.10, 0.86];
+  return { cx: centers[i] * sc, w: 0.38 * sc, h: 0.86, sill: 0.08, depth: 0.84, faceZ: FRONT_Z, gate: false };
+}
+
+export const topOf = floor => Math.min(MAX_FLOORS, Math.max(9, floor + 4));
+
+export function rightEdgeOf(f) {
+  const sc = scaleOf(f);
+  return { x: BASE_FACADE_X1 * sc + 0.12, y: f * FLOOR_H + 0.08, z: TERRACE_Z - Math.max(0, f) * 0.012 };
+}
 
 /* ---------- the camera ---------- */
 const mul4 = (a, b) => {
@@ -41,513 +54,625 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit = a => { const n = Math.hypot(...a) || 1; return a.map(x => x / n); };
 
-/* where the camera stands for door s (a real number while it walks the road), in a box m ({ W, H }) before a tower of top floors:
-   close, between games, before the door; hall, the tab, the run's floor and the ones round it; whole, the tower from its plaza to
-   its lantern (the entrance's first frame); door, in the doorway (the end of going in). A view is { phi, dist, camY, tgtY, focal,
-   shift }: round the axis by phi at dist, at camY, looking at the axis at tgtY, the picture shifted across by shift */
+/* camera views for door s (0..ND-1, real while stepping):
+   - whole: opening frame of the entrance
+   - hall: heroic upward 3/4 architectural view on the tab and break's next-door beat
+   - close: between-games arrival view over the battle stage
+   - align: battle entry beat 1, centred on the active portal
+   - dive: battle entry beat 2, passing through the 3D portal jambs into --ground */
 export function viewOf(kind, s, m, top) {
-  const T = (s + .5) * SEG * RAD, y = (s + .5) / 5 * PITCH, half = m.W / m.H / 2;
-  if (kind === "whole") { const h = top * PITCH + 2.3; return { phi: T - 1.5, dist: h * 2.05, camY: h * .5 + 2.5, tgtY: h * .5 - .35, focal: 1.75, shift: 0 }; }
-  if (kind === "door") return { phi: T, dist: 1.02, camY: y + .2, tgtY: y + .2, focal: 2, shift: 0 };
-  /* the tab looks up the road from the foot of the run's door (2026-11-18, the owner's draft C, "올려다보는 구도가 너무 좋은데"): the door
-     low in the picture, the floors to climb going up over it into the night */
-  if (kind === "hall") return { phi: T - .3, dist: 6.2 * Math.max(1, .62 / half), camY: y + .1, tgtY: y + 2.1, focal: 1.25, shift: half > .7 ? -.18 : -.08 };
-  return { phi: T - .22, dist: 5.4 * Math.max(1, .62 / half), camY: y + .8, tgtY: y + .25, focal: 2, shift: 0 };
+  const f = Math.floor(s / 5), i = s - f * 5;
+  const i0 = Math.min(4, Math.max(0, Math.floor(i)));
+  const i1 = Math.min(4, Math.max(0, Math.ceil(i)));
+  const b0 = baySpec(i0, f), b1 = baySpec(i1, f);
+  const frac = i - Math.floor(i);
+  const bx = b0.cx + (b1.cx - b0.cx) * frac;
+  const by = f * FLOOR_H + 0.08 + (b0.h + (b1.h - b0.h) * frac) * 0.5;
+  const yFloor = f * FLOOR_H;
+  const asp = m.W / Math.max(1, m.H);
+  const narrow = Math.max(1, 1.54 / Math.max(0.75, asp));
+
+  if (kind === "whole") {
+    const mid = Math.min(top * 0.52, yFloor + 3.8);
+    return {
+      eyeX: -4.8 * narrow, eyeY: Math.max(0.5, yFloor - 0.6), eyeZ: 12.8 * narrow,
+      tgtX: 0.35, tgtY: mid + 1.1, tgtZ: -0.3,
+      focal: 1.32, shift: m.phone ? -0.04 : -0.09,
+    };
+  }
+  if (kind === "align") {
+    return { eyeX: bx, eyeY: by, eyeZ: b0.faceZ + 2.35, tgtX: bx, tgtY: by, tgtZ: b0.faceZ - 0.85, focal: 1.75, shift: 0 };
+  }
+  if (kind === "dive") {
+    return { eyeX: bx, eyeY: by, eyeZ: b0.faceZ - 0.42, tgtX: bx, tgtY: by, tgtZ: b0.faceZ - 1.8, focal: 2.05, shift: 0 };
+  }
+  if (kind === "close") {
+    return {
+      eyeX: -2.4 * narrow + bx * 0.32, eyeY: Math.max(0.35, yFloor + 0.2), eyeZ: 7.4 * narrow,
+      tgtX: bx * 0.45, tgtY: yFloor + 1.15, tgtZ: -0.2,
+      focal: 1.5, shift: 0,
+    };
+  }
+  const isFirst = f === 0;
+  const liftY = isFirst ? 2.18 : (m.phone ? 2.28 : 2.34);
+  return {
+    eyeX: -3.65 * narrow + (bx - 0.1) * 0.05,
+    eyeY: isFirst ? 0.36 : yFloor - 0.12,
+    eyeZ: 9.15 * narrow,
+    tgtX: 0.42 + (bx - 0.1) * 0.04,
+    tgtY: yFloor + liftY,
+    tgtZ: -0.25,
+    focal: 1.40,
+    shift: m.phone ? -0.05 : -0.10,
+  };
 }
+
 export const mixView = (a, b, e) => Object.fromEntries(Object.keys(a).map(k => [k, a[k] + (b[k] - a[k]) * e]));
 
 export function cameraOf(m, v) {
-  const pos = [Math.sin(v.phi) * v.dist, v.camY, Math.cos(v.phi) * v.dist];
-  const f = unit([-pos[0], v.tgtY - pos[1], -pos[2]]), rt = unit(cross(f, [0, 1, 0])), up = cross(rt, f);
-  const asp = m.W / m.H, F = 2 * v.focal, sx = 2 * v.shift / asp;
-  const near = Math.min(.05, Math.max(.002, (v.dist - 1) * .02)), far = 4000, A = (far + near) / (far - near), B = -2 * far * near / (far - near);
-  const view = [rt[0], up[0], -f[0], 0, rt[1], up[1], -f[1], 0, rt[2], up[2], -f[2], 0, -dot(rt, pos), -dot(up, pos), dot(f, pos), 1];
+  const pos = [v.eyeX, v.eyeY, v.eyeZ];
+  const tgt = [v.tgtX, v.tgtY, v.tgtZ];
+  const f = unit([tgt[0] - pos[0], tgt[1] - pos[1], tgt[2] - pos[2]]);
+  const rt = unit(cross(f, [0, 1, 0]));
+  const up = cross(rt, f);
+  const asp = m.W / Math.max(1, m.H);
+  const F = 2 * v.focal;
+  const sx = 2 * (v.shift || 0) / asp;
+  const near = 0.05, far = 200;
+  const A = (far + near) / (far - near), B = -2 * far * near / (far - near);
+  const view = [
+    rt[0], up[0], -f[0], 0,
+    rt[1], up[1], -f[1], 0,
+    rt[2], up[2], -f[2], 0,
+    -dot(rt, pos), -dot(up, pos), dot(f, pos), 1,
+  ];
   const proj = [F / asp, 0, 0, 0, 0, F, 0, 0, -sx, 0, -A, -1, 0, 0, B, 0];
   const vp = mul4(proj, view);
   const project = ([x, y, z]) => {
-    const X = vp[0] * x + vp[4] * y + vp[8] * z + vp[12], Y = vp[1] * x + vp[5] * y + vp[9] * z + vp[13], W = vp[3] * x + vp[7] * y + vp[11] * z + vp[15];
-    return [(X / W + 1) / 2 * m.W, (1 - Y / W) / 2 * m.H];
+    const X = vp[0] * x + vp[4] * y + vp[8] * z + vp[12];
+    const Y = vp[1] * x + vp[5] * y + vp[9] * z + vp[13];
+    const W = vp[3] * x + vp[7] * y + vp[11] * z + vp[15];
+    return [(X / W + 1) / 2 * m.W, (1 - Y / W) / 2 * m.H, W];
   };
-  return { vp, project, pos, f, rt, up, focal: v.focal, shift: v.shift, phi: v.phi };
+  return { vp, project, pos, f, rt, up, focal: v.focal, shift: v.shift || 0 };
 }
 
-/* ---------- colour ---------- */
-const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+/* ---------- 4-mode semantic palette (direct CSS var hex parse: <0.1ms, 0 DOM reflow) ---------- */
+const hexRgb = h => {
+  const s = h.trim();
+  if (/^#[0-9a-f]{6}$/i.test(s)) {
+    const n = parseInt(s.slice(1), 16);
+    return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+  }
+  const m = s.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+  if (m) return [+m[1] / 255, +m[2] / 255, +m[3] / 255];
+  return null;
+};
+
 let probe = null;
-// the scene's tones as the board sets them on el (custom properties of .tw), read as rgb 0..1 through a 1px canvas; the place's
-// own tones (the ridges, the cloud, the wood, the road) are steps between them, never a new hue
-export function paletteOf(el) {
-  probe ||= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
-  const style = getComputedStyle(el), i = document.createElement("i");
-  i.style.display = "none"; el.appendChild(i);
-  const read = expr => {
-    i.style.color = expr;
-    probe.fillStyle = "#000"; probe.fillStyle = getComputedStyle(i).color;
+function readToken(cs, name, fallback) {
+  const raw = cs.getPropertyValue(name).trim();
+  const parsed = raw ? hexRgb(raw) : null;
+  if (parsed) return parsed;
+  if (raw) {
+    probe ||= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    probe.fillStyle = "#000";
+    probe.fillStyle = raw;
     probe.fillRect(0, 0, 1, 1);
     const d = probe.getImageData(0, 0, 1, 1).data;
     return [d[0] / 255, d[1] / 255, d[2] / 255];
+  }
+  return hexRgb(fallback);
+}
+
+export function paletteOf() {
+  const root = document.documentElement;
+  const light = root.dataset.theme === "light";
+  const hc = root.dataset.contrast === "more";
+  const cs = getComputedStyle(root);
+  const ground = readToken(cs, "--ground", light ? "#FFFFFF" : "#081C3D");
+  const lit = readToken(cs, "--lit", light ? "#081C3D" : "#FFFFFF");
+  const dim = readToken(cs, "--dim", light ? "#46536C" : "#A8B8D3");
+  const mute = readToken(cs, "--mute", light ? "#56637A" : "#8196B9");
+  const rule = readToken(cs, "--rule", light ? "#CED5E0" : "#1D365F");
+  const tint = readToken(cs, "--tint", light ? "#E8ECF2" : "#0E2449");
+  const signal = readToken(cs, "--signal", light ? "#B36F00" : "#FFB21A");
+  const act = hc ? readToken(cs, "--act", light ? "#00009F" : "#FFFF00") : lit;
+  const hl = hc ? readToken(cs, "--hl", light ? "#37006E" : "#1AEBFF") : lit;
+
+  if (hc && !light) {
+    return {
+      light, hc, ground,
+      faceLit: ground, faceShade: hexRgb("#242424"), faceDeep: hexRgb("#141414"),
+      tread: hexRgb("#303030"), recess: ground, won: lit,
+      signal: act, signalCore: ground, rule, ruleSub: hexRgb("#7A7A7A"), ruleLit: act,
+      gateLeaf: hexRgb("#1C1C1C"), numLit: act, numMute: dim, hl,
+      hairPx: 1.4, rulePx: 2.6,
+    };
+  }
+  if (hc && light) {
+    return {
+      light, hc, ground,
+      faceLit: ground, faceShade: hexRgb("#DCDCDC"), faceDeep: hexRgb("#C4C4C4"),
+      tread: hexRgb("#EAEAEA"), recess: ground, won: lit,
+      signal: act, signalCore: ground, rule: lit, ruleSub: hexRgb("#444444"), ruleLit: act,
+      gateLeaf: hexRgb("#D2D2D2"), numLit: act, numMute: dim, hl,
+      hairPx: 1.4, rulePx: 2.6,
+    };
+  }
+  if (light) {
+    return {
+      light, hc, ground,
+      faceLit: ground, faceShade: hexRgb("#DAE2EE"), faceDeep: hexRgb("#C5D0E2"),
+      tread: hexRgb("#EEF2F7"), recess: hexRgb("#E2E8F2"), won: lit,
+      signal, signalCore: signal, rule: hexRgb("#AAB9CF"), ruleSub: hexRgb("#C4CFDF"), ruleLit: lit,
+      gateLeaf: hexRgb("#D3DCE8"), numLit: lit, numMute: mute, hl: lit,
+      hairPx: 1.05, rulePx: 2.2,
+    };
+  }
+  return {
+    light, hc, ground,
+    faceLit: tint, faceShade: hexRgb("#051229"), faceDeep: hexRgb("#030B1A"),
+    tread: hexRgb("#15305E"), recess: hexRgb("#040E21"), won: lit,
+    signal, signalCore: signal, rule: hexRgb("#244274"), ruleSub: hexRgb("#183058"), ruleLit: lit,
+    gateLeaf: hexRgb("#112952"), numLit: lit, numMute: mute, hl: lit,
+    hairPx: 1.0, rulePx: 2.2,
   };
-  const v = name => read(`var(${name})`);
-  const day = style.getPropertyValue("--tw-day").trim() === "1";
-  // a lamp is the amber itself in both themes (the day's --signal is the deeper amber words are set in)
-  const amber = v(day ? "--amber" : "--signal");
-  const p = {
-    stone: v("--tw-stone"), wallLit: v("--tw-b"), wallShade: v("--tw-e"), tread: v("--tw-tread"),
-    pane: v("--tw-pane"), amber, sky: v("--tw-sky-top"), fog: v("--tw-sky-low"), g0: v("--tw-g0"), g1: v("--tw-g1"),
-    ground: v("--ground"),
-    // a won room's light: warm; in the day deepened toward the amber so a won door still reads on white stone
-    warm: mix(v("--tw-warm"), amber, day ? 0.38 : 0),
-    // light itself: the page's lit tone at night; in the day the words are navy, so the light is white
-    lit: day ? [1, 1, 1] : v("--lit"),
-    // what a door's room becomes as the camera walks in: the stage's own ground, which the next screen comes up out of
-    lift: v("--ground"),
-    light: day,
+}
+
+/* ---------- Albert Sans (200) floor numeral alpha-mask atlas ---------- */
+const ATLAS_COLS = 6, ATLAS_ROWS = 4, CELL_PX = 256;
+let numCanvas = null;
+
+function buildNumberAtlas() {
+  const c = document.createElement("canvas");
+  c.width = ATLAS_COLS * CELL_PX;
+  c.height = ATLAS_ROWS * CELL_PX;
+  const g = c.getContext("2d");
+  g.clearRect(0, 0, c.width, c.height);
+  g.fillStyle = "#ffffff";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  for (let n = 1; n <= MAX_FLOORS; n++) {
+    const idx = n - 1, col = idx % ATLAS_COLS, row = Math.floor(idx / ATLAS_COLS);
+    const label = String(n);
+    const cx = (col + 0.5) * CELL_PX, cy = (row + 0.52) * CELL_PX;
+    if (label.length > 1) {
+      g.font = `200 132px "Albert Sans", sans-serif`;
+      g.fillText(label[0], cx - 33, cy);
+      g.fillText(label[1], cx + 33, cy);
+    } else {
+      g.font = `200 176px "Albert Sans", sans-serif`;
+      g.fillText(label, cx, cy);
+    }
+  }
+  return c;
+}
+
+/* ---------- semantic 3D mesh + screen-space line builder (theme-independent) ---------- */
+const F_STRIDE = 12;
+const L_STRIDE = 12;
+const TRI = [0, 1, 2, 0, 2, 3];
+
+function createBuilder() {
+  const F = { a: new Float32Array(F_STRIDE * 6 * 2048), n: 0 };
+  const L = { a: new Float32Array(L_STRIDE * 6 * 2048), n: 0 };
+  const grow = (B, need) => {
+    if (B.n + need <= B.a.length) return;
+    let sz = B.a.length * 2;
+    while (sz < B.n + need) sz *= 2;
+    const next = new Float32Array(sz);
+    next.set(B.a);
+    B.a = next;
   };
-  const deep = day ? p.wallShade : p.pane;
-  Object.assign(p, {
-    far: mix(p.fog, deep, day ? .34 : .42), near: mix(p.fog, deep, day ? .6 : .8),
-    cloudLo: day ? mix(p.lit, p.wallShade, .3) : mix(p.ground, p.fog, .45), cloudHi: day ? p.lit : mix(p.fog, p.wallLit, .55),
-    moon: day ? mix(p.lit, amber, .35) : mix(p.lit, amber, .08),
-    wood: day ? mix(p.wallShade, p.pane, .12) : mix(p.pane, p.g1, .5), woodShade: day ? mix(p.wallShade, p.pane, .4) : p.pane,
-    road: day ? p.lit : mix(p.g0, p.stone, .3),
+  const fv = (p, n, meta, uv) => {
+    grow(F, F_STRIDE);
+    F.a[F.n++] = p[0]; F.a[F.n++] = p[1]; F.a[F.n++] = p[2];
+    F.a[F.n++] = n[0]; F.a[F.n++] = n[1]; F.a[F.n++] = n[2];
+    F.a[F.n++] = meta[0]; F.a[F.n++] = meta[1]; F.a[F.n++] = meta[2]; F.a[F.n++] = meta[3];
+    F.a[F.n++] = uv[0]; F.a[F.n++] = uv[1];
+  };
+  const quad = (ps, n, meta, uvs = [[0, 0], [1, 0], [1, 1], [0, 1]]) => {
+    for (const idx of TRI) fv(ps[idx], n, meta, uvs[idx]);
+  };
+  const box = (x0, y0, z0, x1, y1, z1, fIdx, mats = {}, doorId = -1, extra = 0) => {
+    const mFront = mats.front ?? 1, mSide = mats.side ?? 2, mTop = mats.top ?? 4, mBot = mats.bot ?? 3, mBack = mats.back ?? 3;
+    if (mFront >= 0) quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1], [mFront, fIdx, doorId, extra]);
+    if (mBack >= 0) quad([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1], [mBack, fIdx, doorId, extra]);
+    if (mSide >= 0) {
+      quad([[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], [-1, 0, 0], [mSide, fIdx, doorId, extra]);
+      quad([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [1, 0, 0], [mSide, fIdx, doorId, extra]);
+    }
+    if (mTop >= 0) quad([[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]], [0, 1, 0], [mTop, fIdx, doorId, extra]);
+    if (mBot >= 0) quad([[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], [0, -1, 0], [mBot, fIdx, doorId, extra]);
+  };
+  const lv = (p0, p1, end, dir, meta) => {
+    grow(L, L_STRIDE);
+    L.a[L.n++] = p0[0]; L.a[L.n++] = p0[1]; L.a[L.n++] = p0[2];
+    L.a[L.n++] = p1[0]; L.a[L.n++] = p1[1]; L.a[L.n++] = p1[2];
+    L.a[L.n++] = end; L.a[L.n++] = dir;
+    L.a[L.n++] = meta[0]; L.a[L.n++] = meta[1]; L.a[L.n++] = meta[2]; L.a[L.n++] = meta[3];
+  };
+  const line = (p0, p1, kind, fIdx, doorId = -1, drawOrder = 0) => {
+    const meta = [kind, fIdx, doorId, drawOrder];
+    const pts = [[0, -1], [1, -1], [1, 1], [0, 1]];
+    for (const idx of TRI) lv(p0, p1, pts[idx][0], pts[idx][1], meta);
+  };
+  const rectLines = (x0, y0, x1, y1, z, kind, fIdx, doorId = -1, order = 0.5) => {
+    line([x0, y0, z], [x1, y0, z], kind, fIdx, doorId, order);
+    line([x0, y1, z], [x1, y1, z], kind, fIdx, doorId, order + 0.02);
+    line([x0, y0, z], [x0, y1, z], kind, fIdx, doorId, order + 0.01);
+    line([x1, y0, z], [x1, y1, z], kind, fIdx, doorId, order + 0.01);
+  };
+  return { quad, box, line, rectLines, done: () => ({ faces: F.a.slice(0, F.n), lines: L.a.slice(0, L.n) }) };
+}
+
+function* monolithPieces(B, top) {
+  const plinths = [
+    [-3.48, -0.36, -2.65, 3.22, -0.24, 1.24],
+    [-3.24, -0.24, -2.58, 3.00, -0.12, 0.96],
+    [-3.02, -0.12, -2.52, 2.82, 0.00, 0.72],
+  ];
+  plinths.forEach(([x0, y0, z0, x1, y1, z1], idx) => {
+    B.box(x0, y0, z0, x1, y1, z1, -1, { front: 1, side: 2, top: 4, bot: -1, back: -1 });
+    // clean closed plinth edges (no stray horizon line protruding beyond the plinth)
+    B.line([x0, y1, z1], [x1, y1, z1], idx === 2 ? 3 : 0, -1, -1, idx === 2 ? 0.0 : 0.45);
+    B.line([x0, y1, z0], [x0, y1, z1], 0, -1, -1, 0.46);
+    B.line([x0, y0, z1], [x0, y1, z1], 0, -1, -1, 0.46);
+    B.line([x1, y0, z1], [x1, y1, z1], 0, -1, -1, 0.46);
+    if (idx === 0) {
+      B.line([x0, y0, z1], [x1, y0, z1], 3, -1, -1, 0.0);
+      B.line([x0, y0, z0], [x0, y0, z1], 0, -1, -1, 0.46);
+    }
   });
-  i.remove();
-  return p;
-}
 
-/* ---------- the mesh ---------- */
-/* a vertex: position 3, normal 3, lit colour 4 (alpha), shade colour 3, x 4 (ao, courses, kind, flat), uv 2 (on the wall its arc
-   length and height; in a doorway its share of the door's height), door 4 (its id or -1, its role, the hinge x z of a gate's leaf).
-   Kinds: 0 stone, 1 the ground, 2 the wood, 3 a lamp's head. Roles: 1 a room's back, 2 a jamb, soffit or threshold (lit by its room),
-   3 and 4 the gate's left and right leaf (they swing in as the gate is reached), 6 the seam between the leaves (gone once they open) */
-const STRIDE = 23;
-function mesh() {
-  const M = { a: new Float32Array(STRIDE * 6 * 4096), n: 0 };
-  const put = (x) => { M.a[M.n++] = x; };
-  const v = (p, nn, s, uv = ZERO, d = NO) => {
-    if (M.n + STRIDE > M.a.length) { const b = new Float32Array(M.a.length * 2); b.set(M.a); M.a = b; }
-    put(p[0]); put(p[1]); put(p[2]); put(nn[0]); put(nn[1]); put(nn[2]);
-    put(s.lit[0]); put(s.lit[1]); put(s.lit[2]); put(1); put(s.shade[0]); put(s.shade[1]); put(s.shade[2]);
-    put(s.ao ?? 0); put(s.course ? 1 : 0); put(s.kind ?? 0); put(s.flat ? 1 : 0); put(uv[0]); put(uv[1]); put(d[0]); put(d[1]); put(d[2] || 0); put(d[3] || 0);
-  };
-  // a quad p0 p1 p2 p3 (any winding), with a normal and surface per corner (or one for all)
-  M.quad = (ps, ns, ss, uvs = [], d = NO) => { for (const i of TRI) v(ps[i], ns[i] || ns[0], ss[i] || ss[0], uvs[i] || ZERO, d); };
-  M.tri = (ps, ns, s) => { for (let i = 0; i < 3; i++) v(ps[i], ns[i] || ns[0], s); };
-  M.done = () => M.a.slice(0, M.n);
-  return M;
-}
-const TRI = [0, 1, 2, 0, 2, 3], ZERO = [0, 0], NO = [-1, 0];
-const P = (r, th, y) => [r * Math.sin(th * RAD), y, r * Math.cos(th * RAD)];
-const radial = th => [Math.sin(th * RAD), 0, Math.cos(th * RAD)];
-const tangent = th => [Math.cos(th * RAD), 0, -Math.sin(th * RAD)];
-const UP = [0, 1, 0];
+  for (let f = 0; f < top; f++) {
+    if (f > 0 && f % 3 === 0) yield;
+    const sc = scaleOf(f);
+    const y0 = f * FLOOR_H, y1 = y0 + FLOOR_H, slabH = 0.08, wallY0 = y0 + slabH, wallY1 = y1;
+    const ordPrimary = 0.02 + (f / Math.max(1, top)) * 0.36;
+    const ordDetail = 0.48 + (f / Math.max(1, top)) * 0.34;
 
-/* a profile ([r, y, ao] points, running up the outside and in over the top, so each piece faces out of it) swept round the axis
-   from a to b degrees, lifted by yOf(angle): the terrace winding up, and every ring that is turned on a lathe */
-function sweep(M, prof, a, b, step, sf, yOf = () => 0) {
-  for (let q = 0; q < prof.length - 1; q++) {
-    const [r0, y0, ao0 = 0] = prof[q], [r1, y1, ao1 = 0] = prof[q + 1];
-    const dr = r1 - r0, dy = y1 - y0, L = Math.hypot(dr, dy) || 1, nr = dy / L, ny = -dr / L;
-    const s = sf(q, ny), s0 = { ...s, ao: ao0 }, s1 = { ...s, ao: ao1 };
-    for (let t = a; t < b - 1e-6; t += step) {
-      const u = Math.min(b, t + step), ya = yOf(t), yb = yOf(u), N = th => { const r = radial(th); return [r[0] * nr, ny, r[2] * nr]; };
-      M.quad([P(r0, t, y0 + ya), P(r0, u, y0 + yb), P(r1, u, y1 + yb), P(r1, t, y1 + ya)], [N(t), N(u), N(u), N(t)], [s0, s0, s1, s1]);
-    }
-  }
-}
+    const px0 = BASE_PYLON_X0 * sc, px1 = BASE_PYLON_X1 * sc;
+    const fx0 = BASE_FACADE_X0 * sc, fx1 = BASE_FACADE_X1 * sc;
+    const tz = TERRACE_Z - f * 0.012, bz = BACK_Z + f * 0.045;
 
-// a door's opening, by the turn's sector it stands in (the fifth is the gate's): half its width, its spring, its orders of frame
-const doorOf = k => (k % 5 === 4
-  ? { w: .27, s: .36, depth: .26, rings: [[.27, .33, 1.018], [.33, .385, 1.042]], gate: true }
-  : { w: .15, s: .30, depth: .22, rings: [[.15, .206, 1.028]], gate: false });
-// an arch of half width w springing at s, as points (x, y) from the left foot round to the right
-const archOf = (w, s) => {
-  const pts = [[-w, 0]];
-  for (let psi = 180; psi >= 0; psi -= 10) pts.push([w * Math.cos(psi * RAD), s + w * Math.sin(psi * RAD)]);
-  pts.push([w, 0]);
-  return pts;
-};
+    B.box(px0 - 0.12, y0, bz, fx1 + 0.12, wallY0, tz, f, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
+    B.line([px0 - 0.12, wallY0, tz], [fx1 + 0.12, wallY0, tz], 4, f, -1, ordPrimary);
+    B.line([px0 - 0.12, wallY0, bz], [px0 - 0.12, wallY0, tz], 4, f, -1, ordPrimary + 0.01);
+    B.line([px0 - 0.12, y0, tz], [fx1 + 0.12, y0, tz], 0, f, -1, ordDetail);
+    B.line([px0 - 0.12, y0, bz], [px0 - 0.12, y0, tz], 0, f, -1, ordDetail);
 
-// (a generator: it stops between its pieces, so the mesh can be made a piece at a time; see prebuildModel)
-function* towerMesh(M, top, pal) {
-  const surf = (lit, shade, x = {}) => ({ lit, shade, ...x });
-  const wall = surf(pal.wallLit, pal.wallShade, { course: true });
-  const stone = surf(pal.stone, mix(pal.stone, pal.wallShade, 0.55));
-  const stoneDeep = surf(mix(pal.stone, pal.wallShade, 0.25), mix(pal.stone, pal.wallShade, 0.75));
-  const tread = surf(pal.tread, mix(pal.tread, pal.wallShade, 0.4));
-  const dark = surf(mix(pal.pane, pal.wallShade, 0.25), pal.pane);
-  const yTop = top * PITCH + .78, yBase = -.5, doors = top * 5;
-  const sill = k => (k + .5) / 5 * PITCH;
+    // clean monolithic left pylon + deep reveal (removed cluttered extra left rib lines)
+    B.box(px0, wallY0, bz, px1 - 0.05, wallY1, PYLON_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+    B.box(px1 - 0.05, wallY0, bz, fx0, wallY1, FRONT_Z - 0.16, f, { front: 3, side: 3, top: -1, bot: -1, back: -1 });
 
-  /* the wall: columns up the whole tower, cut where a door's arch opens in them. A turn's sector holds one door, the same in every
-     turn, so a column crosses that door once a floor */
-  const cuts = new Set();
-  for (let t = 0; t <= 360; t += 3) cuts.add(t);
-  for (let i = 0; i < 5; i++) for (const [x] of archOf(doorOf(i).w, 0)) cuts.add(+((i + .5) * SEG + x / RW / RAD).toFixed(4));
-  const T = [...cuts].sort((a, b) => a - b);
-  for (let c = 0; c < T.length - 1; c++) {
-    const t0 = T[c], t1 = T[c + 1], i = Math.min(4, Math.floor((t0 + t1) / 2 / SEG)), d = doorOf(i), thc = (i + .5) * SEG;
-    const x0 = (t0 - thc) * RAD * RW, x1 = (t1 - thc) * RAD * RW, inside = Math.abs((x0 + x1) / 2) < d.w;
-    const crown = x => d.s + Math.sqrt(Math.max(0, d.w * d.w - x * x));
-    const piece = (a0, b0, a1, b1) => M.quad([P(RW, t0, a0), P(RW, t1, b0), P(RW, t1, b1), P(RW, t0, a1)], [radial(t0), radial(t1), radial(t1), radial(t0)], [wall],
-      [[t0 * RAD * RW, a0], [t1 * RAD * RW, b0], [t1 * RAD * RW, b1], [t0 * RAD * RW, a1]]);
-    if (c % 24 === 23) yield;
-    if (!inside) { piece(yBase, yBase, yTop, yTop); continue; }
-    piece(yBase, yBase, sill(i), sill(i));
-    for (let n = 0; n < top; n++) {
-      const y = sill(i + 5 * n), next = n + 1 < top ? sill(i + 5 * n + 5) : yTop;
-      piece(y + crown(x0), y + crown(x1), next, next);
-    }
-  }
+    B.line([px0, wallY0, PYLON_Z], [px0, wallY1, PYLON_Z], 7, f, -1, ordPrimary + 0.015);
+    B.line([px0, wallY0, bz], [px0, wallY1, bz], 7, f, -1, ordPrimary + 0.02);
+    B.line([fx1, wallY0, FRONT_Z], [fx1, wallY1, FRONT_Z], 7, f, -1, ordPrimary + 0.015);
+    B.line([px1 - 0.05, wallY0, PYLON_Z], [px1 - 0.05, wallY1, PYLON_Z], 0, f, -1, ordDetail);
 
-  /* the doors. Each is an arch cut into the wall in a frame of stone standing out of it, its jambs and soffit going back to the
-     room. The gatekeeper's gate is a portal: wider and taller, its frame in two orders stepping back, a keystone over them */
-  for (let k = 0; k < doors; k++) {
-    if (k % 3 === 0) yield;
-    const d = doorOf(k), thc = (k + .5) * SEG, y0 = sill(k), hD = d.s + d.w, face = d.rings[0][2], back = RW - d.depth;
-    const at = (x, y, r) => P(r, thc + x / RW / RAD, y0 + y), id = role => [k, role];
-    const inner = archOf(d.w, d.s);
-    // toward the opening's middle at a point of the arch
-    const inward = ([x, y]) => { const tg = tangent(thc + x / RW / RAD), u = -x / d.w, v = -Math.max(0, y - d.s) / d.w; return [tg[0] * u, v, tg[2] * u]; };
-    for (let q = 0; q < inner.length - 1; q++) {
-      const a = inner[q], b = inner[q + 1];
-      M.quad([at(a[0], a[1], face), at(b[0], b[1], face), at(b[0], b[1], back), at(a[0], a[1], back)], [inward(a), inward(b), inward(b), inward(a)], [dark],
-        [[0, a[1] / hD], [0, b[1] / hD], [0, b[1] / hD], [0, a[1] / hD]], id(2));
-      if (q > 0 && q < inner.length - 2) {
-        M.quad([at(a[0], 0, back), at(b[0], 0, back), at(b[0], b[1], back), at(a[0], a[1], back)], [radial(thc)],
-          [surf(mix(pal.pane, pal.wallShade, 0.2), pal.pane, { flat: true })], [[0, 0], [0, 0], [0, b[1] / hD], [0, a[1] / hD]], id(1));
+    const col = f % ATLAS_COLS, row = Math.floor(f / ATLAS_COLS);
+    const u0 = col / ATLAS_COLS, u1 = (col + 1) / ATLAS_COLS, v0 = row / ATLAS_ROWS, v1 = (row + 1) / ATLAS_ROWS;
+    const numCx = (px0 + px1 - 0.05) * 0.5, numHalfW = Math.min(0.38 * sc, (px1 - 0.05 - px0) * 0.46);
+    const numY0 = wallY0 + 0.10, numY1 = wallY1 - 0.10;
+    B.quad(
+      [[numCx - numHalfW, numY0, PYLON_Z + 0.005], [numCx + numHalfW, numY0, PYLON_Z + 0.005], [numCx + numHalfW, numY1, PYLON_Z + 0.005], [numCx - numHalfW, numY1, PYLON_Z + 0.005]],
+      [0, 0, 1], [9, f, -1, 0], [[u0, v1], [u1, v1], [u1, v0], [u0, v0]]
+    );
+
+    B.box(fx0, wallY0, bz, fx1, wallY1, FRONT_Z - 0.90, f, { front: -1, side: 2, top: -1, bot: -1, back: 3 });
+
+    let curX = fx0;
+    for (let i = 0; i < 5; i++) {
+      const k = f * 5 + i, b = baySpec(i, f);
+      const bx0 = b.cx - b.w * 0.5, bx1 = b.cx + b.w * 0.5, by0 = y0 + b.sill, by1 = by0 + b.h, backZ = b.faceZ - b.depth;
+
+      if (bx0 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.90, bx0, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+      if (wallY1 > by1 + 0.001) B.box(bx0, by1, backZ, bx1, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: 3, back: -1 });
+
+      if (b.gate) {
+        const fw = 0.08 * sc;
+        B.box(bx0 - fw, wallY0, FRONT_Z, bx0, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+        B.box(bx1, wallY0, FRONT_Z, bx1 + fw, wallY1, b.faceZ, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+        B.box(bx0 - fw, by1, FRONT_Z, bx1 + fw, wallY1, b.faceZ + 0.025, f, { front: 1, side: 2, top: -1, bot: 3, back: -1 });
+        B.rectLines(bx0 - fw, wallY0, bx1 + fw, wallY1 - 0.01, b.faceZ + 0.028, 1, f, k, ordDetail + 0.02);
+        const vy = by1 + 0.02;
+        B.line([b.cx - 0.14 * sc, vy + 0.055, b.faceZ + 0.028], [b.cx, vy + 0.01, b.faceZ + 0.028], 1, f, k, ordDetail + 0.03);
+        B.line([b.cx, vy + 0.01, b.faceZ + 0.028], [b.cx + 0.14 * sc, vy + 0.055, b.faceZ + 0.028], 1, f, k, ordDetail + 0.03);
       }
-    }
-    M.quad([at(-d.w, 0, face), at(d.w, 0, face), at(d.w, 0, back), at(-d.w, 0, back)], [UP], [tread], [], id(2));
-    d.rings.forEach(([w0, w1, r], o) => {
-      const a0 = archOf(w0, d.s), a1 = archOf(w1, d.s), tone = o === d.rings.length - 1 ? stone : stoneDeep;
-      const outward = ([x, y]) => inward([x, y]).map(v => -v);
-      for (let q = 0; q < a0.length - 1; q++) {
-        M.quad([at(a0[q][0], a0[q][1], r), at(a0[q + 1][0], a0[q + 1][1], r), at(a1[q + 1][0], a1[q + 1][1], r), at(a1[q][0], a1[q][1], r)], [radial(thc)], [tone]);
-        // the order's side, back to the wall
-        M.quad([at(a1[q][0], a1[q][1], r), at(a1[q + 1][0], a1[q + 1][1], r), at(a1[q + 1][0], a1[q + 1][1], RW), at(a1[q][0], a1[q][1], RW)],
-          [outward(a1[q]), outward(a1[q + 1]), outward(a1[q + 1]), outward(a1[q])], [stoneDeep]);
+
+      B.quad([[bx0, by0, b.faceZ], [bx0, by0, backZ], [bx0, by1, backZ], [bx0, by1, b.faceZ]], [1, 0, 0], [6, f, k, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
+      B.quad([[bx1, by0, backZ], [bx1, by0, b.faceZ], [bx1, by1, b.faceZ], [bx1, by1, backZ]], [-1, 0, 0], [6, f, k, 0], [[1, 0], [0, 0], [0, 1], [1, 1]]);
+      B.quad([[bx0, by1, b.faceZ], [bx1, by1, b.faceZ], [bx1, by1, backZ], [bx0, by1, backZ]], [0, -1, 0], [6, f, k, 0], [[0, 0], [0, 0], [1, 0], [1, 0]]);
+      B.quad([[bx0, by0, backZ], [bx1, by0, backZ], [bx1, by0, b.faceZ], [bx0, by0, b.faceZ]], [0, 1, 0], [6, f, k, 1], [[1, 0], [1, 0], [0, 0], [0, 0]]);
+
+      const planeZ = b.gate ? backZ + 0.06 : b.faceZ - 0.22;
+      B.quad([[bx0, by0, planeZ], [bx1, by0, planeZ], [bx1, by1, planeZ], [bx0, by1, planeZ]], [0, 0, 1], [5, f, k, b.gate ? 1 : 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
+
+      if (b.gate) {
+        const lz = b.faceZ - 0.12, gap = 0.015 * sc;
+        B.quad([[bx0, by0, lz], [b.cx - gap, by0, lz], [b.cx - gap, by1, lz], [bx0, by1, lz]], [0, 0, 1], [7, f, k, -1], [[0, 0], [1, 0], [1, 1], [0, 1]]);
+        B.quad([[b.cx + gap, by0, lz], [bx1, by0, lz], [bx1, by1, lz], [b.cx + gap, by1, lz]], [0, 0, 1], [7, f, k, 1], [[0, 0], [1, 0], [1, 1], [0, 1]]);
+        B.quad([[b.cx - gap, by0, lz + 0.002], [b.cx + gap, by0, lz + 0.002], [b.cx + gap, by1, lz + 0.002], [b.cx - gap, by1, lz + 0.002]], [0, 0, 1], [8, f, k, 0], [[0, 0], [1, 0], [1, 1], [0, 1]]);
       }
-    });
-    if (d.gate) {
-      /* the gate's two leaves, arched as the opening is, a deep tone of the stone on three iron straps, hung on the jambs: they swing
-         in as the gate is reached, so a gate played or beaten stands open on its lit hall; while it is the next game the seam between
-         them is lit at .382 */
-      const rl = face - .04, tc = mix(pal.stone, pal.pane, .72);
-      const leaf = surf(mix(tc, pal.lit, .06), mix(tc, pal.ground, pal.light ? .2 : .45)), iron = surf(mix(pal.pane, pal.stone, .4), mix(pal.pane, pal.ground, .2));
-      for (let q = 1; q < inner.length - 2; q++) {
-        const a = inner[q], b = inner[q + 1], side = a[0] + b[0] < 0 ? -1 : 1, hinge = at(side * d.w, 0, rl), lr = [k, side < 0 ? 3 : 4, hinge[0], hinge[2]];
-        M.quad([at(a[0], 0, rl), at(b[0], 0, rl), at(b[0], b[1], rl), at(a[0], a[1], rl)], [radial(thc)], [leaf], [], lr);
-        for (const f of [.12, .42, .7]) {
-          const s0 = hD * f - .011, s1 = hD * f + .011;
-          if (s1 < Math.min(a[1], b[1]) - .01) M.quad([at(a[0], s0, rl + .006), at(b[0], s0, rl + .006), at(b[0], s1, rl + .006), at(a[0], s1, rl + .006)], [radial(thc)], [iron], [], lr);
-        }
-      }
-      M.quad([at(-.004, 0, rl + .008), at(.004, 0, rl + .008), at(.004, hD - .004, rl + .008), at(-.004, hD - .004, rl + .008)], [radial(thc)],
-        [surf(pal.pane, pal.pane, { flat: true })], [[0, .3], [0, .3], [0, .3], [0, .3]], id(6));
+
+      B.rectLines(bx0, by0, bx1, by1, b.faceZ + 0.004, 6, f, k, ordDetail + 0.015);
+      B.line([bx0, by0 + 0.005, b.faceZ + 0.006], [bx1, by0 + 0.005, b.faceZ + 0.006], 2, f, k, ordDetail + 0.03);
+      curX = bx1;
     }
-    // a keystone at the crown: over the gate's orders always, over a small door from the fourth floor up
-    if (d.gate || k >= 15) {
-      const g = d.gate ? 1 : .6, c0 = hD - .012, c1 = hD + (d.gate ? .135 : .084), r0 = d.rings[d.rings.length - 1][2], rk = r0 + .022 * g, a = -.05 * g, b = .05 * g, a1 = -.07 * g, b1 = .07 * g;
-      M.quad([at(a, c0, rk), at(b, c0, rk), at(b1, c1, rk), at(a1, c1, rk)], [radial(thc)], [stone]);
-      M.quad([at(a1, c1, r0), at(b1, c1, r0), at(b1, c1, rk), at(a1, c1, rk)], [UP], [stone]);
-      M.quad([at(a, c0, RW), at(a, c0, rk), at(a1, c1, rk), at(a1, c1, RW)], [tangent(thc).map(v => -v)], [stoneDeep]);
-      M.quad([at(b, c0, RW), at(b, c0, rk), at(b1, c1, rk), at(b1, c1, RW)], [tangent(thc)], [stoneDeep]);
-    }
+    if (fx1 > curX + 0.001) B.box(curX, wallY0, FRONT_Z - 0.90, fx1, wallY1, FRONT_Z, f, { front: 1, side: 2, top: -1, bot: -1, back: -1 });
+    B.line([fx1, wallY0, bz], [fx1, wallY1, bz], 0, f, -1, ordDetail);
   }
 
-  /* the terrace: its corbel under it at the wall, its underside, the lip at its edge, the parapet, and its top, winding up from the
-     base to the last door's landing */
-  const road = [[RW, -.13], [RW + .07, -.13], [RW + .07, -.08], [RR, -.08], [RR, -.06], [RR + .03, -.06], [RR + .03, -.02], [RR, -.02],
-    [RR, .09], [RR - .056, .09], [RR - .056, 0, .1], [RW, 0, .34]];
-  const yRoad = t => t / 360 * PITCH, end = top * 360;
-  // it begins under the base's top, so it comes up out of the stone and no end of it shows
-  for (let t = -45; t < end; t += 180) {
-    yield;
-    sweep(M, road, t, Math.min(end, t + 180), 5, (q, ny) => (q >= road.length - 2 ? tread : ny < -.5 ? stoneDeep : stone), yRoad);
-  }
   yield;
-  for (const [t, sg] of [[end, 1]]) {
-    const n = tangent(t).map(v => v * sg), y = yRoad(t);
-    M.quad([P(RW, t, y - .08), P(RR, t, y - .08), P(RR, t, y), P(RW, t, y)], [n], [stoneDeep]);
-    M.quad([P(RR - .056, t, y), P(RR, t, y), P(RR, t, y + .09), P(RR - .056, t, y + .09)], [n], [stoneDeep]);
-  }
-  /* the floors rise in rank as the road goes up, each adding what the ones under it have not: from the second a string course
-     across the wall over the doors' crowns (broken by each gate's portal), from the fourth a keystone on every door (above), from
-     the eighth the parapet crenellated */
-  const course = [[RW, .545], [RW + .016, .545], [RW + .016, .578], [RW, .578]];
-  let from = 360;
-  for (let g = 324 + 360; g < end; g += 360) { sweep(M, course, from, g - 26, 5, () => stone, yRoad); from = g + 26; }
-  if (from < end) sweep(M, course, from, end, 5, () => stone, yRoad);
-  for (let t = 7 * 360 + 3.75; t < end; t += 7.5) {
-    const y0 = yRoad(t) + .09, y1 = y0 + .036, ri = RR - .056, a = t - 1.7, b = t + 1.7;
-    M.quad([P(RR, a, y0), P(RR, b, y0), P(RR, b, y1), P(RR, a, y1)], [radial(t)], [stone]);
-    M.quad([P(ri, a, y1), P(ri, b, y1), P(RR, b, y1), P(RR, a, y1)], [UP], [tread]);
-    M.quad([P(ri, a, y0), P(RR, a, y0), P(RR, a, y1), P(ri, a, y1)], [tangent(a).map(v => -v)], [stoneDeep]);
-    M.quad([P(ri, b, y0), P(RR, b, y0), P(RR, b, y1), P(ri, b, y1)], [tangent(b)], [stoneDeep]);
-    M.quad([P(ri, a, y0), P(ri, b, y0), P(ri, b, y1), P(ri, a, y1)], [radial(t).map(v => -v)], [stoneDeep]);
-  }
-  yield;
-  /* the crown: a cornice and a parapet round the roof, the lantern on it and its cap; and under the first floor the stepped base */
-  sweep(M, [[RW, yTop - .07], [RW + .16, yTop - .07], [RW + .16, yTop + .15], [RW + .06, yTop + .15], [RW + .06, yTop + .07, .2], [.5, yTop + .07, .3],
-    [.5, yTop + .62], [.66, yTop + .62], [.66, yTop + .68], [0, yTop + 1.56]], 0, 360, 6, (q, ny) => (q === 4 ? tread : ny < -.5 ? stoneDeep : stone));
-  sweep(M, [[1.95, GY], [1.95, -.2], [1.62, -.2, .12], [1.62, -.03], [RW, -.03, .3]], 0, 360, 4, q => (q === 1 || q === 3 ? tread : stone));
-}
+  const yTop = top * FLOOR_H, scTop = scaleOf(top - 1);
+  const tx0 = BASE_PYLON_X0 * scTop - 0.12, tx1 = BASE_FACADE_X1 * scTop + 0.12;
+  const bzTop = BACK_Z + (top - 1) * 0.045, tzTop = TERRACE_Z - (top - 1) * 0.012;
+  B.box(tx0, yTop, bzTop, tx1, yTop + 0.14, tzTop, top, { front: 1, side: 2, top: 4, bot: 3, back: -1 });
+  B.line([tx0, yTop + 0.14, tzTop], [tx1, yTop + 0.14, tzTop], 5, top, -1, 0.84);
+  B.line([tx0, yTop, tzTop], [tx1, yTop, tzTop], 0, top, -1, 0.84);
 
-/* the place the tower stands in: the ground out to the horizon (its paving, road and fields are the shader's), the plaza's low wall
-   open where the road comes in, the road's six lamps, and the wood */
-function* placeMesh(M, pal) {
-  const ground = { lit: pal.g0, shade: pal.g0, kind: 1 };
-  const rings = [0, 1.9, 3, 4.5, 7, 12, 22, 40, 80, 160, 400, 1000, 3000];
-  for (let i = 0; i < rings.length - 1; i++) for (let t = 0; t < 360; t += 6) {
-    M.quad([P(rings[i], t, GY), P(rings[i], t + 6, GY), P(rings[i + 1], t + 6, GY), P(rings[i + 1], t, GY)], [UP], [ground]);
-  }
-  const stone = { lit: pal.stone, shade: mix(pal.stone, pal.wallShade, 0.55) }, deep = { lit: mix(pal.stone, pal.wallShade, 0.4), shade: pal.wallShade };
-  sweep(M, [[3.06, GY], [3.06, -.22], [2.94, -.22], [2.94, GY]], 12, 348, 4, () => stone);
-  for (const [t, sg] of [[12, -1], [348, 1]]) M.quad([P(2.94, t, GY), P(3.06, t, GY), P(3.06, t, -.22), P(2.94, t, -.22)], [tangent(t).map(v => v * sg)], [deep]);
-  const LS = LAMP, ly = y => GY + (y - GY) * LS;
-  for (const sx of [-.66, .66]) for (let j = 0; j < 3; j++) {
-    const z = 2.9 + 1.4 * j, at = (a, r, y) => [sx + r * Math.sin(a * RAD), y, z + r * Math.cos(a * RAD)];
-    for (let a = 0; a < 360; a += 60) {
-      M.quad([at(a, .02 * LS, GY), at(a + 60, .02 * LS, GY), at(a + 60, .02 * LS, ly(.09)), at(a, .02 * LS, ly(.09))], [radial(a), radial(a + 60), radial(a + 60), radial(a)], [deep]);
-      for (const sg of [-1, 1]) M.tri([at(a, .04 * LS, ly(.13)), at(a + 60, .04 * LS, ly(.13)), [sx, ly(.13) + sg * .05 * LS, z]], [UP], { lit: pal.warm, shade: pal.warm, kind: 3 });
-    }
-  }
-  /* the wood: conifers in three tiers, by the same fixed draw each time, none on the road. It begins beyond where the camera goes
-     round the first floors, so no tree ever stands between the camera and the tower */
-  let seed = 11;
-  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const wood = { lit: pal.wood, shade: pal.woodShade, kind: 2 };
-  for (let n = 0; n < 520; n++) {
-    if (n % 60 === 0) yield;
-    const r = 11 + 26 * rnd() ** 1.5, th = 360 * rnd(), h = .8 + .9 * rnd(), c = P(r, th, 0);
-    if (Math.abs(c[0]) < 1.2 && c[2] > 0) continue;
-    for (const [rb, y0, y1] of [[.42, .1 * h, .52 * h], [.32, .36 * h, .78 * h], [.2, .64 * h, h]]) for (let a = 0; a < 360; a += 60) {
-      const p = (ang, rr, y) => [c[0] + rr * Math.sin(ang * RAD), GY + y, c[2] + rr * Math.cos(ang * RAD)];
-      const nn = ang => { const q = radial(ang); return [q[0], rb / (y1 - y0), q[2]]; };
-      M.tri([p(a, rb, y0), p(a + 60, rb, y0), p(a + 30, 0, y1)], [nn(a), nn(a + 60), nn(a + 30)], wood);
-    }
+  const cxCrown = (tx0 + tx1) * 0.5, yC0 = yTop + 0.14;
+  for (const sg of [-1, 1]) {
+    const innerX = cxCrown + sg * 0.20 * scTop, outerX = cxCrown + sg * 1.75 * scTop;
+    const xA = Math.min(innerX, outerX), xB = Math.max(innerX, outerX);
+    const yL = sg < 0 ? yC0 + 1.48 : yC0 + 0.52, yR = sg < 0 ? yC0 + 0.52 : yC0 + 1.48;
+    const zF = 0.18, zB = -1.10;
+    B.quad([[xA, yC0, zF], [xB, yC0, zF], [xB, yR, zF], [xA, yL, zF]], [0, 0, 1], [10, top, -1, 0]);
+    B.quad([[xB, yC0, zB], [xA, yC0, zB], [xA, yL, zB], [xB, yR, zB]], [0, 0, -1], [3, top, -1, 0]);
+    const ny = (xB - xA), nx = -(yR - yL), nl = Math.hypot(nx, ny) || 1;
+    B.quad([[xA, yL, zF], [xB, yR, zF], [xB, yR, zB], [xA, yL, zB]], [nx / nl, ny / nl, 0], [4, top, -1, 0]);
+    B.quad([[xA, yC0, zB], [xA, yC0, zF], [xA, yL, zF], [xA, yL, zB]], [-1, 0, 0], [2, top, -1, 0]);
+    B.quad([[xB, yC0, zF], [xB, yC0, zB], [xB, yR, zB], [xB, yR, zF]], [1, 0, 0], [2, top, -1, 0]);
+    B.line([xA, yL, zF], [xB, yR, zF], 5, top, -1, 0.86);
+    B.line([xA, yC0, zF], [xA, yL, zF], 5, top, -1, 0.85);
+    B.line([xB, yC0, zF], [xB, yR, zF], 5, top, -1, 0.85);
   }
 }
 
-/* the mesh for a tower of top floors. It holds no state (doors are lit by uniforms) and no size (the camera makes it any size), so
-   one is kept for each height and palette and a redraw or a resize builds nothing */
 const built = new Map();
-const keyOf = (top, pal) => `${top}:${JSON.stringify(pal)}`;
-function* pieces(M, top, pal) { yield* towerMesh(M, top, pal); yield* placeMesh(M, pal); }
-const keep = (key, top, M) => {
-  const model = { top, solid: M.done() };
-  if (built.size >= 3) built.delete(built.keys().next().value);
-  built.set(key, model);
+const building = new Map();
+const keep = (top, B) => {
+  const model = { top, ...B.done() };
+  if (built.size >= 4) built.delete(built.keys().next().value);
+  built.set(top, model);
   return model;
 };
-export function buildModel(top, pal) {
-  const key = keyOf(top, pal);
-  if (built.has(key)) return built.get(key);
-  const M = mesh();
-  for (const _ of pieces(M, top, pal)) { /* all of it at once */ }
-  return keep(key, top, M);
+
+export function buildModel(top) {
+  if (built.has(top)) return built.get(top);
+  const B = createBuilder();
+  for (const _ of monolithPieces(B, top)) { /* synchronous */ }
+  return keep(top, B);
 }
-/* the same mesh made a piece at a time, before any tower is asked for: made at once it is one long task (a
-   tenth of a second, half a second on a slow phone), in pieces none is longer than a frame or two */
-/* one build of a mesh at a time: a tower asked for while its mesh is still being made in pieces waits for that build instead of
-   making it again at once (2026-11-18: the tab opened first made it whole inside its first frame, 467 ms at a phone's speed) */
-const building = new Map();
-export function prebuildModel(top, pal) {
-  const key = keyOf(top, pal);
-  if (built.has(key)) return Promise.resolve();
-  if (!building.has(key)) building.set(key, (async () => {
-    const M = mesh();
-    // a turn of the event loop between pieces lets a tap or a frame in (waiting for an idle moment each time took ten seconds in all)
-    for (const _ of pieces(M, top, pal)) await new Promise(r => setTimeout(r));
-    if (!built.has(key)) keep(key, top, M);
-    building.delete(key);
+
+export function prebuildModel(top) {
+  if (built.has(top)) return Promise.resolve();
+  if (!building.has(top)) building.set(top, (async () => {
+    const B = createBuilder();
+    for (const _ of monolithPieces(B, top)) await new Promise(r => setTimeout(r));
+    if (!built.has(top)) keep(top, B);
+    building.delete(top);
   })());
-  return building.get(key);
+  return building.get(top);
 }
-export const modelBuilt = (top, pal) => built.has(keyOf(top, pal));
 
-/* ---------- the shaders ---------- */
-const NOISE = `
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y); }
-float fbm(vec2 p) { return .5 * vnoise(p) + .25 * vnoise(p * 2.03 + 7.) + .125 * vnoise(p * 4.1 + 13.) + .125 * vnoise(p * 8.2 + 3.); }`;
-const VS = `#version 300 es
-in vec3 aP; in vec3 aN; in vec4 aL; in vec3 aS; in vec4 aX; in vec2 aU; in vec4 aD;
-uniform mat4 uVP; uniform float uDoor[${ND}];
-out vec3 vN, vS, vW; out vec4 vL, vX, vD; out vec2 vU; out float vV;
+export const modelBuilt = top => built.has(top);
+
+/* ---------- WebGL2 shaders ---------- */
+const FVS = `#version 300 es
+in vec3 aP; in vec3 aN; in vec4 aM; in vec2 aU;
+uniform mat4 uVP;
+uniform float uDoor[${ND}];
+uniform float uReveal;
+uniform float uTop;
+out vec3 vN; out vec4 vM; out vec2 vU; out float vV; out float vVis;
 void main() {
-  vec3 p = aP, n = aN;
-  float v = aD.x >= 0. ? uDoor[int(aD.x + .5)] : 0.;
-  if (aD.y > 2.5 && aD.y < 4.5) {
-    // a leaf of the gate swings in about its hinge as the gate is reached
-    float a = smoothstep(.55, 1., abs(v)) * 1.65 * (aD.y < 3.5 ? 1. : -1.), c = cos(a), s = sin(a);
-    vec2 r = p.xz - aD.zw;
-    p.xz = aD.zw + vec2(r.x * c + r.y * s, -r.x * s + r.y * c);
-    n.xz = vec2(n.x * c + n.z * s, -n.x * s + n.z * c);
+  vec3 p = aP;
+  int dId = int(aM.z + 0.5);
+  float v = aM.z >= -0.5 ? uDoor[dId] : 0.0;
+  if (aM.x > 6.5 && aM.x < 7.5) {
+    float open = smoothstep(0.45, 1.0, abs(v));
+    p.x += aM.w * open * 0.34;
   }
-  vW = p; vN = n; vL = aL; vS = aS; vX = aX; vU = aU; vD = aD; vV = v;
-  gl_Position = uVP * vec4(p, 1.);
+  float ord = clamp((aM.y + 1.0) / max(1.0, uTop + 1.0), 0.0, 1.0);
+  float start = 0.24 + ord * 0.34;
+  float vis = smoothstep(start, start + 0.26, uReveal);
+  p.y -= (1.0 - vis) * 0.14;
+  vN = aN; vM = aM; vU = aU; vV = v; vVis = vis;
+  gl_Position = uVP * vec4(p, 1.0);
 }`;
-const FS = `#version 300 es
+
+const FFS = `#version 300 es
 precision highp float;
-in vec3 vN, vS, vW; in vec4 vL, vX, vD; in vec2 vU; in float vV;
-uniform vec3 uLight, uEye, uRim, uFog, uWarm, uAmber, uLift, uG0, uG1, uRoad, uMistC;
-uniform float uDay, uFogN, uFogD, uLiftMix, uLiftDoor, uTopY, uMist;
-uniform vec4 uPL[16], uPC[16]; uniform int uNL;
+in vec3 vN; in vec4 vM; in vec2 vU; in float vV; in float vVis;
+uniform vec3 uGround, uFaceLit, uFaceShade, uFaceDeep, uTread, uRecess;
+uniform vec3 uWon, uSignal, uSignalCore, uGateLeaf, uNumLit, uNumMute;
+uniform float uCurFloor, uLiftDoor, uLiftMix, uDiveDim, uHC;
+uniform sampler2D uNumTex;
 out vec4 o;
-${NOISE}
-/* the tower's shadow along the moonlight: whether the way from p toward the light passes inside its drum (radius rs), softer and
-   fainter the further it falls */
-float shade(vec3 p, float rs) {
-  float lv = length(uLight.xz); vec2 vh = uLight.xz / lv;
-  float along = -dot(p.xz, vh);
-  if (along <= 0.) return 0.;
-  float dmin = abs(p.x * vh.y - p.z * vh.x), soft = .04 + .05 * along;
-  return (1. - smoothstep(rs * (1. - soft), rs * (1. + soft), dmin)) * step(p.y + along * uLight.y / lv, uTopY) * (1. - smoothstep(6., 30., along));
-}
 void main() {
-  float role = vD.y, v = vV, kind = vX.z;
-  if (role > 5.5 && abs(v) > .6) discard;
-  vec3 n = normalize(vN), c;
-  if (kind > 2.5) c = uWarm;
-  else {
-    if (kind > .5 && kind < 1.5) {
-      // the ground: fields a little uneven, the plaza's paving, the road in to the tower's foot
-      float r = length(vW.xz), road = smoothstep(.62, .5, abs(vW.x)) * step(0., vW.z) * smoothstep(40., 8., vW.z);
-      c = mix(mix(uG1, uG0, fbm(vW.xz * .35)), uRoad, max(road, smoothstep(3.02, 2.94, r)));
-    } else if (vX.w > .5) c = vL.rgb;
-    else {
-      float d = dot(n, uLight);
-      // the light turning round the drum, its terminator kept a little firm, as a painted stone is
-      float t = smoothstep(-.4, .8, d);
-      t = mix(t, smoothstep(.2, .8, t), .4);
-      // the sky's own light on what the moon does not reach (more of it in the day)
-      t = mix(t, 1., .1 + .34 * uDay);
-      c = mix(vS, vL.rgb, t);
-      if (vX.y > .5) {
-        // courses of dressed stone: joints in the shader, faded out where they would be thinner than a pixel
-        vec2 g = vU / vec2(.2, .086);
-        float row = floor(g.y);
-        vec2 f = vec2(fract(g.x + .5 * mod(row, 2.)), fract(g.y));
-        vec2 w = fwidth(g);
-        float jy = 1. - smoothstep(0., w.y * 1.4, min(f.y, 1. - f.y));
-        float jx = 1. - smoothstep(0., w.x * 1.4, min(f.x, 1. - f.x));
-        c *= 1. - (.1 + .06 * uDay) * max(jx, jy) * clamp(1.6 - max(w.x, w.y) * 7., 0., 1.);
-        // the shade where the wall meets the terrace: under the one above (its corbel and its overhang) and at its foot on the one below
-        float hb = fract(vW.y / ${PITCH} - atan(vW.x, vW.z) / 6.2831853) * ${PITCH};
-        c *= 1. - .34 * smoothstep(${PITCH} - .34, ${PITCH} - .13, hb) - .24 * (1. - smoothstep(0., .07, hb));
+  if (vVis < 0.01) discard;
+  float mat = vM.x, fIdx = vM.y, v = vV;
+  bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
+  bool isLiftBay = abs(vM.z - uLiftDoor) < 0.5;
+  vec3 c = uFaceLit;
+
+  if (mat < 0.5) c = uGround;
+  else if (mat < 1.5) c = uFaceLit;
+  else if (mat < 2.5) c = uFaceShade;
+  else if (mat < 3.5) c = uFaceDeep;
+  else if (mat < 4.5) c = uTread;
+  else if (mat < 5.5) {
+    float isLive = v < -0.01 ? clamp(-v, 0.0, 1.0) : smoothstep(1.05, 1.95, v);
+    float isNext = (v > 0.1 && v < 0.8) ? smoothstep(0.05, 0.38, v) : 0.0;
+    float isWon = smoothstep(0.75, 1.0, v) * (1.0 - isLive);
+    c = mix(uRecess, uWon, isWon);
+    float activeAmt = max(isLive, isNext);
+    if (activeAmt > 0.01) {
+      float dx = abs(vU.x - 0.5), aa = max(0.012, fwidth(dx) * 1.2);
+      if (isLive > 0.05) {
+        vec3 activeCol = uSignal;
+        if (uHC > 0.5) {
+          float core = 1.0 - smoothstep(0.11 - aa, 0.11 + aa, dx);
+          activeCol = mix(uSignal, uSignalCore, core);
+        }
+        c = mix(c, activeCol, isLive);
+      } else {
+        float slit = 1.0 - smoothstep(0.14 - aa, 0.14 + aa, dx);
+        c = mix(c, uSignal, slit * isNext);
       }
-      // a rim of moonlight on the lit edge, where the stone turns away
-      vec3 e = normalize(uEye - vW);
-      c = mix(c, uRim, pow(1. - max(0., dot(n, e)), 4.) * smoothstep(0., .5, d) * .3);
-    }
-    c *= 1. - vX.x;
-    // what faces up (the terraces, the base, the ground) and the wood lie in the tower's shadow away from the moon
-    if (n.y > .5 || kind > .5) c *= 1. - shade(vW, kind > .5 ? 1.3 : 1.) * (uDay > .5 ? .26 : .46);
-    // a doorway's light: dark, .382 for the next game, warm won, amber gone into (2); brightest at the floor
-    if (role > .5 && role < 2.5 || role > 5.5) {
-      float g = mix(1., .62, clamp(vU.y, 0., 1.)) * (role > 1.5 && role < 2.5 ? .78 : 1.);
-      // a value under zero is the amber coming on from the dark (a lamp switching on is never warm on its way)
-      vec3 glow = v < 0. ? uAmber : v <= 1. ? uWarm : mix(uWarm, uAmber, v - 1.);
-      c = mix(c, glow * g, min(abs(v), 1.) * (role > 1.5 && role < 2.5 ? .7 : 1.));
-    }
-    // the lamps' light on what stands round them: the lit rooms, the road's lamps, the other climbers' lanterns
-    for (int i = 0; i < 16; i++) {
-      if (i >= uNL) break;
-      vec3 d = uPL[i].xyz - vW;
-      float L = length(d), a = max(0., 1. - L / uPL[i].w);
-      float lam = (vX.w > .5 || kind > .5 && kind < 1.5) ? 1. : max(0., dot(n, d / max(L, 1e-5))) * .8 + .2;
-      c = mix(c, uPC[i].rgb, clamp(a * a * lam * uPC[i].a, 0., 1.));
     }
   }
-  // distance closes into the haze on the horizon
-  c = mix(c, uFog, 1. - exp(-max(0., length(vW - uEye) - uFogN) / uFogD));
-  // going in: the room gone into becomes the stage's own ground
-  if (abs(vD.x - uLiftDoor) < .5 && role > .5 && role < 2.5) c = mix(c, uLift, uLiftMix);
-  o = vec4(mix(c, uMistC, uMist), 1.);
-}`;
-// the night behind everything: the sky, its stars, the moon where the light comes from, two ridges on the horizon
-const BVS = `#version 300 es
-in vec2 aQ; void main() { gl_Position = vec4(aQ, 1., 1.); }`;
-const BFS = `#version 300 es
-precision highp float;
-uniform vec2 uRes; uniform vec3 uF, uRt, uUp, uMoonD, uSkyTop, uSkyLow, uFar, uNear, uMoonC, uStar, uMistC;
-uniform float uFocal, uShift, uDay, uMist;
-out vec4 o;
-${NOISE}
-void main() {
-  vec2 uv = (gl_FragCoord.xy - .5 * uRes) / uRes.y; uv.x -= uShift;
-  vec3 rd = normalize(uv.x * uRt + uv.y * uUp + uFocal * uF);
-  vec3 c = mix(uSkyLow, uSkyTop, smoothstep(0., .55, rd.y));
-  float md = length(rd - uMoonD);
-  if (uDay < .5) {
-    vec2 g = vec2(atan(rd.x, rd.z), rd.y) * 90.; vec2 id = floor(g);
-    c += uStar * step(.965, hash(id)) * smoothstep(.16, 0., length(fract(g) - .5)) * (.3 + .7 * hash(id + 7.)) * smoothstep(.04, .3, rd.y) * .8;
-    vec3 off = normalize(cross(uMoonD, vec3(0., 1., 0.))) * .017 + vec3(0., .012, 0.);
-    c = mix(c, uMoonC, smoothstep(.036, .033, md) * smoothstep(.027, .031, length(rd - uMoonD - off)));
-  } else c = mix(c, uMoonC, smoothstep(.04, .036, md));
-  float az = atan(rd.x, rd.z); vec2 cs = vec2(cos(az), sin(az));
-  float h1 = .022 + .05 * fbm(cs * 2.6 + 3.), h2 = .008 + .04 * fbm(cs * 5.5 + 11.);
-  c = mix(c, uFar, smoothstep(h1 + .0015, h1 - .0015, rd.y));
-  c = mix(c, uNear, smoothstep(h2 + .0015, h2 - .0015, rd.y));
-  c = mix(c, uSkyLow, smoothstep(.02, -.004, rd.y) * .75);
-  o = vec4(mix(c, uMistC, uMist), 1.);
-}`;
-/* what is soft: the sea of cloud (two sheets of it, drifting, parting round the tower, closing into one sea far off, the moon's
-   path on it) and the lamps' light in the night's air (a square turned to the camera for each) */
-const SVS = `#version 300 es
-in vec3 aP; in vec2 aQ; in vec4 aC;
-uniform mat4 uVP; uniform vec3 uRt, uUp; uniform float uMode;
-out vec3 vW, vC; out vec2 vQ;
-void main() {
-  vec3 p = uMode > .5 ? aP + (uRt * aQ.x + uUp * aQ.y) * aC.a : aP;
-  vW = p; vQ = aQ; vC = aC.rgb;
-  gl_Position = uVP * vec4(p, 1.);
-}`;
-const SFS = `#version 300 es
-precision highp float;
-in vec3 vW, vC; in vec2 vQ;
-uniform vec3 uEye, uMoonD, uFog, uCloudLo, uCloudHi, uMoonC, uMistC;
-uniform float uMode, uTime, uLayer, uMist, uOut;
-out vec4 o;
-${NOISE}
-void main() {
-  if (uMode > .5) { float d = dot(vQ, vQ); o = vec4(vC * max(0., .02 / (d + .02) - .0196) * uOut, 0.); return; }
-  float cr = length(vW.xz), tc = length(vW - uEye);
-  float nz = fbm(vW.xz * .2 + vec2(uTime * .012, uLayer * 7.3) + uLayer * 3.1), open = smoothstep(1.45, 2.5, cr);
-  // a camera level with the cloud sees through what lies between it and the tower: the door it stands before is never veiled
-  float level = clamp(1. - abs(uEye.y - vW.y) / 1.4, 0., 1.);
-  open *= mix(1., smoothstep(5., 13., length(vW.xz - uEye.xz)), level);
-  float a = max(smoothstep(.33, .6, nz), smoothstep(12., 40., tc)) * open * .92;
-  bool above = uEye.y > vW.y;
-  vec3 c = mix(uCloudLo, uCloudHi, smoothstep(.35, .8, nz) * (above ? 1. : .7));
-  if (above) c += uMoonC * pow(max(0., dot(normalize(vW.xz - uEye.xz), normalize(uMoonD.xz))), 70.) * .2 * smoothstep(0., .5, nz);
-  c = mix(c, uFog, 1. - exp(-max(0., tc - 14.) * .012));
-  o = vec4(mix(c, uMistC, uMist) * a, a);
+  else if (mat < 6.5) {
+    float isLive = v < -0.01 ? clamp(-v, 0.0, 1.0) : smoothstep(1.05, 1.95, v);
+    float isWon = smoothstep(0.75, 1.0, v) * (1.0 - isLive);
+    float isSill = vM.w;
+    c = isSill > 0.5 ? mix(uFaceShade, uTread, 0.45) : mix(uFaceShade, uFaceDeep, clamp(vU.x * 0.9, 0.0, 1.0));
+    if (uHC < 0.5) {
+      c = mix(c, uWon, isWon * (isSill > 0.5 ? 0.38 : 0.16));
+      c = mix(c, uSignal, isLive * (isSill > 0.5 ? 0.48 : 0.15) * (1.0 - vU.x * 0.6));
+    } else if (isSill > 0.5 && isLive > 0.5) {
+      c = mix(c, uSignal, 0.65);
+    }
+  }
+  else if (mat < 7.5) {
+    c = uGateLeaf;
+    if (smoothstep(0.45, 1.0, abs(v)) > 0.96) discard;
+  }
+  else if (mat < 8.5) {
+    if (abs(v) > 0.5) discard;
+    c = mix(uFaceDeep, uSignal, smoothstep(0.05, 0.38, v));
+  }
+  else if (mat < 9.5) {
+    float a = texture(uNumTex, vU).r;
+    if (a < 0.04) discard;
+    vec3 ink = isCurFloor ? uNumLit : uNumMute;
+    float alpha = a * (isCurFloor ? 1.0 : (uHC > 0.5 ? 0.95 : 0.72)) * vVis * (1.0 - uDiveDim * 0.85);
+    o = vec4(ink, alpha);
+    return;
+  }
+  else c = uFaceLit;
+
+  if (isLiftBay && mat > 4.5 && mat < 5.5) c = mix(c, uGround, uLiftMix);
+  if (isLiftBay && mat > 5.5 && mat < 6.5) c = mix(c, uGround, smoothstep(0.55, 1.0, uLiftMix));
+  if (!isLiftBay && uDiveDim > 0.001) c = mix(c, uGround, uDiveDim * 0.72);
+  o = vec4(mix(uGround, c, vVis), 1.0);
 }`;
 
-/* the context in two halves: begun (the programs handed to the driver to compile and link) and finished (their links checked, their
-   uniforms looked up, the buffers bound). Checking a link waits for it, so the warm-up begins them and finishes only once the driver
-   says they are done (KHR_parallel_shader_compile): begun and finished at once, the three programs held the page 150 to 220 ms at a
-   phone's speed, on a replay that shows no tower (2026-11-18, scripts/measure-frames.cjs) */
+const LVS = `#version 300 es
+in vec3 aP0; in vec3 aP1; in vec2 aSide; in vec4 aMeta;
+uniform mat4 uVP;
+uniform vec2 uRes;
+uniform float uDpr, uHairPx, uRulePx, uCurFloor, uActiveDoor, uReveal;
+out vec4 vMeta; out float vEdge; out float vAlpha;
+void main() {
+  float kind = aMeta.x, fIdx = aMeta.y, dId = aMeta.z, ord = aMeta.w;
+  bool isActiveDoor = dId >= -0.5 && abs(dId - uActiveDoor) < 0.5;
+  if (kind > 1.5 && kind < 2.5 && !isActiveDoor) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    vAlpha = 0.0; vEdge = 0.0; vMeta = vec4(0.0);
+    return;
+  }
+  float span = ord < 0.44 ? 0.26 : 0.22;
+  float draw = clamp((uReveal - ord) / span, 0.0, 1.0);
+  draw = draw * draw * (3.0 - 2.0 * draw);
+  vec3 p0 = aP0, p1 = ord < 0.44 ? mix(aP0, aP1, draw) : aP1;
+
+  vec4 c0 = uVP * vec4(p0, 1.0), c1 = uVP * vec4(p1, 1.0);
+  vec2 s0 = c0.xy / max(0.0001, c0.w) * uRes * 0.5;
+  vec2 s1 = c1.xy / max(0.0001, c1.w) * uRes * 0.5;
+  vec2 d = s1 - s0;
+  float len = length(d);
+  vec2 dir = len > 0.001 ? d / len : vec2(1.0, 0.0);
+  vec2 nrm = vec2(-dir.y, dir.x);
+
+  bool isCurFloor = abs(fIdx - uCurFloor) < 0.5;
+  bool isGateHere = kind > 0.5 && kind < 1.5 && isActiveDoor;
+  bool thick = (kind > 3.5 && kind < 4.5 && isCurFloor) || (kind > 1.5 && kind < 2.5 && isActiveDoor) || isGateHere;
+  float px = (thick ? uRulePx : uHairPx) * uDpr;
+  float halfW = px * 0.5 + 0.9;
+  // square architectural cap extension (half line width) so corners close flush with zero 1px notches
+  float cap = (aSide.x < 0.5 ? -1.0 : 1.0) * (px * 0.45);
+
+  vec4 base = aSide.x < 0.5 ? c0 : c1;
+  vec2 offPx = nrm * aSide.y * halfW + dir * cap;
+  base.xy += offPx / (uRes * 0.5) * base.w;
+  base.z -= (thick ? 0.00075 : 0.00045) * base.w;
+
+  vMeta = vec4(kind, isCurFloor ? 1.0 : 0.0, isActiveDoor ? 1.0 : 0.0, px);
+  vEdge = aSide.y * halfW;
+  vAlpha = ord < 0.44 ? step(0.005, draw) : draw;
+  gl_Position = base;
+}`;
+
+const LFS = `#version 300 es
+precision highp float;
+in vec4 vMeta; in float vEdge; in float vAlpha;
+uniform vec3 uRule, uRuleSub, uRuleLit, uSignal, uHL;
+uniform float uHC, uHeld, uDiveDim;
+out vec4 o;
+void main() {
+  if (vAlpha < 0.02) discard;
+  float kind = vMeta.x;
+  bool isCurFloor = vMeta.y > 0.5;
+  bool isActiveDoor = vMeta.z > 0.5;
+  float halfCore = vMeta.w * 0.5;
+  float cov = (1.0 - smoothstep(halfCore - 0.65, halfCore + 0.65, abs(vEdge))) * vAlpha;
+  if (cov < 0.02) discard;
+
+  vec3 col = uRule;
+  if (kind > 3.5 && kind < 4.5) col = isCurFloor ? uRuleLit : uRule;
+  else if (kind > 0.5 && kind < 1.5) col = isActiveDoor ? uRuleLit : (isCurFloor ? uRule : uRuleSub);
+  else if (kind > 1.5 && kind < 2.5) col = uHC > 0.5 ? uRuleLit : uSignal;
+  else if (kind > 4.5 && kind < 5.5) col = uRule;
+  else if (kind > 5.5 && kind < 6.5) col = isCurFloor ? uRule : uRuleSub;
+
+  if (uHC > 0.5 && uHeld > 0.5 && kind > 3.5 && kind < 4.5 && isCurFloor) col = uHL;
+  if (!isActiveDoor && uDiveDim > 0.001) cov *= (1.0 - uDiveDim * 0.88);
+  o = vec4(col, cov);
+}`;
+
+/* ---------- shared WebGL2 context with parallel shader compile warm-up ---------- */
 let ctx = null, begun = null;
 const UNIFORMS = {
-  main: ["uVP", "uDoor", "uLight", "uEye", "uRim", "uFog", "uWarm", "uAmber", "uLift", "uG0", "uG1", "uRoad", "uMistC", "uDay", "uFogN", "uFogD",
-    "uLiftMix", "uLiftDoor", "uTopY", "uMist", "uPL", "uPC", "uNL"],
-  back: ["uRes", "uF", "uRt", "uUp", "uMoonD", "uSkyTop", "uSkyLow", "uFar", "uNear", "uMoonC", "uStar", "uMistC", "uFocal", "uShift", "uDay", "uMist"],
-  soft: ["uVP", "uRt", "uUp", "uMode", "uEye", "uMoonD", "uFog", "uCloudLo", "uCloudHi", "uMoonC", "uMistC", "uTime", "uLayer", "uMist", "uOut"],
+  face: [
+    "uVP", "uDoor", "uReveal", "uTop",
+    "uGround", "uFaceLit", "uFaceShade", "uFaceDeep", "uTread", "uRecess",
+    "uWon", "uSignal", "uSignalCore", "uGateLeaf", "uNumLit", "uNumMute",
+    "uCurFloor", "uLiftDoor", "uLiftMix", "uDiveDim", "uHC", "uNumTex",
+  ],
+  line: [
+    "uVP", "uRes", "uDpr", "uHairPx", "uRulePx", "uCurFloor", "uActiveDoor", "uReveal",
+    "uRule", "uRuleSub", "uRuleLit", "uSignal", "uHL", "uHC", "uHeld", "uDiveDim",
+  ],
 };
+
 function begin() {
   const canvas = document.createElement("canvas");
   const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: true });
   if (!gl) return null;
   const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const link = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); return p; };
-  return { canvas, gl, parallel: gl.getExtension("KHR_parallel_shader_compile"), progs: { main: link(VS, FS), back: link(BVS, BFS), soft: link(SVS, SFS) } };
+  return { canvas, gl, parallel: gl.getExtension("KHR_parallel_shader_compile"), progs: { face: link(FVS, FFS), line: link(LVS, LFS) } };
 }
-// whether the driver has finished the begun programs (always, without the extension: finishing then waits as it always did)
 const compiled = b => !b.parallel || Object.values(b.progs).every(p => b.gl.getProgramParameter(p, b.parallel.COMPLETION_STATUS_KHR));
+
+function uploadNumberAtlas(c) {
+  if (!numCanvas) numCanvas = buildNumberAtlas();
+  const { gl, tex } = c;
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, numCanvas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+}
+
+export function refreshFontAtlas() {
+  numCanvas = buildNumberAtlas();
+  if (ctx && !ctx.gl.isContextLost()) uploadNumberAtlas(ctx);
+}
+
 function finish(b) {
   const { gl, canvas } = b;
   const program = name => {
@@ -555,25 +680,34 @@ function finish(b) {
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.warn(gl.getProgramInfoLog(p)); return null; }
     return { p, u: Object.fromEntries(UNIFORMS[name].map(n => [n, gl.getUniformLocation(p, n)])) };
   };
-  const main = program("main"), back = program("back"), soft = program("soft");
-  if (!main || !back || !soft) return null;
+  const face = program("face"), line = program("line");
+  if (!face || !line) return null;
   const bind = (prog, buf, stride, attrs) => {
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    attrs.forEach(([n, size, off]) => {
+    for (const [n, size, off] of attrs) {
       const l = gl.getAttribLocation(prog.p, n);
-      if (l < 0) return;
+      if (l < 0) continue;
       gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, stride * 4, off * 4);
-    });
+    }
     return vao;
   };
-  const buf = gl.createBuffer(), quad = gl.createBuffer(), sbuf = gl.createBuffer();
-  const vao = bind(main, buf, STRIDE, [["aP", 3, 0], ["aN", 3, 3], ["aL", 4, 6], ["aS", 3, 10], ["aX", 4, 13], ["aU", 2, 17], ["aD", 4, 19]]);
-  const bvao = bind(back, quad, 2, [["aQ", 2, 0]]);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const svao = bind(soft, sbuf, 9, [["aP", 3, 0], ["aQ", 2, 3], ["aC", 4, 5]]);
-  return { canvas, gl, main, back, soft, vao, bvao, svao, buf, sbuf, key: null, solid: 0 };
+  const fBuf = gl.createBuffer(), lBuf = gl.createBuffer();
+  const fVao = bind(face, fBuf, F_STRIDE, [["aP", 3, 0], ["aN", 3, 3], ["aM", 4, 6], ["aU", 2, 10]]);
+  const lVao = bind(line, lBuf, L_STRIDE, [["aP0", 3, 0], ["aP1", 3, 3], ["aSide", 2, 6], ["aMeta", 4, 8]]);
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
+  if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+  const c = { canvas, gl, face, line, fBuf, lBuf, fVao, lVao, tex, key: null, fCount: 0, lCount: 0 };
+  uploadNumberAtlas(c);
+  return c;
 }
+
 function context() {
   if (ctx && !ctx.gl.isContextLost()) return ctx;
   if (!begun || begun.gl.isContextLost()) begun = begin();
@@ -581,8 +715,7 @@ function context() {
   begun = null;
   return ctx;
 }
-/* the context made and the programs compiled and drawn once in idle moments before any tower is asked for (the battle page loads
-   this module), so the first tower drawn pays only for its mesh. The driver compiles while the page goes on (begin above) */
+
 export function warmTower() {
   if (ctx || begun) return;
   begun = begin();
@@ -593,97 +726,102 @@ export function warmTower() {
     const c = context();
     if (!c) return;
     const { gl } = c;
-    gl.useProgram(c.main.p); gl.bindVertexArray(c.vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, c.buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(STRIDE * 3), gl.STATIC_DRAW);
+    gl.useProgram(c.face.p); gl.bindVertexArray(c.fVao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, c.fBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(F_STRIDE * 3), gl.STATIC_DRAW);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     c.key = null;
   };
   requestAnimationFrame(wait);
 }
 
-/* the picture without WebGL2: the drum and its doors, flat in their tones, from the same camera */
-function flat(out, model, cam, pal, view) {
-  const g = out.getContext("2d"), w = out.width, h = out.height, k = w / (out.clientWidth || w);
-  const css = c => `rgb(${c.map(x => Math.round(x * 255)).join(",")})`, deg = cam.phi / RAD;
-  g.fillStyle = css(pal.fog); g.fillRect(0, 0, w, h);
-  g.save(); g.scale(k, k);
-  const poly = [];
-  for (const y of [GY, model.top * PITCH + .78]) for (const sg of y === GY ? [-90, 90] : [90, -90]) poly.push(cam.project(P(RW, deg + sg, y)));
-  g.fillStyle = css(pal.wallLit);
-  g.beginPath(); poly.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.fill();
-  for (let i = 0; i < model.top * 5; i++) {
-    const d = doorOf(i), th = (i + .5) * SEG, v = view.doors[i], y = (i + .5) / 5 * PITCH;
-    if (Math.cos(th * RAD - cam.phi) < .15) continue;
-    const [x0, y0] = cam.project(P(RW, th - d.w / RAD, y)), [x1, y1] = cam.project(P(RW, th + d.w / RAD, y + d.s + d.w));
-    g.fillStyle = css(v < 0 ? mix(pal.pane, pal.amber, -v) : v <= 1 ? mix(pal.pane, pal.warm, v) : mix(pal.warm, pal.amber, v - 1));
-    g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+/* 2D fallback without WebGL2: architectural elevation in the same semantic tokens */
+function flat(out, model, cam, pal, state) {
+  const g = out.getContext("2d"), w = out.width, h = out.height;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const css = c => `rgb(${c.map(x => Math.round(x * 255)).join(",")})`;
+  g.fillStyle = css(pal.ground); g.fillRect(0, 0, w, h);
+  g.save(); g.scale(dpr, dpr);
+  for (let f = 0; f < model.top; f++) {
+    const sc = scaleOf(f), y0 = f * FLOOR_H, y1 = y0 + FLOOR_H;
+    const a = cam.project([BASE_PYLON_X0 * sc, y0, FRONT_Z]), b = cam.project([BASE_FACADE_X1 * sc, y1, FRONT_Z]);
+    g.fillStyle = css(pal.faceLit);
+    g.fillRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+    g.strokeStyle = css(f === state.curFloor ? pal.ruleLit : pal.rule);
+    g.lineWidth = f === state.curFloor ? pal.rulePx : pal.hairPx;
+    g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], a[1]); g.stroke();
+    for (let i = 0; i < 5; i++) {
+      const k = f * 5 + i, v = state.doors[k], spec = baySpec(i, f);
+      const p0 = cam.project([spec.cx - spec.w * 0.5, y0 + spec.sill, spec.faceZ]);
+      const p1 = cam.project([spec.cx + spec.w * 0.5, y0 + spec.sill + spec.h, spec.faceZ]);
+      g.fillStyle = css(v < 0 || v > 1.05 ? pal.signal : v >= 0.8 ? pal.won : pal.recess);
+      g.fillRect(Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.abs(p1[0] - p0[0]), Math.abs(p1[1] - p0[1]));
+    }
   }
   g.restore();
 }
 
-/* render the model into out (a 2D canvas the scene shows) with the camera cam. view: { doors (the lit value of each door), lights
-   ([x, y, z, reach, r, g, b, strength], on the stone), glows ([x, y, z, size, r, g, b], in the air), lift ({ door, mix }), time
-   (seconds, the cloud's drift) } */
-export function render(out, model, cam, pal, view) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(out.clientWidth * dpr) || out.width, h = Math.round(out.clientHeight * dpr) || out.height;
+export function render(out, model, cam, pal, state, m) {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.round((m?.W || out.clientWidth) * dpr) || out.width;
+  const h = Math.round((m?.H || out.clientHeight) * dpr) || out.height;
+  if (!w || !h) return false;
   if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
+
   const c = context();
-  if (!c) { flat(out, model, cam, pal, view); return false; }
-  const { gl, canvas, main, back, soft } = c;
+  if (!c) { flat(out, model, cam, pal, state); return false; }
+  const { gl, canvas, face, line } = c;
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   if (c.key !== model) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, c.buf); gl.bufferData(gl.ARRAY_BUFFER, model.solid, gl.STATIC_DRAW);
-    c.key = model; c.solid = model.solid.length / STRIDE;
+    gl.bindBuffer(gl.ARRAY_BUFFER, c.fBuf); gl.bufferData(gl.ARRAY_BUFFER, model.faces, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, c.lBuf); gl.bufferData(gl.ARRAY_BUFFER, model.lines, gl.STATIC_DRAW);
+    c.key = model; c.fCount = model.faces.length / F_STRIDE; c.lCount = model.lines.length / L_STRIDE;
   }
-  const lift = view.lift || { door: -9, mix: 0 }, day = pal.light ? 1 : 0;
-  // a camera passing through the cloud is in its mist
-  const mistC = mix(pal.cloudLo, pal.cloudHi, .5), mist = Math.max(0, 1 - Math.abs(cam.pos[1] - YC) / .42) ** 2 * .3 * (1 - lift.mix);
+
+  const lift = state.lift || { door: -9, mix: 0 };
+  const reveal = state.reveal ?? 1;
+  const curFloor = state.curFloor ?? 0;
+  const activeDoor = state.activeDoor ?? -1;
+  const held = state.held ? 1 : 0;
+  const diveDim = state.diveDim ?? 0;
+
   gl.viewport(0, 0, w, h);
-  gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+  gl.clearColor(pal.ground[0], pal.ground[1], pal.ground[2], 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  gl.disable(gl.DEPTH_TEST); gl.depthMask(false);
-  gl.useProgram(back.p); gl.bindVertexArray(c.bvao);
-  let u = back.u;
-  gl.uniform2f(u.uRes, w, h); gl.uniform3fv(u.uF, cam.f); gl.uniform3fv(u.uRt, cam.rt); gl.uniform3fv(u.uUp, cam.up); gl.uniform3fv(u.uMoonD, MOON);
-  gl.uniform3fv(u.uSkyTop, pal.sky); gl.uniform3fv(u.uSkyLow, pal.fog); gl.uniform3fv(u.uFar, pal.far); gl.uniform3fv(u.uNear, pal.near);
-  gl.uniform3fv(u.uMoonC, pal.moon); gl.uniform3fv(u.uStar, pal.lit); gl.uniform3fv(u.uMistC, mistC);
-  gl.uniform1f(u.uFocal, cam.focal); gl.uniform1f(u.uShift, cam.shift); gl.uniform1f(u.uDay, day); gl.uniform1f(u.uMist, mist);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true);
+  gl.disable(gl.CULL_FACE);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.clear(gl.DEPTH_BUFFER_BIT);
-  gl.useProgram(main.p); gl.bindVertexArray(c.vao);
-  u = main.u;
+  gl.useProgram(face.p); gl.bindVertexArray(c.fVao);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, c.tex);
+  let u = face.u;
   gl.uniformMatrix4fv(u.uVP, false, cam.vp);
-  gl.uniform1fv(u.uDoor, view.doors);
-  gl.uniform3fv(u.uLight, LIGHT); gl.uniform3fv(u.uEye, cam.pos); gl.uniform3fv(u.uRim, pal.lit); gl.uniform3fv(u.uFog, pal.fog);
-  gl.uniform3fv(u.uWarm, pal.warm); gl.uniform3fv(u.uAmber, pal.amber); gl.uniform3fv(u.uLift, pal.lift);
-  gl.uniform3fv(u.uG0, pal.g0); gl.uniform3fv(u.uG1, pal.g1); gl.uniform3fv(u.uRoad, pal.road); gl.uniform3fv(u.uMistC, mistC);
-  gl.uniform1f(u.uDay, day); gl.uniform1f(u.uFogN, 9); gl.uniform1f(u.uFogD, pal.light ? 60 : 46);
-  gl.uniform1f(u.uLiftMix, lift.mix); gl.uniform1f(u.uLiftDoor, lift.door); gl.uniform1f(u.uTopY, model.top * PITCH + 2.3); gl.uniform1f(u.uMist, mist);
-  const lights = (view.lights || []).slice(0, 16), PL = new Float32Array(64), PC = new Float32Array(64);
-  lights.forEach((l, i) => { PL.set(l.slice(0, 4), i * 4); PC.set(l.slice(4, 8), i * 4); });
-  gl.uniform4fv(u.uPL, PL); gl.uniform4fv(u.uPC, PC); gl.uniform1i(u.uNL, lights.length);
-  gl.drawArrays(gl.TRIANGLES, 0, c.solid);
+  gl.uniform1fv(u.uDoor, state.doors);
+  gl.uniform1f(u.uReveal, reveal); gl.uniform1f(u.uTop, model.top);
+  gl.uniform3fv(u.uGround, pal.ground); gl.uniform3fv(u.uFaceLit, pal.faceLit);
+  gl.uniform3fv(u.uFaceShade, pal.faceShade); gl.uniform3fv(u.uFaceDeep, pal.faceDeep);
+  gl.uniform3fv(u.uTread, pal.tread); gl.uniform3fv(u.uRecess, pal.recess);
+  gl.uniform3fv(u.uWon, pal.won); gl.uniform3fv(u.uSignal, pal.signal);
+  gl.uniform3fv(u.uSignalCore, pal.signalCore); gl.uniform3fv(u.uGateLeaf, pal.gateLeaf);
+  gl.uniform3fv(u.uNumLit, pal.numLit); gl.uniform3fv(u.uNumMute, pal.numMute);
+  gl.uniform1f(u.uCurFloor, curFloor); gl.uniform1f(u.uLiftDoor, lift.door);
+  gl.uniform1f(u.uLiftMix, lift.mix); gl.uniform1f(u.uDiveDim, diveDim);
+  gl.uniform1f(u.uHC, pal.hc ? 1 : 0); gl.uniform1i(u.uNumTex, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, c.fCount);
 
-  /* the soft things over the stone: the cloud's two sheets, the further from the camera first, then the lamps' light in the air */
-  const glows = view.glows || [], S = new Float32Array((12 + glows.length * 6) * 9), far = 900;
-  let n = 0;
-  const put = (p, q, col) => { S.set(p, n); S.set(q, n + 3); S.set(col, n + 5); n += 9; };
-  for (const y of cam.pos[1] > YC ? [YC - .1, YC + .1] : [YC + .1, YC - .1]) {
-    for (const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]]) put([x * far, y, z * far], [0, 0], [0, 0, 0, 0]);
-  }
-  for (const gl0 of glows) for (const q of [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]]) put(gl0.slice(0, 3), q, [gl0[4], gl0[5], gl0[6], gl0[3]]);
-  gl.useProgram(soft.p); gl.bindVertexArray(c.svao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, c.sbuf); gl.bufferData(gl.ARRAY_BUFFER, S, gl.DYNAMIC_DRAW);
-  u = soft.u;
-  gl.uniformMatrix4fv(u.uVP, false, cam.vp); gl.uniform3fv(u.uRt, cam.rt); gl.uniform3fv(u.uUp, cam.up); gl.uniform3fv(u.uEye, cam.pos);
-  gl.uniform3fv(u.uMoonD, MOON); gl.uniform3fv(u.uFog, pal.fog); gl.uniform3fv(u.uCloudLo, pal.cloudLo); gl.uniform3fv(u.uCloudHi, pal.cloudHi);
-  gl.uniform3fv(u.uMoonC, pal.moon); gl.uniform3fv(u.uMistC, mistC); gl.uniform1f(u.uTime, view.time || 0); gl.uniform1f(u.uMist, mist);
-  gl.uniform1f(u.uOut, (1 - lift.mix) * (pal.light ? .45 : 1));
-  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
-  gl.uniform1f(u.uMode, 0);
-  for (let i = 0; i < 2; i++) { gl.uniform1f(u.uLayer, i); gl.drawArrays(gl.TRIANGLES, i * 6, 6); }
-  if (glows.length) { gl.uniform1f(u.uMode, 1); gl.drawArrays(gl.TRIANGLES, 12, glows.length * 6); }
+  gl.depthMask(false);
+  gl.useProgram(line.p); gl.bindVertexArray(c.lVao);
+  u = line.u;
+  gl.uniformMatrix4fv(u.uVP, false, cam.vp);
+  gl.uniform2f(u.uRes, w, h); gl.uniform1f(u.uDpr, dpr);
+  gl.uniform1f(u.uHairPx, pal.hairPx); gl.uniform1f(u.uRulePx, pal.rulePx);
+  gl.uniform1f(u.uCurFloor, curFloor); gl.uniform1f(u.uActiveDoor, activeDoor);
+  gl.uniform1f(u.uReveal, reveal);
+  gl.uniform3fv(u.uRule, pal.rule); gl.uniform3fv(u.uRuleSub, pal.ruleSub);
+  gl.uniform3fv(u.uRuleLit, pal.ruleLit); gl.uniform3fv(u.uSignal, pal.signal);
+  gl.uniform3fv(u.uHL, pal.hl); gl.uniform1f(u.uHC, pal.hc ? 1 : 0);
+  gl.uniform1f(u.uHeld, held); gl.uniform1f(u.uDiveDim, diveDim);
+  gl.drawArrays(gl.TRIANGLES, 0, c.lCount);
   gl.depthMask(true);
 
   const g = out.getContext("2d");

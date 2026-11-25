@@ -362,17 +362,14 @@
    exception is Mega Evolution's symbol. In dark the tokens are set to the night inside the arena; in light the strips, the plates
    and the message window take the site's own light tokens (2026-11-06: a night frame round a paper stage read as dark mode left on).
    ========================================================================== */
-:root:not([data-theme="light"]) :is(.bt-arena, .tw, .tw-veil) {
-  --lit: #FFFFFF; --dim: #9FB3D8; --mute: #5C6F94; --ground: #050D1F; --panel: #0A1A3A; --panel-2: #12295A; --rule: #1B3A78; --tint: #0A1A3A;
+:root:not([data-theme="light"]) .bt-arena {
+  --lit: #FFFFFF; --dim: #9FB3D8; --mute: #5C6F94; --ground: var(--navy); --panel: var(--navy); --panel-2: var(--navy); --rule: #1B3A78; --tint: var(--navy-1);
 }
-/* the frame round the stage stands on the page's own ground with no panels (2026-11-24, the almanac); the tower keeps its tones above, which
-   towerGL.js reads for the picture */
-:root:not([data-theme="light"]) .bt-arena { --ground: var(--navy); --panel: var(--navy); --panel-2: var(--navy); --tint: var(--navy-1); }
-/* 고대비 (2026-11-24): the arena and the tower take the page's own high-contrast tokens (tokens.css), so the battle is not the one navy room */
-:root[data-contrast="more"] :is(.bt-arena, .tw, .tw-veil) {
+/* 고대비 (2026-11-24): the arena takes the page's own high-contrast tokens (tokens.css); the tower inherits :root tokens directly */
+:root[data-contrast="more"] .bt-arena {
   --lit: var(--white); --dim: var(--hc-ink-1); --mute: var(--hc-ink-2); --ground: var(--hc-black); --panel: var(--hc-black); --panel-2: var(--hc-black); --rule: var(--hc-line); --tint: var(--hc-step);
 }
-:root[data-theme="light"][data-contrast="more"] :is(.bt-arena, .tw, .tw-veil) {
+:root[data-theme="light"][data-contrast="more"] .bt-arena {
   --lit: var(--hc-black); --dim: var(--hc-ink-3); --mute: var(--hc-ink-4); --ground: var(--white); --panel: var(--white); --panel-2: var(--white); --rule: var(--hc-black); --tint: var(--hc-step-light);
 }
 .bt-arena {

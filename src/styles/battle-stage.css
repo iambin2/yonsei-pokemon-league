@@ -75,63 +75,30 @@
   .bt-stagebox .bs-stage.hud .bs-slot:is([data-pos="foe-d0"], [data-pos="foe-d1"]) { height: min(33%, 28vw); bottom: 55%; }
 }
 
-/* ---------- 도전의 탑's tower (tower.js, towerGL.js; DESIGN.md "Battle", 도전의 탑, The tower; the tenth pass 2026-11-16) ----------
-   The run's own scene, as the court is a battle's: a round stone tower whose terrace winds up round it, standing on its plaza among
-   a wood under a sea of cloud and a moon, modelled in 3D by towerGL.js from these tones (the night behind it is the model's too).
-   The scene's own tones are mixed from the board's (none of them a new hue): the wall lit (b) and shaded (e), the stone, the treads,
-   the doorways' dark (pane) and a won room's warm, the sky from its top to the horizon's tone that distance closes into, the plaza
-   (g0) and the fields (g1); towerGL.js steps between them for the ridges, the cloud, the wood and the road. .tw is the scene laid
-   over a stage; .tw-hall the same scene on the tab */
-.tw {
-  position: absolute; inset: 0; overflow: hidden; background: var(--ground); color: var(--lit);
-  --tw-b: color-mix(in srgb, var(--rule), var(--lit) 12%); --tw-e: color-mix(in srgb, var(--panel), var(--ground) 70%);
-  --tw-sky-top: color-mix(in srgb, var(--ground), black 28%); --tw-sky-low: color-mix(in srgb, var(--panel-2), var(--rule) 40%);
-  --tw-pane: color-mix(in srgb, var(--ground), black 30%); --tw-warm: color-mix(in srgb, var(--lit), var(--signal) 26%);
-  --tw-stone: color-mix(in srgb, var(--rule), var(--lit) 16%); --tw-tread: color-mix(in srgb, var(--rule), var(--lit) 22%);
-  --tw-plaza: color-mix(in srgb, var(--panel), var(--ground) 30%);
-  --tw-g0: color-mix(in srgb, var(--tw-plaza), var(--tw-sky-low) 30%); --tw-g1: color-mix(in srgb, var(--tw-plaza), black 25%);
-}
-/* the box stands in the page's own ground until the scene's first frame covers it: in dark the scene's tones read a deeper ground
-   (battle.css), and the box in it stood as a near-black slab on the tab for some 450 before the tower came in (2026-11-24); the veil
-   walked into through a door (streak.css .tw-veil) is the page's ground the same way */
-:root:not([data-theme="light"]) :is(.tw, .tw-veil) { background: var(--navy); }
-:root[data-theme="light"] .tw {
-  --tw-day: 1;
-  --tw-b: var(--white); --tw-e: color-mix(in srgb, var(--paper-3), var(--slate) 45%);
-  /* a pale blue day: the board's mist, deepening up */
-  --tw-sky-top: color-mix(in srgb, var(--mist) 62%, var(--white)); --tw-sky-low: color-mix(in srgb, var(--mist) 12%, var(--white));
-  --tw-pane: color-mix(in srgb, var(--slate), var(--navy) 40%); --tw-warm: color-mix(in srgb, var(--white), var(--amber) 22%);
-  --tw-stone: var(--white); --tw-tread: var(--white);
-  --tw-g0: var(--paper-2); --tw-g1: var(--paper-1);
-}
-/* 고대비 (2026-11-24): the tower on pure black, its walls near white and grey and its doors black, no navy night or blue mist; in light
-   the same on white with grey shades and black doors. The box under it is the page's own ground. */
-:root[data-contrast="more"] :is(.tw, .tw-veil) { background: var(--ground); }
-:root[data-contrast="more"] .tw {
-  --tw-b: var(--hc-ink-1); --tw-e: var(--hc-step); --tw-sky-top: var(--hc-black); --tw-sky-low: var(--hc-black); --tw-pane: var(--hc-black);
-  --tw-stone: var(--hc-line); --tw-tread: var(--hc-line); --tw-g0: var(--hc-step); --tw-g1: var(--hc-black);
-}
-:root[data-theme="light"][data-contrast="more"] .tw {
-  --tw-b: var(--white); --tw-e: var(--hc-line); --tw-sky-top: var(--white); --tw-sky-low: var(--white); --tw-pane: var(--hc-black);
-  --tw-stone: var(--white); --tw-tread: var(--hc-step-light); --tw-g0: var(--hc-step-light); --tw-g1: var(--white);
-}
+/* ---------- 도전의 탑's tower (tower.js, towerGL.js; DESIGN.md "Battle", 도전의 탑, The tower; the Almanac Monolith pass 2026-11-25) ----------
+   An architectural monolith set directly on the page's own ground (--ground), with no box, no sky gradient, no fog and no glow:
+   towerGL.js reads the site's semantic tokens directly from :root (Dark, Light, High-Contrast Dark, High-Contrast Light) so every
+   theme switches in one frame with zero mesh rebuild. .tw is the scene laid over a stage; .tw-hall the same scene on the tab. */
+.tw { position: absolute; inset: 0; overflow: hidden; background: var(--ground); color: var(--lit); }
 .tw.over { z-index: var(--z-sticky); }
-/* the tab's tower turns under a hand (tower.js hand); a finger's way up and down stays the page's scroll */
-/* 16 to 10 on every width (2026-11-18: at 10 to 11 on a phone the run's panel stood under the docked key on the first screen) */
+/* the tab's tower answers a hand (tower.js hand); on a phone vertical touch stays the page's scroll */
 .tw-hall { position: relative; inset: auto; aspect-ratio: 16 / 10; max-height: 72vh; width: 100%; cursor: grab; touch-action: pan-y; user-select: none; }
 .tw-hall.held { cursor: grabbing; }
 .tw-cam { position: absolute; inset: 0; }
-/* the model (towerGL.js) painted on its canvas; its tones are read from the properties above */
-.tw-cam > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* the month's other climbers where they stand (tower.js climbersHTML): a hairline from their lantern on the terrace out into the night, and
-   in one column to the right their name over their streak, as a drawing is labelled. No box and no mark on the tower: the line and
-   the words stand on the night. The run's own floor's are lit, the others dim; a run being played has the amber lamp by its name */
+.tw-cam > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* the month's other climbers by floor (tower.js climbersHTML): horizontal architectural dimension lines from each floor's right
+   terrace edge to the right column (floor and count). No box: the line and words stand on the page's own ground. */
 .tw-leads { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.tw-leads path { fill: none; stroke: var(--dim); stroke-width: 1px; opacity: .5; }
-.tw-leads path.on { stroke: var(--lit); opacity: .62; }
-.tw-tag { position: absolute; transform: translateY(-50%); display: grid; max-width: 40%; color: var(--dim); white-space: nowrap; pointer-events: none; }
-.tw-tag > b { display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; font-weight: 600; }
+.tw-leads path { fill: none; stroke: var(--rule); stroke-width: 1px; }
+.tw-leads path.on { stroke: var(--lit); stroke-width: 1.5px; }
+:root[data-contrast="more"] .tw-leads path { stroke: var(--rule); stroke-width: 1.5px; }
+:root[data-contrast="more"] .tw-leads path.on { stroke: var(--act); stroke-width: 2px; }
+.tw-tag { position: absolute; transform: translateY(-50%); display: flex; align-items: baseline; gap: 8px; max-width: 40%; color: var(--dim); white-space: nowrap; pointer-events: none; }
+.tw-tag > b { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; font-weight: 600; }
 .tw-tag > span { font-family: var(--font-fig); font-size: 15px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.tw-tag > span > small { margin-left: 2px; font-size: 12px; font-weight: 600; }
-.tw-tag.on { color: var(--lit); }
-.tw-tag.on > b { color: var(--dim); }
+.tw-tag > span > small { margin-left: 2px; font-size: 12px; font-weight: 400; color: var(--mute); }
+.tw-tag.on, .tw-tag.on > b { color: var(--lit); }
+.tw-tag.on > b { font-weight: 700; }
+.tw-tag.on > span > small { color: var(--dim); }
+:root[data-contrast="more"] .tw-tag.on,
+:root[data-contrast="more"] .tw-tag.on > b { color: var(--act); }
