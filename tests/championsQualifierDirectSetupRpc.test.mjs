@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const sql = readFileSync(new URL("../docs/db/champions_qualifier_direct_setup_rpc.sql", import.meta.url), "utf8");
-const brackets = readFileSync(new URL("../src/pages/BracketsPage.jsx", import.meta.url), "utf8");
+const brackets = readFileSync(new URL("../src/pages/brackets/BracketWizard.jsx", import.meta.url), "utf8");
 
 test("Qualifier setup persists direct applicant registrations before any Final facts", () => {
   assert.match(sql, /championship_qualifier_direct_selections/i);

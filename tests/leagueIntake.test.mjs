@@ -61,10 +61,16 @@ test("either league blocks notice deletion and identifies the league with downst
 // Only the transport is replaced. Execute the production service functions,
 // resolving real pure imports, without making any network/DB requests.
 const servicePath = new URL("../src/services/normalizedCompetitionService.js", import.meta.url);
+const dbSource = readFileSync(new URL("../src/services/normalizedDb.js", import.meta.url), "utf8")
+  .replace('import { supa as client } from "../storage.js";', 'const client={schema:()=>globalThis.__leagueIntakeTestDb};')
+  .replaceAll("import.meta.env", '({VITE_YPL_DATA_SCHEMA:"ypl_schema_validation"})');
+const dbUrl = `data:text/javascript;base64,${Buffer.from(dbSource).toString("base64")}`;
 const source = readFileSync(servicePath, "utf8")
   .replace('import { supa as client } from "../storage.js";', 'const client={schema:()=>globalThis.__leagueIntakeTestDb};')
   // the account's application goes through the visitor's connection, which these tests never open
   .replace('import { applyWithAccount } from "./visitorAuth.js";', 'const applyWithAccount=()=>{throw new Error("no account in this test");};')
+  .replace('from "./normalizedDb.js"', `from "${dbUrl}"`)
+  .replace(/export \{[^}]*\} from "\.\/normalizedParticipantService\.js";/, "")
   .replaceAll("import.meta.env", '({VITE_YPL_DATA_SCHEMA:"ypl_schema_validation"})')
   .replace(/from "(\.[^"]+)"/g, (_, path) => `from "${pathToFileURL(resolve(dirname(fileURLToPath(servicePath)),path)).href}"`);
 const service = await import(`data:text/javascript;base64,${Buffer.from(source + "\n//# sourceURL=league-intake-service-under-test.js").toString("base64")}`);

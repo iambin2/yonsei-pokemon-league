@@ -3,11 +3,18 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const news = readFileSync(new URL("../src/pages/NewsPage.jsx", import.meta.url), "utf8");
-const brackets = readFileSync(new URL("../src/pages/BracketsPage.jsx", import.meta.url), "utf8");
+const brackets = [
+  "../src/pages/BracketsPage.jsx",
+  "../src/pages/brackets/BracketWizard.jsx",
+  "../src/pages/brackets/BracketApply.jsx",
+].map(p => readFileSync(new URL(p, import.meta.url), "utf8")).join("\n");
 const controls = readFileSync(new URL("../src/components/ChampionsBracketControls.jsx", import.meta.url), "utf8");
 const championsService = readFileSync(new URL("../src/services/championsService.js", import.meta.url), "utf8");
 const championsCore = readFileSync(new URL("../src/services/championsCore.js", import.meta.url), "utf8");
-const normalizedService = readFileSync(new URL("../src/services/normalizedCompetitionService.js", import.meta.url), "utf8");
+const normalizedService = [
+  "../src/services/normalizedCompetitionService.js",
+  "../src/services/normalizedParticipantService.js",
+].map(p => readFileSync(new URL(p, import.meta.url), "utf8")).join("\n");
 
 test("Champions notice resolves the Final from the Qualifier relation and exposes separate submission routes", () => {
   assert.match(news, /resolveChampionshipSubmissionEvents\(announcement\.form\.eventId\)/);

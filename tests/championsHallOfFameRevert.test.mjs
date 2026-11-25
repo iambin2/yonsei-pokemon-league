@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const sql = readFileSync("docs/db/champions_application_event_pair_rpc.sql", "utf8");
 const service = readFileSync("src/services/championsService.js", "utf8");
-const page = readFileSync("src/pages/BracketsPage.jsx", "utf8");
+const page = readFileSync("src/pages/BracketsPage.jsx", "utf8") + "\n" + readFileSync("src/pages/brackets/BracketApply.jsx", "utf8");
 
 test("Champions Final HOF removal RPC is narrow, guarded, and admin-only", () => {
   assert.match(sql, /create or replace function ypl_schema_validation\.remove_championship_final_hall_of_fame\(/);

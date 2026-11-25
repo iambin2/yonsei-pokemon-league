@@ -4,6 +4,7 @@ import test from "node:test";
 
 const newsPage = readFileSync(new URL("../src/pages/NewsPage.jsx", import.meta.url), "utf8");
 const bracketsPage = readFileSync(new URL("../src/pages/BracketsPage.jsx", import.meta.url), "utf8");
+const bracketWizard = readFileSync(new URL("../src/pages/brackets/BracketWizard.jsx", import.meta.url), "utf8");
 const service = readFileSync(new URL("../src/services/normalizedCompetitionService.js", import.meta.url), "utf8");
 
 test("Event-linked public responses use normalized registration answers for both public views", () => {
@@ -21,7 +22,7 @@ test("Supabase-backed response views load once and expose only explicit refreshe
 
   const bracketBoard = bracketsPage.slice(
     bracketsPage.indexOf("function BracketBoard"),
-    bracketsPage.indexOf("/* ===== 기록 반영 모달 ===== */")
+    bracketsPage.indexOf("/* ===== 추첨 애니메이션 ===== */")
   );
   assert.doesNotMatch(bracketBoard, /setInterval/);
   assert.doesNotMatch(bracketBoard, /addEventListener\("focus"/);
@@ -36,7 +37,7 @@ test("successful Event application creation refetches only that Event registrati
 });
 
 test("bracket Event selection reuses loaded registrations for submission status", () => {
-  assert.match(bracketsPage, /statuses=await listEventRegistrationSubmissionStatuses\(id,realRegs\)/);
+  assert.match(bracketWizard, /statuses=await listEventRegistrationSubmissionStatuses\(id,realRegs\)/);
   assert.match(service, /listEventRegistrationSubmissionStatuses\(eventId, knownRegistrations = null\)/);
   assert.match(service, /if\(!Array\.isArray\(registrationRows\)\)/);
 });

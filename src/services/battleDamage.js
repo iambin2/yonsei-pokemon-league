@@ -84,9 +84,12 @@ export function commonSets(sets, ranker) {
     return { ability: "", item: "" };
   };
 }
+const RANDOM_SETS_URL = new URL("../data/random-sets.json", import.meta.url).href;
+const RANKER_TEAMS_URL = new URL("../data/ranker-teams.json", import.meta.url).href;
+const fetchJson = url => fetch(url).then(r => { if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); });
 export function loadCommonSets() {
-  loading ||= Promise.all([import("../data/random-sets.json"), import("../data/ranker-teams.json")])
-    .then(([s, r]) => { common = commonSets(s.default || s, r.default || r); cache.clear(); }, () => { loading = null; });
+  loading ||= Promise.all([fetchJson(RANDOM_SETS_URL), fetchJson(RANKER_TEAMS_URL)])
+    .then(([s, r]) => { common = commonSets(s, r); cache.clear(); }, () => { loading = null; });
   return loading;
 }
 // gen9championsbssregmc → m-c

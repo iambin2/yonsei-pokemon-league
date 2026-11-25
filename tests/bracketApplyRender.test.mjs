@@ -44,6 +44,8 @@ test("completed bracket opens record application with the supplied save callback
       : name.endsWith("components/index.js") ? { Button: "button", ErrorNote: "div", Field: "div", FormError: "p", Icon: "span", Loader: "div" }
       // the page's one hook from the shared parts: the list's arrival light, a ref that never lights here
       // the tab's title (layout/title.js) names the open bracket in the browser; nothing to name here
+      : name.endsWith("brackets/BracketApply.jsx") ? { __esModule: true, default: function BracketApply() {} }
+      : name.endsWith("brackets/BracketWizard.jsx") ? { __esModule: true, default: function BracketWizard() {} }
       : name.endsWith("layout/title.js") ? { useItemTitle() {} }
       : name.endsWith("common/Board.jsx") ? { useArrival: () => ({ current: null }) }
       : {},
@@ -86,7 +88,7 @@ for (const mode of ["single", "team"]) {
       id: "event-1", event_type: "pokecup", division: "master", is_team_event: mode === "team",
     } };
     const module = { exports: {} };
-    const source = readFileSync(new URL("../src/pages/BracketsPage.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/pages/brackets/BracketApply.jsx", import.meta.url), "utf8");
     const { code } = transformSync(`${source}\nexport { BracketApply };`, { loader: "jsx", format: "cjs" });
     vm.runInNewContext(code, {
       module, exports: module.exports,

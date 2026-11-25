@@ -147,7 +147,7 @@ test("Champions pair completion and HOF source make round_number the single ordi
 
 test("Champions pair and record-apply UI cannot expose a ranking payout", () => {
   const pairService = readFileSync("src/services/championsService.js", "utf8");
-  const bracketsPage = readFileSync("src/pages/BracketsPage.jsx", "utf8");
+  const bracketsPage = readFileSync("src/pages/brackets/BracketApply.jsx", "utf8");
   assert.match(pairService, /rankingEnabled:\s*false/);
   assert.match(bracketsPage, /챔피언스 성적은 랭킹에 반영되지 않습니다/);
   assert.match(bracketsPage, /const excluded=linked \? linkedPointPolicy\?\.enabled===false : manualExcluded/);

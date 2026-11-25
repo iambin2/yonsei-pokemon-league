@@ -75,6 +75,22 @@ export default defineConfig(({ command }) => {
     // 도메인을 떼고 iambin2.github.io/ypl-site/ 로 돌아가면 "/ypl-site/" 로 되돌리세요.
     base: "/",
     plugins: [react(), isProductionBuild && productionVersionPlugin()].filter(Boolean),
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const norm = id.replace(/\\/g, "/");
+            if (norm.includes("/node_modules/react/") || norm.includes("/node_modules/react-dom/") || norm.includes("/node_modules/scheduler/")) return "react-vendor";
+            if (norm.includes("/node_modules/@supabase/")) return "supabase-vendor";
+            if (norm.includes("/node_modules/@smogon/calc/dist/data/species.js") || norm.includes("/node_modules/@smogon/calc/dist/util.js")) return "smogon-species";
+            if (norm.includes("/node_modules/@smogon/calc/")) return "smogon-calc";
+            if (/\/src\/pages\/battle\/(gl\.js|arena\.js|atlas\.js|stageCamera\.js)$/.test(norm)) return "battle-gl";
+            if (/\/src\/pages\/battle\/(Stage\.jsx|moveFx\.js|stageFx\.js)$/.test(norm) || norm.endsWith("/src/data/move-fx.json")) return "battle-stage";
+            if (/\/src\/pages\/battle\/(Streak\.jsx|tower\.js|towerGL\.js)$/.test(norm) || norm.endsWith("/src/data/species-power.json")) return "battle-tower";
+          },
+        },
+      },
+    },
     worker: { format: "es", plugins: () => [leaveOutOldLearnsets(), keepNames()] },
   };
 });
