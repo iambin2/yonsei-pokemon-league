@@ -80,16 +80,18 @@ function AccountButton({ onNavigate }) {
 /* 바는 바탕 톤에 아래 머리카락 선 하나, 움직이지 않는다. 폰은 Wing Y와 워드마크, 오른쪽 끝에 테마 버튼.
    데스크톱(860 이상)은 1200 안에 브랜드, 화면 이름(지금 화면은 아래 2px 선), 테마 버튼. 넓은 데스크톱은 더보기가 없어
    관리자 로그인이 바닥글에 선다(SiteFooter).
-   테마 버튼(2026-11-24, 운영자 A안): 누르면 바로 바꾸지 않고 버튼 아래에 더보기의 화면과 같은 네 갈래(어둡게, 밝게, 고대비, 기기 설정)를
-   메뉴로 연다. 고르면 그 자리에서 바뀌고 닫힌다. 아이콘은 지금 상태다: 다크는 해, 라이트는 달, 고대비는 반이 찬 원. 폰은 같은 줄이 시트로 뜬다. */
-export default function SiteHeader({ view, onNavigate, dark, themePref = "dark", onTheme, moreOpen, onMore, live = null }) {
+   테마 버튼(2026-11-24, 운영자 A안; 2026-11-26 고대비 스위치 분리): 누르면 버튼 아래에 더보기의 화면과 같은 세 갈래(어둡게, 밝게,
+   기기 설정)와 고대비 스위치를 메뉴로 연다. 테마를 고르면 그 자리에서 바뀌고 닫히며, 고대비 스위치는 메뉴를 연 채로 켜고 끈다.
+   아이콘은 지금 상태다: 고대비가 켜지면 반이 찬 원, 아니면 다크는 해, 라이트는 달. 폰은 같은 줄이 시트로 뜬다. */
+export default function SiteHeader({ view, onNavigate, dark, themePref = "dark", onTheme, contrast = false, onToggleContrast, moreOpen, onMore, live = null }) {
   const wide = useWideNav();
   const cur = tabOf(view, wide);
   const navRef = useSlideLine(`${cur}:${wide}`);
   const themeRef = useRef(null);
   const [themeOpen, setThemeOpen] = useState(false);
-  const icon = themePref === "contrast" ? "contrast" : dark ? "sun" : "moon";
-  const themeLabel = `화면, 지금 ${THEMES.find(([key]) => key === themePref)?.[1] || "어둡게"}`;
+  const icon = contrast ? "contrast" : dark ? "sun" : "moon";
+  const themeName = THEMES.find(([key]) => key === themePref)?.[1] || "어둡게";
+  const themeLabel = `화면, 지금 ${themeName}${contrast ? ", 고대비" : ""}`;
   return (
     <header className="topbar">
       <a href={viewHref("home")} className="brand" onClick={follow(() => onNavigate("home"))} aria-label="YPL 홈으로">
@@ -111,7 +113,11 @@ export default function SiteHeader({ view, onNavigate, dark, themePref = "dark",
         <Icon key={icon} n={icon} size={24} />
       </button>
       {themeOpen && <Menu anchor={themeRef} title="화면" onClose={() => { setThemeOpen(false); themeRef.current?.focus({ preventScroll: true }); }}
-        items={THEMES.map(([key, label]) => ({ key, label, current: key === themePref, onSelect: () => { if (key !== themePref) onTheme?.(key); } }))} />}
+        items={[
+          ...THEMES.map(([key, label]) => ({ key, label, current: key === themePref, onSelect: () => { if (key !== themePref) onTheme?.(key); } })),
+          { key: "sep-contrast", sep: true },
+          { key: "contrast", label: "고대비", checked: contrast, keepOpen: true, onSelect: () => onToggleContrast?.() },
+        ]} />}
     </header>
   );
 }

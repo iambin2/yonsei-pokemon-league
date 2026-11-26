@@ -108,24 +108,39 @@ export default function App() {
   const litOnce=useRef(false);
   const firstLight=()=>{ if(litOnce.current)return; litOnce.current=true; if(view!=="home") light(document.getElementById("ypl-main")); };
   // 다크가 첫 방문이다(스코어보드). 고른 기록이 라이트면 라이트, "system"이면 기기의 설정을 따른다.
-  // 예전 키는 열 때마다 저장돼 고른 기록이 아니라서 쓰지 않는다.
+  // 예전 키는 열 때마다 저장돼 고른 기록이 아니라서 쓰지 않는다. 예전에 "contrast"로 저장된 기록은 다크 + 고대비로 이어받는다.
   const [themePref,setThemePref]=useState(()=>{
-    try{ const t=localStorage.getItem("ypl-theme"); return t==="light"||t==="system"||t==="contrast"?t:"dark"; }catch(e){ return "dark"; }
+    try{ const t=localStorage.getItem("ypl-theme"); return t==="light"||t==="system"?t:"dark"; }catch(e){ return "dark"; }
+  });
+  const [contrastPref,setContrastPref]=useState(()=>{
+    try{
+      const c=localStorage.getItem("ypl-contrast");
+      if(c==="more"||c==="normal") return c;
+      return localStorage.getItem("ypl-theme")==="contrast"?"more":null;
+    }catch(e){ return null; }
   });
   const lightQuery=useMemo(()=>typeof matchMedia==="function"?matchMedia("(prefers-color-scheme: light)"):null,[]);
   const [systemLight,setSystemLight]=useState(()=>Boolean(lightQuery?.matches));
   useEffect(()=>{ if(!lightQuery)return; const on=e=>setSystemLight(e.matches); lightQuery.addEventListener("change",on); return ()=>lightQuery.removeEventListener("change",on); },[lightQuery]);
   const dark=themePref==="system"?!systemLight:themePref!=="light";
-  // 기기 설정 also follows the device's own contrast setting (prefers-contrast: more), in either theme
+  // 기기 설정 also follows the device's own contrast setting (prefers-contrast: more) unless the user toggled 고대비 explicitly
   const contrastQuery=useMemo(()=>typeof matchMedia==="function"?matchMedia("(prefers-contrast: more)"):null,[]);
   const [systemContrast,setSystemContrast]=useState(()=>Boolean(contrastQuery?.matches));
   useEffect(()=>{ if(!contrastQuery)return; const on=e=>setSystemContrast(e.matches); contrastQuery.addEventListener("change",on); return ()=>contrastQuery.removeEventListener("change",on); },[contrastQuery]);
-  const contrast=themePref==="contrast"||(themePref==="system"&&systemContrast);
+  const contrast=contrastPref==="more"||(contrastPref===null&&themePref==="system"&&systemContrast);
   /* B6: 화면은 그 자리에 있고 색만 한 프레임에 바뀐다. 아무것도 움직이지 않는다. */
   const chooseTheme=useCallback((pref)=>{
     try{ localStorage.setItem("ypl-theme", pref); }catch(e){}
     themeTurn(()=>flushSync(()=>setThemePref(pref)));
   },[]);
+  const toggleContrast=useCallback(()=>{
+    const next=contrast?"normal":"more";
+    try{
+      localStorage.setItem("ypl-contrast", next);
+      if(localStorage.getItem("ypl-theme")==="contrast") localStorage.setItem("ypl-theme", "dark");
+    }catch(e){}
+    themeTurn(()=>flushSync(()=>setContrastPref(next)));
+  },[contrast]);
   /* 테마는 <html> 에 건다 — 페이지, 오버스크롤 영역, 스크롤바, 브라우저 주소창 색이 한 바탕을 쓴다. */
   useLayoutEffect(()=>{
     const root=document.documentElement;
@@ -306,7 +321,7 @@ export default function App() {
     <div className={"ypl"+(admin?" is-admin":"")}>
       {/* 키보드로 들어온 사람은 매번 바 전체를 지나야 본문에 닿았다. */}
       <a className="skip-link" href="#ypl-main">본문으로 건너뛰기</a>
-      <SiteHeader view={going||view} onNavigate={go} dark={dark} themePref={themePref} onTheme={chooseTheme} live={live}
+      <SiteHeader view={going||view} onNavigate={go} dark={dark} themePref={themePref} onTheme={chooseTheme} contrast={contrast} onToggleContrast={toggleContrast} live={live}
         moreOpen={Boolean(more)} onMore={toggleMore}/>
 
       <div className="wrap"><main className={"page"+(data?"":" page--wait")+(going?" is-going":"")} id="ypl-main" tabIndex={-1} key={view}>
@@ -317,7 +332,7 @@ export default function App() {
         {view==="about"&&<AboutPage go={go} data={shown} admin={admin}/>}
         {view==="privacy"&&<PrivacyPage/>}
         {view==="alerts"&&<AlertsPage go={go}/>}
-        {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} admin={admin} onAdmin={onAdmin}/>}
+        {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} contrast={contrast} onToggleContrast={toggleContrast} admin={admin} onAdmin={onAdmin}/>}
         {view==="news"&&<NewsPage data={shown} siteFailed={siteFailed} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
         {view==="board"&&<BoardPage data={shown} admin={admin} save={save} flash={flash} go={go}/>}
         {view==="records"&&<RecordsPage data={shown} admin={admin} setModal={setModal} save={save} go={go}/>}

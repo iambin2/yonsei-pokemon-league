@@ -153,13 +153,15 @@
   position: relative; display: flex; align-items: center; gap: var(--s3); width: 100%; height: 52px; padding: 0 var(--pad); font-size: var(--t15); line-height: 1; font-weight: 600; text-align: left; color: var(--lit);
 }
 .mi > .ic:first-child { color: var(--dim); }
-.mi .check, .mi .mi-end { margin-left: auto; color: var(--lit); }
+.mi .check, .mi .mi-end, .mi .sw { margin-left: auto; }
+.mi .check, .mi .mi-end { color: var(--lit); }
 .mi .mi-end { color: var(--mute); }
 .mi.on { font-weight: 700; }
 @media (hover: hover) { .mi:hover { background: var(--tint); } .popover .mi:hover { background: var(--rule); } }
 .mi:focus-visible { outline: none; background: var(--tint); }
 .popover .mi:focus-visible { background: var(--rule); }
 .mi-sep { height: var(--seam); background: var(--ground); }
+.modal > .menu .mi-sep { height: var(--hair); background: var(--rule); }
 .popover { position: fixed; z-index: var(--z-popover); min-width: calc(var(--s21) * 2 + var(--s13)); padding: 0; background: var(--tint); }
 .popover .mi { height: 44px; font-size: var(--t15); }
 

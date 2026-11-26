@@ -424,4 +424,6 @@
 :root[data-contrast="more"] .bar.thick .on { fill: var(--act); }
 :root[data-contrast="more"] :is(.q .in:focus-visible, .search-in:has(input:focus), .ctl-row > .search > .search-in:has(input:focus), .dd.open .dd-btn, .cell:has(.dd.open),
   :where(.ypl) :is(input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])), textarea):focus) { box-shadow: inset 0 calc(var(--line) * -1) 0 var(--act); }
+@media (hover: hover) { :root[data-contrast="more"] :is(.popover .mi:hover, .dd-opt:hover:not(:disabled)) { background: var(--ground); } }
+:root[data-contrast="more"] :is(.popover .mi:focus-visible, .dd-opt:focus-visible) { background: var(--ground); outline: var(--line) solid var(--hl); outline-offset: calc(var(--line) * -1); }
 :root[data-contrast="more"] :is(:focus-visible:not(.btn--main, .skip-link), .choice-opt:has(:focus-visible), .cell:has(.dd-btn:focus-visible), .opt-row:has(:focus-visible), .bar:has(:focus-visible)) { outline-color: var(--hl); }

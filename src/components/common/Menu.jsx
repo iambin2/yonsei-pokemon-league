@@ -28,14 +28,19 @@ export function MenuItems({ items, onPick, role = "menu" }) {
     <div className="menu" role={role} ref={ref}>
       {items.map(it => {
         if (it.sep) return <div key={it.key} className="mi-sep" role="separator" />;
+        const isToggle = typeof it.checked === "boolean";
+        const rowRole = isToggle ? "menuitemcheckbox" : itemRole;
         const inner = <>{it.icon && <Icon n={it.icon} size={20} />}<span>{it.label}</span>
           {it.href && <Icon n="ext" size={16} className="mi-end" />}
-          {it.current && <Icon n="check" size={20} className="check" />}</>;
+          {isToggle && <span className={"sw" + (it.checked ? " on" : "")} aria-hidden="true"><i /></span>}
+          {!isToggle && it.current && <Icon n="check" size={20} className="check" />}</>;
         return it.href
           ? <a key={it.key} className="mi press" role={itemRole} href={it.href} target="_blank" rel="noopener noreferrer" onClick={() => onPick?.(it)}>{inner}</a>
-          : <button key={it.key} type="button" className={"mi" + (it.current ? " on" : "")} role={itemRole}
-            aria-selected={role === "listbox" ? Boolean(it.current) : undefined} aria-current={role === "menu" && it.current ? "true" : undefined}
-            disabled={it.disabled} onClick={() => { onPick?.(it); it.onSelect?.(); }}>{inner}</button>;
+          : <button key={it.key} type="button" className={"mi" + (it.current ? " on" : "")} role={rowRole}
+            aria-selected={role === "listbox" ? Boolean(it.current) : undefined}
+            aria-current={!isToggle && role === "menu" && it.current ? "true" : undefined}
+            aria-checked={isToggle ? Boolean(it.checked) : undefined}
+            disabled={it.disabled} onClick={() => { if (!it.keepOpen) onPick?.(it); it.onSelect?.(); }}>{inner}</button>;
       })}
     </div>
   );

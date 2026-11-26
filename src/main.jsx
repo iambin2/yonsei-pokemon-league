@@ -42,8 +42,14 @@ function bootTheme() {
 }
 const bootDark = bootTheme();
 document.documentElement.dataset.theme = bootDark ? "dark" : "light";
-// 고대비: chosen, or 기기 설정 on a device asking for more contrast (App.jsx keeps it in step afterwards)
-try { const t = localStorage.getItem("ypl-theme"); if (t === "contrast" || (t === "system" && matchMedia("(prefers-contrast: more)").matches)) document.documentElement.dataset.contrast = "more"; } catch (e) { /* the default contrast */ }
+// 고대비: toggled on, migrated from legacy ypl-theme="contrast", or 기기 설정 on a device asking for more contrast (App.jsx keeps it in step afterwards)
+try {
+  const t = localStorage.getItem("ypl-theme");
+  const c = localStorage.getItem("ypl-contrast");
+  if (c === "more" || (c !== "normal" && (t === "contrast" || (t === "system" && matchMedia("(prefers-contrast: more)").matches)))) {
+    document.documentElement.dataset.contrast = "more";
+  }
+} catch (e) { /* the default contrast */ }
 document.documentElement.style.colorScheme = bootDark ? "dark" : "light";
 
 /* 막대(Bar)의 굵기를 기기 화소에 맞추는 단위: 한 기기 화소의 CSS 길이. 125%, 150% 배율에서 2px는 반 화소에 걸려 행마다 2와 3으로 달리

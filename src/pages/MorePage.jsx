@@ -77,7 +77,7 @@ function MyAccount({ go, account, fresh }) {
   </div>;
 }
 
-export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
+export default function MorePage({ go, themePref, onTheme, contrast = false, onToggleContrast, admin, onAdmin }) {
   const fresh = useNewAlerts();
   const account = useAccount();
   const own = accountsEnabled() && Boolean(account);
@@ -102,6 +102,12 @@ export default function MorePage({ go, themePref, onTheme, admin, onAdmin }) {
           {/* Choice's radiogroup takes no name of its own (Board.jsx), so the group around it carries one */}
           <div role="group" aria-label="테마">
             <Choice name="theme" options={THEMES.map(([, label]) => label)} value={THEMES.find(([key]) => key === themePref)?.[1]} onChange={v => { const key = THEMES.find(([, label]) => label === v)?.[0]; if (key && key !== themePref) onTheme(key); }} />
+          </div>
+          <div className="stack">
+            <button type="button" className="pn row switch-row" role="switch" aria-checked={contrast} onClick={onToggleContrast}>
+              <span className="row-main"><b className="t15">고대비</b></span>
+              <span className={"sw" + (contrast ? " on" : "")} aria-hidden="true"><i /></span>
+            </button>
           </div>
         </div>
         <div className="more-group">

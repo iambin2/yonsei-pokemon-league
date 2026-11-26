@@ -259,9 +259,8 @@ test("the bars stand still: nothing moves the top bar or the tab bar (Bars and n
 });
 test("dark is the first visit; a chosen theme is stored and set before the first paint (Colour and light)", () => {
   assert.match(src("index.html"), /localStorage\.getItem\("ypl-theme"\)[\s\S]*?t==="light"/);
-  // anything but a stored "light", "system" or "contrast" (the dark board lit higher, 2026-11-22) opens dark; "system" follows the device,
-  // before the first paint too
-  assert.match(src("src/App.jsx"), /t==="light"\|\|t==="system"\|\|t==="contrast"\?t:"dark"/);
+  // anything but a stored "light" or "system" opens dark; "system" follows the device, before the first paint too (고대비 is its own toggle)
+  assert.match(src("src/App.jsx"), /t==="light"\|\|t==="system"\?t:"dark"/);
   assert.match(src("index.html"), /t==="system"\)t=matchMedia\("\(prefers-color-scheme: light\)"\)/);
 });
 
