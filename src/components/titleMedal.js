@@ -22,7 +22,6 @@ const parts = (c, ...ds) => { for (const d of ds) c.fill(P(d)); };
 
 /* ---------- geometry in a 100 space (outer ring 47.5, solid disc 40.5) ---------- */
 const BIG = 768, SMALL = 384, C = 50, OUTER = 47.5, DISC = 40.5, FIT = .68, REACH = .88;
-const LIGHT_TYPES = new Set(["electric", "ice", "normal", "rock"]);
 
 let S = BIG, K = S / 100;
 const layer = (size = S) => {
@@ -103,13 +102,15 @@ const MONKEYS = ["pansage", "pansear", "panpour"].map(slug => `${BASE_URL}sprite
 
 /* ---------- devices drawn for single titles (original, razor-sharp in a 100 box) ---------- */
 const DEVICES = {
-  /* 끝말잇기: an open book of Hangul, ㄱ and ㅎ cleanly cut into its pages */
+  /* 끝말잇기: an open book of Hangul — two curved pages cleanly parted at the spine, with ㄱ and ㅎ cut in */
   hangul: c => {
-    c.fill(P("M50 28C39 20 22 18 6 22L6 80C22 76 39 78 50 86C61 78 78 76 94 80L94 22C78 18 61 20 50 28Z"));
+    parts(c,
+      "M47.6 28.5C37 20.5 21 18 6 22L6 80C21 76 37 78.5 47.6 86.5Z",
+      "M52.4 28.5C63 20.5 79 18 94 22L94 80C79 76 63 78.5 52.4 86.5Z"
+    );
     cut(c, () => {
-      c.fillRect(48.2, 29, 3.6, 56);
       c.font = "700 35px Freesentation"; c.textAlign = "center"; c.textBaseline = "middle";
-      c.fillText("ㄱ", 27.5, 52); c.fillText("ㅎ", 72.5, 52);
+      c.fillText("ㄱ", 26.8, 52); c.fillText("ㅎ", 73.2, 52);
     });
   },
   /* 스승: a torch handing its flame on, clean continuous flame curve */
@@ -117,22 +118,22 @@ const DEVICES = {
     c.fill(P("M52 4C57 17 72 27 70 42C68 53 59 58 50 58C41 58 32 53 30 42C29 34 33 27 38 22C38 29 41 33 46 33C44 23 46 13 52 4Z"));
     parts(c, "M26 62L74 62L68 72L32 72Z", "M36 75L64 75L57 96L43 96Z");
   },
-  /* 제자: 유기적으로 휘어 오르는 새싹 — S자 곡선 줄기, 잎맥이 패인 비대칭 두 잎, 부드러운 초승달 대지 */
+  /* 제자: 대지에서 유려하게 한 몸으로 뻗어 오르는 새싹 — 매끄러운 흙 호, 이음새 없는 곡선 줄기, 비대칭 두 잎과 가늘어지는 잎맥 */
   sprout: c => {
-    // Graceful curved crescent soil arc at base
-    c.fill(P("M20 90Q50 76 80 90Q50 85 20 90Z"));
-    // Organic tapering S-curved stem rising from the earth
-    c.fill(P("M46 84C45 69 47 56 50 42L54 42C52 56 51 69 54 84Z"));
-    // Left sculpted leaf (curved, pointed, natural tension)
-    c.fill(P("M49 56C47 36 33 22 10 21C11 45 27 59 49 56Z"));
-    // Right higher sculpted leaf
-    c.fill(P("M51 48C53 26 68 12 91 12C90 36 74 51 51 48Z"));
-    // Crisp organic central vein cuts curving into each leaf
+    // Graceful crescent earth mound at base
+    c.fill(P("M16 91Q50 77 84 91Q50 85 16 91Z"));
+    // Organic stem flaring seamlessly from the earth and tucking cleanly into the leaf junction (zero exposed ends)
+    c.fill(P("M37 88C45 84 46 72 47 51L53 51C53 72 55 84 63 88Z"));
+    // Left gracefully arching leaf flowing seamlessly out of the stem
+    c.fill(P("M50 53C46 35 31 23 11 26C15 47 31 58 50 53Z"));
+    // Right higher unfurling leaf overlapping cleanly at the V junction
+    c.fill(P("M48 51C51 27 67 13 89 15C85 39 69 52 48 51Z"));
+    // Fluid tapered central leaf veins curving along each blade
     cut(c, () => {
-      c.lineWidth = 3.2; c.lineCap = "round"; c.beginPath();
-      c.moveTo(46, 52); c.quadraticCurveTo(33, 41, 21, 31);
-      c.moveTo(54, 44); c.quadraticCurveTo(67, 32, 80, 22);
-      c.stroke();
+      parts(c,
+        "M43 47C35 39 27 34 18 32C26 37 33 43 40 50C42 50.5 44 48.5 43 47Z",
+        "M55 44C64 34 73 27 82 22C74 30 66 38 58 46.5C56 47 54 45.5 55 44Z"
+      );
     });
   },
   /* RED: bold 151 in Albert Sans */
@@ -142,14 +143,17 @@ const DEVICES = {
   },
   /* 초신성: crisp eight-rayed nova with a five-point star cut at its heart */
   nova: c => fillEO(c, star(8, 48, 29) + star(5, 15, 6.2)),
-  /* 슈퍼루키: a climbing shooting star with three crisp parallel trails */
+  /* 슈퍼루키: 유려하게 비상하는 별똥별 — 날렵한 5각 별과 곡선으로 가늘어지는 세 갈래 혜성 꼬리 */
   rookie: c => {
-    c.fill(P(star(5, 27, 11.5, 68, 32, -Math.PI / 2 + .28)));
-    c.lineWidth = 7.5; c.lineCap = "butt"; c.beginPath();
-    for (const [x0, y0, x1, y1] of [[50, 50, 12, 88], [62, 62, 36, 88], [38, 38, 12, 64]]) {
-      c.moveTo(x0, y0); c.lineTo(x1, y1);
-    }
-    c.stroke();
+    c.fill(P(star(5, 23, 9.5, 71, 29, -Math.PI / 2 + .32)));
+    // Three sweeping tapered comet trails (fluid Bézier arcs, zero flat butt-cap ends)
+    parts(c,
+      "M8 92C22 68 38 52 57 42C45 58 29 77 8 92Z",
+      "M11 66C22 51 33 41 47 34C38 45 27 56 11 66Z",
+      "M34 89C45 77 56 66 66 53C57 69 47 80 34 89Z"
+    );
+    // Crisp 4-point accent glint beside the rising arc
+    c.fill(P(star(4, 7.2, 2.2, 28, 28, 0)));
   },
   /* 버스 드라이버: a crisp steering wheel */
   bus: c => {
@@ -316,36 +320,20 @@ const SCENES = {
     c.fill(P(star(4, 10.5, 2.8, 50, 50, 0)));
   },
 
-  /* 하나: 스카이애로 브리지 (Skyarrow Bridge) — 고딕 아치가 뚫린 쌍둥이 주탑, 포물선 주케이블과 수직 현수선 */
+  /* 하나: 블랙·화이트 진실과 이상의 태극 문장 (Unova Yin-Yang Crest) — 라이트스톤·다크스톤의 조화와 유려한 음양 나선 */
   하나: c => {
-    // Twin bridge pylons with stepped crowns
-    for (const x of [22, 66]) {
-      parts(c,
-        `M${x} 18L${x + 12} 18L${x + 12} 90L${x} 90Z`,
-        `M${x - 1.5} 14L${x + 13.5} 14L${x + 13.5} 19L${x - 1.5} 19Z`
-      );
-    }
-    // Gothic arch portals cut into each pylon
-    cut(c, () => {
-      for (const x of [25, 69]) {
-        c.fill(P(`M${x} 58L${x} 31C${x} 25 ${x + 6} 25 ${x + 6} 31L${x + 6} 58Z`));
-        c.fillRect(x, 75, 6, 15);
-      }
-    });
-    // Sweeping parabolic suspension cables
-    c.lineWidth = 4.8; c.lineCap = "round"; c.beginPath();
-    c.moveTo(4, 42); c.quadraticCurveTo(15, 34, 28, 19);
-    c.quadraticCurveTo(50, 68, 72, 19);
-    c.quadraticCurveTo(85, 34, 96, 42);
-    c.stroke();
-    // Vertical suspender cables
-    c.lineWidth = 2.6; c.beginPath();
-    for (const [x, y0] of [[12, 37], [38, 36], [44, 43], [50, 46], [56, 43], [62, 36], [88, 37]]) {
-      c.moveTo(x, y0); c.lineTo(x, 66);
-    }
-    c.stroke();
-    // Sleek roadway deck + subtle horizon water line
-    parts(c, "M2 65L98 65L98 73L2 73Z", "M12 91L88 91L88 95L12 95Z");
+    c.save();
+    c.translate(50, 50);
+    c.rotate(-Math.PI / 6);
+    // Crisp uniform outer ring (r=39..45)
+    fillEO(c, circ(0, 0, 45) + circ(0, 0, 39));
+    // Solid Yang half (화이트 / 진실) seamlessly tangent to inner ring
+    c.fill(P("M0 -39A39 39 0 0 0 0 39A19.5 19.5 0 0 0 0 0A19.5 19.5 0 0 1 0 -39Z"));
+    // Dark Stone eye cut cleanly into the solid lower Yang lobe
+    cut(c, () => c.fill(P(circ(0, 19.5, 7.2))));
+    // Light Stone eye glowing solid in the hollow upper Yin lobe
+    c.fill(P(circ(0, -19.5, 7.2)));
+    c.restore();
   },
 
   /* 칼로스: 프리즘 타워 (Prism Tower) — 에펠탑 비율의 유려한 곡선 다리, 아치, 2단 전망대, 피뢰침 첨탑 */
@@ -511,21 +499,13 @@ function readTheme() {
     act: g("--act") || g("--lit") || (isLight ? "#081C3D" : "#FFFFFF"),
     navy: g("--navy") || "#081C3D",
     onLight: g("--on-type-light") || "#FFFFFF",
-    onDark: g("--on-type-dark") || "#081C3D",
     type: id => g(`--type-${id}`) || "#9FA19F",
   };
-}
-
-function inkForType(id, th, off) {
-  if (off) return th.hc ? th.mute : (th.isLight ? "#AEB8C8" : "#27416E");
-  return LIGHT_TYPES.has(id) ? th.onDark : th.onLight;
 }
 
 function inkForSpec(spec, th, off) {
   if (off) return th.hc ? th.mute : (th.isLight ? "#AEB8C8" : "#27416E");
   if (spec.champ) return th.hc ? th.act : (th.isLight ? "#E6C770" : th.gold);
-  const ids = spec.enamel || [];
-  if (ids.length === 1) return inkForType(ids[0], th, false);
   return th.onLight;
 }
 
