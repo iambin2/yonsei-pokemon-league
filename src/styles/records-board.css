@@ -136,6 +136,7 @@
 .rc-mine-counts { margin-top: var(--s3); }
 /* the grey line 4 under the title (the head's own 12 given back); the rivals' label 12 over them, 8 to the list */
 .rc-sec > .sh + .rc-mine-note { margin-top: calc(var(--s1) - var(--s3)); }
+.rc-mine-note, .rc-mine-label { padding-inline: var(--band); }
 .rc-mine-label { margin-top: var(--s5); }
 .rc-mine-rivals { margin-top: var(--s2); }
 .rc-seasons { margin-top: var(--s5); }
@@ -192,6 +193,7 @@
 .rc-pk-use { display: grid; gap: var(--s5); }
 .rc-pk-cols { display: grid; gap: var(--s5); }
 .rc-group { display: grid; gap: var(--s2); align-content: start; min-width: 0; }
+.rc-group > .tb-subhead { padding-inline: var(--band); }
 .rc-bar { display: grid; grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr) var(--s13); align-items: center; gap: var(--s3); min-height: var(--h-control); padding: 0 var(--pad); }
 .rc-bar.keyed { grid-template-columns: var(--s13) minmax(0, 1fr) var(--s13); }
 .rc-bar-name { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
@@ -227,7 +229,7 @@
 .st-n { font-family: var(--font-fig); font-variant-numeric: tabular-nums; font-size: var(--t20); line-height: var(--l20); font-weight: 400; }
 .st-pts.mute .st-n { color: var(--mute); }
 /* the counts on a trainer's or a Pokémon's sheet: a label over a thin figure of 52, closed by a hairline */
-.rc-profile .counter { height: auto; gap: var(--s2); padding: var(--s3) 0 var(--s5); }
+.rc-profile .counter { height: auto; gap: var(--s2); padding: var(--s3) var(--band) var(--s5); }
 .rc-profile .counter-board > .t15 { color: var(--dim); }
 /* a Pokémon stands on its hairline: the line runs at its feet, the top of its floor, with its name under it */
 :is(.rc-mon, .rc-cell).pn { box-shadow: none; }
