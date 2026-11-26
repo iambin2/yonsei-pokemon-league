@@ -1,370 +1,710 @@
-/* ============================== 칭호의 메달 (DESIGN.md "Titles and hall of fame") ==============================
-   A medal made as the site's Pokémon pictures are: matte, round, in clear colour. A white rim, a hill of the title's colour, and on it
-   the title's device as a soft white body, all under one soft light from the upper left with cool shade (no metal, no sheen, no fine work).
+/* ============================== 칭호의 연감 인장 (DESIGN.md "Titles and hall of fame", 2026-11-26) ==============================
+   Every title is a flat Almanac Seal: a crisp outer hairline ring, ground breathing room, a solid inner disc in the title's
+   colour, and a razor-sharp flat device with zero shading, blur, shadow or gradient.
    The spec comes from titleLooks.js: { glyphs | device | scene | mark | champ | partner, enamel: [type id], tier }.
-   A type's symbol is the games' own (public/brand/type-symbols.webp, at the owner's word 2026-11-19); a partner and 몽키매직's three are the
-   silhouettes of their own pictures; the Mega emblem is the owner's image in its own colours; everything else is drawn here for the site. */
+   A type's symbol is the games' own (public/brand/type-symbols.webp); a partner and 몽키매직's three are silhouettes of their
+   own pictures; the Mega emblem is the owner's image in its own colours; everything else is drawn here for the site. */
 
 const BASE_URL = import.meta.env?.BASE_URL ?? "/";
 const P = d => new Path2D(d);
 const star = (n, ro, ri, cx = 50, cy = 50, rot = -Math.PI / 2) => {
   let d = "";
-  for (let i = 0; i < n * 2; i++) { const r = i % 2 ? ri : ro, a = rot + i * Math.PI / n; d += (i ? "L" : "M") + (cx + r * Math.cos(a)).toFixed(2) + " " + (cy + r * Math.sin(a)).toFixed(2); }
+  for (let i = 0; i < n * 2; i++) {
+    const r = i % 2 ? ri : ro, a = rot + i * Math.PI / n;
+    d += (i ? "L" : "M") + (cx + r * Math.cos(a)).toFixed(2) + " " + (cy + r * Math.sin(a)).toFixed(2);
+  }
   return d + "Z";
 };
 const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
 const fillEO = (ctx, d) => ctx.fill(P(d), "evenodd");
 const cut = (c, draw) => { c.save(); c.globalCompositeOperation = "destination-out"; draw(); c.restore(); };
+const parts = (c, ...ds) => { for (const d of ds) c.fill(P(d)); };
 
-/* ---------- the face: everything is drawn in a 100 space (rim 47, hill 37) at 7.68 times its pixels, or at half that for a medal
-   shown small (a board's medal is some 300 device pixels across; 768 of them were drawn and thrown away, 2026-11-22). One medal is
-   drawn at a time, so the size in hand is S ---------- */
-const BIG = 768, SMALL = 384, C = 50, HILL = 37, FIT = .72, REACH = .93;
+/* ---------- geometry in a 100 space (outer ring 47.5, solid disc 40.5) ---------- */
+const BIG = 768, SMALL = 384, C = 50, OUTER = 47.5, DISC = 40.5, FIT = .68, REACH = .88;
+const LIGHT_TYPES = new Set(["electric", "ice", "normal", "rock"]);
+
 let S = BIG, K = S / 100;
-const layer = () => { const c = Object.assign(document.createElement("canvas"), { width: S, height: S }).getContext("2d"); c.scale(K, K); return c; };
-/* lay one full-size canvas over another, whatever the transform of the one beneath */
-const lay = (ctx, src) => { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(src, 0, 0); ctx.restore(); };
+const layer = (size = S) => {
+  const c = Object.assign(document.createElement("canvas"), { width: size, height: size }).getContext("2d");
+  c.scale(size / 100, size / 100);
+  return c;
+};
+const lay = (ctx, src) => {
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(src, 0, 0);
+  ctx.restore();
+};
 const frame = () => new Promise(res => requestAnimationFrame(() => res()));
-const images = new Map();
-const loadImage = src => { if (!images.has(src)) images.set(src, new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; })); return images.get(src); };
 
-/* ---------- a type's symbol: the games' own, cut from one sheet (6 by 3 cells of 384, in this order) ---------- */
+const images = new Map();
+const loadImage = src => {
+  if (!images.has(src)) {
+    images.set(src, new Promise(res => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => res(null);
+      i.src = src;
+    }));
+  }
+  return images.get(src);
+};
+
+/* ---------- a type's symbol: the games' own, cut from one sheet (6 by 3 cells of 384) ---------- */
 const TYPES = ["normal", "fire", "water", "electric", "grass", "ice", "fighting", "poison", "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark", "steel", "fairy"];
 const SYMBOLS = `${BASE_URL}brand/type-symbols.webp`, CELL = 384;
-/* a symbol stands in a round place of radius r as it stands in its own disc in the games (its cell is .98 of that disc) */
-const drawType = (ctx, sheet, id, cx, cy, r) => { const i = Math.max(0, TYPES.indexOf(id)), h = r * .98; if (sheet) ctx.drawImage(sheet, i % 6 * CELL, (i / 6 | 0) * CELL, CELL, CELL, cx - h, cy - h, h * 2, h * 2); };
-/* where two and three things stand on one hill: the circle that just fits each cell, less the wire between the cells */
-const PAIR = [[C - 18.6, C, 17.2], [C + 18.6, C, 17.2]];
-const TRIO = [-90, 150, 30].map(a => [C + 19.83 * Math.cos(a * Math.PI / 180), C + 19.83 * Math.sin(a * Math.PI / 180), 15.6]);
+const drawType = (ctx, sheet, id, cx, cy, r) => {
+  const i = Math.max(0, TYPES.indexOf(id)), h = r * .94;
+  if (sheet) {
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(sheet, i % 6 * CELL, (i / 6 | 0) * CELL, CELL, CELL, cx - h, cy - h, h * 2, h * 2);
+  }
+};
+/* two and three cells inside the 40.5 disc, clear of the 2.6 cut lines */
+const PAIR = [[C - 19.8, C, 17.5], [C + 19.8, C, 17.5]];
+const TRIO = [-90, 150, 30].map(a => [
+  C + 21.0 * Math.cos(a * Math.PI / 180),
+  C + 21.0 * Math.sin(a * Math.PI / 180),
+  16.0,
+]);
 
-/* ---------- a Pokémon's picture as a silhouette: its ink is measured once, and the circle round that ink is what is placed ---------- */
+/* ---------- a Pokémon's picture as a crisp silhouette: its ink is measured once ---------- */
 const inks = new Map();
 const pictureInk = url => {
-  if (!inks.has(url)) inks.set(url, loadImage(url).then(img => {
-    if (!img) return null;
-    const N = 128, c = Object.assign(document.createElement("canvas"), { width: N, height: N }).getContext("2d", { willReadFrequently: true });
-    c.drawImage(img, 0, 0, N, N);
-    const d = c.getImageData(0, 0, N, N).data, on = (x, y) => d[(y * N + x) * 4 + 3] > 24; let x0 = N, y0 = N, x1 = -1, y1 = -1;
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (on(x, y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    if (x1 < 0) return null;
-    const mx = (x0 + x1 + 1) / 2, my = (y0 + y1 + 1) / 2; let far = 0;
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (on(x, y)) far = Math.max(far, Math.hypot(x + .5 - mx, y + .5 - my));
-    return { img, mx: mx / N, my: my / N, far: (far + 1) / N };
-  }));
+  if (!inks.has(url)) {
+    inks.set(url, loadImage(url).then(img => {
+      if (!img) return null;
+      const N = 128, c = Object.assign(document.createElement("canvas"), { width: N, height: N }).getContext("2d", { willReadFrequently: true });
+      c.drawImage(img, 0, 0, N, N);
+      const d = c.getImageData(0, 0, N, N).data, on = (x, y) => d[(y * N + x) * 4 + 3] > 24;
+      let x0 = N, y0 = N, x1 = -1, y1 = -1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (on(x, y)) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      if (x1 < 0) return null;
+      const mx = (x0 + x1 + 1) / 2, my = (y0 + y1 + 1) / 2; let far = 0;
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (on(x, y)) far = Math.max(far, Math.hypot(x + .5 - mx, y + .5 - my));
+      return { img, mx: mx / N, my: my / N, far: (far + 1) / N };
+    }));
+  }
   return inks.get(url);
 };
-/* the whole of the ink inside a circle of radius r: nothing of it leaves its cell or the hill */
 function drawSilhouette(ctx, ink, cx, cy, r, fill) {
   if (!ink) return;
   const size = r / ink.far, t = layer();
-  t.imageSmoothingQuality = "high"; t.drawImage(ink.img, cx - ink.mx * size, cy - ink.my * size, size, size);
-  t.globalCompositeOperation = "source-in"; t.fillStyle = fill; t.fillRect(0, 0, 100, 100);
+  t.imageSmoothingQuality = "high";
+  t.drawImage(ink.img, cx - ink.mx * size, cy - ink.my * size, size, size);
+  t.globalCompositeOperation = "source-in";
+  t.fillStyle = fill;
+  t.fillRect(0, 0, 100, 100);
   lay(ctx, t.canvas);
 }
 const MONKEYS = ["pansage", "pansear", "panpour"].map(slug => `${BASE_URL}sprites/pokemon/${slug}.webp`);
 
-/* ---------- devices drawn for single titles (original, in a 100 box; bold bodies, nothing thin) ---------- */
+/* ---------- devices drawn for single titles (original, razor-sharp in a 100 box) ---------- */
 const DEVICES = {
-  /* 끝말잇기: an open book of Hangul, its letters cut into the pages, running page to page as a word chain does */
+  /* 끝말잇기: an open book of Hangul, ㄱ and ㅎ cleanly cut into its pages */
   hangul: c => {
-    c.fill(P("M50 30C40 22 22 20 6 24L6 80C22 76 40 78 50 86C60 78 78 76 94 80L94 24C78 20 60 22 50 30Z"));
-    cut(c, () => { c.fill(P("M48.4 32L51.6 32L51.6 84L48.4 84Z")); c.font = "700 36px Freesentation"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("ㄱ", 28, 53); c.fillText("ㅎ", 72, 53); });
+    c.fill(P("M50 28C39 20 22 18 6 22L6 80C22 76 39 78 50 86C61 78 78 76 94 80L94 22C78 18 61 20 50 28Z"));
+    cut(c, () => {
+      c.fillRect(48.2, 29, 3.6, 56);
+      c.font = "700 35px Freesentation"; c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillText("ㄱ", 27.5, 52); c.fillText("ㅎ", 72.5, 52);
+    });
   },
-  /* 스승: a torch that hands its flame on; the flame licks to one side, so it is never read as a drop */
-  torch: c => { c.fill(P("M52 2C56 16 74 26 72 42C70 54 60 58 50 58C40 58 30 54 28 42C27 33 32 26 37 22C37 29 40 33 45 33C43 22 45 11 52 2Z M24 61L76 61L69 73L31 73Z M35 76L65 76L57 98L43 98Z")); },
-  /* 제자: a sprout, two leaves on a young stem */
-  sprout: c => { for (const d of ["M46.5 96L46.5 50L53.5 50L53.5 96Z", "M50 54C50 34 36 22 12 22C12 44 26 56 50 54Z", "M50 48C50 26 66 12 90 12C90 36 74 50 50 48Z", "M30 96L70 96L66 88L34 88Z"]) c.fill(P(d)); },
-  /* RED: 151, the first generation's number (a cup of those 151 alone), in bold round figures; not a counter */
-  n151: c => { c.font = "900 46px 'Albert Sans'"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("151", 50, 52); },
-  /* 초신성: a new star bursting, one body of eight broad rays with a star cut in its heart (a newcomer who won) */
-  nova: c => fillEO(c, star(8, 48, 30) + star(5, 15, 6.5)),
-  /* 슈퍼루키: a shooting star climbing, its trail behind it in three broad strokes (a rookie on the rise) */
+  /* 스승: a torch handing its flame on, clean continuous flame curve */
+  torch: c => {
+    c.fill(P("M52 4C57 17 72 27 70 42C68 53 59 58 50 58C41 58 32 53 30 42C29 34 33 27 38 22C38 29 41 33 46 33C44 23 46 13 52 4Z"));
+    parts(c, "M26 62L74 62L68 72L32 72Z", "M36 75L64 75L57 96L43 96Z");
+  },
+  /* 제자: 유기적으로 휘어 오르는 새싹 — S자 곡선 줄기, 잎맥이 패인 비대칭 두 잎, 부드러운 초승달 대지 */
+  sprout: c => {
+    // Graceful curved crescent soil arc at base
+    c.fill(P("M20 90Q50 76 80 90Q50 85 20 90Z"));
+    // Organic tapering S-curved stem rising from the earth
+    c.fill(P("M46 84C45 69 47 56 50 42L54 42C52 56 51 69 54 84Z"));
+    // Left sculpted leaf (curved, pointed, natural tension)
+    c.fill(P("M49 56C47 36 33 22 10 21C11 45 27 59 49 56Z"));
+    // Right higher sculpted leaf
+    c.fill(P("M51 48C53 26 68 12 91 12C90 36 74 51 51 48Z"));
+    // Crisp organic central vein cuts curving into each leaf
+    cut(c, () => {
+      c.lineWidth = 3.2; c.lineCap = "round"; c.beginPath();
+      c.moveTo(46, 52); c.quadraticCurveTo(33, 41, 21, 31);
+      c.moveTo(54, 44); c.quadraticCurveTo(67, 32, 80, 22);
+      c.stroke();
+    });
+  },
+  /* RED: bold 151 in Albert Sans */
+  n151: c => {
+    c.font = "700 44px 'Albert Sans'"; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText("151", 50, 52);
+  },
+  /* 초신성: crisp eight-rayed nova with a five-point star cut at its heart */
+  nova: c => fillEO(c, star(8, 48, 29) + star(5, 15, 6.2)),
+  /* 슈퍼루키: a climbing shooting star with three crisp parallel trails */
   rookie: c => {
-    c.fill(P(star(5, 27, 11.5, 68, 32, -Math.PI / 2 + .3)));
-    c.lineWidth = 9; c.lineCap = "round"; c.beginPath(); for (const [x0, y0, x1, y1] of [[51, 49, 9, 91], [63, 61, 35, 89], [36, 33, 7, 62]]) { c.moveTo(x0, y0); c.lineTo(x1, y1); } c.stroke();
+    c.fill(P(star(5, 27, 11.5, 68, 32, -Math.PI / 2 + .28)));
+    c.lineWidth = 7.5; c.lineCap = "butt"; c.beginPath();
+    for (const [x0, y0, x1, y1] of [[50, 50, 12, 88], [62, 62, 36, 88], [38, 38, 12, 64]]) {
+      c.moveTo(x0, y0); c.lineTo(x1, y1);
+    }
+    c.stroke();
   },
-  /* 버스 드라이버: a steering wheel (the one driver who carries the whole team) */
-  bus: c => { fillEO(c, circ(50, 50, 47) + circ(50, 50, 33)); c.fill(P("M16 44L84 44L84 56L16 56Z")); c.fill(P("M44 50L56 50L56 84L44 84Z")); c.fill(P(circ(50, 50, 13))); },
-  /* 청출어람: a sprout that has taken the torch's flame and burns it larger (the pupil past the teacher; 스승 is the torch, 제자 the sprout) */
+  /* 버스 드라이버: a crisp steering wheel */
+  bus: c => {
+    fillEO(c, circ(50, 50, 47) + circ(50, 50, 34));
+    parts(c, "M15 44.5L85 44.5L85 55.5L15 55.5Z", "M44.5 50L55.5 50L55.5 85L44.5 85Z", circ(50, 50, 12.5));
+  },
+  /* 청출어람: a sprout bearing the torch's larger flame (pupil past the teacher) */
   indigo: c => {
-    c.save(); c.translate(50, 0); c.scale(1.02, 1.02); c.translate(-50, 0);
-    c.fill(P("M52 2C56 16 74 26 72 42C70 54 60 58 50 58C40 58 30 54 28 42C27 33 32 26 37 22C37 29 40 33 45 33C43 22 45 11 52 2Z")); c.restore();
-    for (const d of ["M46 98L46 56L54 56L54 98Z", "M50 84C50 70 40 62 22 62C22 78 32 86 50 84Z", "M50 80C50 66 60 58 78 58C78 74 68 82 50 80Z"]) c.fill(P(d));
+    c.fill(P("M52 4C57 17 72 27 70 42C68 52 59 57 50 57C41 57 32 52 30 42C29 34 33 27 38 22C38 29 41 33 46 33C44 23 46 13 52 4Z"));
+    parts(c,
+      "M46.5 96L46.5 54L53.5 54L53.5 96Z",
+      "M49 84C49 70 39 62 21 62C21 78 32 85 49 84Z",
+      "M51 80C51 66 61 58 79 58C79 74 68 81 51 80Z"
+    );
   },
-  /* 탑의 정상: the tower of 도전의 탑, three storeys and a spire, its door cut in (the month's first; the owner's draft A, 2026-11-22) */
-  tower: c => { c.fill(P("M18 78L82 78L82 94L18 94Z M27 54L73 54L73 78L27 78Z M35 31L65 31L65 54L35 54Z M42 12L58 12L58 31L42 31Z M50 2L60 12L40 12Z")); cut(c, () => c.fill(P("M44 80C44 74 56 74 56 80L56 94L44 94Z"))); },
-  /* 파트너: a paw print, the one sign of a companion */
-  paw: c => { c.fill(P("M50 50C64 50 76 62 76 76C76 88 66 92 58 90C54 89 52 87 50 87C48 87 46 89 42 90C34 92 24 88 24 76C24 62 36 50 50 50Z")); for (const [x, y, rx, ry, a] of [[20, 44, 9, 12, -.4], [36, 24, 9, 13, -.15], [64, 24, 9, 13, .15], [80, 44, 9, 12, .4]]) { c.beginPath(); c.ellipse(x, y, rx, ry, a, 0, Math.PI * 2); c.fill(); } },
-};
-/* 전화기: 전자공학, 화학공학, 기계공학의 준말 (never a telephone). One mark for each, each in its own cell: a chip on electric (top),
-   a flask on poison (lower left), a gear on steel (lower right). Each is drawn round its own centre, within 18 of it. */
-const ENGINEERING = [
-  c => { let d = "M-12 -12L12 -12L12 12L-12 12Z M-5 -5L-5 5L5 5L5 -5Z"; for (const o of [-7, 0, 7]) d += `M${o - 2.2} -18h4.4v6h-4.4Z M${o - 2.2} 12h4.4v6h-4.4Z M-18 ${o - 2.2}h6v4.4h-6Z M12 ${o - 2.2}h6v4.4h-6Z`; fillEO(c, d); },
-  c => fillEO(c, "M-7 -17L7 -17L7 -14L5 -14L5 -5L15 11Q17 15 12 15L-12 15Q-17 15 -15 11L-5 -5L-5 -14L-7 -14Z M-8 2L8 2L9.5 5L-9.5 5Z"),
-  c => { let d = ""; for (let i = 0; i < 32; i++) { const a = (i - .5) * Math.PI / 16, r = i % 4 < 2 ? 17 : 12; d += (i ? "L" : "M") + (r * Math.cos(a)).toFixed(2) + " " + (r * Math.sin(a)).toFixed(2); } fillEO(c, d + "Z" + circ(0, 0, 5.5)); },
-];
-/* ---------- each region's landmark, engraved as a small scene (original, generic) ---------- */
-const parts = (c, ...ds) => { for (const d of ds) c.fill(P(d)); };
-const SCENES = {
-  /* 관동: 달맞이산, the peak with its cave and a crescent moon over it (the region's most famous mountain) */
-  관동: c => {
-    c.fill(P("M2 94L38 42Q50 28 62 42L98 94Z")); c.fill(P(circ(22, 24, 16)));
-    cut(c, () => { c.fill(P("M38 42Q50 28 62 42L69 52L61 48L55 55L50 47L45 55L39 48L31 52Z")); c.fill(P("M39 94C39 76 61 76 61 94Z")); c.fill(P(circ(30, 17, 14))); });
+  /* 탑의 정상: 도전의 탑의 모놀리스 실루엣 — 기단과 정문, 층별 기준선과 세로 창문 열, 정상을 밝히는 별빛 첨탑 */
+  tower: c => {
+    // Summit beacon star crowning the tower spire
+    c.fill(P(star(4, 11.5, 3.2, 50, 12, 0)));
+    // Stepped monument base + soaring tapered monolith body with subtle architectural setbacks
+    parts(c,
+      "M12 91L88 91L88 97L12 97Z",
+      "M19 85L81 85L81 91L19 91Z",
+      // Main monolith shaft (3 architectural setbacks rising to the summit)
+      "M25 60L75 60L75 85L25 85Z",
+      "M31 38L69 38L69 57L31 57Z",
+      "M37 22L63 22L63 35L37 35Z",
+      // Sharp summit crown pediment
+      "M42 22L50 15L58 22Z"
+    );
+    // Clean architectural cutouts: grand gatekeeper portal + signature vertical tower windows
+    cut(c, () => {
+      // Grand central portal at base
+      c.fillRect(44.5, 70, 11, 15);
+      // Lower tier flanking tall slit windows
+      c.fillRect(32, 65, 5.5, 14);
+      c.fillRect(62.5, 65, 5.5, 14);
+      // Mid tier 3 vertical slit windows
+      for (const x of [37.5, 47.25, 57]) c.fillRect(x, 42, 5.5, 11);
+      // Upper summit chamber twin slit windows
+      c.fillRect(42.5, 25.5, 5, 7);
+      c.fillRect(52.5, 25.5, 5, 7);
+    });
   },
-  /* 성도: a pagoda of three broad roofs, each wider than the storey under it */
-  성도: c => parts(c, "M46 2L54 2L54 18L46 18Z", "M26 30L36 17L64 17L74 30Z", "M38 29L62 29L62 41L38 41Z", "M18 53L30 40L70 40L82 53Z", "M34 52L66 52L66 64L34 64Z", "M10 77L24 63L76 63L90 77Z", "M28 76L72 76L72 97L28 97Z"),
-  /* 호연: 굴뚝산, a volcano breathing its plume over the sea (its lava cut into its sides; never Alola's palm) */
-  호연: c => {
-    c.fill(P("M6 84L34 46L42 51L50 46L58 51L66 46L94 84Z"));
-    cut(c, () => { c.lineWidth = 5; c.lineCap = "round"; c.beginPath(); c.moveTo(45, 56); c.quadraticCurveTo(40, 68, 30, 77); c.moveTo(56, 56); c.quadraticCurveTo(62, 68, 72, 77); c.stroke(); });
-    c.fill(P(circ(49, 35, 8) + circ(59, 25, 10) + circ(74, 17, 12) + circ(90, 16, 8)));
-    c.lineWidth = 6.5; c.lineCap = "round"; c.beginPath(); for (let x = 5; x <= 95; x += 2) { const y = 93 + 3 * Math.sin(x / 6); x === 5 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
-  },
-  /* 신오: 창기둥, the ruin at the top of the world: a lintel on two whole columns, two broken ones beside them, on its steps */
-  신오: c => parts(c, "M2 92L98 92L98 99L2 99Z", "M9 83L91 83L91 89L9 89Z",
-    "M30 6L66 6L70 11L64 15L30 15Z", "M33 18L45 18L45 82L33 82Z", "M55 18L67 18L67 82L55 82Z",
-    "M12 82L12 40L16 34L19 39L24 35L24 82Z", "M76 82L76 56L80 51L83 57L88 52L88 82Z"),
-  하나: c => { parts(c, "M21 14L31 14L31 92L21 92Z", "M69 14L79 14L79 92L69 92Z", "M0 65L100 65L100 75L0 75Z"); c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.moveTo(3, 34); c.quadraticCurveTo(14, 26, 26, 16); c.quadraticCurveTo(50, 70, 74, 16); c.quadraticCurveTo(86, 26, 97, 34); c.stroke(); for (const x of [38, 50, 62]) c.fillRect(x - 2.5, x === 50 ? 42 : 34, 5, x === 50 ? 24 : 32); },
-  /* 칼로스: a lattice tower on wide legs, one broad deck across them and a window cut above it */
-  칼로스: c => { parts(c, "M44 2L56 2L58 26L66 26L66 36L60 36C63 58 72 78 92 98L66 98C61 87 56 80 50 80C44 80 39 87 34 98L8 98C28 78 37 58 40 36L34 36L34 26L42 26Z", "M25 54L75 54L75 65L25 65Z"); c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P("M50 38L55 45.5L50 53L45 45.5Z")); c.restore(); },
-  /* 알로라: a palm leaning over its island, the sun half set into the sea behind (the hibiscus read as any flower, 2026-11-24) */
-  알로라: c => {
-    c.fill(P(circ(70, 80, 18))); cut(c, () => c.fillRect(0, 80, 100, 20));
-    c.fill(P("M2 88Q24 72 50 88Z"));
-    c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.moveTo(28, 82); c.quadraticCurveTo(28, 54, 40, 28); c.stroke();
-    for (const a of [-2.9, -2.2, -1.5, -.8, -.1]) { c.save(); c.translate(40, 26); c.rotate(a); c.beginPath(); c.ellipse(18, 0, 19, 6.5, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
-    c.lineWidth = 6; c.beginPath(); for (let x = 5; x <= 95; x += 2) { const y = 94 + 3 * Math.sin(x / 6); x === 5 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke();
-  },
-  /* 가라르: a clock tower, its face cut through with two broad hands, two long windows below */
-  가라르: c => {
-    parts(c, "M36 22L50 2L64 22Z", "M28 21L72 21L72 57L28 57Z", "M33 56L67 56L67 91L33 91Z", "M24 90L76 90L76 98L24 98Z");
-    c.save(); c.globalCompositeOperation = "destination-out"; c.fill(P(circ(50, 39, 13))); c.fill(P("M40 63h7v21h-7Z M53 63h7v21h-7Z")); c.restore();
-    parts(c, circ(50, 39, 4.5), "M47 40L53 40L53 28L47 28Z", "M50 36L61 36L61 42L50 42Z");
-  },
-  /* 히스이: the space-time rift, a vortex torn in the sky over the peak of 코가네산 */
-  히스이: c => {
-    c.fill(P("M4 98L36 60L46 68L58 52L96 98Z"));
-    c.save(); c.translate(50, 28); c.scale(1, .6); c.lineWidth = 11; c.lineCap = "round"; c.beginPath();
-    for (let a = 0; a <= Math.PI * 3.6; a += .05) { const r = 4 + a * 3.9, x = r * Math.cos(a), y = r * Math.sin(a); a ? c.lineTo(x, y) : c.moveTo(x, y); }
-    c.stroke(); c.restore();
-  },
-  /* 팔데아: the academy at the top of 테이블시티, over its grand stair (the crystal on the crater read as a ring, 2026-11-24) */
-  팔데아: c => {
-    parts(c, "M2 99L98 99L84 74L16 74Z", "M8 52L92 52L92 72L8 72Z", "M8 52L22 40L36 52Z", "M64 52L78 40L92 52Z", "M38 22L62 22L62 52L38 52Z", "M36 23L50 4L64 23Z");
-    cut(c, () => { for (const y of [80, 87, 94]) c.fillRect(0, y, 100, 2.6); c.fill(P(circ(50, 34, 6))); c.fill(P("M44 72C44 62 56 62 56 72Z")); for (const x of [16, 26, 70, 80]) c.fillRect(x, 58, 5, 9); });
+  /* 파트너 fallback: crisp paw print */
+  paw: c => {
+    c.fill(P("M50 50C64 50 76 62 76 76C76 88 66 92 58 90C54 89 52 87 50 87C48 87 46 89 42 90C34 92 24 88 24 76C24 62 36 50 50 50Z"));
+    for (const [x, y, rx, ry, a] of [[20, 44, 9, 12, -.38], [36, 24, 9, 13, -.14], [64, 24, 9, 13, .14], [80, 44, 9, 12, .38]]) {
+      c.beginPath(); c.ellipse(x, y, rx, ry, a, 0, Math.PI * 2); c.fill();
+    }
   },
 };
 
-/* ---------- a champion: a broad crown over the generation in bold round Roman strokes ---------- */
-const crown = c => {
-  const body = P("M28 45L25 24L38 34L50 18L62 34L75 24L72 45Z");
-  c.lineJoin = "round"; c.lineWidth = 4; c.fill(body); c.stroke(body);
-  c.fill(P(circ(24.5, 21, 4.4) + circ(50, 14.5, 4.8) + circ(75.5, 21, 4.4)));
-  c.beginPath(); c.roundRect(25, 51, 50, 8, 4); c.fill();
+/* 전화기: 전자공학(chip), 화학공학(flask), 기계공학(gear), each centred in its own cell */
+const ENGINEERING = [
+  c => {
+    let d = "M-11.5 -11.5L11.5 -11.5L11.5 11.5L-11.5 11.5Z M-5 -5L-5 5L5 5L5 -5Z";
+    for (const o of [-7, 0, 7]) {
+      d += `M${o - 2} -17.5h4v6h-4Z M${o - 2} 11.5h4v6h-4Z M-17.5 ${o - 2}h6v4h-6Z M11.5 ${o - 2}h6v4h-6Z`;
+    }
+    fillEO(c, d);
+  },
+  c => fillEO(c, "M-7 -17L7 -17L7 -13.5L5 -13.5L5 -5L15 11.5Q17 15.5 12 15.5L-12 15.5Q-17 15.5 -15 11.5L-5 -5L-5 -13.5L-7 -13.5Z M-8.5 2.5L8.5 2.5L10 5.5L-10 5.5Z"),
+  c => {
+    let d = "";
+    for (let i = 0; i < 32; i++) {
+      const a = (i - .5) * Math.PI / 16, r = i % 4 < 2 ? 17 : 12.2;
+      d += (i ? "L" : "M") + (r * Math.cos(a)).toFixed(2) + " " + (r * Math.sin(a)).toFixed(2);
+    }
+    fillEO(c, d + "Z" + circ(0, 0, 5.5));
+  },
+];
+
+/* ---------- 10 region landmarks: redrawn from scratch for League Almanac (2026-11-26) ---------- */
+const SCENES = {
+  /* 관동: 달맞이산 — 거대한 초승달과 별빛을 등진 매끄러운 달맞이산 봉우리와 동굴 아치 */
+  관동: c => {
+    // Bold crescent moon rising high on the upper left
+    c.fill(P(circ(26, 25, 19)));
+    cut(c, () => c.fill(P(circ(34, 19, 16))));
+    // Crisp 4-point star (달의돌 빛)
+    c.fill(P(star(4, 9, 2.8, 76, 24, 0)));
+    // Clean, stately Mt. Moon silhouette: main peak + right shoulder, separated by a crisp diagonal ridge cut
+    c.fill(P("M6 92L45 38Q48 34 51 38L90 92Z"));
+    c.fill(P("M56 92L74 58Q76 54 78 58L96 92Z"));
+    cut(c, () => {
+      // Clean snowline cap cut
+      c.fill(P("M45 38Q48 34 51 38L58 48L52 45L48 50L44 45L38 48Z"));
+      // Clean diagonal valley line separating the right shoulder
+      c.lineWidth = 3.2; c.lineCap = "round"; c.beginPath();
+      c.moveTo(57, 56); c.lineTo(72, 82); c.stroke();
+      // Crisp arched cavern entrance at the foot of the main peak
+      c.fill(P("M39 92L39 77C39 69 57 69 57 77L57 92Z"));
+    });
+  },
+
+  /* 성도: 방울탑 (Bell Tower) — 교토 오층탑 양식의 유려하게 치솟은 4단 처마와 상륜, 정문 아치 */
+  성도: c => {
+    // Tall finial spire (상륜) with rings
+    parts(c, "M48 4L52 4L52 20L48 20Z", "M44 10L56 10L56 12.5L44 12.5Z", "M45.5 15L54.5 15L54.5 17.5L45.5 17.5Z");
+    // 4 tapering pagoda tiers with sweeping upturned eaves (처마)
+    const tiers = [
+      [20, 29, 20, 13],  // top roof: yTop, yBot, halfRoof, halfWall
+      [35, 44, 27, 17],
+      [51, 61, 35, 22],
+      [68, 79, 44, 28],
+    ];
+    for (const [yt, yb, hr, hw] of tiers) {
+      // Sweeping upturned roof curve
+      c.fill(P(`M${50 - hw * 0.85} ${yt}L${50 + hw * 0.85} ${yt}Q${50 + hr * 0.72} ${yb - 1} ${50 + hr} ${yb - 4}L${50 + hr - 2.5} ${yb}L${50 - hr + 2.5} ${yb}L${50 - hr} ${yb - 4}Q${50 - hr * 0.72} ${yb - 1} ${50 - hw * 0.85} ${yt}Z`));
+      // Wall storey under roof
+      if (yb < 75) c.fillRect(50 - hw, yb, hw * 2, 7.5);
+    }
+    // Stone base hall & foundation
+    c.fillRect(22, 79, 56, 13);
+    c.fillRect(14, 92, 72, 5);
+    // Clean central sanctuary gateway cutout
+    cut(c, () => c.fill(P("M43 92L43 83C43 79.5 57 79.5 57 83L57 92Z")));
+  },
+
+  /* 호연: 루비·사파이어·에메랄드의 세공 보석 문장 (Hoenn Faceted Gem Crest) — 정교한 패싯 컷과 광채 별빛 */
+  호연: c => {
+    // Classic brilliant-cut gemstone silhouette (crown + pavilion)
+    c.fill(P("M27 20L73 20L91 41L50 88L9 41Z"));
+    // Crisp negative-space geometric facet cuts (table, crown facets, pavilion ribs)
+    cut(c, () => {
+      c.lineWidth = 3.2; c.lineCap = "round"; c.lineJoin = "round";
+      c.beginPath();
+      // Horizontal girdle line
+      c.moveTo(9, 41); c.lineTo(91, 41);
+      // Inner crown table facets
+      c.moveTo(27, 20); c.lineTo(35, 41); c.lineTo(50, 88);
+      c.moveTo(73, 20); c.lineTo(65, 41); c.lineTo(50, 88);
+      c.moveTo(50, 20); c.lineTo(35, 41);
+      c.moveTo(50, 20); c.lineTo(65, 41);
+      c.stroke();
+    });
+    // Crisp glint star above-right of the gem crown
+    c.fill(P(star(4, 9.5, 2.6, 82, 19, 0)));
+  },
+
+  /* 신오: 창기둥 (Spear Pillar) — 주두와 기단을 갖춘 고대 신전 기둥, 부러진 외곽 기둥, 중앙 시공의 별빛 */
+  신오: c => {
+    // Two-tier stepped ancient temple dais
+    parts(c, "M4 92L96 92L96 98L4 98Z", "M11 84L89 84L89 90L11 90Z");
+    // Broken entablature / lintel crowning the two central pillars
+    c.fill(P("M26 14L72 14L75 20L69 24L26 24Z"));
+    // Two tall central pillars with capitals & bases
+    for (const x of [31, 59]) {
+      parts(c,
+        `M${x - 2} 24L${x + 12} 24L${x + 10} 29L${x} 29Z`,     // capital
+        `M${x + 1} 29L${x + 9} 29L${x + 9} 79L${x + 1} 79Z`,    // shaft
+        `M${x - 2} 79L${x + 12} 79L${x + 12} 84L${x - 2} 84Z`   // base
+      );
+    }
+    // Two jaggedly snapped outer columns
+    parts(c,
+      "M14 84L14 44L18 39L21 44L24 40L24 84Z",
+      "M12 79L26 79L26 84L12 84Z",
+      "M76 84L76 56L80 51L83 56L86 52L86 84Z",
+      "M74 79L88 79L88 84L74 84Z"
+    );
+    // Sacred 4-point cosmic star suspended between the central pillars
+    c.fill(P(star(4, 10.5, 2.8, 50, 50, 0)));
+  },
+
+  /* 하나: 스카이애로 브리지 (Skyarrow Bridge) — 고딕 아치가 뚫린 쌍둥이 주탑, 포물선 주케이블과 수직 현수선 */
+  하나: c => {
+    // Twin bridge pylons with stepped crowns
+    for (const x of [22, 66]) {
+      parts(c,
+        `M${x} 18L${x + 12} 18L${x + 12} 90L${x} 90Z`,
+        `M${x - 1.5} 14L${x + 13.5} 14L${x + 13.5} 19L${x - 1.5} 19Z`
+      );
+    }
+    // Gothic arch portals cut into each pylon
+    cut(c, () => {
+      for (const x of [25, 69]) {
+        c.fill(P(`M${x} 58L${x} 31C${x} 25 ${x + 6} 25 ${x + 6} 31L${x + 6} 58Z`));
+        c.fillRect(x, 75, 6, 15);
+      }
+    });
+    // Sweeping parabolic suspension cables
+    c.lineWidth = 4.8; c.lineCap = "round"; c.beginPath();
+    c.moveTo(4, 42); c.quadraticCurveTo(15, 34, 28, 19);
+    c.quadraticCurveTo(50, 68, 72, 19);
+    c.quadraticCurveTo(85, 34, 96, 42);
+    c.stroke();
+    // Vertical suspender cables
+    c.lineWidth = 2.6; c.beginPath();
+    for (const [x, y0] of [[12, 37], [38, 36], [44, 43], [50, 46], [56, 43], [62, 36], [88, 37]]) {
+      c.moveTo(x, y0); c.lineTo(x, 66);
+    }
+    c.stroke();
+    // Sleek roadway deck + subtle horizon water line
+    parts(c, "M2 65L98 65L98 73L2 73Z", "M12 91L88 91L88 95L12 95Z");
+  },
+
+  /* 칼로스: 프리즘 타워 (Prism Tower) — 에펠탑 비율의 유려한 곡선 다리, 아치, 2단 전망대, 피뢰침 첨탑 */
+  칼로스: c => {
+    // Needle lightning-rod spire
+    c.fill(P("M48.2 3L51.8 3L53 20L47 20Z"));
+    // Main sweeping hyperbolic tower body
+    c.fill(P("M46 19L54 19C56 44 66 72 88 96L67 96C62 84 57 77 50 77C43 77 38 84 33 96L12 96C34 72 44 44 46 19Z"));
+    // Upper & lower observation decks
+    parts(c, "M37 31L63 31L63 37L37 37Z", "M26 57L74 57L74 64L26 64Z");
+    // Crisp negative-space lattice cutouts inside the tower
+    cut(c, () => {
+      // Upper diamond window
+      c.fill(P("M50 39L55.5 47L50 55L44.5 47Z"));
+      // Lower arch window between deck and base legs
+      c.fill(P("M43 74L43 69C43 66 57 66 57 69L57 74Z"));
+    });
+  },
+
+  /* 알로라: 썬·문 천체 문장 (Sol & Luna Crest) — 거대한 초승달이 감싸 안는 유려한 8광채 태양 */
+  알로라: c => {
+    // 1. Grand Crescent Moon drawn first (so its hollow cut never erases the Sun!)
+    c.fill(P(circ(44, 52, 34)));
+    cut(c, () => c.fill(P(circ(57, 43, 28))));
+    // 2. Sculpted 8-rayed Alolan Sun shining cleanly inside the crescent's embrace
+    c.save(); c.translate(61, 44);
+    c.fill(P(circ(0, 0, 12.5)));
+    for (let i = 0; i < 8; i++) {
+      c.save(); c.rotate(i * Math.PI / 4);
+      const len = i % 2 === 0 ? 25.5 : 19.5;
+      const w = i % 2 === 0 ? 4.8 : 3.5;
+      c.fill(P(`M${-w} -10.5Q0 ${-len * .72} 0 ${-len}Q${w * .55} ${-len * .62} ${w} -10.5Z`));
+      c.restore();
+    }
+    c.restore();
+    // 3. Crisp inner sun core circle cutout for editorial precision
+    cut(c, () => c.fill(P(circ(61, 44, 5.6))));
+  },
+
+  /* 가라르: 소드·실드 기사 문장 (Heavy Shield & Greatsword) — 이중 테두리 중장 방패 위로 대각선으로 교차하는 묵직한 장검 */
+  가라르: c => {
+    // 1. Heavy Heraldic Heater Shield with crisp angled shoulders & armored inner rim
+    const shieldOuter = "M20 22Q50 18 80 22L80 51C80 71 67 83 50 92C33 83 20 71 20 51Z";
+    const shieldInner = "M28 29Q50 26 72 29L72 50C72 65 62 75 50 82C38 75 28 65 28 50Z";
+    const shieldCore  = "M33 34Q50 32 67 34L67 49C67 61 59 69 50 75C41 69 33 61 33 49Z";
+    c.fill(P(shieldOuter));
+    cut(c, () => c.fill(P(shieldInner)));
+    c.fill(P(shieldCore));
+
+    // 2. Heavy Broadsword slashing diagonally across the shield (upper-right hilt to lower-left tip)
+    // First cut a clean separation halo around the sword so both Sword & Shield read unmistakably as heavy steel
+    const drawSword = (ctx, pad = 0) => {
+      ctx.save(); ctx.translate(50, 52); ctx.rotate(Math.PI / 4);
+      // Pommel
+      ctx.fill(P(circ(0, -45, 5.5 + pad)));
+      // Heavy grip
+      ctx.fillRect(-3.4 - pad, -42 - pad, (3.4 + pad) * 2, 16 + pad * 2);
+      // Wide, heavy knight's crossguard
+      ctx.fill(P(`M${-18 - pad} ${-28 - pad}L${18 + pad} ${-28 - pad}L${15 + pad} ${-21 + pad}L${-15 - pad} ${-21 + pad}Z`));
+      // Broad tapered double-edged blade
+      ctx.fill(P(`M${-6.8 - pad} ${-22 - pad}L${6.8 + pad} ${-22 - pad}L${5.6 + pad} ${32 + pad}L0 ${45 + pad * 1.4}L${-5.6 - pad} ${32 + pad}Z`));
+      ctx.restore();
+    };
+    cut(c, () => drawSword(c, 3.6));
+    drawSword(c, 0);
+    // Crisp central fuller groove down the steel blade
+    cut(c, () => {
+      c.save(); c.translate(50, 52); c.rotate(Math.PI / 4);
+      c.fillRect(-1.3, -17, 2.6, 44);
+      c.restore();
+    });
+  },
+
+  /* 히스이: 히스이 고대 도리이 (Hisui Shrine Torii Gate) — 치솟은 가사기 보, 가쿠즈카, 쌍기둥과 중앙의 신화 십자별 */
+  히스이: c => {
+    // Sweeping upturned upper lintel (가사기 / Kasagi)
+    c.fill(P("M6 16Q50 26 94 16L90 27Q50 35 10 27Z"));
+    // Secondary tie beam (누키 / Nuki) extending past pillars
+    c.fillRect(14, 38, 72, 7.5);
+    // Central nameplate strut (가쿠즈카 / Gakuzuka) between kasagi and nuki
+    c.fillRect(45.5, 29, 9, 10);
+    // Twin slightly battered traditional shrine pillars + stone bases (네마키)
+    parts(c,
+      "M25 28L34 28L31.5 88L22 88Z",
+      "M66 28L75 28L78 88L68.5 88Z",
+      "M18 88L35 88L35 94L18 94Z",
+      "M65 88L82 88L82 94L65 94Z"
+    );
+    // Sacred 4-point celestial cross-star (천계의 빛) framed inside the Torii gate
+    c.fill(P(star(4, 14, 3.6, 50, 67, 0)));
+  },
+
+  /* 팔데아: 테이블시티 아카데미 (Gaudí / Mesagoza Crest) — 유려한 포물선 3연 첨탑, 장미창과 카탈루냐 아치, 부채꼴 대계단 */
+  팔데아: c => {
+    // Organic Gaudí-style parabolic 3-spire cathedral silhouette (zero rectangular boxes or flat triangles)
+    c.fill(P(
+      "M14 73" +
+      "C14 52 17 34 25 22C31 32 34 42 36 48" +
+      "C38 30 43 13 50 4C57 13 62 30 64 48" +
+      "C66 42 69 32 75 22C83 34 86 52 86 73Z"
+    ));
+    // Sculpted curving grand fan staircase sweeping down below the academy
+    c.fill(P("M14 77Q50 72 86 77L94 94Q50 88 6 94Z"));
+    cut(c, () => {
+      // Iconic circular academy rose window with 4-point compass core
+      c.fill(P(circ(50, 34, 7.2)));
+      // Soaring Catalan parabolic grand entrance arch
+      c.fill(P("M42 73C42 57 45 50 50 48C55 50 58 57 58 73Z"));
+      // Twin slender curved lancet arches in the side turrets
+      c.fill(P("M22 65C22 55 23.5 51 26 49C28.5 51 30 55 30 65Z"));
+      c.fill(P("M70 65C70 55 71.5 51 74 49C76.5 51 78 55 78 65Z"));
+      // Curved perspective fan stair grooves
+      c.lineWidth = 2.6; c.beginPath();
+      c.moveTo(11, 83); c.quadraticCurveTo(50, 78, 89, 83);
+      c.moveTo(8, 89); c.quadraticCurveTo(50, 84, 92, 89);
+      c.stroke();
+    });
+    // Crisp 4-point emblem star inside the rose window
+    c.fill(P(star(4, 5.2, 1.6, 50, 34, 0)));
+  },
 };
-function roman(n) { const t = [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]]; let s = ""; for (const [v, r] of t) while (n >= v) { s += r; n -= v; } return s; }
-function drawRoman(c, n, cx, cy, h, maxWidth, lw) {
-  const s = roman(n), W = { I: 0, V: h * .66, X: h * .66 }, gap = lw * 1.75, raw = [...s].reduce((a, ch) => a + W[ch] + gap, -gap), k = Math.min(1, (maxWidth - lw) / Math.max(raw, 1));
-  c.save(); c.translate(cx, cy); c.scale(k, k); c.lineWidth = lw / Math.sqrt(k); c.lineCap = c.lineJoin = "round"; c.beginPath();
-  let x = -raw / 2;
-  for (const ch of s) {
-    const w = W[ch];
-    if (ch === "I") { c.moveTo(x, -h / 2); c.lineTo(x, h / 2); }
-    if (ch === "V") { c.moveTo(x, -h / 2); c.lineTo(x + w / 2, h / 2); c.lineTo(x + w, -h / 2); }
-    if (ch === "X") { c.moveTo(x, -h / 2); c.lineTo(x + w, h / 2); c.moveTo(x + w, -h / 2); c.lineTo(x, h / 2); }
-    x += w + gap;
-  }
-  c.stroke(); c.restore();
+
+/* ---------- champion: sharp geometric crown over Albert Sans Roman numeral ---------- */
+const sharpCrown = c => {
+  c.fill(P("M24 44L20 21L36 33L50 15L64 33L80 21L76 44Z"));
+  c.fillRect(24, 49, 52, 5.2);
+};
+function roman(n) {
+  const t = [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+  let s = ""; for (const [v, r] of t) while (n >= v) { s += r; n -= v; } return s;
+}
+function drawChampionRoman(c, n, cx, cy, maxWidth) {
+  const text = roman(n);
+  c.save();
+  c.font = "700 26px 'Albert Sans'";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  const w = c.measureText(text).width;
+  const k = Math.min(1, maxWidth / Math.max(w, 1));
+  c.translate(cx, cy);
+  c.scale(k, k);
+  c.fillText(text, 0, 0);
+  c.restore();
 }
 
 const fits = new Map();
 const MARKS = { mega: `${BASE_URL}brand/mega-evolution.png` };
 
-/* the two pictures a medal is lit from: the hill's colours (cells parted by a wire where there are two or three) and the device in its ink */
-async function faces(spec, ink) {
-  const e = layer(), dev = layer();
-  const cols = spec.enamel || [], n = cols.length, rad = a => a * Math.PI / 180;
-  const cells = n === 2 ? [[90, 270], [-90, 90]] : n === 3 ? [[-150, -30], [90, 210], [-30, 90]] : [[0, 360]];
-  cols.forEach((col, i) => { const [a0, a1] = cells[i]; e.fillStyle = col; e.beginPath(); e.moveTo(C, C); e.arc(C, C, HILL, rad(a0), rad(a1)); e.closePath(); e.fill(); });
-  if (n > 1) cut(e, () => { e.lineWidth = 2.2; e.beginPath(); for (const a of n === 2 ? [90, 270] : [-30, 90, 210]) { e.moveTo(C, C); e.lineTo(C + 40 * Math.cos(rad(a)), C + 40 * Math.sin(rad(a))); } e.stroke(); });
+function readTheme() {
+  const css = getComputedStyle(document.documentElement);
+  const g = name => css.getPropertyValue(name).trim();
+  const isLight = document.documentElement.dataset.theme === "light";
+  const hc = document.documentElement.dataset.contrast === "more";
+  return {
+    isLight, hc,
+    ground: g("--ground") || (isLight ? "#FFFFFF" : "#081C3D"),
+    lit: g("--lit") || (isLight ? "#081C3D" : "#FFFFFF"),
+    dim: g("--dim") || (isLight ? "#46536C" : "#A8B8D3"),
+    mute: g("--mute") || (isLight ? "#56637A" : "#8196B9"),
+    rule: g("--rule") || (isLight ? "#CED5E0" : "#1D365F"),
+    tint: g("--tint") || (isLight ? "#E8ECF2" : "#0E2449"),
+    gold: g("--gold") || (isLight ? "#7A5C12" : "#D9B45A"),
+    act: g("--act") || g("--lit") || (isLight ? "#081C3D" : "#FFFFFF"),
+    navy: g("--navy") || "#081C3D",
+    onLight: g("--on-type-light") || "#FFFFFF",
+    onDark: g("--on-type-dark") || "#081C3D",
+    type: id => g(`--type-${id}`) || "#9FA19F",
+  };
+}
 
+function inkForType(id, th, off) {
+  if (off) return th.hc ? th.mute : (th.isLight ? "#AEB8C8" : "#27416E");
+  return LIGHT_TYPES.has(id) ? th.onDark : th.onLight;
+}
+
+function inkForSpec(spec, th, off) {
+  if (off) return th.hc ? th.mute : (th.isLight ? "#AEB8C8" : "#27416E");
+  if (spec.champ) return th.hc ? th.act : (th.isLight ? "#E6C770" : th.gold);
+  const ids = spec.enamel || [];
+  if (ids.length === 1) return inkForType(ids[0], th, false);
+  return th.onLight;
+}
+
+function fillCells(ctx, cols, shapePath, cutColor, innerGap = 0) {
+  ctx.save();
+  ctx.clip(shapePath);
+  const n = cols.length, rad = a => a * Math.PI / 180;
+  const cells = n === 2 ? [[90, 270], [-90, 90]] : n === 3 ? [[-150, -30], [90, 210], [-30, 90]] : [[0, 360]];
+  cols.forEach((col, i) => {
+    const [a0, a1] = cells[i];
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(C, C); ctx.arc(C, C, 60, rad(a0), rad(a1)); ctx.closePath(); ctx.fill();
+  });
+  if (n > 1) {
+    ctx.strokeStyle = cutColor; ctx.lineWidth = 2.6; ctx.lineCap = "butt";
+    ctx.beginPath();
+    for (const a of n === 2 ? [90, 270] : [-30, 90, 210]) {
+      ctx.moveTo(C + innerGap * Math.cos(rad(a)), C + innerGap * Math.sin(rad(a)));
+      ctx.lineTo(C + 55 * Math.cos(rad(a)), C + 55 * Math.sin(rad(a)));
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+async function drawSeal(spec, off, th) {
+  const c = layer();
+
+  if (off) {
+    // Quiet empty slot on the page's ground
+    c.strokeStyle = th.rule; c.lineWidth = 1.6;
+    c.beginPath(); c.arc(C, C, OUTER, 0, Math.PI * 2); c.stroke();
+
+    c.strokeStyle = th.rule; c.lineWidth = 1.0; c.setLineDash([2.5, 3.0]);
+    c.beginPath(); c.arc(C, C, DISC, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([]);
+  } else {
+    // Crisp outer ring
+    c.strokeStyle = spec.champ ? (th.hc ? th.act : th.gold) : th.lit;
+    c.lineWidth = spec.champ ? 2.2 : 1.6;
+    c.beginPath(); c.arc(C, C, OUTER, 0, Math.PI * 2); c.stroke();
+
+    // Solid inner disc
+    const discPath = P(circ(C, C, DISC));
+    if (spec.champ) {
+      c.fillStyle = th.hc ? (th.isLight ? "#000000" : "#000000") : th.navy;
+      c.fill(discPath);
+      c.strokeStyle = th.hc ? th.act : (th.isLight ? "#E6C770" : th.gold);
+      c.lineWidth = 1.1;
+      c.beginPath(); c.arc(C, C, DISC - 3.6, 0, Math.PI * 2); c.stroke();
+    } else if (spec.mark) {
+      c.fillStyle = th.isLight ? th.tint : (th.hc ? "#1A1A1A" : "#0E2449");
+      c.fill(discPath);
+      c.strokeStyle = th.rule; c.lineWidth = 1.1;
+      c.stroke(discPath);
+    } else {
+      const cols = (spec.enamel || ["normal"]).map(th.type);
+      fillCells(c, cols, discPath, th.ground, spec.device === "nova" ? 14 : 0);
+    }
+  }
+
+  // Load any external assets needed for the device
   const ids = spec.glyphs || [];
-  if (spec.device === "n151" || spec.device === "hangul") await Promise.all([document.fonts.load("900 46px 'Albert Sans'", "151"), document.fonts.load("700 36px Freesentation", "ㄱㅎ")]).catch(() => {});
+  if (spec.champ || spec.device === "n151" || spec.device === "hangul") {
+    await Promise.all([
+      document.fonts.load("700 26px 'Albert Sans'", "IVX"),
+      document.fonts.load("700 44px 'Albert Sans'", "151"),
+      document.fonts.load("700 35px Freesentation", "ㄱㅎ"),
+    ]).catch(() => {});
+  }
   const sheet = ids.length ? await loadImage(SYMBOLS) : null;
   const pictures = spec.device === "monkey" ? await Promise.all(MONKEYS.map(pictureInk)) : spec.partner ? [await pictureInk(spec.partner)] : [];
   const mark = spec.mark ? await loadImage(MARKS[spec.mark]) : null;
 
-  /* the device in the 100 space; a lone drawn one is then sized by its ink (below) */
-  const device = c => {
-    c.fillStyle = c.strokeStyle = ink;
-    if (spec.champ) { c.save(); c.translate(C, C); c.scale(.74, .74); c.translate(-50, -47); crown(c); drawRoman(c, spec.champ.gen, 50, 76, 16, 50, 6.5); c.restore(); return; }
-    if (spec.device === "monkey") { TRIO.forEach(([x, y, r], i) => drawSilhouette(c, pictures[i], x, y, r, ink)); return; }
-    if (spec.device === "engineering") { TRIO.forEach(([x, y, r], i) => { c.save(); c.translate(x, y); c.scale(r * .9 / 18, r * .9 / 18); ENGINEERING[i](c); c.restore(); }); return; }
-    if (spec.scene) { SCENES[spec.scene]?.(c); return; }
-    if (spec.device || spec.partner) { (DEVICES[spec.device] || DEVICES.paw)(c); return; }
-    const places = ids.length === 1 ? [[C, C, HILL]] : ids.length === 2 ? PAIR : TRIO;
-    ids.forEach((id, i) => drawType(c, sheet, id, ...places[i]));
-  };
-  /* a partner is its Pokémon's silhouette, the whole of it inside the hill; without a picture, the paw */
-  if (spec.partner && pictures[0]) drawSilhouette(dev, pictures[0], C, C, 33, ink);
-  /* the Mega emblem in its own colours, as the owner gave it (an unheld one in the blank's tone) */
-  else if (mark) {
-    const iw = mark.naturalWidth, ih = mark.naturalHeight, k = 50 / Math.max(iw, ih), t = layer();
-    t.imageSmoothingQuality = "high"; t.drawImage(mark, C - iw * k / 2, C - ih * k / 2, iw * k, ih * k);
-    if (spec.blank) { t.globalCompositeOperation = "source-in"; t.fillStyle = ink; t.fillRect(0, 0, 100, 100); }
+  const dev = layer();
+  const baseInk = inkForSpec(spec, th, off);
+  const enamelIds = spec.enamel || [];
+
+  if (spec.partner && pictures[0]) {
+    drawSilhouette(dev, pictures[0], C, C, DISC * .82, baseInk);
+  } else if (mark) {
+    const iw = mark.naturalWidth, ih = mark.naturalHeight, k = (DISC * 1.34) / Math.max(iw, ih), t = layer();
+    t.imageSmoothingQuality = "high";
+    t.drawImage(mark, C - iw * k / 2, C - ih * k / 2, iw * k, ih * k);
+    if (off) { t.globalCompositeOperation = "source-in"; t.fillStyle = baseInk; t.fillRect(0, 0, 100, 100); }
     lay(dev, t.canvas);
+  } else if (spec.device === "monkey") {
+    TRIO.forEach(([x, y, r], i) => drawSilhouette(dev, pictures[i], x, y, r, baseInk));
+  } else if (spec.device === "engineering") {
+    TRIO.forEach(([x, y, r], i) => {
+      dev.save(); dev.fillStyle = dev.strokeStyle = baseInk;
+      dev.translate(x, y); dev.scale(r * .86 / 18, r * .86 / 18);
+      ENGINEERING[i](dev);
+      dev.restore();
+    });
+  } else if (ids.length > 1) {
+    const places = ids.length === 2 ? PAIR : TRIO;
+    ids.forEach((id, i) => {
+      const t = layer();
+      drawType(t, sheet, id, ...places[i]);
+      t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = "source-in";
+      t.fillStyle = baseInk; t.fillRect(0, 0, S, S);
+      lay(dev, t.canvas);
+    });
   } else {
-    /* a lone drawn device is sized by its ink, not its box: the ink's longer side FIT of the hill's width, its corners inside REACH of it,
-       centred on its ink (measured on a quarter-size probe). A champion, a type's symbol and what stands in cells keep their places. */
+    const drawOne = ctx => {
+      ctx.fillStyle = ctx.strokeStyle = baseInk;
+      if (spec.champ) {
+        ctx.save(); ctx.translate(C, C); ctx.scale(.72, .72); ctx.translate(-50, -49);
+        sharpCrown(ctx);
+        drawChampionRoman(ctx, spec.champ.gen, 50, 74, 52);
+        ctx.restore();
+        return;
+      }
+      if (spec.scene) { SCENES[spec.scene]?.(ctx); return; }
+      if (spec.device || spec.partner) { (DEVICES[spec.device] || DEVICES.paw)(ctx); return; }
+      if (ids.length === 1) drawType(ctx, sheet, ids[0], C, C, DISC * .88);
+    };
+
     const lone = (spec.scene || spec.device || spec.partner) && !["monkey", "engineering"].includes(spec.device);
     const fitKey = JSON.stringify([spec.device, spec.scene]);
     let tf = null;
     if (lone && fits.has(fitKey)) tf = fits.get(fitKey);
     else if (lone) {
       const N = BIG / 4, probe = Object.assign(document.createElement("canvas"), { width: N, height: N }).getContext("2d", { willReadFrequently: true });
-      probe.scale(N / 100, N / 100); device(probe);
+      probe.scale(N / 100, N / 100); drawOne(probe);
       const d = probe.getImageData(0, 0, N, N).data; let x0 = N, y0 = N, x1 = 0, y1 = 0;
-      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (d[(y * N + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (d[(y * N + x) * 4 + 3] > 40) {
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
       const u = 100 / N, w = (x1 - x0 + 1) * u, t = (y1 - y0 + 1) * u;
-      if (x1 >= x0) tf = { s: Math.min(FIT * 2 * HILL / Math.max(w, t), REACH * 2 * HILL / Math.hypot(w, t)), x: (x0 + x1 + 1) / 2 * u, y: (y0 + y1 + 1) / 2 * u };
+      if (x1 >= x0) tf = { s: Math.min(FIT * 2 * DISC / Math.max(w, t), REACH * 2 * DISC / Math.hypot(w, t)), x: (x0 + x1 + 1) / 2 * u, y: (y0 + y1 + 1) / 2 * u };
       fits.set(fitKey, tf);
-      await frame();
     }
     if (tf) { dev.translate(C, C); dev.scale(tf.s, tf.s); dev.translate(-tf.x, -tf.y); }
-    device(dev);
-    /* whatever was laid in (a type's symbol comes white) takes the medal's ink */
-    dev.setTransform(1, 0, 0, 1, 0, 0); dev.globalCompositeOperation = "source-in"; dev.fillStyle = ink; dev.fillRect(0, 0, S, S);
+    drawOne(dev);
+    dev.setTransform(1, 0, 0, 1, 0, 0);
+    dev.globalCompositeOperation = "source-in";
+    dev.fillStyle = baseInk;
+    dev.fillRect(0, 0, S, S);
   }
-  return { enamel: e.canvas, device: dev.canvas };
-}
 
-/* ---------- the light: one soft key from the upper left, cool shade, no reflection ---------- */
-const VS = `#version 300 es
-in vec2 p; out vec2 vUv; void main(){ vUv = p * .5 + .5; gl_Position = vec4(p, 0., 1.); }`;
-/* the device's ink, blurred one way at a time: its slope is what rounds it */
-const BLUR = `#version 300 es
-precision highp float;
-uniform sampler2D uT; uniform vec2 uStep; in vec2 vUv; out vec4 o;
-void main() {
-  float sum = 0., all = 0.;
-  for (int i = -20; i <= 20; i++) { float x = float(i) / 20. * 2.6, w = exp(-.5 * x * x); sum += texture(uT, vUv + uStep * x).a * w; all += w; }
-  o = vec4(sum / all);
-}`;
-const FS = `#version 300 es
-precision highp float;
-uniform sampler2D uE, uD, uB; uniform float uS, uLift, uHill;
-uniform vec3 uRim, uCool, uPale;
-in vec2 vUv; out vec4 o;
-const vec3 KEY = vec3(-.46, .56, .69);
-float bell(float x, float s) { return exp(-.5 * x * x / (s * s)) / (s * 2.5066); }
-/* a body's colour under the key: its own colour, a lighter face toward the light, and shade that cools (a pale body's shade is a blue grey) */
-vec3 tone(vec3 b, vec3 n, float lo) {
-  float lit = dot(normalize(n), KEY), spread = max(b.r, max(b.g, b.b)) - min(b.r, min(b.g, b.b));
-  vec3 shade = spread < .157 ? mix(b, uPale, .5) : mix(b, uCool, .34);
-  float g = clamp((lit - .8) / .16, 0., 1.);
-  return mix(shade, b, smoothstep(lo, .72, lit)) + (mix(b, vec3(1.), .22) - b) * g * g;
+  lay(c, dev.canvas);
+  return c.canvas;
 }
-void main() {
-  vec2 q = (vUv - .5) * 100.; float d = length(q), px = 1. / uS; vec2 dir = q / max(d, .001);
-  /* the rim: a disc of 47, its edge rounded over */
-  vec3 col = tone(uRim, vec3(dir * 31.2 * bell(d - 47., 6.5), 1.), .38);
-  /* the hill casts on the rim, down and to the right */
-  vec2 fall = vec2(1.5, -2.);
-  col = mix(col, uCool, uHill * .3 * (1. - smoothstep(34.8, 39.2, length(q - fall))));
-  /* the hill: a disc of 37 swelling to its middle, in the title's colours */
-  vec4 e = texture(uE, vUv);
-  if (e.a > 0.) col = mix(col, tone(e.rgb / e.a, vec3(dir * 54. * bell(d - 37., 13.5), 1.), .2), e.a);
-  /* the device: a soft body on the hill, casting on it */
-  col = mix(col, uCool, .3 * texture(uB, vUv - fall / 100.).a);
-  vec4 dv = texture(uD, vUv);
-  float gx = texture(uB, vUv + vec2(1.5 * px, 0.)).a - texture(uB, vUv - vec2(1.5 * px, 0.)).a;
-  float gy = texture(uB, vUv + vec2(0., 1.5 * px)).a - texture(uB, vUv - vec2(0., 1.5 * px)).a;
-  if (dv.a > 0.) col = mix(col, tone(dv.rgb / dv.a, vec3(-vec2(gx, gy) * uLift * uS / 300., 1.), .38), dv.a);
-  float a = 1. - smoothstep(47. - 150. * px, 47., d);
-  o = vec4(col * a, a);
-}`;
-
-let gl = null, prog = null, blur = null, targets = null;
-function tex(unit, src) {
-  const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
-  if (src) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  return t;
-}
-function context() {
-  if (gl) {
-    /* the other size: the canvas and the two pictures blurred into take it */
-    if (gl.canvas.width !== S) { gl.canvas.width = gl.canvas.height = S; gl.activeTexture(gl.TEXTURE3); for (const { t } of targets) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, S, S, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); } }
-    return gl;
-  }
-  const cv = Object.assign(document.createElement("canvas"), { width: S, height: S });
-  gl = cv.getContext("webgl2", { premultipliedAlpha: true, preserveDrawingBuffer: true });
-  const sh = (t, s) => { const x = gl.createShader(t); gl.shaderSource(x, s); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
-  const make = fs => { const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(pr, 0, "p"); gl.linkProgram(pr); return pr; };
-  prog = make(FS); blur = make(BLUR);
-  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-  /* two pictures to blur into, one way then the other */
-  targets = [0, 1].map(() => { const t = tex(3, null), f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return { t, f }; });
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  return gl;
-}
-const rgb = hex => { const m = String(hex).trim().match(/^#?([0-9a-f]{6})$/i); const n = m ? parseInt(m[1], 16) : 0x808080; return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
-const hex = c => "#" + c.map(x => Math.round(Math.min(1, x) * 255).toString(16).padStart(2, "0")).join("");
 
 const cache = new Map(), done = new Map();
-/* medals wait in a line to be drawn; one a board is showing goes to its head, past those drawn ahead for a board not yet opened */
 const line = [], soon = new Set();
 let busy = false;
 async function pump() { if (busy) return; busy = true; while (line.length) await line.shift().run(); busy = false; }
-const keyOf = (spec, off, ground, big) => JSON.stringify([spec, off, ground, big ? BIG : SMALL]);
-/* a medal drawn once is kept on the device for as long as this build is out (2026-11-22: every visit drew every medal again); a new
-   build may draw it differently, so it keeps its own. Not in dev, where a medal is being changed */
+
+const themeSig = () => {
+  if (typeof document === "undefined") return "";
+  const el = document.documentElement;
+  return `${getComputedStyle(el).getPropertyValue("--ground").trim()}:${el.dataset.theme || ""}:${el.dataset.contrast || ""}`;
+};
+const keyOf = (spec, off, sig, big) => JSON.stringify([spec, off, sig, big ? BIG : SMALL]);
+
 const BUILD = typeof window !== "undefined" && typeof caches !== "undefined" && window.__YPL_BUILD__ ? "ypl-medals:" + window.__YPL_BUILD__ : "";
 const shelf = BUILD ? caches.open(BUILD).catch(() => null) : null;
 if (BUILD) caches.keys().then(names => names.forEach(name => name.startsWith("ypl-medals:") && name !== BUILD && caches.delete(name)), () => {});
 const kept = key => "/medal/" + encodeURIComponent(key);
-/* a medal already drawn, at once (a board seen before switches on with every medal in place) */
-export function medalDrawn(spec, off = false, big = false) { return done.get(keyOf(spec, off, getComputedStyle(document.documentElement).getPropertyValue("--ground").trim(), big)) || ""; }
-/* one medal as an image URL. Medals are drawn one after another, a frame apart, so a board of them never holds the page.
-   ahead: drawn before it is shown (another tab's medal), behind whatever is on screen */
+
+export function medalDrawn(spec, off = false, big = false) {
+  return done.get(keyOf(spec, off, themeSig(), big)) || "";
+}
+
 export function medalUrl(spec, off = false, big = false, ahead = false) {
-  const css = getComputedStyle(document.documentElement), v = name => rgb(css.getPropertyValue(name));
-  const ground = v("--ground"), dark = ground[0] + ground[1] + ground[2] < 1.5;
-  const key = keyOf(spec, off, css.getPropertyValue("--ground").trim(), big);
+  const sig = themeSig();
+  const key = keyOf(spec, off, sig, big);
   if (!ahead) { soon.add(key); const i = line.findIndex(w => w.key === key); if (i > 0) line.unshift(...line.splice(i, 1)); }
   if (cache.has(key)) return cache.get(key);
-  /* an unheld medal is the housing of a lamp that is off: the panel's own tone all through (a step up from the board in dark, a step down in light),
-     no colour on its hill, its device pressed in and not raised; never brighter than a held one */
-  const blank = hex(v("--panel-2").map(x => dark ? x * 1.06 + .012 : x * .92));
-  const body = off ? blank : hex(v(spec.tier === "gold" ? "--medal-gold" : "--medal-white"));
-  const enamel = off ? [] : spec.champ ? [hex(v("--medal-enamel"))] : spec.mark ? [hex(v("--medal-white"))] : (spec.enamel || []).map(id => hex(v(`--type-${id}`)));
-  const shade = v("--medal-shade"), pale = v("--medal-shade-pale");
+
+  const th = readTheme();
   const draw = async store => {
     await document.fonts.ready; await frame();
     S = big ? BIG : SMALL; K = S / 100;
-    const t0 = performance.now(), f = await faces({ ...spec, enamel, blank: off }, body);
-    /* a medal whose faces took long is lit a frame later, so drawing and lighting never make one long task */
-    if (performance.now() - t0 > 20) await frame();
-    const g = context(), ts = [tex(0, f.enamel), tex(1, f.device)];
-    g.viewport(0, 0, S, S);
-    /* the device's ink blurred across, then down */
-    const sigma = (off ? 1.4 : 2.2) / 100;
-    g.useProgram(blur); g.uniform1i(g.getUniformLocation(blur, "uT"), 3);
-    [[ts[1], [sigma, 0]], [targets[0].t, [0, sigma]]].forEach(([from, step], i) => {
-      g.bindFramebuffer(g.FRAMEBUFFER, targets[i].f); g.activeTexture(g.TEXTURE3); g.bindTexture(g.TEXTURE_2D, from);
-      g.uniform2f(g.getUniformLocation(blur, "uStep"), ...step); g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
-    });
-    g.bindFramebuffer(g.FRAMEBUFFER, null); g.clearColor(0, 0, 0, 0); g.clear(g.COLOR_BUFFER_BIT); g.useProgram(prog);
-    g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, ts[0]); g.activeTexture(g.TEXTURE1); g.bindTexture(g.TEXTURE_2D, ts[1]); g.activeTexture(g.TEXTURE2); g.bindTexture(g.TEXTURE_2D, targets[1].t);
-    const u = (n, ...x) => g[`uniform${x.length === 1 ? "1f" : "3f"}`](g.getUniformLocation(prog, n), ...x);
-    g.uniform1i(g.getUniformLocation(prog, "uE"), 0); g.uniform1i(g.getUniformLocation(prog, "uD"), 1); g.uniform1i(g.getUniformLocation(prog, "uB"), 2);
-    u("uS", S); u("uLift", off ? -8 : 14.9); u("uHill", enamel.length ? 1 : 0);
-    u("uRim", ...rgb(body)); u("uCool", ...shade); u("uPale", ...pale);
-    g.drawArrays(g.TRIANGLE_STRIP, 0, 4);
-    ts.forEach(t => g.deleteTexture(t));
-    const blob = await new Promise(res => g.canvas.toBlob(res, "image/png"));
+    const canvas = await drawSeal(spec, off, th);
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
     if (blob && store) store.put(kept(key), new Response(blob)).catch(() => {});
     return blob ? URL.createObjectURL(blob) : "";
   };

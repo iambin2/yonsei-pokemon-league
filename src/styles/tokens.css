@@ -71,8 +71,6 @@
   --type-rock: #AFA981; --type-ghost: #704170; --type-dragon: #5060E1; --type-dark: #624D4E; --type-steel: #60A1B8; --type-fairy: #EF70EF;
   --on-type-light: #FFFFFF; --on-type-dark: #081C3D;
   --mega-1: #DC8700; --mega-2: #93A800; --mega-3: #00B0D2; --mega-4: #0052B4; --mega-5: #B40069;
-  /* the titles' medals (Titles and hall of fame): the white body, the champions' gold and navy hill, and the cool shade (a pale body's shade is the blue grey) */
-  --medal-white: #F6F7FB; --medal-gold: #FFCB3D; --medal-enamel: #0B2350; --medal-shade: #1E1A5C; --medal-shade-pale: #96A0C4;
 }
 /* ---------- semantic: what components read (DESIGN.md "Colour and light"). Dark here, light below. ---------- */
 :root {

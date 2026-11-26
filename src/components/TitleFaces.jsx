@@ -14,9 +14,9 @@ const deskNow = () => typeof window !== "undefined" && Boolean(window.matchMedia
 const onDesk = fn => { const m = typeof window !== "undefined" && window.matchMedia?.(DESK); m?.addEventListener("change", fn); return () => m?.removeEventListener("change", fn); };
 export const useDesk = () => useSyncExternalStore(onDesk, deskNow, () => false);
 
-/* the theme a medal is lit in: its room is the board's ground, so a medal is drawn again when the theme turns */
-const groundNow = () => typeof document === "undefined" ? "" : document.documentElement.dataset.theme || "";
-const onGround = fn => { const o = new MutationObserver(fn); o.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); return () => o.disconnect(); };
+/* the theme and contrast a seal is drawn in: its ring and cut lines read tokens, so a seal redraws when theme or contrast turns */
+const groundNow = () => typeof document === "undefined" ? "" : `${document.documentElement.dataset.theme || ""}:${document.documentElement.dataset.contrast || ""}`;
+const onGround = fn => { const o = new MutationObserver(fn); o.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-contrast"] }); return () => o.disconnect(); };
 const useGround = () => useSyncExternalStore(onGround, groundNow, () => "");
 
 /* a partner's medal takes its Pokémon's first type and its picture (the silhouette on it): read from the records' Pokémon directory, once */
