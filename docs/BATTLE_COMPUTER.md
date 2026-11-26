@@ -1,133 +1,133 @@
-# 배틀 컴퓨터
+# Battle computer
 
-1인 배틀의 상대인 컴퓨터를 누가 맡아도 계속 강하게 만들 수 있도록, 컴퓨터가 어떻게 고르는지, 강해졌는지 어떻게 재는지, 무엇을 해 봤고 무엇이 통했는지를 여기에 모은다. 컴퓨터를 바꾸는 사람(사람이든 AI든)은 먼저 이 문서를 읽고, 바꾼 뒤 5장의 실험 기록에 한 줄을 더한다.
+This document records how the single-player battle computer chooses moves, how we measure whether it got stronger, what we tried, and what worked. Anyone changing the computer (human or AI) should read this first and add a row to the experiment log in Section 5 after making changes.
 
-## 1. 어디에 있나
+## 1. File locations
 
-| 파일 | 하는 일 |
+| File | Role |
 |---|---|
-| `src/services/battleCpu.js` | 컴퓨터 전부. 선출, 수 고르기, 상대 세트 추측과 추리 |
-| `src/pages/battle/cpu.worker.js` | 브라우저 워커에서 엔진과 컴퓨터를 돌린다. 배틀 중에는 서버에 아무것도 가지 않는다 |
-| `supabase/functions/battle/engine.mjs` | 쇼다운 엔진 포장. 랜덤 파티, 검증, 리플레이, 컴퓨터 배틀 기록 읽기(`readCpuRecord`) |
-| `src/data/random-sets.json` | 포켓몬별 샘플 세트. 랜덤 파티의 재료이자 컴퓨터가 상대 세트를 추측하는 근거. M-C는 래더 세트의 노력치를 다시 배분하고(docs/SAMPLE_SETS.md), 한 빌드 한 도구로 정리해 대부분의 종이 세트 하나인 것(`scripts/curate-sets.mjs`, 같은 문서 5장) |
-| `src/data/random-sets.ladder.json` | 래더 사용률로 만든 원본 세트. `scripts/build-random-sets.mjs`가 스모곤 사용률 통계에서 새로 만들고, `scripts/tune-sets.mjs`가 이것으로 위 파일을 만든다 |
-| `scripts/sets-benchmark.mjs` | 세트의 잣대. 같은 포켓몬을 새 세트와 원본 세트로 맞붙인다 |
-| `scripts/cpu-benchmark.mjs` | 잣대. 두 버전의 컴퓨터를 맞붙여 강해졌는지 잰다(3장) |
-| `scripts/cpu-readability.mjs` | 읽힘의 잣대. 컴퓨터를 그 수를 미리 아는 상대와 붙여 얼마나 읽히는지 잰다(3장) |
-| `scripts/learn-cpu-sets.mjs` | YPL 선수들의 실제 파티를 샘플 세트 가중치에 섞는다(6장) |
-| `docs/db/cpu_battles.sql` | 끝난 컴퓨터 배틀의 입력 기록을 담는 비공개 표 |
-| `tests/battleCpu.test.mjs`, `tests/cpuLearn.test.mjs` | 컴퓨터와 학습의 테스트 |
+| `src/services/battleCpu.js` | Full computer logic: team preview selection, move choice, opponent set sampling, and deduction |
+| `src/pages/battle/cpu.worker.js` | Runs the battle engine and computer inside a browser worker. Nothing is sent to the server during a match |
+| `supabase/functions/battle/engine.mjs` | Showdown engine wrapper: random teams, validation, replays, and reading computer battle logs (`readCpuRecord`) |
+| `src/data/random-sets.json` | Per-species sample sets used to build random teams and as the computer's prior for guessing opponent sets. M-C redistributes ladder EVs (`docs/SAMPLE_SETS.md`) and trims builds to one item per build so most species have one set (`scripts/curate-sets.mjs`, Section 5 of the same doc) |
+| `src/data/random-sets.ladder.json` | Raw sets built from ladder usage. `scripts/build-random-sets.mjs` regenerates this from Smogon usage stats, and `scripts/tune-sets.mjs` builds `random-sets.json` from it |
+| `scripts/sets-benchmark.mjs` | Set benchmark that pits the same Pokémon with new sets against raw sets |
+| `scripts/cpu-benchmark.mjs` | Main benchmark that pits two computer versions against each other to measure strength (Section 3) |
+| `scripts/cpu-readability.mjs` | Predictability benchmark that pits the computer against an opponent that predicts its move (Section 3) |
+| `scripts/learn-cpu-sets.mjs` | Blends real YPL player teams into sample set weights (Section 6) |
+| `docs/db/cpu_battles.sql` | Private table storing input logs of finished computer battles |
+| `tests/battleCpu.test.mjs`, `tests/cpuLearn.test.mjs` | Tests for the computer and set learning |
 
-컴퓨터는 브라우저에서 돌아서 `battleCpu.js`를 바꾸면 사이트 배포만으로 반영된다. `engine.mjs`나 `random-sets.json`을 바꾸면 서버의 랜덤 파티에도 쓰이므로 `npm run build:battle` 후 배틀 함수도 배포한다.
+Because the computer runs in the browser, edits to `battleCpu.js` go live with a normal site deploy. Edits to `engine.mjs` or `random-sets.json` also affect server-side random teams, so run `npm run build:battle` and redeploy the battle edge function as well.
 
-## 2. 어떻게 고르나
+## 2. Move selection
 
-강화학습이 아니다. 숨은 정보가 있는 게임의 정석적인 탐색에 손으로 정한 국면 평가를 붙였다.
+This is not reinforcement learning. It uses standard imperfect-information search paired with a hand-tuned position evaluator.
 
-1. **결정화**: 상대 포켓몬마다 아직 드러나지 않은 세트를 후보 중에서 하나 뽑아 채운다. 후보는 샘플 세트와, 공격기만 있는 세트에 구애스카프, 구애머리띠, 구애안경, 돌격조끼를 쥐여 준 변형(가중치 1%)이다.
-2. **추리**: 매 턴이 끝나면 턴 직전 상태에 후보를 하나씩 대입해, 실제로 먼저 움직인 쪽(같은 우선도)과 실제 피해량(난수 범위)에 맞지 않는 후보를 지운다. 교체, 메가진화, 능력치 변화, 날씨, 급소, 방어 같은 것이 끼어든 턴은 읽지 않고, 모든 후보를 지우게 되는 턴은 무시한다.
-3. **후보 수**: 양쪽 선택지를 휴리스틱(기대 피해, 기절, 우선도, 보조기의 쓸모)으로 줄이고, 앞의 상대에게 아무 일도 못 하는 기술은 뺀다.
-4. **행렬**: 두 선택의 모든 짝을 진짜 엔진으로 한 턴 돌리고, 둘 다 가장 센 공격을 고르는 한 턴을 더 본 뒤 국면을 평가한다(`evaluate`: 남은 포켓몬과 HP, 상태이상, 랭크, 장판, 벽, 맞대면 승패). 시뮬레이션의 운은 가운데에 고정한다(`steady`: 확률 절반 이상은 늘 일어나고 그 밑은 일어나지 않으며, 피해는 평균 난수). 휴대폰에서는 한 수에 표본이 1~3개뿐이라, 운을 뽑으면 빗나감 한 번이 수를 정해 버렸다.
-5. **상대 모형**: 행렬의 내시 균형과 사람이 고르기 쉬운 수를 반씩 섞고, 교체 비중은 모형이 낸 값의 절반에서 시작해(사람은 모형의 절반만 교체한다, 2026-11-19 기록) 이 상대가 실제로 교체해 온 만큼으로 당긴다. 그에 대한 기대값이 가장 큰 수를 둔다. 교체에는 비용이 붙고(0.12, 나와서 한 번도 움직이지 않은 포켓몬을 빼면 0.2 더), 교체가 최선에서 0.1 안에 있는 턴은 그 안의 선택을 균형 전략의 비율대로 뽑아 같은 국면에서 늘 같은 교체가 나오지 않게 한다.
-6. 시간이 남는 동안 1~5를 다시 뽑아 평균한다. 시간은 싱글 1.4초, 더블 2.2초로 정해져 있어 느린 휴대폰에서는 표본이 줄 뿐이다.
-7. **선출**: 우리 6마리와 상대 6마리의 1대1 맞대면 표로 고른다. 메가스톤을 든 포켓몬은 메가 모습으로 본다. 상대는 모두, 우리는 조합마다 메가진화할 한 마리를 각각 가정해 가장 좋은 경우로 평가한다.
+1. For determinization, the computer fills each unrevealed opponent Pokémon by sampling one candidate set. Candidates come from sample sets plus 1%-weight variants that give all-attacking sets 구애스카프, 구애머리띠, 구애안경, or 돌격조끼.
+2. For deduction, after each turn ends, the computer replays each candidate against the pre-turn state and drops any candidate inconsistent with actual turn order (at equal priority) or observed damage (within the damage roll range). Turns involving switches, Mega Evolution, stat changes, weather, critical hits, or protection are skipped, and any turn that would eliminate all candidates is ignored.
+3. For candidate pruning, choices for both sides are narrowed using heuristics (expected damage, KOs, priority, status move utility), dropping moves that do nothing against the active opponent.
+4. For matrix evaluation, every pair of choices is simulated for one turn in the real engine, followed by one extra turn where both sides pick their strongest attack, and then scored with `evaluate` (remaining Pokémon and HP, status conditions, stat stages, hazards, screens, and matchup outcomes). Simulation RNG is fixed to the median (`steady`: events with >=50% chance always happen, events below 50% never happen, and damage uses the average roll). Phones only fit 1 to 3 samples per move, so random RNG rolls used to let a single miss dictate the move.
+5. For the opponent model, the computer blends the matrix Nash equilibrium 50/50 with human-likely moves. Expected opponent switch rate starts at half the model's value (humans switch half as often as the model, per 2026-11-19 data) and shifts toward how often this opponent has actually switched. The computer then picks the move with the highest expected value against that mix. Switching carries a penalty (0.12, plus an extra 0.2 if withdrawing a Pokémon that has not moved since entering). On turns where a switch is within 0.1 of the best option, the computer draws among options within that margin according to equilibrium weights so it does not repeat the same switch in identical positions.
+6. Steps 1 through 5 repeat and average while time remains. Budgets are fixed at 1.4 seconds for singles and 2.2 seconds for doubles, so slower phones simply take fewer samples.
+7. For team preview selection, the computer builds a 6-by-6 1v1 matchup table. Pokémon holding a Mega Stone are evaluated in Mega form. Every opponent Mega holder is assumed to Mega Evolve, while each of our own team combinations is scored by assuming the best single Mega Evolution choice.
 
-## 3. 강해졌는지 재는 법
+## 3. Strength benchmarks
 
 ```bash
 npm run bench:cpu -- --games 300
 ```
 
-이 폴더의 컴퓨터(B)를 마지막 커밋(A)과 맞붙인다. 같은 파티와 시드로 자리만 바꿔 두 번씩 두니, 이기면 파티가 아니라 수 덕분이다. 결과로 B의 승률, 95% 오차 범위, Elo 차이, 판정("B is stronger" / "B is weaker" / "No difference shown")을 낸다.
+This pits the working tree's computer (B) against the last commit (A). Both versions play mirrored pairs with identical teams and seeds, so wins come from decisions rather than team luck. Output includes B's win rate, 95% confidence interval, Elo difference, and a verdict ("B is stronger", "B is weaker", or "No difference shown").
 
-- `--base`: A가 쓸 버전. 기본은 `HEAD`. 지금 사이트와 비교하려면 `origin/main`(로컬 `main`은 뒤처져 있을 수 있다). `quick`은 가장 센 공격만 쓰는 단순한 봇.
-- `--parties`: `random`(샘플 세트 랜덤 파티), `spiced`(공격형의 3분의 1에 구애 도구), `tuned`(포켓몬마다 샘플 세트에서 한 가지만 다르게: 투자한 능력치와 비운 능력치 맞바꾸기, 성격을 화력과 스피드 사이에서 바꾸기, 같은 종의 다른 샘플 세트 기술 하나로 바꾸기 중 하나. 컴퓨터는 여전히 원래 샘플 세트로 추측하므로 믿음이 틀리는 판을 잰다), `ranker`(랭커 상위 433구축 `ranker-teams.json`을 통째로, 도구가 가리키는 샘플 세트로. 싱글만), `players`(실제 선수 파티. `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`가 있어야 하고 메모리에서만 쓴다).
-- `--a`, `--b`: 양쪽 `createCpu` 옵션(JSON). 예: `--b '{"reads":false}'`.
-- `--kind doubles`로 더블을 잰다.
-- 코어 절반을 쓰고 1분에 약 5판이다. 동시 판 수를 코어 수 이상으로 올리면 시간 제한이 없는 부분이 느려져 오히려 늦어진다.
+- `--base` sets A's version (default `HEAD`). Compare against `origin/main` to match production since local `main` can lag behind. `quick` selects a simple bot that always picks the strongest attack.
+- `--parties` selects team generation: `random` (random sample-set teams), `spiced` (one-third of offensive sets given Choice items), `tuned` (one tweak per Pokémon from its sample set: swapping an invested stat with an uninvested stat, flipping nature between offense and Speed, or replacing one move with another move from a different sample set of the same species; the computer still assumes original sample sets, measuring performance when beliefs are wrong), `ranker` (full top-433 ranker builds from `ranker-teams.json` paired with matching item sample sets, singles only), and `players` (real player teams; requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, kept in memory only).
+- `--a` and `--b` pass JSON options to `createCpu`, such as `--b '{"reads":false}'`.
+- `--kind doubles` benchmarks doubles.
+- The runner uses half the CPU cores and completes about 5 games per minute. Raising concurrency above the core count slows down unbudgeted work and reduces throughput.
 
-읽히는 정도는 따로 잰다. 자가 대국은 상대가 읽으려 들지 않아, 늘 같은 수를 두는 컴퓨터도 약하게 나오지 않는다.
+Predictability is measured separately because self-play opponents do not try to read the computer, so a repetitive bot does not look weaker in self-play.
 
 ```bash
-node scripts/cpu-readability.mjs --games 200            # 이 폴더의 컴퓨터
-node scripts/cpu-readability.mjs --games 200 --ref HEAD  # 마지막 커밋의 컴퓨터
+node scripts/cpu-readability.mjs --games 200            # working tree computer
+node scripts/cpu-readability.mjs --games 200 --ref HEAD  # last commit computer
 ```
 
-컴퓨터를 "읽는 상대"와 붙인다. 읽는 상대는 컴퓨터의 파티를 다 알고, 턴마다 같은 컴퓨터의 사본(운과 추리는 따로)에게 무엇을 둘지 물은 뒤 그 수에 대한 최선의 답을 둔다. 사본이 맞힌 비율(한 수, 교체와 그 대상)과 컴퓨터의 승률을 낸다. 400 ms로 200판이 약 10분이다. 고치기 전과 후를 각각 돌려 비교한다.
+This pits the computer against a reading opponent that sees the computer's full team, asks a separate copy of the same computer (with independent RNG and deduction) what it would play each turn, and chooses the best counter. It reports prediction accuracy (overall move, switch and switch target) and the computer's win rate. At 400 ms per move, 200 games take about 10 minutes. Run it before and after changes to compare.
 
-300판의 오차 범위는 약 ±5%다. 이보다 작은 효과는 보이지 않으니, 작은 개선은 판 수를 늘리거나 여러 개를 모아서 잰다.
+At 300 games, the margin of error is roughly ±5%. Smaller effects will not show up, so increase game count or bundle small changes before measuring.
 
-## 4. 개선 규칙
+## 4. Improvement rules
 
-1. 컴퓨터의 수 고르기를 바꾸면 반드시 3장으로 잰다. 싱글 300판이 기본이고, 더블에 영향이 있으면 더블도 잰다.
-2. "B is stronger"이면 남긴다. "No difference shown"이면 정확성이 확인된 기능(테스트가 있는 추리 같은 것)이나 버그 수정만 남기고, 강해지려고 넣은 것은 되돌린다. "B is weaker"이면 되돌린다.
-3. 결과는 5장 표에 한 줄로 남긴다. 실패도 남긴다. 같은 실패를 되풀이하지 않기 위해서다.
-4. 판단 시간을 늘리지 않는다. 벤치마크가 내는 평균 판단 시간이 1.4초(싱글)를 넘지 않게 한다.
-5. 컴퓨터는 사람처럼 공개된 것만 보고 고른다. 상대의 숨은 세트를 읽지 않는다는 테스트(`the computer never reads the other side's hidden set`)를 깨지 않는다.
+1. Any change to move selection must be benchmarked using Section 3. Default to 300 singles games, and run doubles too if doubles behavior is affected.
+2. Keep changes that score "B is stronger". On "No difference shown", keep only verified correctness features (such as tested deduction logic) or bug fixes; revert changes intended solely to add strength. Always revert "B is weaker".
+3. Log every result as a row in Section 5, including failures, so we do not repeat dead ends.
+4. Do not increase thinking time. Mean decision time in the benchmark must stay within 1.4 seconds (singles).
+5. The computer must rely only on public information, just like a human player. Never break the `the computer never reads the other side's hidden set` test.
 
-## 5. 실험 기록
+## 5. Experiment log
 
-벤치마크는 모두 싱글, 1.4초, 같은 파티로 자리 바꿔 두 번씩.
+All benchmarks below are singles, 1.4 s budget, mirrored pairs with identical teams unless noted otherwise.
 
-| 날짜 | 바꾼 것 | 결과 | 결정 |
+| Date | Change | Result | Decision |
 |---|---|---|---|
-| 2026-11-06 | 생각할 시간 4배(300ms 대 1200ms) | 36판 중 14승 | 시간은 한계가 아니다 |
-| 2026-11-06 | 막판 계산: 4마리 이하에서 다음 턴을 3x3 행렬로 보고 끝까지 둬 봄 | 64판 중 31승. 4초씩이면 48판 중 28승. 한 턴만 둬 보면 64판 중 26승 | 되돌림. 깊이보다 국면 평가가 한계 |
-| 2026-11-06 | 추리(속도 순서, 피해량) | 구애 도구 섞은 파티로 예전 코드 대비 300판 51.3% ± 4.7. 랜덤 파티 200판 47.5% ± 6.1 | 남김(9fa1eec). 숨은 스카프와 머리띠를 1턴에 찾는 것은 테스트로 확인. 샘플 기반 파티 상대 효과는 5% 미만 |
-| 2026-11-06 | 선출에서 메가스톤 보유자를 메가 모습으로 평가 | 직전 커밋 대비 300판 55.3% ± 4.9, Elo +37 | 남김(709a4d7). 처음으로 확인된 개선 |
-| 2026-11-06 | 난이도 폴리곤2 첫 설정(추리 끔, 0.7초, slack .2, mistake .1) | 폴리곤Z 대비 60판 41.7% ± 11.6 | 버림. 폴리곤Z와 다른 단계로 보이지 않음 |
-| 2026-11-06 | 난이도 폴리곤2(추리 끔, 0.5초, slack .35, mistake .18) | 폴리곤Z 대비 100판 34.0% ± 6.5, Elo -115 | 남김. 확실히 한 단계 아래 |
-| 2026-11-06 | 난이도 폴리곤(추리와 내다보기 끔, 0.3초, slack .6, mistake .3) | 첫 폴리곤2 대비 60판 26.7% ± 9.1, 새 폴리곤2 대비 60판 31.7% ± 12.9, 가장 센 공격만 쓰는 봇 대비 40판 35.0% ± 12.5 | 남김. 입문용 |
-| 2026-11-07 | 버그 수정: 더블에서 짝이 쓰러진 뒤 남은 수가 도우미 같은 짝 대상 기술뿐이면 대상 없는 `move 1`을 내 엔진이 거절하고 컴퓨터가 멈췄다(battle-fuzz에서 찾음). 이제 그 기술을 빈 자리로 쓴다(실패한다). 다른 수가 있으면 고르는 수는 그대로 | 더블 2.2초 300판 50.3% ± 5.3, Elo +2, 거절 0 | 남김. 버그 수정이라 "차이 없음"이면 남긴다(4장 2) |
-| 2026-11-07 | 사람과 진 세 판(리플레이)에서 찾은 두 가지: 평가에서 살아 있음의 값을 1에서 0.6으로(1% 남은 포켓몬이 건강한 포켓몬의 절반으로 셈), 탈과 HP 가득일 때의 기합의띠와 옹골참에 0.3. 그리고 시뮬레이션의 운을 가운데에 고정(`steady`) | 평가만 1.4초 300판 51.7% ± 4.9. 둘 다 1.4초 300판 50.0% ± 4.6. 둘 다 0.4초(휴대폰의 표본 수) 300판 53.7% ± 4.6, 600판 53.3% ± 3.3(Elo +23 [0, 47]), 1200판 목표에서 멈춘 687판 53.0% | 운영자 결정으로 남김. 규칙상 "차이 없음"이지만 어느 측정에서도 약해지지 않았고, 리플레이의 해당 장면(1판 2턴 탈 낭비, 3판 1턴 교체)은 다시 두면 고친다 |
-| 2026-11-07 | 연승 도전의 서버 컴퓨터(docs/BATTLE_STREAK.md 4장). 시간 대신 정해진 표본 수로 생각하는 `samples` 옵션을 만들어 쟀다(같은 시드면 Edge와 이 PC가 576수 모두 같은 수) | 표본 3 대 1.4초 컴퓨터 300판 52.3% ± 4.8(Elo +16), 표본 2는 47.3% ± 4.5(Elo -19). 그러나 Edge에서 표본 3은 30판 중 가장 느린 수 1906 ms: 무거운 국면에서는 표본 하나가 비싸서 표본 수로는 최악을 막지 못한다. 시간 220 ms(Edge 400 ms에 해당) 대 1.4초 컴퓨터 300판 50.0% ± 4.9(Elo 0). Edge 400 ms는 30판 324수에서 평균 407 ms, p95 598, 최대 815 | `samples`는 되돌림. 서버는 지금의 시간 방식을 `budgetMs: 400`으로 쓴다: 첫 표본의 폭을 시간에 맞춰 줄이므로 최악이 예산의 약 2.2배에서 멈춘다(450 ms에서 1028, 700 ms에서 1541). 쉬는 데스크톱의 1.4초 컴퓨터는 수마다 표본 평균 13.9개인데 220 ms와 차이가 없으니, 생각할 시간은 세기의 한계가 아니다(이 표 첫 줄과 같은 결론) |
-| 2026-11-07 | `memory()`와 `memory` 옵션: 추리(상대 세트 후보와 직전 국면)를 JSON으로 내주고 이어 받는다. 요청마다 새로 만드는 서버 컴퓨터용 | 고르는 수는 바뀌지 않는다: 수마다 JSON을 거쳐 새로 만든 컴퓨터가 한 컴퓨터를 끝까지 쓴 것과 같은 입력 기록을 둔다(테스트, 이어 받지 않게 바꾸면 실패) | 남김. 고르는 수가 같아 벤치는 필요 없다 |
-| 2026-11-07 | 연승 도전의 서버 난이도: 폴리곤 Edge 300 ms(이 PC 165), 폴리곤2와 폴리곤Z Edge 400 ms(이 PC 220) | 폴리곤2 대 폴리곤Z 300판 37.3% ± 4.6(Elo -90), 폴리곤 대 폴리곤2 300판 39.3% ± 5.1(Elo -75). 각각 엔진이 컴퓨터의 수를 한 번 거절함(싱글) | 남김. 휴대폰 값의 계단과 같은 간격. 거절의 원인은 숨은 그림자밟기였다(다음 줄) |
-| 2026-11-07 | 버그 수정: 싱글에서 메가팬텀의 그림자밟기처럼 요청에 `maybeTrapped`로만 표시되는 숨은 묶임 아래에서 요청이 내놓는 교체를 엔진이 거절했다(약한 단계 220 ms 벤치마크에서 거절 1, 시드를 고정한 실수 100% 퍼징 320판에서 거절 4). 탐색은 믿는 사본에서 이미 거절로 셌지만 약한 단계의 실수와, 모든 기술이 면역이라 교체 하나만 남았을 때의 바로 돌려주기가 탐색을 거치지 않았다. 이제 요청이 `maybeTrapped`나 `maybeDisabled`를 달면 사본이 받는 수만 후보에 넣는다 | 1.4초 300판 48.3% ± 4.8, Elo -12 [-45, 22], 거절 0. 퍼징 싱글 320판, 더블 120판 거절 0 | 남김. 버그 수정이라 "차이 없음"이면 남긴다(4장 2) |
-| 2026-11-08 | 연승 도전에서 판마다 조금씩 오르는 난이도: 첫 층 한가운데(폴리곤과 폴리곤2의 중간, 이 PC 193 ms, slack .475, mistake .24)를 폴리곤(165 ms)과 | 300판 50.3% ± 5.0, Elo +2 | 버림. 한 판씩의 차이는 보이지 않는다. 층의 앞 세 판과 뒤 세 판에 잰 단계를 그대로 쓴다(BATTLE_STREAK.md 5장) |
-| 2026-11-11 | 잣대에 `tuned`, `ranker` 파티 모드 추가(7장 4의 준비). 고르는 수는 바뀌지 않는다. 기준선으로 `tuned`에서 추리를 끈 컴퓨터(B)를 켠 컴퓨터(A)와 맞붙임 | 200판 49.0% ± 6.1, Elo -7, 거절 0, 평균 1181 ms | 남김. 추리는 세트가 한 가지씩 어긋난 파티에서 아무것도 벌지 못한다: 후보에 그런 변형이 없어 지울 것만 있고 맞힐 것이 없다. 7장 4(후보 넓히기)는 이 모드에서 "B is stronger"가 나와야 한다 |
-| 2026-11-11 | 명중 갈래(`chanceToHit`): 명중 100% 미만인 우리 기술은 행렬의 칸을 맞음과 빗나감으로 두 번 돌려 명중률로 가중 평균한다. `steady`는 70% 기술을 늘 맞는 것으로 봐서 100% 기술과 같은 값이었다. 늘어난 칸만큼 상대 후보 폭을 줄인다 | 300판 51.3% ± 4.9, Elo +9 [-25, 44], 거절 0, 평균 1191 ms, 최대 1975 ms | 남김. 4장 2의 "정확성이 확인된 기능": 확실한 마무리와 70% 마무리 중 확실한 쪽을 고르는 것을 테스트로 확인(갈래를 끄면 다섯 시드 중 하나에서 실패). 명중률 단계, 넓은렌즈, 복안, 날씨의 명중은 아직 읽지 않는다 |
-| 2026-11-11 | 믿음 넓히기: 상대 후보에 샘플 세트마다 노력치 변형(스피드 투자를 가장 덜 투자한 내구와 맞바꾸거나, 가장 많이 투자한 내구를 스피드로)과 성격 변형(고집↔명랑, 조심↔겁쟁이 등)을 3% 가중치로 더함. 스피드 투자 괴력몬이 킹갬빗보다 먼저 움직이면 스피드 투자 후보만 남는 것은 테스트로 확인 | `tuned` 300판 48.7% ± 5.0, Elo -9 [-44, 25], 거절 0, 평균 1214 ms, 최대 2370 ms | 되돌림. 이 모드에서 "B is stronger"가 기준이었다. 추리가 맞아도 11턴 안팎의 판에서 그 턴 이후로 수가 바뀔 일이 적고, `tuned`의 어긋남(공격과 방어 맞바꾸기, 기술 하나)은 대부분 이 변형 밖이다. 다시 하려면 먼저 "믿음이 틀려서 진 턴"이 판마다 몇 번인지 세어 효과의 상한을 본다 |
-| 2026-11-11 | 국면 평가에 답안 항(`cover`, `TUNE.answer` 0.3): 상대의 남은 포켓몬마다 우리 쪽 가장 좋은 맞상대의 맞대면 값을 평균하고, 상대 쪽 같은 값을 뺀다. 지금까지의 평가는 앞의 두 마리만 봐서, 상대의 마지막 포켓몬을 아무도 못 막는 국면과 우리가 쓸어 갈 국면이 같은 값이었다 | 300판 54.3% ± 4.9, Elo +30 [-4, 65], 거절 0, 평균 1263 ms, 최대 2586 ms. 600판 확인은 운영자 지시로 하지 않음 | 운영자 결정으로 남김. 규칙상 "차이 없음"이지만 이번 계획에서 가장 큰 신호이고 약해진 신호는 없다. 가중치 0.3은 재지 않은 값이라, 자가 대국 국면과 승패로 맞추는 것이 다음 후보다 |
-| 2026-11-12 | 샘플 세트(컴퓨터가 상대를 추측하는 근거) 바꾸기. 전면 재설계는 싱글 34.5% ± 4.6과 46.3% ± 4.7로 버리고, 노력치 재배분만 남김(docs/SAMPLE_SETS.md 3장) | 컴퓨터가 상대 세트를 정확히 아느냐가 같은 파티의 승률을 약 12점 바꿨다(같은 재설계 세트를 컴퓨터가 알 때 34.5%, 원본을 알 때 46.3%) | 고르는 법은 그대로다. 믿음의 정확도가 크다는 것은 7장 4(믿음 넓히기)의 상한이 작지 않다는 근거다 |
-| 2026-11-08 | 층의 주인의 파티: 사용률 상위 24종에서만 뽑은 파티 대 보통 컴퓨터 파티, 양쪽 같은 컴퓨터(220 ms), 판마다 새로 뽑고 자리를 번갈아 | 300판 56.3% ± 5.6 | 남김. 고르는 법이 아니라 파티라 컴퓨터는 그대로다 |
-| 2026-11-18 | 샘플 세트 정리(docs/SAMPLE_SETS.md 5장): M-C 싱글 1329세트를 280세트로, 한 빌드에 도구 하나, 대부분의 종이 세트 하나. 컴퓨터가 읽는 믿음이 바뀐다. 코드는 그대로 | 같은 코드(HEAD) 대 지금 폴더, 정리한 세트의 랜덤 파티 300판 50.3% ± 4.5, Elo +2 [-29, 34], 거절 0, 평균 1305 ms, 최대 3444 ms. 세트 잣대(정리한 세트 대 정리 전 세트, 정리한 세트가 읽힐 때) 400판 50.2% ± 4.3 | 운영자 지시로 남김. 데이터 바꿈이라 이 잣대는 양쪽이 같은 믿음을 쓰고, 거절과 판단 시간에 문제가 없음을 확인한 것이다. 믿음이 종마다 거의 한 세트라 샘플과 다른 선수 세트에 처음 틀리는 효과는 `--parties tuned`나 `players`로 재야 한다 |
-| 2026-11-19 | 탑 서버 컴퓨터의 생각 시간 절반(백엔드 최적화 2단계). 실서버 계측(battle 함수의 timing 줄)에서 탑의 choose 한 번이 평균 571 ms, 그중 컴퓨터의 생각이 383 ms이고 DB는 188 ms였다. 폴리곤Z 옵션으로 이 PC 220 ms(Edge 400 ms에 해당) 대 110 ms(Edge 약 200 ms) | 300판, 무작위 파티: B(110 ms) 141/300 = 47.0% ± 5.0, Elo -21 [-56, 14], 거절 0 | 운영자 결정으로 되돌림("유지해줘"). 판정은 "차이 없음"이지만 점추정이 약한 쪽이고, 생각 시간은 탑 난이도 계단(`STREAK_STEPS`)의 일부다. 탑의 지연을 다시 줄이려면 생각 시간이 아니라 DB 왕복(한 번 약 90 ms)부터 본다 |
-| 2026-11-18 | 추리의 변형 가설에서 돌격조끼를 뺐다(`VARIANTS`): 포켓몬 챔피언스에는 없는 도구다(엔진의 챔피언스 데이터가 "Past"로 둔다). 같은 날 샘플을 역할마다 한 빌드로 다시 정리했다(싱글 310, 더블 296세트, SAMPLE_SETS.md 5장) | 300판, 무작위 파티, 1400 ms: B(이 폴더) 158/300 = 52.7% ± 4.9, Elo 19 [-15, 53], 거절 0, 한 수 평균 1279 ms, 가장 느린 수 2936 ms | 남김. 차이는 드러나지 않았다. 있을 수 없는 가설을 지운 바로잡음이다 |
-| 2026-11-19 | 실제 사람과의 싱글 525판(`cpu_battles`)을 다시 돌려 본 교체. 본 것: 컴퓨터는 턴의 19.3%를 교체하고 사람은 7.7%, 같은 국면을 두 번 물으면 85.4%가 같은 교체, 방금 뺀 포켓몬으로 곧바로 되돌아간 교체 96번, 상대 모형은 사람이 지는 맞대면에서 38% 교체한다고 봤는데 실제는 19%. 고친 것 셋: 상대 모형의 교체 예상을 절반으로(`HUMAN_SWITCH`), 나와서 한 번도 움직이지 않은 포켓몬을 빼는 데 비용 0.2 더(`CHAIN_COST`), 교체가 최선에서 0.1 안에 있으면 그 안의 선택을 균형 전략의 비율대로 뽑기(`READ`, `drawChoice`; 폴리곤과 폴리곤2의 뽑기는 그대로) | 읽힘 잣대(3장) 200판, 400 ms: 읽는 상대가 교체와 대상을 맞힌 비율 99.1% → 90.6%, 한 수를 맞힌 비율 94.6% → 84.7%, 한 판 평균 35턴(끝없는 왕복 교체) → 11턴, 컴퓨터 승률 33.5% ± 6.3 → 37.0% ± 6.5. 실전 국면 1762개에 다시 물으면 같은 교체 85.4% → 79.7%, 교체율 19.3% → 19.1%. 자가 대국 300판 52.0% ± 5.1, Elo +14 [-21, 49], 거절 0. 판단 시간은 쉬는 PC의 40판에서 평균 1178 ms, 최대 2038 ms(300판의 1511 ms는 다른 작업과 겹친 값) | 남김. 강해지려는 것이 아니라 읽히지 않게 하라는 운영자 지시의 기능이고, 뽑기는 테스트로, 읽힘은 잣대로 확인했다. 자가 대국은 "차이 없음". 읽는 상대는 여전히 교체 열에 아홉을 맞히고 교체율은 사람의 2.5배 그대로다 |
-| 2026-11-19 | 위에 더해 교체 비용 0.12 → 0.2, 섞는 폭 0.1 → 0.2 | 위 상태 대비 자가 대국 300판 49.0% ± 5.0, Elo -7 [-42, 28], 거절 0. 읽힘 잣대는 교체 적중 90.2%로 같고(컴퓨터 승률 38.5% ± 6.4), 실전 국면의 교체율 19.1% → 17.1%, 같은 교체 79.7% → 76.0% | 되돌림. 덜 교체하지만 덜 읽히지도 강해지지도 않았다. 폭을 넓혀도 읽힘이 그대로인 것은 대부분의 교체가 다른 선택보다 0.2 넘게 좋게 평가되기 때문으로 보인다: 읽힘을 더 줄이려면 뽑기가 아니라 교체의 값을 매기는 쪽(읽혔을 때의 값)을 봐야 한다 |
-| 2026-11-19 | 국면 평가의 답안 항 0.3 → 1.0(`TUNE.answer`). 사람과 끝까지 간 408판의 4404국면에서 평가의 항들을 승패에 로지스틱 회귀로 맞추면(HP 항을 1.4로 고정한 단위, 판 단위 부트스트랩 100번) 답안 항 1.77, 90% 구간 [0.93, 4.77]; 살아 있음 0.97 [0.33, 2.95](지금 0.6), 상태와 랭크 등 1.07 [0.24, 2.51](지금 1), 맞대면 0.42 [-0.04, 0.97](지금 0.35), 사람 쪽으로 치우친 절편 -0.93 | 위 첫 줄 상태 대비 자가 대국 300판 50.7% ± 4.9, Elo +5 [-30, 39], 거절 0(벤치 도중 PC가 잠들어 판단 시간은 읽지 못함) | 되돌림. 기록은 답안 항이 더 커야 한다고 하지만 자가 대국에서는 보이지 않았다. 회귀는 난이도와 버전이 섞인 기록이고(기록에 난이도가 없다) 사람의 실력이 절편에 들어가 있어, 항 하나만 올린 값이 맞는다는 보장이 없다. 다시 하려면 기록에 난이도를 남긴 뒤 폴리곤Z 판만으로 맞춘다 |
+| 2026-11-06 | 4x thinking time (300 ms vs 1200 ms) | 14 wins in 36 games | Time is not the bottleneck |
+| 2026-11-06 | Endgame search: 3x3 next-turn matrix played out to completion when <=4 Pokémon remain | 31 wins in 64 games. At 4 s/move, 28 wins in 48 games. 1-turn lookahead scored 26 wins in 64 games | Reverted. Evaluation quality is the limit, not search depth |
+| 2026-11-06 | Deduction (Speed order and damage rolls) | 51.3% ± 4.7 over 300 games vs prior code on Choice-spiced teams; 47.5% ± 6.1 over 200 random games | Kept (`9fa1eec`). Tests verify catching hidden 구애스카프 and 구애머리띠 on turn 1. Effect against pure sample teams is under 5% |
+| 2026-11-06 | Evaluate Mega Stone holders in Mega form during team preview | 55.3% ± 4.9 over 300 games vs previous commit, Elo +37 | Kept (`709a4d7`). First confirmed strength gain |
+| 2026-11-06 | First 폴리곤2 difficulty settings (no reads, 0.7 s, slack .2, mistake .1) | 41.7% ± 11.6 over 60 games vs 폴리곤Z | Dropped. Not clearly separated from 폴리곤Z |
+| 2026-11-06 | 폴리곤2 difficulty (no reads, 0.5 s, slack .35, mistake .18) | 34.0% ± 6.5 over 100 games vs 폴리곤Z, Elo -115 | Kept. Clear one-tier step down |
+| 2026-11-06 | 폴리곤 difficulty (no reads or lookahead, 0.3 s, slack .6, mistake .3) | 26.7% ± 9.1 over 60 games vs first 폴리곤2, 31.7% ± 12.9 over 60 games vs new 폴리곤2, 35.0% ± 12.5 over 40 games vs strongest-attack bot | Kept. Beginner tier |
+| 2026-11-07 | Bug fix: in doubles, when the ally fainted and only an ally-targeted move like 도우미 remained, emitting untargeted `move 1` caused engine rejection and stalled the computer (found by battle-fuzz). Now targets the empty ally slot (fails cleanly). No change when other moves exist | Doubles 2.2 s, 300 games: 50.3% ± 5.3, Elo +2, 0 rejections | Kept. Bug fix allowed on "No difference shown" (Section 4.2) |
+| 2026-11-07 | Two fixes from three human-loss replays: lower alive bonus in `evaluate` from 1 to 0.6 (a 1% HP Pokémon counted as half a healthy one), add 0.3 for 탈 and full-HP 기합의띠 or 옹골참, and lock simulation RNG to median (`steady`) | Eval change alone at 1.4 s, 300 games: 51.7% ± 4.9. Both at 1.4 s, 300 games: 50.0% ± 4.6. Both at 0.4 s (phone sample count): 53.7% ± 4.6 over 300 games, 53.3% ± 3.3 over 600 games (Elo +23 [0, 47]), 53.0% at 687 games (stopped early from 1200 target) | Kept by operator decision. Rule says "No difference shown", but no measurement regressed and the exact replay blunders (Game 1 turn 2 wasting 탈, Game 3 turn 1 switch) are fixed on replay |
+| 2026-11-07 | Server computer for streak runs (`docs/BATTLE_STREAK.md` Section 4). Tested a fixed sample count option `samples` instead of time budget (Edge and this PC picked identical moves across all 576 moves on matching seeds) | 3 samples vs 1.4 s computer: 52.3% ± 4.8 over 300 games (Elo +16); 2 samples: 47.3% ± 4.5 (Elo -19). On Edge, 3 samples hit 1906 ms worst move across 30 games because heavy turns make each sample expensive. 220 ms time budget (matching 400 ms on Edge) vs 1.4 s computer: 50.0% ± 4.9 over 300 games (Elo 0). Edge 400 ms across 30 games (324 moves): mean 407 ms, p95 598 ms, max 815 ms | Reverted `samples`. Server keeps time-budget mode at `budgetMs: 400`: narrowing the first sample's width caps worst-case time around 2.2x budget (1028 ms at 450 ms, 1541 ms at 700 ms). An idle desktop at 1.4 s averages 13.9 samples per move yet ties 220 ms, confirming thinking time is not the limit |
+| 2026-11-07 | `memory()` and `memory` option to serialize and restore deduction state (opponent candidates and previous turn) as JSON for stateless server requests | Move choices unchanged: a computer recreated from JSON every turn produces the exact same input log as a single continuous instance (tested; fails if state is not passed) | Kept. Identical play requires no benchmark |
+| 2026-11-07 | Server difficulty budgets for streak runs: 폴리곤 Edge 300 ms (165 ms local), 폴리곤2 and 폴리곤Z Edge 400 ms (220 ms local) | 폴리곤2 vs 폴리곤Z: 37.3% ± 4.6 over 300 games (Elo -90). 폴리곤 vs 폴리곤2: 39.3% ± 5.1 over 300 games (Elo -75). Each run had 1 engine rejection (singles) | Kept. Matches phone tier spacing. Rejections came from hidden 그림자밟기 (next row) |
+| 2026-11-07 | Bug fix: in singles under hidden trapping like 메가팬텀's 그림자밟기 (`maybeTrapped`), the engine rejected switches listed in the request (1 rejection in weak-tier 220 ms benchmark, 4 rejections in 320 seeded 100%-mistake fuzz games). Search already counted them as rejected on its belief copy, but weak-tier mistakes and the forced-switch shortcut when all moves are immune bypassed search. Now filters candidates through the belief copy whenever `maybeTrapped` or `maybeDisabled` is set | 1.4 s, 300 games: 48.3% ± 4.8, Elo -12 [-45, 22], 0 rejections. Fuzzing: 0 rejections across 320 singles and 120 doubles games | Kept. Bug fix allowed on "No difference shown" (Section 4.2) |
+| 2026-11-08 | Gradual per-match difficulty scaling in streak runs: floor-1 midpoint between 폴리곤 and 폴리곤2 (193 ms local, slack .475, mistake .24) vs 폴리곤 (165 ms) | 300 games: 50.3% ± 5.0, Elo +2 | Dropped. Single-match increments are indistinguishable. Keep measured difficulty tiers for front and back halves of floors (`BATTLE_STREAK.md` Section 5) |
+| 2026-11-11 | Added `tuned` and `ranker` team modes to benchmark (prep for Section 7.4). Move selection unchanged. Baseline on `tuned`: reads off (B) vs reads on (A) | 200 games: 49.0% ± 6.1, Elo -7, 0 rejections, mean 1181 ms | Kept. Deduction gains nothing when each set differs by one tweak because candidates lack those variants and only get pruned without hitting the truth. Section 7.4 must score "B is stronger" in this mode |
+| 2026-11-11 | Accuracy branching (`chanceToHit`): for our moves under 100% accuracy, evaluate each matrix cell twice (hit and miss) and weight by accuracy. Previously `steady` treated 70% moves as guaranteed hits. Trimmed opponent candidate width to offset extra cells | 300 games: 51.3% ± 4.9, Elo +9 [-25, 44], 0 rejections, mean 1191 ms, max 1975 ms | Kept as a verified correctness feature (Section 4.2): tests confirm picking a guaranteed KO over a 70% KO (disabling branching fails 1 of 5 seeds). Does not yet read accuracy stages, 넓은렌즈, 복안, or weather accuracy |
+| 2026-11-11 | Broader belief set: added 3%-weight EV variants (swapping Speed investment with least-invested bulk, or most-invested bulk with Speed) and nature variants (고집 and 명랑, 조심 and 겁쟁이, etc.) per sample set. Tested that Speed-invested 괴력몬 moving before 킹갬빗 narrows candidates to Speed variants | `tuned`, 300 games: 48.7% ± 5.0, Elo -9 [-44, 25], 0 rejections, mean 1214 ms, max 2370 ms | Reverted. Required "B is stronger" in `tuned` mode. Even accurate reads rarely change subsequent moves in ~11-turn games, and most `tuned` tweaks (Attack/Defense swap or move swap) fall outside these variants. Before retrying, count how many turns per game are actually lost to wrong beliefs to bound upside |
+| 2026-11-11 | Coverage term in evaluation (`cover`, `TUNE.answer` 0.3): average our best matchup score against each remaining opponent Pokémon and subtract the opponent's equivalent score. Previously `evaluate` only looked at the two active Pokémon, scoring an unstoppable late-game sweeper the same as a swept position | 300 games: 54.3% ± 4.9, Elo +30 [-4, 65], 0 rejections, mean 1263 ms, max 2586 ms. Operator skipped 600-game confirmation | Kept by operator decision. Rule says "No difference shown", but this is the strongest signal in the plan with no sign of regression. Weight 0.3 is uncalibrated; fitting weights from self-play positions and outcomes is the next candidate |
+| 2026-11-12 | Sample set update (computer's opponent prior). Dropped full redesign after scoring 34.5% ± 4.6 and 46.3% ± 4.7 in singles, keeping only EV redistribution (`docs/SAMPLE_SETS.md` Section 3) | Knowing the opponent's exact sets swung win rate by about 12 points on identical teams (34.5% when the computer knew the redesigned sets vs 46.3% when it assumed raw sets) | Move logic unchanged. That 12-point gap shows belief accuracy has meaningful upside for Section 7.4 |
+| 2026-11-08 | Floor boss teams: drawn only from top-24 usage species vs normal computer teams, same computer on both sides (220 ms), fresh teams mirrored per pair | 300 games: 56.3% ± 5.6 | Kept. Team pool change only; computer logic unchanged |
+| 2026-11-18 | Sample set curation (`docs/SAMPLE_SETS.md` Section 5): reduced M-C singles from 1329 sets to 280 sets, one item per build, mostly one set per species. Changes the computer's belief prior; code unchanged | Same code (`HEAD`) vs working tree on curated random teams, 300 games: 50.3% ± 4.5, Elo +2 [-29, 34], 0 rejections, mean 1305 ms, max 3444 ms. Set benchmark (curated vs pre-curated when curated is read): 400 games, 50.2% ± 4.3 | Kept by operator direction. Because this is a data change, both sides share the same prior here; this confirms zero rejections and healthy decision times. Initial misread impact against off-sample player sets must be measured with `--parties tuned` or `players` |
+| 2026-11-19 | Halving tower server computer thinking time (backend optimization phase 2). Production timing logs in the battle function showed tower `choose` averaging 571 ms: 383 ms CPU thinking and 188 ms DB. Tested 폴리곤Z at 220 ms local (400 ms Edge) vs 110 ms local (~200 ms Edge) | 300 random games: B (110 ms) won 141/300 = 47.0% ± 5.0, Elo -21 [-56, 14], 0 rejections | Reverted by operator decision ("유지해줘"). Verdict was "No difference shown", but point estimate leaned weaker and thinking time is part of the tower difficulty ladder (`STREAK_STEPS`). To cut tower latency further, target DB round trips (~90 ms each) first |
+| 2026-11-18 | Removed 돌격조끼 from deduction variants (`VARIANTS`): item does not exist in 포켓몬 챔피언스 (marked "Past" in engine data). Re-curated samples the same day to one build per role (310 singles, 296 doubles, `SAMPLE_SETS.md` Section 5) | 300 random games, 1400 ms: B (working tree) won 158/300 = 52.7% ± 4.9, Elo +19 [-15, 53], 0 rejections, mean 1279 ms, max 2936 ms | Kept. No strength change shown; corrects an impossible hypothesis |
+| 2026-11-19 | Switch audit on 525 human singles games (`cpu_battles`). Findings: computer switched on 19.3% of turns vs 7.7% for humans, repeated the exact same switch 85.4% of the time when queried twice, immediately switched back to a just-withdrawn Pokémon 96 times, and assumed humans switch 38% in losing matchups when actual rate was 19%. Three fixes: halve opponent-model switch prior (`HUMAN_SWITCH`), add 0.2 penalty for withdrawing a Pokémon that has not acted (`CHAIN_COST`), and sample from equilibrium weights when a switch is within 0.1 of best (`READ`, `drawChoice`; 폴리곤 and 폴리곤2 sampling unchanged) | Readability benchmark (Section 3), 200 games, 400 ms: switch+target prediction dropped from 99.1% to 90.6%, move prediction from 94.6% to 84.7%, mean game length from 35 turns (endless switch loops) to 11 turns, computer win rate rose from 33.5% ± 6.3 to 37.0% ± 6.5. Re-querying 1762 live positions: repeat switch rate 85.4% to 79.7%, switch rate 19.3% to 19.1%. Self-play 300 games: 52.0% ± 5.1, Elo +14 [-21, 49], 0 rejections. Mean time on idle PC (40 games): 1178 ms, max 2038 ms (1511 ms during 300-game run had background load) | Kept. Operator-requested anti-predictability feature, verified by unit tests and readability benchmark. Self-play showed no difference. The reading opponent still predicts 9 in 10 switches and switch rate remains 2.5x human rate |
+| 2026-11-19 | On top of the above: raised switch cost from 0.12 to 0.2 and mixing margin from 0.1 to 0.2 | Self-play vs above state, 300 games: 49.0% ± 5.0, Elo -7 [-42, 28], 0 rejections. Readability unchanged at 90.2% switch prediction (win rate 38.5% ± 6.4). Live positions: switch rate 19.1% to 17.1%, repeat switch 79.7% to 76.0% | Reverted. Switched less without becoming less predictable or stronger. Widening the margin left predictability flat because most switches score more than 0.2 above alternatives. Reducing predictability further requires changing how switches are valued (accounting for being read), not just sampling |
+| 2026-11-19 | Raised `TUNE.answer` coverage weight from 0.3 to 1.0. Logistic regression on 4404 positions from 408 completed human games (HP weight fixed at 1.4, 100 game-level bootstraps) estimated answer 1.77 (90% CI [0.93, 4.77]), alive 0.97 [0.33, 2.95] (current 0.6), status/ranks 1.07 [0.24, 2.51] (current 1), matchup 0.42 [-0.04, 0.97] (current 0.35), intercept -0.93 favoring humans | Self-play vs first row above, 300 games: 50.7% ± 4.9, Elo +5 [-30, 39], 0 rejections (PC slept mid-run so timing unreadable) | Reverted. Game logs suggest a higher answer weight, but self-play showed no gain. Logs mix difficulties and versions (difficulty is not logged) and human skill sits in the intercept, so raising one weight alone is unreliable. Revisit after logging difficulty and fitting on 폴리곤Z games only |
 
-난이도(`src/services/cpuLevels.js`)는 `createCpu`의 옵션 묶음이다. 폴리곤Z는 옵션이 없는 기본 컴퓨터라 위 규칙과 실험이 모두 폴리곤Z에 대한 것이고, 기본 컴퓨터를 고치면 폴리곤과 폴리곤2도 함께 달라진다. 단계를 바꾸면 이웃 단계와 맞붙여(`--b`에 아래 단계의 옵션, 작업 폴더를 비교하려면 `git stash create`로 만든 커밋을 `--base`에) 아래 단계가 "B is weaker"로 나오는지 확인한다.
+Difficulty levels (`src/services/cpuLevels.js`) are option presets for `createCpu`. 폴리곤Z is the default computer with no extra options, so the rules and experiments above target 폴리곤Z; changing the base computer affects 폴리곤 and 폴리곤2 as well. Whenever you adjust a difficulty preset, benchmark it against its neighbor (pass the weaker tier's options to `--b`, and use a commit from `git stash create` as `--base` to compare working changes) to confirm the lower tier scores "B is weaker".
 
-실제 사람과의 기록(2026-11-06 기준, `cpu_battles`): 끝까지 간 80판에서 컴퓨터 43승. 기권 14판은 모두 컴퓨터 승. 2026-11-19 기준 싱글: 끝까지 간 408판에서 컴퓨터 209승(51.2%), 기권 117판. 모든 난이도가 섞인 수다. 그 판들에서 컴퓨터가 한 번도 교체하지 않은 판은 68% 이겼고 세 번 이상 교체한 판은 28% 이겼다(지는 판에서 교체가 늘어나는 것과 섞여 있다).
+Human match records in `cpu_battles`: as of 2026-11-06, the computer won 43 of 80 completed games, plus all 14 forfeits. As of 2026-11-19 (singles), it won 209 of 408 completed games (51.2%), with 117 forfeits across all difficulties combined. In those games, the computer won 68% when it never switched and 28% when it switched three or more times (confounded by losing positions triggering more switches).
 
-## 6. 학습
+## 6. Learning
 
-컴퓨터가 YPL 선수들이 실제로 쓰는 세트를 더 잘 읽도록, 컴퓨터 배틀 기록으로 샘플 세트 가중치를 고친다. 수 두는 법을 배우는 것은 아니다.
+To help the computer read the sets YPL players actually bring, finished battle logs adjust sample set weights. This does not train move selection.
 
-- 재료: 끝난 컴퓨터 배틀마다 기기가 입력 기록을 보내고, 배틀 함수가 다시 돌려 검증한 뒤 `cpu_battles`에 저장한다. 선수 이름은 "선수"로 바꿔 저장해 누구의 이름도 남지 않는다. 표는 비공개다.
-- `scripts/learn-cpu-sets.mjs`: 선수 쪽 파티만 읽는다. 랜덤 파티와 같은 파티의 반복은 뺀다. 세트가 3분의 2 이상 겹치는 파티는 한 사람으로 묶어, 한 사람이 많이 해도 한 표다. 포켓몬마다 YPL 비중은 최대 30%이고, 래더에 없는 세트는 서로 다른 세 사람 이상이 써야 들어간다. 30명 미만이면 아무것도 쓰지 않는다. 매번 래더 가중치(`baseWeight`)에서 다시 계산하므로 반복해도 쏠리지 않는다. 샘플 세트는 한 빌드 한 도구로 정리되어 있으므로(docs/SAMPLE_SETS.md 5장) 선수의 세트가 어느 빌드와 같은 특성, 같은 종류의 도구, 기술 셋 이상을 나누면 그 빌드의 표가 되고, 새 세트도 서로 그렇게 묶여 하나로 들어간다. 새 세트는 언제나 도구 하나다.
-- `.github/workflows/learn-cpu-sets.yml`: 매주 월요일 10시(KST)에 돌고, 바뀐 것이 있으면 테스트를 통과한 뒤 PR을 연다. 머지해야 반영된다. 저장소 시크릿 `SUPABASE_SERVICE_ROLE_KEY`가 없으면 아무것도 하지 않고 끝난다.
-- 아직 비는 곳: 잣대는 코드 버전만 비교하고 데이터 버전은 비교하지 못한다. 학습 PR이 실제로 강하게 만드는지는 머지 뒤 사람 상대 승률로 본다.
+- After each finished computer battle, the client sends the input log, and the battle function replays and verifies it before saving to `cpu_battles`. Player names are replaced with `선수` so no personal names are stored. The table is private.
+- `scripts/learn-cpu-sets.mjs` reads only player teams, skipping random teams and duplicate team repeats. Teams sharing at least two-thirds of their sets are grouped as one player so one active player gets one vote. YPL weight is capped at 30% per species, and off-ladder sets need at least three distinct players to enter. Nothing is written if fewer than 30 players are present. Weights are always recomputed from ladder `baseWeight`, preventing drift over repeated runs. Because sample sets use one item per build (`docs/SAMPLE_SETS.md` Section 5), any player set sharing an ability, item category, and at least three moves with a build votes for that build; new sets cluster the same way and always keep one item.
+- `.github/workflows/learn-cpu-sets.yml` runs every Monday at 10:00 KST, verifies tests pass, and opens a PR if anything changed. Merging deploys the update. If the `SUPABASE_SERVICE_ROLE_KEY` secret is missing, the workflow exits cleanly.
+- Current gap: the benchmark compares code versions, not data versions. Real impact of a learning PR is tracked via human win rate after merge.
 
-## 7. 다음 후보
+## 7. Next candidates
 
-효과가 클 것으로 보는 순서다. 어느 것이든 3장으로 재고 5장에 남긴다.
+Listed in rough order of expected impact. Benchmark any change using Section 3 and log it in Section 5.
 
-1. **국면 평가 개선**: 지금 한계는 수읽기 깊이가 아니라 `evaluate`의 정확도다(5장의 시간 4배, 막판 계산 실험). 쌓인 배틀 기록에서 "이 국면에서 누가 이겼나"를 모아 평가 가중치를 맞추거나, 승리 조건(남은 포켓몬이 상대 전부를 이기는가)을 평가에 넣는다.
-2. **실제 선수 파티로 재기**: `--parties players`로 추리와 선출의 실전 효과를 잰다. 샘플 기반 파티보다 클 것으로 본다.
-3. **더블 측정**: 지금까지의 측정은 싱글뿐이다.
-4. **사람이 짠 세트로 재기**: 세 판 모두 컴퓨터가 상대를 샘플 세트 하나로 확신해서 졌다(Charizard Y를 스피드 풀투자로 믿어 Archaludon이 교체를 되풀이, HP 투자를 몰라 확정 1타로 믿고 스텔스록, 풍선을 본 Gholdengo에게 10만볼트가 없다고 믿음). 랜덤 파티 잣대에서는 양쪽 믿음이 늘 맞아 이런 실수가 나오지 않는다. 샘플 세트의 노력치, 성격, 기술 하나를 바꾼 파티 모드를 잣대에 넣고, 그다음 후보에 스피드와 내구 변형을 더한다. `cpu_battles`의 선수 파티는 대부분 랜덤 파티 버튼으로 만든 것이라 `players` 모드로는 이것을 재지 못한다.
-5. **휴대폰의 표본 수**: 1.4초에 휴대폰은 1개 안팎이다(쉬는 데스크톱은 2026-11-07에 평균 13.9개로 쟀다. 다만 220 ms 컴퓨터와 1.4초 컴퓨터 사이에 차이가 보이지 않았으니 효과는 작을 수 있다). 한 수를 두 번째로 보는 비용(`revive`로 매번 JSON에서 배틀을 되살림)을 줄이면 믿음의 몬테카를로가 실제로 돈다.
-6. **새로고침 뒤에도 추리 유지**: 지금은 배틀 중 페이지를 새로고침하면 그때까지의 추리를 잊는다. 입력 기록을 턴마다 다시 읽게 하면 된다.
+1. Position evaluation is the current bottleneck, not search depth (shown by the 4x time and endgame search experiments in Section 5). Fit evaluation weights against win/loss outcomes from logged positions, or add explicit win-condition checks (whether a remaining Pokémon sweeps the rest of the opponent's team).
+2. Run `--parties players` to measure real-world deduction and team preview impact, which should be larger than on sample-based random teams.
+3. Run doubles benchmarks, since all measurements so far are singles only.
+4. Benchmark against human-built sets. Three human losses happened because the computer locked onto one sample set (assuming max-Speed Charizard Y caused Archaludon to switch repeatedly, missing HP investment led to using 스텔스록 assuming a guaranteed OHKO, and seeing 풍선 on Gholdengo led it to assume no 10만볼트). Random-team benchmarks never trigger these errors because beliefs always match. Add a team mode that alters one EV spread, nature, or move from sample sets, then add Speed and bulk variants to candidates. Most player teams in `cpu_battles` come from the random-team button, so `players` mode does not test this.
+5. Improve phone sample counts. Phones manage about 1 sample in 1.4 seconds (idle desktops averaged 13.9 on 2026-11-07, though 220 ms tied 1.4 s, so upside may be small). Cutting the cost of evaluating a second move (currently recreating the battle from JSON via `revive` every time) would let Monte Carlo belief sampling actually run on phones.
+6. Preserve deduction across page reloads. Reloading mid-battle currently wipes deduction state; replaying the input log turn by turn on load fixes this.
 
-## 8. 이어받는 사람에게
+## 8. Handover notes
 
-컴퓨터를 계속 고치는 데 필요한 것:
+What you need to keep improving the computer:
 
-- GitHub 저장소 `iambin2/yonsei-pokemon-league`의 쓰기 권한. `main`에 푸시하면 사이트가 배포된다. 지금은 개인 계정 소유라, 운영진이 바뀌면 협업자로 추가하거나 단체 계정으로 옮긴다.
-- 저장소 시크릿 `SUPABASE_SERVICE_ROLE_KEY`(학습 워크플로와 `--parties players`용). Supabase 대시보드의 운영 프로젝트(`rqffrogcverfjqzjasax`) API 설정에 있다. 이 값은 DB 전체 권한이므로 저장소 밖으로 내보내지 않는다.
-- 배틀 함수를 바꿀 때만 Supabase 프로젝트 권한(`npm run build:battle` 후 함수 배포).
+- Write access to GitHub repo `iambin2/yonsei-pokemon-league`. Pushing to `main` deploys the site. Because it currently lives under a personal account, add new maintainers as collaborators or transfer it to an organization when leadership changes.
+- Repository secret `SUPABASE_SERVICE_ROLE_KEY` (used by the learning workflow and `--parties players`), found in the API settings of the production Supabase project (`rqffrogcverfjqzjasax`). This grants full DB access; never expose it outside the repository.
+- Supabase project access only when modifying the battle edge function (`npm run build:battle` followed by function deploy).
 
-작업 순서: 이 문서를 읽고, 7장에서 하나를 고르고, 고친 뒤 `npm test`와 `npm run bench:cpu -- --games 300`을 돌리고, 4장 규칙대로 남기거나 되돌리고, 5장에 한 줄을 더해 커밋한다.
+Workflow: read this document, pick a candidate from Section 7, implement it, run `npm test` and `npm run bench:cpu -- --games 300`, keep or revert per Section 4, and add one line to Section 5 before committing.

@@ -1,79 +1,54 @@
-# 기술 연출 작업 도구 (2026-11-07)
+# Move FX tools (2026-11-07)
 
-- `recipes.json`: 연출 각본 223개(대표 기술, 각본, 포함 기술). 번호는 순위가 아니라 각본 순서.
-- `scores.tsv`: 수정 전 채점(번호, 점수, 대표 기술, 메모). `final.tsv`: 수정 후 채점(같은 번호가 여러 줄이면 마지막 줄이 최신).
-- `shoot.mjs`: 실험실(?view=lab)에서 기술을 재생해 8프레임 접촉 사진을 찍는다. 개발 서버(5182, `ypl-dev-offline`)가 떠 있어야 하고,
-  Playwright는 npx 캐시의 것을 쓴다(경로는 파일 첫머리 require). 사용: `node shoot.mjs 0 223 "" 출력폴더`
-  또는 특정 기술만 `node shoot.mjs 0 0 flamethrower,surf 출력폴더`. 출력폴더는 이 폴더 기준이거나 절대 경로.
-  병렬로 돌릴 땐 `WX=-3000` 처럼 창 위치를 바꾼다. 방어 계열은 실험실이 배틀처럼 기술 뒤에 방어막 줄(shield)까지 재생한다.
-- `shootfield.mjs [ids] 출력폴더`: 날씨, 필드와 룸, 한쪽 진영의 장판과 벽, 메가진화(`mega`)를 실험실에서 세워 3초간 8프레임으로 찍는다.
-- `sb.py "Protect" "Aqua Ring"`: 원작 참고 영상(AGi-M의 "Move: X | Pokemon Scarlet Violet", 없으면 다른 쇼케이스)을 찾아
-  유튜브 스토리보드(320x180, 약 1초 간격, 3x3 한 장) 주소를 `sb.json`에 모은다. `--js`는 브라우저에 넣을 한 줄을 낸다.
-  주소의 서명은 몇 시간 뒤 만료되므로 `sb.json`은 저장소에 넣지 않는다. 브라우저 창에서 스토리보드 이미지를 열고
-  칸을 잘라 크게 보며 원작과 맞춘다. 기억이 아니라 영상을 보고 맞춘다.
-- `montage.py`, `mont4.py`: 접촉 사진을 3~4장씩 묶는다. `add.py 기술=점수 ... --note "무엇을 고쳤나"`: final.tsv에 점수를 더한다.
-- `report.py` + `report_tpl.html`: 순위표 `docs/move-fx-ranking.html`을 만든다. 점수를 바꿀 때마다 다시 돌린다.
+- `recipes.json` holds 223 animation recipes (representative move, recipe, included moves). Numbers reflect recipe order, not rank.
+- `scores.tsv` records pre-edit scores (number, score, representative move, memo). `final.tsv` records post-edit scores (if a number appears on multiple lines, the last line is latest).
+- `shoot.mjs` plays moves in the lab (`?view=lab`) and captures 8-frame contact sheets. Requires the dev server on port 5182 (`ypl-dev-offline`) and uses Playwright from the npx cache (path at the top of the file). Run `node shoot.mjs 0 223 "" <outDir>` or target specific moves with `node shoot.mjs 0 0 flamethrower,surf <outDir>`. Output paths are relative to this folder or absolute. When running in parallel, offset window position with `WX=-3000`. For protection moves, the lab also plays the post-move shield line just like live battles.
+- `shootfield.mjs [ids] <outDir>` sets up weather, terrains, rooms, side hazards, screens, and Mega Evolution (`mega`) in the lab and captures 8 frames over 3 seconds.
+- `sb.py "Protect" "Aqua Ring"` searches official game reference videos (AGi-M's "Move: X | Pokemon Scarlet Violet", falling back to other showcases) and saves YouTube storyboard URLs (320x180, ~1 s interval, 3x3 grid) to `sb.json`. `--js` prints a one-liner to paste into the browser. Signed URLs expire after a few hours, so keep `sb.json` out of git. Open storyboard sheets in a browser window and inspect cropped cells to match official animations instead of working from memory.
+- `montage.py` and `mont4.py` combine 3 to 4 contact sheets per image. `add.py move=score ... --note "what changed"` appends updated scores to `final.tsv`.
+- `report.py` with `report_tpl.html` generates the ranking page `docs/move-fx-ranking.html`. Re-run after every score update.
+- `shoot.mjs` writes white-saturation metrics per move to `<outDir>/white.tsv` (increase in near-white pixels over frame 1, parts per thousand of screen area, peak frame). Capture before and after on the same move list and run `pair.py <beforeDir> <afterDir> <outDir> [4]` to inspect them side by side with numbers.
+- `emitlog.mjs <move>` lists emitted particles chronologically (texture, color ramp, size, `emis`, `occ`) to trace which particles stack into a white blob. `actorlog.mjs <move>` prints the Pokémon's `flash`, `rim`, and `tint` values every 40 ms during playback to separate body shading from additive glow stacked on top.
+- The lab occasionally switches into doubles mode mid-capture. Re-shoot any affected move (suspect when `white.tsv` drops near 0 or two opponents appear).
 
-- `shoot.mjs`는 기술마다 백색 포화 수치를 출력폴더의 `white.tsv`에 남긴다(첫 장보다 늘어난 거의 흰 화소, 화면의 천분율, 가장 많은 장 기준).
-  수정 전후를 같은 기술 목록으로 찍어 `pair.py 전폴더 후폴더 출력폴더 [4]`로 나란히 놓고 수치와 함께 본다.
-- `emitlog.mjs 기술`: 기술이 내는 입자를 시간순으로 나열한다(텍스처, 색 램프, 크기, emis, occ). 흰 덩어리가 어느 입자들의 합인지 찾을 때.
-  `actorlog.mjs 기술`: 재생 중 포켓몬의 flash, rim, tint 값을 40ms마다 찍는다. 몸이 하얀 것이 몸의 값인지, 위에 쌓인 빛인지 가른다.
-- 실험실이 촬영 중에 더블로 바뀌는 일이 있다. 그 장은 다시 찍는다(`white.tsv`가 0 근처로 나오거나 상대가 둘이면 의심).
+## Numeric matching against the official games (2026-11-21)
 
-## 원작과 수치로 맞추기 (2026-11-21)
+Design doc: `docs/superpowers/specs/2026-11-21-move-fx-match-design.md`. Plan: `docs/superpowers/plans/2026-11-21-move-fx-match.md`.
 
-설계는 `docs/superpowers/specs/2026-11-21-move-fx-match-design.md`, 순서는 `docs/superpowers/plans/2026-11-21-move-fx-match.md`.
+- `fxmeasure.mjs <frameDir> --type fire` measures white area and type-color area per frame and outputs phase timings (charge, travel, flash, residue) in ms. For official footage, crop only the cut showing the defender and run `--from --to --base tail --top 0.12` because background colors change between cuts and earlier cuts cannot act as a baseline. Our own recordings must start more than 200 ms before the animation so the first six frames form a clean baseline.
+- `fxphases.mjs` implements those calculations, pass thresholds (`compareRow`: phase ±80 ms, flash duration ±50 ms with area <= official, type-color area ±25%, residue ±120 ms), and per-type color windows (`WIN`). Tested by `tests/fxPhases.test.mjs`.
+- `segments.tsv` stores timestamps (in seconds) read by eye from 10 fps sheets of official videos (YouTube IDs in `refs.json`): `charge` (charge glow first visible), `emit` (projectile/material leaves), `hit` (impact), `flashEnd` (end of white flash, blank if none), `end` (residue gone), and `ink` (defender height / frame height). Body lunges do not count as emitted material, so contact moves set `emit = hit`. Build sheets with the `ffmpeg` command at the end of this file.
+- `match.mjs <type> <workDir>` slices the defender cut from official footage, captures our animation in the lab, compares them, and writes `match.tsv`. `show.mjs [type]` prints a readable summary. Our own start, emit, and hit timings come directly from `stageFx.js` (`fxMark`, active only when a listener is attached during capture) rather than visual estimation. Virtual clocks cannot be used because dev server loads hang and the lab is excluded from production builds; real clocks add about ±1 frame of jitter per run.
+- Frame slicing and recording use `frames.ts` and `capture.ts` from the Reanimate skill (`~/.claude/skills/reanimate/scripts`, Bun). Keep official video files out of git.
 
-- `fxmeasure.mjs <프레임 폴더> --type fire`: 프레임마다 흰 면적과 타입 색 면적을 재고 단계(모으기, 날아가기, 섬광, 남는 것)를 ms로 낸다.
-  원작은 맞는 쪽을 비추는 컷만 잘라 `--from --to --base tail --top 0.12`로 잰다(컷마다 배경색이 달라서 앞 컷은 기준선이 못 된다).
-  우리 쪽은 녹화가 연출보다 200ms 넘게 먼저 시작해야 한다(처음 여섯 프레임이 기준선).
-- `fxphases.mjs`: 그 계산과 통과 기준(`compareRow`: 단계 ±80ms, 섬광 길이 ±50ms이고 크기는 원작 이하, 타입 색 면적 ±25%, 남는 것 ±120ms).
-  타입마다 재는 색의 범위(`WIN`)도 여기 있다. `tests/fxPhases.test.mjs`가 검사한다.
-- `segments.tsv`: 각본마다 원작 영상(`refs.json`의 유튜브 id)에서 10fps 시트를 눈으로 읽어 적은 시각(초): charge(모으는 빛이 보이기 시작),
-  emit(물질이 떠남), hit(맞음), flashEnd(흰 섬광의 끝, 없으면 빈칸), end(남는 것이 사라짐), ink(맞는 포켓몬의 키/화면 높이).
-  몸이 달려드는 동작은 물질이 아니므로 세지 않는다(몸으로 치는 기술은 emit = hit). 시트는 README 끝의 ffmpeg 줄로 만든다.
-- `match.mjs <type> <작업 폴더>`: 원작의 맞는 쪽 컷을 자르고, 실험실에서 우리 연출을 찍고, 둘을 비교해 `match.tsv`를 쓴다. `show.mjs [type]`가 읽기 쉽게 찍는다.
-  우리 쪽의 시작, 떠남, 맞음은 화면에서 추정하지 않고 `stageFx.js`가 알려 준다(`fxMark`: 녹화할 때만 듣는 사람이 있다).
-  가상 시계는 못 쓴다(개발 서버에서 load가 끝나지 않고 실험실은 빌드에 없다). 실제 시계라 한 번에 ±1프레임쯤 흔들린다.
-- 프레임 자르기와 녹화는 Reanimate 스킬(`~/.claude/skills/reanimate/scripts`, Bun)의 `frames.ts`, `capture.ts`를 쓴다.
-  원작 영상은 저장소에 넣지 않는다.
+## Script timing parameters (2026-11-21)
 
-## 각본의 숫자 (2026-11-21)
+Each recipe in `scripts/move-anims.mjs` carries official-game timings at the end, computed from `match.tsv` by `fit.mjs <type>`.
 
-각본(`scripts/move-anims.mjs`)의 끝에 그 기술의 시간을 적는다. 원작에서 잰 값이고, `fit.mjs <type>`이 `match.tsv`에서 계산해 적는다.
+- `c:` sets charge duration in ms. The stage caps playback at `GATHER_MAX` (600 ms in `moveFx.js`) per operator decision (2026-11-21, "모으기 짧게"): official games fill 1 to 3 seconds of charging with custom cutscenes, whereas our particle gather felt like dead wait time. Keep the measured value in the recipe itself.
+- `ts:` scales stage clock slowdown from emit to first hit (0.6 to 2). Exceeding 2x turns lightning and water jets into slow motion.
+- `rs:` scales post-hit particle lifetimes (0.5 to 2), excluding impact flash.
+- `f:` sets impact flash size (0 disables it). `t:`, `r:`, and `k:` are used only by verbs that read them directly (edited in the Fire batch).
+- Helper tools: `batch.sh <type> <workDir>` (insert read timestamps, measure, write fitted values, then re-measure), `summary.mjs` (failure counts by type), and `refsheet.mjs` (official reference sheets). Do not run tests or builds while measuring, as dropped frames stretch timings. Commit before measuring so another task stashing in the same repo does not swap old code underneath a run.
+- Cases not solvable by numbers alone: contact moves where material trails the body lunge, multi-stage official animations (freezing inside ice then shattering, sky cutscenes), and spaced multi-hit projectiles. These remain as `lead` and `travel` failures in `match.tsv`.
+- Normal type has only five official references (videos embedded in Namuwiki articles for 신속, 칼춤, 파괴광선, 조이기, and 찍찍베기; non-downloadable, so timings were read from the page without area numbers).
 
-- `c:` 모으는 시간(ms). 무대는 이 중 `GATHER_MAX`(600, `moveFx.js`)까지만 재생한다. 운영자 결정(2026-11-21, "모으기 짧게"): 원작은
-  모으는 1~3초 동안 따로 그린 장면이 나오는데, 우리는 빛 알갱이뿐이라 기다림으로 읽혔다. 각본에는 잰 값을 그대로 둔다.
-- `ts:` 물질이 떠나 처음 맞기까지 무대 시계를 몇 배 늦출지(.6~2). 두 배를 넘기면 번개와 물줄기가 느린 화면이 된다.
-- `rs:` 맞은 뒤 태어나는 입자의 수명을 몇 배로 할지(.5~2). 섬광은 빠진다.
-- `f:` 섬광의 크기(0이면 없음). `t:`, `r:`, `k:`는 그 값을 직접 읽는 동사(불꽃 묶음에서 고친 것들)만 쓴다.
-- 도구: `batch.sh <type> <작업 폴더>`(읽은 시각 넣기 → 재기 → 적기 → 다시 재기), `summary.mjs`(타입별 실패 수), `refsheet.mjs`(원작 시트).
-  재는 동안에는 테스트나 빌드를 같이 돌리지 않는다(프레임이 밀려 시간이 늘어져 재진다). 같은 폴더에서 다른 작업이 stash를 하면
-  그 사이 옛 코드로 재지니, 재기 전에 커밋해 둔다.
-- 숫자로 못 맞춘 것: 달려드는 동안 물질이 따라가는 몸으로 치는 기술, 원작에 단계가 하나 더 있는 기술(얼음에 갇혔다 깨짐, 하늘 장면),
-  한 발씩 간격을 두고 여러 번 맞는 기술. `match.tsv`의 lead, travel 실패로 남아 있다.
-- 노말 타입은 원작 자료가 5개뿐이다(나무위키 문서 속 영상: 신속, 칼춤, 파괴광선, 조이기, 찍찍베기. 받을 수 없어 문서 화면에서 읽었고 면적은 없다).
+## Rules
 
-## 지킬 것
+- Do not use flat circles (ground rings, charge rings) or wash out a Pokémon's body to solid white.
+- Per operator decision B (2026-11-21), short white flashes at the impact point are allowed (`stageFx.js` `impactFlash`, called by `burst`). Match official duration (100 to 200 ms) and stay at or below official area, rendered strictly as airborne light. Turning the target's body white via `flash`, `rim`, or `tint` remains forbidden. Moves without an official flash (such as 열풍 or 도깨비불) disable it with `land(t, { flash: 0 })`.
+- Use `rim` to tint a Pokémon's body. Since 2026-11-07, color channels (`rimR/G/B`, `tintR/G/B`) assign rather than add (`gl.js` `ASSIGN`); adding to the default 1 previously washed every color to white.
+- Hit blinks must not overlap (`stageFx` `hit`), since overlapping blinks on multi-hit moves washed bodies white.
+- Additive light (`emis 1`) clips to white when stacked. Physical matter like smoke, droplets, and scales should use higher `occ` and lower `emis`.
+- From pass 4 (2026-11-07), shaped move props like fists, feet, claws, and fangs are solid type matter (`emis .3`, `occ .9`, darker `.m` or `fire.s`). Drawing them with white-core ramps like `fire.c` or `fighting.h` creates a white disc over the target. Fireballs (`fire()`) use `fire.s`, matching the body of 화염방사.
+- Flying, Steel, Ice, and Rock type colors are nearly white on their own. Draw their impact lights (stars, streaks, projectiles) with `${t}.d` (midpoint between type color and deep shade).
+- If a target already has an active impact light, `burst` emits only streaks, shards, and marks (`e.burstAt`) instead of stacking extra stars and glow on multi-hit or projectile impacts.
+- Blade bodies (`mode 0`) are solid matter (`emis .55`, `occ .6`) with type-colored edges rather than white edges. The lingering large C-shaped post-hit arc was removed.
 
-- 평평한 원(바닥 고리, 충전 고리), 몸이 하얗게 뜨는 것은 쓰지 않는다.
-- (2026-11-21, 운영자 결정 B) 맞는 지점의 짧은 흰 섬광은 쓴다(`stageFx.js` `impactFlash`, `burst`가 부른다). 원작에서 잰 길이(100~200ms)와
-  크기(원작 이하)를 지키고, 공중의 빛으로만 그린다. 대상의 몸 값(flash, rim, tint)으로 하얗게 만드는 것은 계속 금지다.
-  원작에 섬광이 없는 기술(열풍, 도깨비불 같은 것)은 `land(t, { flash: 0 })`으로 뺀다.
-- 몸에 색을 줄 땐 rim(테두리)을 쓴다. 색 채널(rimR/G/B, tintR/G/B)은 2026-11-07부터 더하지 않고 지정한다(gl.js `ASSIGN`).
-  전에는 기본값 1에 더해져 어떤 색을 줘도 하얗게 나왔다.
-- 피격 깜빡임은 겹치지 않는다(stageFx `hit`). 여러 번 맞는 기술에서 겹친 깜빡임이 몸을 하얗게 만들었다.
-- 빛(emis 1, 가산)은 쌓이면 하얗게 된다. 연기, 물방울, 비늘처럼 물질인 것은 occ를 높이고 emis를 낮춘다.
-- (4차, 2026-11-07) 주먹, 발, 집게, 이빨처럼 기술의 모양은 그 타입의 물질이다(emis .3, occ .9, 진한 `.m`이나 `fire.s`).
-  `fire.c`, `fighting.h`처럼 흰 심이 있는 램프로 그리면 대상 위에 흰 원판이 된다. 불덩이(`fire()`)도 화염방사의 몸통과 같은 `fire.s`다.
-- 비행, 강철, 얼음, 바위는 타입 색 자체가 거의 희다. 그 타입의 맞는 빛(별, 줄기, 투사체)은 `${t}.d`(타입 색과 깊은 색의 중간)로 그린다.
-- 한 대상에 방금 맞은 빛이 있으면 착지(burst)는 줄기, 파편, 표식만 낸다(`e.burstAt`). 연타, 투사체의 착지 뒤에 별과 광채를 또 그리지 않는다.
-- 칼날의 몸(mode 0)은 물질(emis .55, occ .6)이고 테두리도 타입 색이다. 흰 테두리는 쓰지 않는다. 맞은 뒤 남는 큰 'C'자 호는 없앴다.
-
-## 원작 시트 만들기
+## Reference sheet generation
 
 ```bash
 ffmpeg -nostdin -ss 121 -to 129 -i videos/fire.mp4 -vf "fps=10,scale=192:-1,drawtext=text='%{eif\:(t+121)*10\:d}':x=3:y=3:fontsize=13:fontcolor=yellow:box=1:boxcolor=black,tile=10x9" -frames:v 1 sheet.png
 ```
 
-칸의 숫자는 영상의 시각에 10을 곱한 것이다(1237 = 123.7초). `-nostdin`이 없으면 반복문 안에서 ffmpeg가 입력을 먹는다.
+Cell numbers equal video timestamp multiplied by 10 (`1237` means 123.7 s). Omitting `-nostdin` lets `ffmpeg` swallow loop input.

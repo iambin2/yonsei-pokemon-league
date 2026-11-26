@@ -1,52 +1,52 @@
-# 시각 검수 테스트 환경
+# Visual audit test environment
 
-`docs/visual-audit/report.md` 12장의 상태를 띄운 스크립트들이다. 운영 데이터는 바꾸지 않는다: 운영 Supabase로는 GET만 나가고, 그 밖의 요청(RPC, 배틀 함수, 쓰기)은 스크립트가 직접 답한다. 계정과 관리자는 브라우저에 넣은 가짜 세션이다. Playwright는 의존성이 아니라 npx 캐시에서 불러온다(`npx playwright --version` 한 번).
+These scripts render the UI states listed in chapter 12 of `docs/visual-audit/report.md`. Production data is never modified: only GET requests reach production Supabase, while all other requests (RPCs, battle functions, writes) are mocked by the scripts. User and admin sessions are injected into the browser. Playwright loads from the npx cache rather than package dependencies (run `npx playwright --version` once first).
 
-스크린샷은 `docs/visual-audit/shots/<ID>/` 에 쌓인다(git 밖). 명령은 이 폴더 안의 각 하위 폴더에서, Git Bash라면 `export MSYS_NO_PATHCONV=1` 뒤에, 끝에 `< /dev/null` 을 붙여 실행한다.
+Screenshots save to `docs/visual-audit/shots/<ID>/` (untracked by git). Run commands from each subfolder here; in Git Bash, run `export MSYS_NO_PATHCONV=1` first and append `< /dev/null` to each command.
 
-## 필요한 개발 서버
+## Required dev servers
 
-| 포트 | 명령 (저장소 루트에서) | 쓰는 곳 |
+| Port | Command (from repo root) | Used by |
 |---|---|---|
-| 5193 | `npx vite --mode production --port 5193 --strictPort` (운영 데이터 읽기) | `admin/`, `states/` |
+| 5193 | `npx vite --mode production --port 5193 --strictPort` (reads production data) | `admin/`, `states/` |
 | 5194 | `VITE_SUPABASE_URL=http://localhost:54321 VITE_SUPABASE_ANON_KEY=local VITE_YPL_DATA_SCHEMA=ypl_schema_validation npx vite --port 5194 --strictPort` | `streak/` |
-| 54321 | `python scripts/visual-audit-env/streak/mkserver.py` 로 `standin/server.mjs` 를 만든 뒤 `node scripts/visual-audit-env/standin/server.mjs .` | `streak/` |
+| 54321 | Build `standin/server.mjs` with `python scripts/visual-audit-env/streak/mkserver.py`, then run `node scripts/visual-audit-env/standin/server.mjs .` | `streak/` |
 
-`standin/server.mjs` 는 PGlite에 `docs/db` 의 실제 SQL과 `supabase/functions/battle` 의 실제 함수(esbuild로 변환)를 올린 가짜 Supabase다. 계정 `11111111-1111-4111-8111-111111111111` 이 승인된 상태로 들어 있다. SQL이나 함수가 바뀌어 실패하면 `server-base.mjs` 머리의 적재 순서를 고친다.
+`standin/server.mjs` is a local Supabase stand-in running real `docs/db` SQL on PGlite alongside the real `supabase/functions/battle` function (transpiled with esbuild). Account `11111111-1111-4111-8111-111111111111` is pre-seeded in an approved state. If SQL or function changes break startup, update the load order at the top of `server-base.mjs`.
 
-## 폴더
+## Folders
 
-- `states/` 계정 상태, 로딩·오류·빈 상태, 데이터 극단, 창 있는 Chrome
+- `states/`: account states, loading/error/empty states, data extremes, and headed Chrome checks.
   - `node account.cjs none pending rejected approved checking long`
-  - `node states.cjs 390 844 dark` (사이트 데이터는 통과시키고 기록만 늦추기: `PART=q MODES=hold node states.cjs 1440 900 dark`)
-  - `node extremes.cjs long 390 844 dark` (`many`, `zero` 도 있음), `node manyhome.cjs`, `node shell.cjs`, `node shell08.cjs`, `node headed.cjs`
-- `admin/` 운영진 쓰기 화면과 대회 당일
-  - 먼저 `node dump.cjs` 로 실제 GET 응답을 `data/` 에 받는다(운영 자료의 사본이니 끝나면 지운다. git에 올리지 않는다)
-  - `node flow.cjs <자료> <ID> <WxH> <테마> <admin|visitor> "<주소>" <단계...>`. 자료는 `live`(38회를 오늘 진행 중으로 바꾼 것), `done`, `step1`, `step2`, `plain`. 단계는 누를 낱말, `sel:<선택자>`, `wait:<ms>`, `shot:<이름>`, `full:<이름>`
-  - 예: `node flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided`
-  - `node login.cjs 390x844 dark` (로그인 오류 둘과 만료 토스트)
-- `streak/` 도전의 탑 진행과 2인 배틀 (5194와 54321 필요)
-  - `node t2.cjs` 탑 한 도전 전체(파티 고르기, 이기고 지는 판, 쉬는 화면의 모든 박자)
-  - `node t3.cjs`, `node t3b.cjs` 방 여섯 개, 대기, 참가, 2인 배틀, 관전, 다시하기
-  - `node t4.cjs` 탑 전환 녹화(CPU 4배), `python recsheet.py <폴더> <ms>` 로 프레임 시트
-  - `node t6.cjs 390 844` 들어갈 때 프레임마다 카드 불투명도, 베일, 막대, 스크롤 기록 / `node t7.cjs` 창보다 긴 원인 / `node t8.cjs` 독 겹침
-  - 탑을 새로 시작하려면 "새로 도전"을 누른 뒤 확인 시트의 "새로 도전"을 한 번 더 누른다(t6, t8에 들어 있음)
+  - `node states.cjs 390 844 dark` (to pass site data through and stall only records: `PART=q MODES=hold node states.cjs 1440 900 dark`)
+  - `node extremes.cjs long 390 844 dark` (also supports `many` and `zero`), `node manyhome.cjs`, `node shell.cjs`, `node shell08.cjs`, `node headed.cjs`
+- `admin/`: operator write flows and tournament-day views.
+  - Run `node dump.cjs` first to cache real GET responses into `data/` (this copies production data; delete `data/` when finished and never commit it).
+  - `node flow.cjs <fixture> <ID> <WxH> <theme> <admin|visitor> "<url>" <steps...>`. Fixtures are `live` (38회 rewritten as live today), `done`, `step1`, `step2`, and `plain`. Steps can be button text to click, `sel:<selector>`, `wait:<ms>`, `shot:<name>`, or `full:<name>`.
+  - Example: `node flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided`
+  - `node login.cjs 390x844 dark` (two login errors and session-expired toast)
+- `streak/`: `도전의 탑` runs and 2-player battles (requires ports 5194 and 54321).
+  - `node t2.cjs` captures a full tower run (team draft, win and loss games, every beat of the break screen).
+  - `node t3.cjs` and `node t3b.cjs` cover six rooms, waiting, joining, 2-player battles, spectating, and rematches.
+  - `node t4.cjs` records tower transitions at 4x CPU throttle; run `python recsheet.py <dir> <ms>` to build a frame sheet.
+  - `node t6.cjs 390 844` logs per-frame card opacity, veil, bars, and scroll on entry; `node t7.cjs` checks viewport overflow causes; `node t8.cjs` checks dock overlap.
+  - Starting a fresh tower run requires clicking `새로 도전` and then clicking `새로 도전` again in the confirmation sheet (handled inside `t6` and `t8`).
 
-## 묶음 18 (2026-11-23): 남은 항목을 다시 재는 스크립트
+## Batch 18 (2026-11-23)
 
-서버 주소는 `BASE` 환경 변수로 바꾼다(기본 5193). `.claude/launch.json` 의 `ypl-audit-prod`(운영 데이터 읽기, production 모드)와 `ypl-dev-offline`(옛 기록 편집기, T-51)을 쓴다. 처음 한 번 `admin/` 에서 `node dump.cjs` (끝나면 `data/` 를 지운다).
+Scripts for re-measuring remaining audit items. Override the server URL with the `BASE` environment variable (defaults to 5193). Uses `ypl-audit-prod` (production mode, reading live data) and `ypl-dev-offline` (legacy record editor, T-51) from `.claude/launch.json`. Run `node dump.cjs` once inside `admin/` and delete `data/` afterwards.
 
-- `states/acct2.cjs [390x844-dark ...]` 연동 계정(이제빈 승인): T-103 계정 키, T-104 시트 순서, T-105, T-108. `states/t106.cjs` 더보기의 알림 행.
-- `states/cls95.cjs <WxH> [cpu]` 첫 방문 홈의 layout-shift와 출처, 순위 구역의 높이 변화.
-- `admin/builder.cjs <WxH> <theme>` 39회 루키를 제출 열림으로 고쳐 T-44(위반 줄 x), T-43(c)(이름 칸 → 오류 줄).
-- `admin/home74.cjs <WxH> <theme>` 대회 당일 홈의 시계와 일시 행(T-74).
-- `admin/flow.cjs` 에 `eval:<js>` 단계를 더했다. 예: T-19 `node flow.cjs step1 T-19 390x844 dark admin "/?view=news&notice=mgcf6zf" "응답 보기" "eval:..."`, T-69 `step1 ... "/?view=admin"`, 운영 줄 `plain ... "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13"`, T-100 `plain T-100 375x667 dark anon "/?view=battle" "배틀 시작" wait:9000 "eval:..."`(컴퓨터 배틀은 워커에서 돌고 배틀 함수와 쓰기는 lib.cjs가 답한다).
+- `states/acct2.cjs [390x844-dark ...]`: linked account (`이제빈` approved) covering T-103 account key, T-104 sheet order, T-105, and T-108. `states/t106.cjs` checks the alerts row on `더보기`.
+- `states/cls95.cjs <WxH> [cpu]`: measures first-visit home layout shifts, their sources, and ranking section height changes.
+- `admin/builder.cjs <WxH> <theme>`: patches `39회 루키` to open submission for T-44 (violation line x) and T-43(c) (name field to error line).
+- `admin/home74.cjs <WxH> <theme>`: checks the clock and date row on tournament-day home (T-74).
+- `admin/flow.cjs` adds an `eval:<js>` step. Examples: T-19 `node flow.cjs step1 T-19 390x844 dark admin "/?view=news&notice=mgcf6zf" "응답 보기" "eval:..."`, T-69 `step1 ... "/?view=admin"`, admin row `plain ... "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13"`, T-100 `plain T-100 375x667 dark anon "/?view=battle" "배틀 시작" wait:9000 "eval:..."` (CPU battles run in the worker while `lib.cjs` stubs battle functions and writes).
 
-## 묶음 20 (2026-11-23): 20a~20d를 재는 스크립트
+## Batch 20 (2026-11-23)
 
-서버: `.claude/launch.json` 의 `ypl-audit-prod`(5193)와 `ypl-audit-standin`(5194), 가짜 백엔드 `node scripts/visual-audit-env/standin/server.mjs .`(54321).
+Scripts for measuring items 20a through 20d. Uses `ypl-audit-prod` (5193) and `ypl-audit-standin` (5194) from `.claude/launch.json`, plus the stand-in backend `node scripts/visual-audit-env/standin/server.mjs .` (54321).
 
-- `states/s20a.cjs <W> <H> <theme> <fail|hold|zero> [home news bracket alerts builder]` 오류 판의 수와 키 폭, 앞 요소와의 간격, 빈 상태 문장, 주 키(T-109~T-115). `states/b114.cjs` 읽는 중 팀 빌더 검색 줄과 홈 순위 첫 줄을 500ms마다.
-- `states/a20b.cjs <WxH> <theme> checking pending approved rejected long linesfail` 내 기록 찾기의 목록 y, 계정 키, 더보기 행 높이, 상단 바 간격(T-116~T-118). `states/gate119.cjs` 탑 문 시트(T-119). `states/t120.cjs` 현 챔피언의 긴 이름(T-120).
-- 대진표와 운영(T-122~T-129)은 `admin/flow.cjs` 의 `eval:` 단계로 잰다(커밋 015cd79의 측정 결과에 쓴 주소).
-- 배틀: `streak/t6.cjs` 에 머리 태그의 잘림(tag), `streak/t4.cjs` 로 녹화한 뒤 `python streak/cardlum.py streak/rec/next-game` 으로 카드 자리 밝기(두 번 켜지면 오르고 내리고 오름). `streak/t8.cjs` 는 탑이 이미 진행 중일 때 "다시 도전"도 누른다.
+- `states/s20a.cjs <W> <H> <theme> <fail|hold|zero> [home news bracket alerts builder]`: measures error panel count, button width, spacing from previous elements, empty-state copy, and primary keys (T-109 to T-115). `states/b114.cjs` samples the team builder search bar and first home ranking row every 500ms while loading.
+- `states/a20b.cjs <WxH> <theme> checking pending approved rejected long linesfail`: measures `내 기록 찾기` list y-offset, account key, `더보기` row height, and top bar spacing (T-116 to T-118). `states/gate119.cjs` checks the tower door sheet (T-119). `states/t120.cjs` checks a long current-champion name (T-120).
+- Bracket and admin items (T-122 to T-129) use the `eval:` step in `admin/flow.cjs` (same URLs as the measurements in commit `015cd79`).
+- Battle checks: `streak/t6.cjs` checks header tag clipping (`tag`), `streak/t4.cjs` followed by `python streak/cardlum.py streak/rec/next-game` measures card slot luminance (double flash shows as up-down-up), and `streak/t8.cjs` also clicks `다시 도전` when a tower run is already active.

@@ -1,39 +1,39 @@
-# 게시판을 구글 계정으로 쓰기, 그 글과 댓글에 달린 답의 알림
+# Posting with Google accounts and reply notifications
 
-2026-11-18. 주인: "댓글이나 게시글을 구글 로그인을 통해 작성할 수도 있게 하는 옵션을 추가해주고, 그렇게 달린 댓글이나 대댓글에 알림이 가도록 해줘." 이름은 "계정 이름으로 고정", 나머지 제안은 "자 전부 만들자".
+2026-11-18. Owner request: `"댓글이나 게시글을 구글 로그인을 통해 작성할 수도 있게 하는 옵션을 추가해주고, 그렇게 달린 댓글이나 대댓글에 알림이 가도록 해줘."` Author name is `"계정 이름으로 고정"`, and the rest of the proposal was approved with `"자 전부 만들자"`.
 
-## 왜
+## Motivation
 
-게시판의 글과 댓글은 이름과 숫자 4자리 비밀번호로만 쓴다. 서버는 누가 썼는지 몰라, 내 글에 답이 달려도 알려 줄 상대가 없다. 계정으로 쓴 글은 그 계정의 것이 되어, 답이 달리면 그 계정의 기기로 알린다.
+Board posts and comments currently rely on a display name and a 4-digit numeric password. Because the server does not know who authored an entry, it has no one to notify when a reply arrives. Posts written through an account belong to that account, so replies can push directly to its registered devices.
 
-## 정한 것
+## Decisions
 
-- 승인된 계정(`player_accounts.status = 'approved'`)으로 로그인한 사람은 글, 댓글, 대댓글을 쓸 때 "계정으로 쓰기"를 고른다(기본 켜짐). 고르면 닉네임과 비밀번호 칸이 사라지고, 이름은 서버가 계정의 신청 이름(20자, `streak_trainer_name`과 같은 규칙)으로 적는다. 화면이 보낸 이름은 버린다.
-- 계정으로 쓴 글과 댓글은 그 계정으로만 고치고 지운다(비밀번호를 묻지 않는다). 운영진은 지금처럼 모두 지운다. 고칠 때도 이름은 바뀌지 않는다.
-- 대상: 자유, 샘플, 파티 게시판의 글, 댓글, 대댓글. 사설 대진표는 뺀다(관리 비밀번호로 여럿이 고친다).
-- 계정으로 쓴 사람은 자기 비밀글(관리자 전용)과 그 아래 댓글을 읽는다. 그래야 건의에 운영진이 단 답을 알림을 받고 읽을 수 있다.
-- 알림 종류 `reply`, 이름 "내 글의 댓글", 계정에 이어진 기기에만. 내 글에 댓글이나 대댓글이 달리면 글쓴이에게, 내 댓글에 대댓글이 달리면 그 댓글쓴이에게. 자기가 쓴 것으로는 알리지 않는다. 새로 켜는 기기는 기본으로 받는다. 밤(22시부터 9시 전)에는 아침까지 기다린다. 비밀글의 알림에는 제목과 내용을 담지 않는다.
-- 계정 표시(배지)는 두지 않는다. 새 디자인이 필요하고, 이름이 고정되는 것으로 충분하다.
+- Users signed in with an approved account (`player_accounts.status = 'approved'`) see a `"계정으로 쓰기"` option (on by default) when writing posts, comments, or nested replies. Selecting it hides the nickname and password fields, and the server sets the author name from the account's registered name (up to 20 characters, matching `streak_trainer_name`). Any name sent by the client is ignored.
+- Account-authored posts and comments can only be edited or deleted by that account, without prompting for a password. Admins retain full delete permissions. Editing never changes the author name.
+- Scope covers posts, comments, and nested replies on the `자유`, `샘플`, and `파티` boards. Private brackets are excluded because multiple people edit them with a shared management password.
+- Account authors can read their own secret posts (admin-only) and comments underneath them, allowing them to open admin replies to suggestions after receiving a notification.
+- Notification kind is `reply`, labeled `"내 글의 댓글"`, sent only to devices linked to the account. A comment or nested reply on a post notifies the post author; a nested reply on a comment notifies that comment's author. Self-replies send no notification. Newly enabled devices opt in by default. Quiet hours from 22:00 until 09:00 hold delivery until morning. Notifications for secret posts omit both title and body.
+- No account badge is added. That would require new UI design, and locking the author name is sufficient.
 
-## 하지 않는 것
+## Non-goals
 
-- 비밀번호로 쓴 글에는 알림이 없다(누가 썼는지 모른다).
-- 이미 쓴 글을 계정에 묶는 길은 없다.
-- 사설 대진표, 승인 전 계정의 계정 쓰기.
+- No notifications for password-authored posts, since ownership is unknown.
+- No way to claim or link existing posts to an account.
+- No account posting on private brackets or by unapproved accounts.
 
-## 만드는 길
+## Architecture
 
-1. 고른 길: `community_items`에 공개 표시 `by_account`만 두고, 글과 계정의 짝은 닫힌 표 `community_authors`(방문자가 읽을 수 없음)에 둔다. 쓰기는 지금의 `community_write` 하나로(서명을 바꾸지 않고 payload의 예약 키 `_byAccount`로 고른다), 알림은 커밋 때 도는 트리거가 `push_outbox`에 넣는다. 계정 id가 공개 표에 실리지 않고, 옛 화면은 그대로 돈다.
-2. 버린 길: `community_items`에 `author_user_id` 열. 표 전체가 공개 읽기라 열 단위 권한으로 막아야 하고, 계정 id가 실수로 실리기 쉽다.
-3. 버린 길: `community_write`에 인자 하나 더. PostgREST가 7개 인자 호출을 두 함수 중 어느 것으로 부를지 정하지 못한다.
+1. Chosen approach: store only a public boolean `by_account` on `community_items`, and keep the item-to-account mapping in a locked table `community_authors` that visitors cannot read. Keep the single `community_write` RPC without changing its signature by reading a reserved `_byAccount` key from the payload, and enqueue notifications into `push_outbox` from a commit-time trigger. Account IDs never appear in public tables, and older clients keep working.
+2. Rejected approach: adding an `author_user_id` column to `community_items`. Because the table is publicly readable, column-level permissions would be required and account IDs could easily leak.
+3. Rejected approach: adding a parameter to `community_write`. PostgREST cannot disambiguate a 7-argument call across overloaded functions.
 
-## 부분
+## Components
 
-- `docs/db/push_kinds.sql`: 종류 목록 셋(구독, 바꾸기, 줄)에 `reply`, 새 구독의 기본 `{notice,match,reply}`.
-- `docs/db/community_accounts.sql`(새 파일, `push_kinds.sql` 다음, 다시 실행해도 됨): `by_account` 열, `community_authors`, `community_mine(id)`, 읽기 정책, `community_write` 교체, 알림 트리거 `push_community_reply`(커밋 때, 실패해도 쓰기를 막지 않음).
-- 클라이언트: `storage.js`의 `authFetch`는 운영진 세션이 없으면 요청이 실은 방문자 토큰을 쓴다. `communityStore.js`는 로그인한 방문자의 토큰으로 읽고 쓰며, `by_account` 열이 없으면(SQL 전) 예전 열로 읽는다. 쓰기 폼 셋(글, 댓글, 샘플과 파티 소개)에 "계정으로 쓰기", 본인 확인(`authorize`)은 계정 글이면 비밀번호를 묻지 않는다. 더보기의 알림 종류에 "내 글의 댓글".
-- 확인: `scripts/verify-push-db.mjs`에 계정 쓰기와 알림 검사(PGlite, 실제 SQL), 화면은 Playwright로 요청을 가로채 390과 1440, 두 테마에서 쓴다.
+- `docs/db/push_kinds.sql`: add `reply` to the three kind lists (subscription, update, queue) and set the default for new subscriptions to `{notice,match,reply}`.
+- `docs/db/community_accounts.sql` (new idempotent file, run after `push_kinds.sql`): add the `by_account` column, `community_authors`, `community_mine(id)`, read policies, updated `community_write`, and the `push_community_reply` notification trigger (runs at commit and never blocks writes on failure).
+- Client: `authFetch` in `storage.js` falls back to the visitor token attached to the request when no admin session exists. `communityStore.js` reads and writes with the signed-in visitor's token, falling back to legacy columns if `by_account` is missing before SQL runs. Add `"계정으로 쓰기"` to all three write forms (posts, comments, and sample/party intros), skip password prompts in `authorize` for account posts, and add `"내 글의 댓글"` under `더보기` notification types.
+- Verification: add account-posting and notification tests to `scripts/verify-push-db.mjs` (PGlite, real SQL), and verify the UI in Playwright with intercepted requests at 390 and 1440 in both themes.
 
-## 순서
+## Rollout order
 
-SQL(운영진: `push_kinds.sql` 다시, 그다음 `community_accounts.sql`), 그다음 사이트. SQL 전의 사이트는 계정 쓰기를 감추고 예전처럼 돈다.
+Run SQL first (admins re-run `push_kinds.sql`, then run `community_accounts.sql`), then deploy the site. Before the SQL runs, the site hides account posting and behaves as before.

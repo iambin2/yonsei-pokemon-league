@@ -1,120 +1,119 @@
-# 배틀의 프레임
+# Battle frames
 
-배틀과 도전의 탑이 휴대폰 속도에서 몇 프레임을 놓치는지의 기록입니다. `docs/superpowers/plans/2026-11-18-battle-game-feel.md` 2단계에서 시작했습니다. 목표는 휴대폰 속도(CPU 4배 감속)에서 움직이는 중에 50 ms를 넘는 프레임 0개입니다.
+This log tracks dropped frames at mobile speed in battle and 도전의 탑. It started in phase 2 of `docs/superpowers/plans/2026-11-18-battle-game-feel.md`. The target is zero frames over 50 ms during motion at mobile speed (4x CPU throttle).
 
-## 1. 재는 법
+## 1. Measurement methods
 
-| 무엇 | 명령 | 결과 |
+| What | Command | Output |
 |---|---|---|
-| 프레임 | `node scripts/measure-frames.cjs <장면> [--base <주소>] [--desktop] [--reduced] [--profile]` | 페이지의 첫 스크립트부터 모든 프레임의 간격, 그 프레임이 시작될 때 움직이던 것. `inMotion`은 무엇이든 움직인 긴 프레임, `stopped`는 메인 스레드가 움직이는 것(무대, 탑, 불투명도와 변형 밖의 애니메이션)이 멈춘 긴 프레임이고 그 이름을 괄호에 적는다. `--profile`이면 긴 프레임마다 메인 스레드를 가장 오래 잡은 함수 셋 |
-| 녹화 | `node scripts/record-transition.cjs <폴더> <주소> [--ms] [--act] [--wait-for]` | 합성기가 보낸 모든 프레임과 접촉 시트. 화면이 실제로 멈춘 간격(50 ms 넘게 새 프레임이 없음) |
+| Frames | `node scripts/measure-frames.cjs <scene> [--base <url>] [--desktop] [--reduced] [--profile]` | Every frame interval from the page's first script and what was moving when that frame began. `inMotion` counts long frames while anything was moving; `stopped` counts long frames where main-thread animations (stage, tower, non-opacity/non-transform animations) froze, with their names in parentheses. `--profile` lists the top three main-thread functions per long frame |
+| Recording | `node scripts/record-transition.cjs <dir> <url> [--ms] [--act] [--wait-for]` | All frames emitted by the compositor plus a contact sheet, showing actual visual freezes (gaps over 50 ms with no new frame) |
 
-- 빌드본에서 잽니다(`npm run build`, 미리보기 서버 4173). 개발 서버는 모듈을 하나씩 보내 제 불러오기를 잽니다.
-- 함수 이름을 읽으려면 줄이지 않은 빌드를 따로 만들어 그 주소로 잽니다: `npx vite build --minify false --outDir <폴더>`, `npx vite preview --outDir <폴더> --port 4174`.
-- 같은 빌드에서도 한 번마다 최악의 프레임이 수백 ms 흔들립니다. 세 번 재서 범위로 적습니다.
-- Playwright의 창은 처음부터 사용자의 손길이 있었던 것으로 시작합니다(`navigator.userActivation.hasBeenActive`가 참). 그래서 이 측정은 사이트 안에서 눌러 들어온 경우와 같습니다.
-- 무엇을 멈춤으로 세는가(2026-11-18): 불투명도와 변형만 움직이는 애니메이션은 합성기에서 돌아 메인 스레드가 막혀도 멈추지 않습니다. 녹화로 보았습니다. 불러오는 동안 바쁨 칸(`y-busy`)의 칸은 233 ms 프레임 내내 16 ms마다 바뀌었고, SVG `<g>`의 불투명도도 600 ms 동안 메인 스레드를 막은 사이 `<span>`과 똑같이 고르게 진행되었습니다. 그래서 이런 프레임은 `+`(합성기만 움직임)로 따로 적고, 실패로 세지 않습니다. 움직임은 긴 프레임이 시작될 때의 것으로 봅니다. 긴 프레임이 끝날 때 막 시작한 전환(그 프레임의 일이 붙인 클래스)은 멈춘 것이 아니라 늦게 시작한 것입니다. 무엇이든 움직이던 긴 프레임의 수(`inMotion`)도 함께 적습니다. 이 수도 시작 때의 움직임으로 세므로, 이 날 앞의 기록과는 조금 다르게 셉니다.
-- 숫자에 없는 주인을 찾을 때는 Chrome 추적(`Tracing`, `devtools.timeline`과 `fonts` 범주)을 씁니다. CPU 프로파일은 JS만 보여서 레이아웃 안의 글꼴 열기, 그림 해독, GPU 기다림은 빈 프레임으로 보입니다.
+- Always measure against a production build (`npm run build`, preview server on port 4173). The dev server serves modules one by one and ends up measuring its own loading.
+- To read readable function names, create a separate unminified build and point the script at it: `npx vite build --minify false --outDir <dir>`, then `npx vite preview --outDir <dir> --port 4174`.
+- Even on the same build, worst-case frame times fluctuate by hundreds of milliseconds between runs. Measure three times and record the range.
+- Playwright windows start with prior user activation (`navigator.userActivation.hasBeenActive` is true), matching a user navigating in from inside the site.
+- What counts as a freeze (2026-11-18): animations touching only opacity and transform run on the compositor and do not freeze when the main thread blocks. Recordings confirmed this: during load, the busy bar (`y-busy`) updated every 16 ms throughout a 233 ms frame, and SVG `<g>` opacity progressed just as smoothly as `<span>` during a 600 ms main-thread block. Those frames are tagged `+` (compositor-only motion) and do not count as failures. Motion is checked at the start of a long frame; a transition that starts at the end of a long frame (from a class added during that frame's work) started late rather than freezing mid-flight. We still log `inMotion` (long frames with any motion), counted at frame start, which differs slightly from earlier logs.
+- When the CPU profile shows blank gaps, use Chrome Tracing (`Tracing`, `devtools.timeline` and `fonts` categories). CPU profiles only capture JS, so font loading during layout, image decoding, and GPU waits look like empty frames.
 
-## 2. 기록
+## 2. Records
 
-장면 `replay-open`: 끝난 도전의 탑 판(`2firh2l7xbhn`)을 휴대폰 크기로 열고 12초. 숫자는 50 ms 초과 프레임 수, 최악, 긴 프레임의 합(ms)입니다.
+Scene `replay-open`: open a finished 도전의 탑 match (`2firh2l7xbhn`) at mobile viewport for 12 seconds. Numbers are: frames over 50 ms / worst frame / total long-frame time (ms).
 
-| 날짜 | 바꾼 것 | 결과(세 번) | 결정 |
+| Date | Change | Result (3 runs) | Decision |
 |---|---|---|---|
-| 2026-11-18 | 기준선 (HEAD `d64f070`) | 16 / 734 / 2602, 24 / 650 / 3386, 20 / 817 / 3370 | 긴 프레임의 주인: 아틀라스 표면 계산 한 걸음 260 ms, 소리 컨텍스트 270 ms, 잉크 측정 184 ms, 공 그림 걸음마다 15에서 60 ms, 탑 셰이더 148 ms, 텍스처 올리기 걸음마다 15에서 30 ms |
-| 2026-11-18 | 아틀라스 표면과 공 그림을 줄 단위 걸음으로(`gl.js surfaceSteps`, `stageFx.js paintBalls`). 그러나 경기 무대는 엔진을 만들며 아틀라스를 그 자리에서 끝까지 그렸다(984 ms 한 프레임) | 줄이지 않은 빌드 20 / 1067, 18 / 984 | 걸음만으로는 소용없다. 아래로 |
-| 2026-11-18 | 엔진이 아틀라스 없이 먼저 서고, 프레임마다 6 ms씩 그려 다 되면 갈아 끼운다(`gl.js setup takeAtlas`). 노이즈는 아틀라스의 첫 걸음으로. 탑의 셰이더는 병렬 컴파일로 시작해 끝났다는 말을 듣고서 묶는다(`towerGL.js begin, finish`). 울음소리 해독은 소리를 내지 않는 오프라인 컨텍스트로, 소리 컨텍스트는 손길이 있은 뒤에만, 경기장 잔향은 256샘플마다 한 번 계산 | 21 / 450 / 2702, 18 / 467 / 2468, 18 / 417 / 2385 | 남김. 최악이 650에서 817이던 것이 417에서 467이 되었다. 긴 프레임 수는 그대로다 |
+| 2026-11-18 | Baseline (HEAD `d64f070`) | 16 / 734 / 2602, 24 / 650 / 3386, 20 / 817 / 3370 | Culprits: atlas surface step 260 ms, audio context 270 ms, ink measurement 184 ms, Poké Ball paint 15 to 60 ms/step, tower shader 148 ms, texture upload 15 to 30 ms/step |
+| 2026-11-18 | Split atlas surface and ball painting into row steps (`gl.js surfaceSteps`, `stageFx.js paintBalls`). The stage still painted the full atlas synchronously on engine creation (one 984 ms frame) | Unminified build: 20 / 1067, 18 / 984 | Stepping alone is not enough. See next row |
+| 2026-11-18 | Boot engine without atlas, paint 6 ms per frame and swap in when ready (`gl.js setup takeAtlas`). Move noise into first atlas step. Compile tower shaders in parallel and link once finished (`towerGL.js begin, finish`). Decode cries in an offline audio context, create live audio context only after user gesture, compute stadium reverb every 256 samples | 21 / 450 / 2702, 18 / 467 / 2468, 18 / 417 / 2385 | Kept. Worst frame dropped from 650-817 ms to 417-467 ms. Long frame count unchanged |
 
-장면 `tower-tab`: 도전의 탑 탭을 처음 열고 10초(탑의 진입 장면 포함). 숫자는 같은 차례.
+Scene `tower-tab`: open the 도전의 탑 tab for the first time and record 10 seconds (including tower entrance). Same number format.
 
-| 날짜 | 바꾼 것 | 결과 | 결정 |
+| Date | Change | Result | Decision |
 |---|---|---|---|
-| 2026-11-18 | 기준선 (HEAD `bd42508`, 따로 빌드해 같은 기계에서 잼) | 휴대폰 6 / 684 / 1518, 7 / 501 / 1418, 7 / 601 / 1485 | 긴 프레임은 페이지를 불러오는 첫 2초에 몰린다. 가장 긴 것의 주인은 배틀 묶음의 모듈 평가(314 ms) |
-| 2026-11-18 | 탭의 시점을 문 앞에서 올려다보기로, 가로등을 0.55배로, 토글과 패널 정리(Task 8) | 휴대폰 8 / 684 / 1601, 8 / 484 / 1368, 8 / 534 / 1484. 데스크톱 3 / 100 / 217 | 남김. 기준선과 같은 범위다. 0으로 만드는 일은 불러오기 쪽(3장)에 남는다 |
+| 2026-11-18 | Baseline (HEAD `bd42508`, built separately on same machine) | Mobile: 6 / 684 / 1518, 7 / 501 / 1418, 7 / 601 / 1485 | Long frames cluster in the first 2 seconds of load. Largest culprit is battle bundle module evaluation (314 ms) |
+| 2026-11-18 | Changed tab viewpoint to looking up from the door, scaled streetlamps to 0.55x, cleaned up toggles and panels (Task 8) | Mobile: 8 / 684 / 1601, 8 / 484 / 1368, 8 / 534 / 1484. Desktop: 3 / 100 / 217 | Kept. Within baseline variance. Reaching zero remains a loading problem (Section 3) |
 
-장면 판 사이(하네스): 하네스를 가리키는 빌드본(`VITE_SUPABASE_URL=http://localhost:54321`로 따로 빌드해 미리보기)에서 휴대폰 크기, CPU 4배 감속으로 새 도전을 드래프트부터 한 판 이기고 세 박자를 지난다. 숫자는 움직이는 중 50 ms 초과 프레임 수와 최악.
+Scene between-matches (harness): production build pointed at the harness (`VITE_SUPABASE_URL=http://localhost:54321`), mobile viewport, 4x CPU throttle, starting a new run from draft through one win and all three between-match beats. Numbers are in-motion frames over 50 ms / worst frame.
 
-| 날짜 | 바꾼 것 | 결과 | 결정 |
+| Date | Change | Result | Decision |
 |---|---|---|---|
-| 2026-11-18 | 세 박자와 탑 위의 문, 드래프트 뒤집기(Task 9) 첫 구현 | 드래프트 8 / 150, 결과에서 교환 0, 교환에서 문 4 / 117 | 문의 긴 작업 주인은 문 그림 열둘의 잉크 측정(`inkCentre.js centreInk`, 293 ms) |
-| 2026-11-18 | 문 그림을 결과 박자 동안 한가할 때 미리 읽고(`readAhead`), 드래프트는 뒷면이 선 채로 그림을 읽은 뒤 뒤집고, 다음 단계의 셋을 미리 읽음 | 드래프트 5에서 6 / 150, 결과에서 교환 0, 교환에서 문 1 / 83에서 100 | 남김. 드래프트의 긴 프레임은 판이 처음 서는 0.4초(확인창이 닫히고 탑이 드래프트로 바뀜)에 몰렸고 뒤집기와 고르기 중에는 하나(50)다. 문 박자의 하나는 탑 캔버스가 처음 그려지는 프레임이다 |
+| 2026-11-18 | First implementation of three beats, tower doors, and draft card flip (Task 9) | Draft 8 / 150, result to trade 0, trade to doors 4 / 117 | Door hitch culprit: ink measurement on 12 door sprites (`inkCentre.js centreInk`, 293 ms) |
+| 2026-11-18 | Preload door sprites during idle time on the result beat (`readAhead`), load draft sprites while card backs are up before flipping, and preload the next slot's three sprites | Draft 5 to 6 / 150, result to trade 0, trade to doors 1 / 83 to 100 | Kept. Draft long frames cluster in the first 0.4 s when the screen mounts (dialog closes and tower switches to draft), leaving 1 (50 ms) during flip and selection. The lone door-beat hitch is the tower canvas's first paint frame |
 
-Task 10(2026-11-18, `c0ab287` 위의 빌드): 휴대폰 속도 replay-open 18 / 450 / 2335, tower-tab 7 / 550 / 1468, lobby 8 / 317 / 1051, tab-switch 13 / 984 / 2586. 데스크톱 replay-open 5 / 100, tower-tab 3 / 117. 움직임 줄이기 replay-open 움직이는 중 2 / 117, tower-tab 2 / 100. tab-switch를 HEAD `bd42508`(이 단계들 전) 빌드와 번갈아 두 번 재니 14 / 951, 10 / 684 대 15 / 500, 12 / 717로 같은 범위였다. 어느 장면도 0이 아니다.
+Task 10 (2026-11-18, build on `c0ab287`): mobile speed `replay-open` 18 / 450 / 2335, `tower-tab` 7 / 550 / 1468, `lobby` 8 / 317 / 1051, `tab-switch` 13 / 984 / 2586. Desktop `replay-open` 5 / 100, `tower-tab` 3 / 117. Reduced motion `replay-open` in-motion 2 / 117, `tower-tab` 2 / 100. Alternating `tab-switch` twice against HEAD `bd42508` (pre-Task 8) gave 14 / 951 and 10 / 684 vs 15 / 500 and 12 / 717 (same range). No scene hit zero yet.
 
-남은 것 정리(2026-11-18): 그림의 잉크를 미리 계산한 표(`src/data/sprite-ink.json`, `scripts/build-sprite-ink.cjs`가 페이지의 같은 함수를 Chrome에서 1324장에 돌린다)로 바꿨다. replay-open의 프로파일에서 잉크 측정(`centreInk`)이 사라졌다(전에는 184 ms). 같은 날 같은 기계에서 replay-open은 23 / 534, 24 / 517, tower-tab 7 / 767, 6 / 751, lobby 13 / 350, 7 / 350, tab-switch 15 / 851, 14 / 817이다. 휴대폰 무대의 높이 상한(112vw)을 되돌린 빌드와 번갈아 잰 replay-open도 23, 24, 23으로 같아, 이날의 수가 아침보다 높은 것은 기계의 흔들림이다. 남은 긴 작업의 주인은 텍스처 올리기(`upload`, 225 ms), 배틀 묶음의 모듈 평가(200 ms 안팎), 무대 크기 읽기(`measure`, 77 ms)다.
+Cleanup pass (2026-11-18): replaced runtime sprite ink measurement with a precomputed table (`src/data/sprite-ink.json`, generated by running the page's exact function on 1324 sprites in Chrome via `scripts/build-sprite-ink.cjs`). `centreInk` (previously 184 ms) vanished from `replay-open` profiles. Same-day numbers on the same machine: `replay-open` 23 / 534 and 24 / 517, `tower-tab` 7 / 767 and 6 / 751, `lobby` 13 / 350 and 7 / 350, `tab-switch` 15 / 851 and 14 / 817. Alternating `replay-open` against a build reverting the mobile stage max-height (`112vw`) also gave 23, 24, 23, confirming the higher counts were machine variance. Remaining culprits: texture upload (`upload`, 225 ms), battle bundle module evaluation (~200 ms), and stage measurement (`measure`, 77 ms).
 
-Task 5(2026-11-18): 히트 스톱과 타격의 흔들림을 빼고 HP를 한 박자 늦춘 뒤 replay-open 16 / 334 / 1651, 14 / 334 / 1368, reduced 18 / 284(움직이는 중 4 / 117).
+Task 5 (2026-11-18): after removing hit-stop and impact shake and delaying HP bar updates by one beat, `replay-open` measured 16 / 334 / 1651 and 14 / 334 / 1368; reduced motion 18 / 284 (in-motion 4 / 117).
 
-무대 준비 나누기(2026-11-18): 줄이지 않은 빌드의 프로파일로 찾은 주인을 하나씩 고쳤다.
-- 그림의 잉크 상자(`gl.js inkBox`, 그림마다 15 ms): 잉크 표에 상자를 더해 읽는다.
-- 몬스터볼 한 걸음(20줄, 35에서 48 ms): 5줄씩.
-- 아틀라스 표면 한 걸음(16줄, 40에서 53 ms): 4줄씩.
-- 아틀라스의 칸 그림(한 걸음 94 ms): 네 칸씩.
-- 그림 올리기(23에서 53 ms): `createImageBitmap`으로 페이지 밖에서 풀고 곱한 뒤 올린다. 같은 장면을 두 빌드에서 찍어 몸통 안의 색이 같음을 보았다.
+Splitting stage prep (2026-11-18): fixed culprits found in unminified profiles one by one.
+- Sprite ink boxes (`gl.js inkBox`, 15 ms per sprite): added box bounds to the precomputed ink table.
+- Poké Ball paint step (20 rows, 35 to 48 ms): reduced to 5 rows per step.
+- Atlas surface step (16 rows, 40 to 53 ms): reduced to 4 rows per step.
+- Atlas cell painting (94 ms per step): reduced to 4 cells per step.
+- Texture upload (23 to 53 ms): decode and premultiply off-thread with `createImageBitmap` before uploading. Verified matching interior sprite colors across both builds.
 
-고치기 전 빌드(`14840a2`)와 번갈아 잰 결과(움직이는 중 50 ms 초과 / 50 초과 전부 / 최악 / 합):
+Alternating against the prior build (`14840a2`); numbers are in-motion >50 ms / all >50 ms / worst / total:
 
-| 장면 | 전 | 후 |
+| Scene | Before | After |
 |---|---|---|
-| replay-open(`6ge7rn3hsxms`) | 11 / 27 / 534 / 3553, 11 / 19 / 484 / 2436, 11 / 27 / 450 / 3036, 11 / 15 / 284 / 1468 | 10 / 20 / 534 / 2985, 10 / 15 / 434 / 2068, 9 / 16 / 367 / 2269, 7 / 9 / 267 / 1201 |
-| lobby | 6 / 6 / 234 / 584, 7 / 7 / 267 / 668, 6 / 6 / 217 / 634, 8 / 8 / 217 / 734 | 6 / 6 / 233 / 617, 6 / 6 / 250 / 634, 4 / 4 / 200 / 434, 4 / 4 / 200 / 467 |
-| tower-tab | 6 / 6 / 367 / 884, 5 / 5 / 334 / 784 | 5 / 5 / 300 / 701, 5 / 5 / 301 / 684 |
-| tab-switch | 11 / 11 / 717 / 1701, 10 / 10 / 500 / 1518 | 9 / 9 / 384 / 1334, 11 / 11 / 350 / 1635 |
+| `replay-open` (`6ge7rn3hsxms`) | 11 / 27 / 534 / 3553, 11 / 19 / 484 / 2436, 11 / 27 / 450 / 3036, 11 / 15 / 284 / 1468 | 10 / 20 / 534 / 2985, 10 / 15 / 434 / 2068, 9 / 16 / 367 / 2269, 7 / 9 / 267 / 1201 |
+| `lobby` | 6 / 6 / 234 / 584, 7 / 7 / 267 / 668, 6 / 6 / 217 / 634, 8 / 8 / 217 / 734 | 6 / 6 / 233 / 617, 6 / 6 / 250 / 634, 4 / 4 / 200 / 434, 4 / 4 / 200 / 467 |
+| `tower-tab` | 6 / 6 / 367 / 884, 5 / 5 / 334 / 784 | 5 / 5 / 300 / 701, 5 / 5 / 301 / 684 |
+| `tab-switch` | 11 / 11 / 717 / 1701, 10 / 10 / 500 / 1518 | 9 / 9 / 384 / 1334, 11 / 11 / 350 / 1635 |
 
-(로비와 리플레이의 마지막 두 줄은 칸 그림 나누기까지 들어간 뒤다.) 0은 아니다. 남은 주인: 소리 컨텍스트 만들기(`audio`, 126에서 190 ms, 손길이 있은 페이지에서만), 무대 셰이더 묶기(`compileEnd`, 44), 렌더 타깃 만들기(`measure`, 54), 계산기 묶음의 모듈 평가(정지 화면), 탑 탭 진입 첫 프레임(메시 조각과 탭 밑줄 `slideLine`).
+The last two runs for `lobby` and `replay-open` include cell-paint splitting. Still not zero. Remaining culprits: audio context creation (`audio`, 126 to 190 ms, only on user-activated pages), stage shader linking (`compileEnd`, 44 ms), render target creation (`measure`, 54 ms), calculator bundle evaluation (static screen), and first frame of tower tab entry (mesh chunks and tab underline `slideLine`).
 
-탑의 메시 한 번 짓기(2026-11-18): 탭을 바로 열면 한가할 때 조각으로 짓던 메시가 끝나기 전에 탑이 필요해져, 첫 프레임에 처음부터 한 번에 다시 지었다(467 ms 프레임). 짓는 중인 것을 함께 쓰고(`towerGL.js prebuildModel`), 장면은 다 지어진 뒤 그린다(`tower.js` paint, entrance, arrive). tower-tab을 `14840a2` 빌드와 번갈아 세 번: 전 5 / 6 / 384 / 901, 5 / 6 / 317 / 801, 6 / 6 / 384 / 884, 후 3 / 4 / 217 / 451, 4 / 5 / 250 / 517, 3 / 4 / 234 / 501.
+Single-pass tower mesh reuse (2026-11-18): opening the tab immediately needed the tower before idle chunked mesh building finished, forcing a full synchronous rebuild on frame 1 (467 ms frame). Sharing the in-progress build (`towerGL.js prebuildModel`) and painting only once finished (`tower.js` `paint`, `entrance`, `arrive`) improved `tower-tab` across three alternating runs vs `14840a2`: before 5 / 6 / 384 / 901, 5 / 6 / 317 / 801, 6 / 6 / 384 / 884; after 3 / 4 / 217 / 451, 4 / 5 / 250 / 517, 3 / 4 / 234 / 501.
 
-주인 정리 두 번째(2026-11-18, `b3ef3d1` 위): 줄이지 않은 빌드의 프로파일과 Chrome 추적으로 찾은 주인을 하나씩 고쳤다.
-- 소리 컨텍스트(`cries.js audio`, 126에서 340 ms): 소리 키의 첫 상태(`BattlePage.jsx`)와 첫 효과음(`sfx.js ready`)이 장치를 깨우기 전에 만들었다. 이제 만들어진 것만 읽고(`madeAudio`), 없으면 장치 목록을 먼저 묻는 `primeAudio`에 맡긴다. 따로 잰 생성 시간은 바로 만들면 348 ms, 장치 목록을 물은 뒤면 23 ms. 리플레이에서는 그래도 100에서 300 ms가 남지만 무대가 서기 전 정지 화면에 든다.
-- 아틀라스와 몬스터볼(`paintAtlas`, `surfaceSteps`, 노이즈, `paintBalls`, 프레임마다 30에서 150 ms): 작업 스레드(`paint.worker.js`)가 그려 보낸다. 코드는 `atlas.js`, `balls.js`로 옮겼을 뿐 같다. 작업 스레드와 페이지가 그린 값이 바이트까지 같다(모양, 표면, 노이즈, 공 24프레임). 작업 스레드가 없으면 페이지가 전처럼 걸음으로 그리고, 그 길도 같은 텍스처를 낸다.
-- 렌더 타깃(`gl.js measure`, GPU를 동기로 40에서 70 ms 기다림): 무대가 경기 화면의 꽉 찬 틀(`page--battle`)보다 먼저 서서 350으로 한 번, 390으로 또 한 번 만들었다. 이제 첫 프레임에서 그때의 크기로 한 번 만든다. 두 빌드의 캔버스, 렌더 타깃, 카메라가 같다.
-- 그림 해독(`Decode Image`, 147에서 160 ms): `<img>`에서 만든 `createImageBitmap`은 메인 스레드에서 풀었다. 파일(Blob)에서 만들면 페이지 밖에서 푼다. 여섯 그림을 GPU에 올려 읽으니 0바이트 차이.
-- 글꼴 조각(타이머 안의 레이아웃 118 ms): 이름과 기술이 쓰는 `600-rest` 조각을 이름이 처음 설 때 불렀고, 그동안 대체 글꼴로 배치했다. 경기 화면을 열 때 데이터보다 먼저 부른다.
-- 웹 글꼴에 없는 기호(▲▼♀♂←→, 레이아웃 59에서 122 ms): 처음 서는 순간 기기의 글꼴(이 기계는 10 MB의 Noto Sans KR)을 그 굵기로 열었다. 경기 화면을 열 때 600과 700 굵기로 보이지 않게 한 번 배치한다. 페이지 크기는 같다.
-- 실패: 숨긴 기호를 `font: 600 11px Freesentation`으로 배치하면 소용없었다(글꼴 목록이 달라 다른 글꼴을 연다). 몸의 글꼴 목록을 물려받아야 한다. 탭 바꾸기를 `startTransition`으로 나눠 그리기는 탭 전환의 멈춤이 세 번 중 0, 3, 3개로 전(2, 2, 3개)과 같아 되돌렸다.
+Second culprit pass (2026-11-18, on `b3ef3d1`): fixed items found via unminified profiles and Chrome Tracing.
+- Audio context (`cries.js audio`, 126 to 340 ms): initial mute-button state (`BattlePage.jsx`) and first sound effect (`sfx.js ready`) created the context before warming up audio devices. Now reads only existing contexts (`madeAudio`) and delegates creation to `primeAudio`, which queries device list first. Standalone creation time dropped from 348 ms to 23 ms after querying devices. Replays still see 100 to 300 ms, but it lands on the static screen before the stage appears.
+- Atlas and Poké Balls (`paintAtlas`, `surfaceSteps`, noise, `paintBalls`, 30 to 150 ms/frame): moved painting to a worker (`paint.worker.js`, code relocated to `atlas.js` and `balls.js` without logic changes). Worker and main-thread output match byte for byte (shapes, surface, noise, 24 ball frames). When workers are unavailable, main-thread stepping runs as before and produces identical textures.
+- Render targets (`gl.js measure`, 40 to 70 ms synchronous GPU stall): the stage mounted before the full-width battle layout (`page--battle`), creating render targets at 350 px and recreating them at 390 px. Now creates them once on the first frame at the active size. Canvas, render targets, and camera match between builds.
+- Image decoding (`Decode Image`, 147 to 160 ms): `createImageBitmap` from `<img>` decoded on the main thread; calling it on a `Blob` decodes off-thread. GPU readback across six sprites showed 0-byte difference.
+- Font subset (118 ms layout inside timer): the `600-rest` subset used by names and moves loaded when names first mounted, forcing fallback layout. Now preloaded when opening the battle screen ahead of data.
+- Missing webfont glyphs (`▲▼♀♂←→`, 59 to 122 ms layout): first render opened the system font (10 MB Noto Sans KR on this machine) at that weight. Now triggers a hidden pre-layout at weights 600 and 700 on battle screen open. Page dimensions unchanged.
+- Reverted attempts: pre-laying out hidden glyphs with `font: 600 11px Freesentation` failed because a different font stack opened a different fallback font; inheriting `body` font-family is required. Wrapping tab switches in `startTransition` gave 0, 3, 3 freezes vs 2, 2, 3 before, so it was reverted.
 
-고치기 전 빌드(`b3ef3d1`)와 번갈아 세 번(50 ms 초과 / 움직이는 중(옛 수) / 멈춤 / 최악의 멈춤 / 최악 / 합):
+Three alternating runs against `b3ef3d1` (all >50 ms / old `inMotion` / `stopped` / worst `stopped` / worst / total):
 
-| 장면 | 전 | 후 |
+| Scene | Before | After |
 |---|---|---|
-| replay-open(`6ge7rn3hsxms`) | 6 / 6 / 2 / 184 / 317 / 1118, 8 / 8 / 2 / 200 / 333 / 1368, 10 / 9 / 3 / 167 / 334 / 1369 | 4 / 3 / 0 / 0 / 284 / 717, 6 / 5 / 0 / 0 / 267 / 784, 7 / 6 / 1 / 50 / 283 / 934 |
-| lobby | 6 / 6 / 0 / 0 / 250 / 634, 4 / 4 / 0 / 0 / 200 / 534, 4 / 4 / 0 / 0 / 233 / 567 | 5 / 5 / 0 / 0 / 200 / 551, 4 / 4 / 0 / 0 / 200 / 483, 4 / 4 / 0 / 0 / 217 / 500 |
-| tower-tab | 6 / 5 / 0 / 0 / 267 / 601, 6 / 5 / 1 / 67 / 183 / 600, 4 / 4 / 0 / 0 / 234 / 434 | 5 / 4 / 0 / 0 / 184 / 534, 4 / 4 / 1 / 83 / 217 / 500, 4 / 4 / 0 / 0 / 234 / 484 |
-| tab-switch | 8 / 7 / 2 / 100 / 234 / 983, 13 / 12 / 3 / 83 / 250 / 1335, 10 / 9 / 2 / 100 / 284 / 1217 | 11 / 11 / 2 / 100 / 234 / 1302, 8 / 7 / 2 / 100 / 250 / 1017, 8 / 8 / 3 / 100 / 250 / 984 |
+| `replay-open` (`6ge7rn3hsxms`) | 6 / 6 / 2 / 184 / 317 / 1118, 8 / 8 / 2 / 200 / 333 / 1368, 10 / 9 / 3 / 167 / 334 / 1369 | 4 / 3 / 0 / 0 / 284 / 717, 6 / 5 / 0 / 0 / 267 / 784, 7 / 6 / 1 / 50 / 283 / 934 |
+| `lobby` | 6 / 6 / 0 / 0 / 250 / 634, 4 / 4 / 0 / 0 / 200 / 534, 4 / 4 / 0 / 0 / 233 / 567 | 5 / 5 / 0 / 0 / 200 / 551, 4 / 4 / 0 / 0 / 200 / 483, 4 / 4 / 0 / 0 / 217 / 500 |
+| `tower-tab` | 6 / 5 / 0 / 0 / 267 / 601, 6 / 5 / 1 / 67 / 183 / 600, 4 / 4 / 0 / 0 / 234 / 434 | 5 / 4 / 0 / 0 / 184 / 534, 4 / 4 / 1 / 83 / 217 / 500, 4 / 4 / 0 / 0 / 234 / 484 |
+| `tab-switch` | 8 / 7 / 2 / 100 / 234 / 983, 13 / 12 / 3 / 83 / 250 / 1335, 10 / 9 / 2 / 100 / 284 / 1217 | 11 / 11 / 2 / 100 / 234 / 1302, 8 / 7 / 2 / 100 / 250 / 1017, 8 / 8 / 3 / 100 / 250 / 984 |
 
-리플레이의 멈춤은 2에서 3개(최악 167에서 200)가 0에서 1개(50)가 되었다. 로비는 전후 모두 0이다. 탑 탭과 탭 전환은 그대로다. 남은 50 ms 초과는 거의 모두 `+`다: 불러오는 동안(묶음의 모듈 평가 200에서 300 ms, 바쁨 칸만 움직임)과 무대가 서는 순간이다.
+Replay freezes dropped from 2-3 (worst 167-200 ms) to 0-1 (50 ms). Lobby stayed at 0. Tower tab and tab switch did not change. Almost all remaining >50 ms frames are `+`: module evaluation during load (200 to 300 ms, only the busy bar moving) and initial stage mount.
 
-주인 정리 세 번째(2026-11-18, `79a1381` 위): 남은 멈춤의 주인을 탭 클릭 하나씩의 프로파일(함수별 포함 시간)로 찾았다.
-- 탑의 첫 그림(`tower.js drawTower`, 33에서 85 ms): 탭에 들어올 때 React의 커밋 안에서 그렸는데, 그 프레임의 탑은 켜짐(`.tw-body`의 불투명도 0에서 1)의 처음이라 보이지 않았다. 이제 커밋에서는 메시만 준비하고, 켜짐과 첫 그림은 다음 프레임에 시작한다. 그 사이 캔버스는 비어 있어 전처럼 아무것도 보이지 않는다. 두 빌드의 들어오는 장면을 녹화해 같은 순서임을 보았다. 움직임 줄이기에서는 전처럼 바로 그린다.
-- 색 길 텍스처(`gl.js buildRamps`, 26 ms): 정해진 값을 무대가 설 때마다 계산했다. 한 번 계산해 모든 무대가 쓴다.
-- 순위표의 숫자(`StandTable`, 시상대, 43 ms): `toLocaleString("ko-KR")`이 숫자마다 형식기를 새로 만들었다. `Board.jsx koNumber` 하나를 쓴다. 출력은 같다.
-- 하지 않음: 무대의 셰이더를 병렬 컴파일로 기다렸다 묶기. 위 셋 뒤에 탭 전환 4초의 무대 멈춤이 더 나오지 않았다.
+Third culprit pass (2026-11-18, on `79a1381`): profiled individual tab clicks by inclusive function time.
+- First tower draw (`tower.js drawTower`, 33 to 85 ms): ran inside React commit on tab entry while `.tw-body` was at the start of its 0-to-1 opacity fade and invisible anyway. Now prepares the mesh during commit and starts the fade and first draw on the next frame; the canvas stays blank in between just as before. Recorded entrance frames on both builds to confirm identical sequence. Reduced motion still draws immediately.
+- Color ramp textures (`gl.js buildRamps`, 26 ms): recomputed static values every time a stage mounted. Now computed once and shared across stages.
+- Standings number formatting (`StandTable`, podium, 43 ms): `toLocaleString("ko-KR")` constructed a fresh formatter per number. Replaced with shared `Board.jsx koNumber` with identical output.
+- Skipped: async parallel shader linking for the stage. After the three fixes above, the 4-second stage freeze during tab switches stopped occurring.
 
-`79a1381` 빌드와 번갈아 세 번(같은 차례):
+Three alternating runs against `79a1381` (same column order):
 
-| 장면 | 전 | 후 |
+| Scene | Before | After |
 |---|---|---|
-| replay-open | 7 / 6 / 1 / 50 / 300 / 951, 6 / 5 / 1 / 67 / 317 / 900, 5 / 4 / 0 / 0 / 267 / 817 | 5 / 4 / 0 / 0 / 283 / 734, 5 / 4 / 0 / 0 / 250 / 734, 5 / 4 / 1 / 50 / 300 / 767 |
-| lobby | 6 / 6 / 0 / 0 / 234 / 634, 6 / 6 / 0 / 0 / 284 / 717, 5 / 5 / 0 / 0 / 250 / 700 | 6 / 6 / 0 / 0 / 217 / 684, 5 / 5 / 0 / 0 / 167 / 484, 5 / 5 / 0 / 0 / 234 / 601 |
-| tower-tab | 5 / 5 / 0 / 0 / 267 / 567, 4 / 4 / 0 / 0 / 234 / 534, 5 / 5 / 1 / 67 / 250 / 550 | 3 / 3 / 0 / 0 / 217 / 400, 3 / 3 / 0 / 0 / 267 / 434, 3 / 3 / 0 / 0 / 217 / 417 |
-| tab-switch | 9 / 9 / 1 / 67 / 434 / 1335, 7 / 7 / 1 / 50 / 200 / 784, 5 / 5 / 1 / 83 / 234 / 651 | 6 / 6 / 0 / 0 / 167 / 651, 9 / 9 / 0 / 0 / 217 / 867, 8 / 8 / 1 / 67 / 200 / 834 |
+| `replay-open` | 7 / 6 / 1 / 50 / 300 / 951, 6 / 5 / 1 / 67 / 317 / 900, 5 / 4 / 0 / 0 / 267 / 817 | 5 / 4 / 0 / 0 / 283 / 734, 5 / 4 / 0 / 0 / 250 / 734, 5 / 4 / 1 / 50 / 300 / 767 |
+| `lobby` | 6 / 6 / 0 / 0 / 234 / 634, 6 / 6 / 0 / 0 / 284 / 717, 5 / 5 / 0 / 0 / 250 / 700 | 6 / 6 / 0 / 0 / 217 / 684, 5 / 5 / 0 / 0 / 167 / 484, 5 / 5 / 0 / 0 / 234 / 601 |
+| `tower-tab` | 5 / 5 / 0 / 0 / 267 / 567, 4 / 4 / 0 / 0 / 234 / 534, 5 / 5 / 1 / 67 / 250 / 550 | 3 / 3 / 0 / 0 / 217 / 400, 3 / 3 / 0 / 0 / 267 / 434, 3 / 3 / 0 / 0 / 217 / 417 |
+| `tab-switch` | 9 / 9 / 1 / 67 / 434 / 1335, 7 / 7 / 1 / 50 / 200 / 784, 5 / 5 / 1 / 83 / 234 / 651 | 6 / 6 / 0 / 0 / 167 / 651, 9 / 9 / 0 / 0 / 217 / 867, 8 / 8 / 1 / 67 / 200 / 834 |
 
-뒤이어 탭 전환을 세 번 더 재니 0, 0, 0이었다.
+Three follow-up `tab-switch` runs recorded 0, 0, 0 freezes.
 
-## 3. 남은 것
+## 3. Remaining issues
 
-2026-11-18 세 번째 정리 뒤의 남은 멈춤(위 표의 `stopped`, 열두 번에 둘):
-- 리플레이 2.3에서 2.5초, 리플레이 키의 색 전환(`.bt-rkey`, 160 ms) 중 50에서 83 ms. 메인 스레드의 JS는 그림 올리기(`upload`) 8 ms뿐이고, 추적에서는 무대의 첫 프레임과 그림 올리기 때 GPU 프로세스의 WebGL 일이 40 ms였다. 세 번에 0에서 1번.
-- 탭 전환 1.6에서 1.9초, 버튼의 색 전환(`.btn`) 중 67 ms. 탑 탭의 데이터가 도착해 React가 탭 화면을 그리는 일이다. 여섯 번에 한 번.
-- 50 ms를 넘는 나머지는 모두 `+`(불러오는 동안 바쁨 칸만 움직임)다. 묶음의 모듈 평가 200에서 300 ms는 화면에서 멈추지 않으므로 고치지 않았다.
-- 첫 손길의 소리 컨텍스트: 장치가 깨기 전에 누르면 누름 처리 안에서 만든다(이 기계 310 ms). iOS는 누름 안에서만 소리를 깨우므로 그대로 두었다.
-- 기기의 글꼴(Noto Sans KR)을 여는 비용과 소리 장치를 깨우는 비용은 이 윈도우 기계의 것이다. 실제 휴대폰에서는 재지 않았다.
+Remaining `stopped` frames after the third pass on 2026-11-18 (2 across 12 runs):
+- Replay at 2.3 to 2.5 s: 50 to 83 ms during the replay button color transition (`.bt-rkey`, 160 ms). Main-thread JS is only 8 ms for `upload`; Chrome Trace shows 40 ms of WebGL work in the GPU process for the stage's first frame and texture upload. Occurs 0 to 1 time in 3 runs.
+- Tab switch at 1.6 to 1.9 s: 67 ms during button color transition (`.btn`) when tower tab data arrives and React renders the tab view. Occurs 1 time in 6 runs.
+- All other >50 ms frames are `+` (only the busy bar moving during load). Module evaluation (200 to 300 ms) does not visually freeze the screen and was left alone.
+- First-gesture audio context: tapping before the audio device warms up creates the context inside the click handler (310 ms on this machine). Kept as-is because iOS only unlocks audio inside a direct gesture handler.
+- System font loading cost (Noto Sans KR) and audio device wakeup cost are specific to this Windows machine and have not been measured on a real phone.
 
-그 전(2026-11-18 첫 정리)의 남은 것:
-
-- 소리 컨텍스트: 손길이 있은 페이지에서는 여전히 만들어진다(윈도우에서 오디오 장치를 깨우는 데 100에서 250 ms). 실제 휴대폰에서는 재지 않았다.
-- 무대의 크기 읽기(`gl.js measure`, `getBoundingClientRect`, `checkVisibility`)와 셰이더 묶기(`compileEnd`)가 프레임마다 20에서 50 ms.
-- 텍스처 올리기(`upload`)는 그림 하나에 20에서 30 ms다. 이미 한 프레임에 하나씩이다.
-- 이 표의 수는 불러오는 동안의 프레임을 포함한다. 화면이 실제로 멈춘 간격(녹화, 합성기 프레임)은 같은 장면 9초에 넷, 150에서 250 ms였다.
+Earlier remaining items from the first pass (2026-11-18):
+- Audio context still gets created on user-activated pages (100 to 250 ms to wake Windows audio; unmeasured on real phones).
+- Stage measurement (`gl.js measure`, `getBoundingClientRect`, `checkVisibility`) and shader linking (`compileEnd`) take 20 to 50 ms per frame.
+- Texture upload (`upload`) takes 20 to 30 ms per sprite, already throttled to one per frame.
+- Table counts include loading frames. Actual compositor freezes in recordings over 9 seconds of the same scene were 4 gaps of 150 to 250 ms.

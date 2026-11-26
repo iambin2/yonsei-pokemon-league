@@ -1,589 +1,577 @@
-# 연승 도전 (설계안)
+# Battle streak design
 
-화면의 이름은 2026-11-09부터 **도전의 탑**이다(사용자: "이름은 도전의 탑으로 가자"). 이 문서와 코드, 데이터(`kind` streak, `streak_runs`)는 예전 이름 연승 도전을 그대로 쓴다.
+Starting 2026-11-09, the UI name is 도전의 탑 (user: "이름은 도전의 탑으로 가자"). This document, the code, and the database (`kind` `streak`, `streak_runs`) keep the original streak naming.
 
-2026-11-07 초안. 운영위 피드백: 본가의 PWT 같은 컨텐츠와 실시간 랭킹. 0단계 측정은 통과했다(4장). 1단계부터는 아직 만들지 않았다.
+Drafted 2026-11-07 after committee feedback asking for mainline PWT-style content and live rankings. Phase 0 benchmarks passed (Chapter 4); phases 1 onward were still pending at draft time.
 
-## 1. 한 줄
+## 1. Summary
 
-로그인한 트레이너가 컴퓨터와 랜덤 배틀을 이어서 하고, 지기 전까지 이긴 판 수가 기록이다. 한 달마다 계정별 최고 기록으로 순위를 매긴다. 배틀과 컴퓨터는 모두 서버에서 돈다.
+A signed-in trainer plays consecutive random battles against the computer, and their record is the number of wins before losing. Each month ranks accounts by their highest streak. Both the battle engine and the computer run on the server.
 
-## 2. 왜 포인트가 아니라 연승인가
+## 2. Streaks instead of points
 
-- 상대가 실력이 정해진 컴퓨터라서 레이팅(Elo)은 의미가 없다. 남는 포인트는 "이기면 +n"뿐인데, 판 수에 정비례하므로 실력 순위가 아니라 플레이 시간 순위가 된다.
-- 연승은 판 수의 효과가 로그로 줄어든다. 승률 p로 N번 도전한 최고 연승은 대략 log N / log(1/p)다. 승률 80%면 10번에 약 10연승, 100번에 약 21연승이고, 승률 90%면 10번에 약 22연승이다. 10배 더 하는 것과 승률 10%p가 같은 값이다.
-- 동아리 규모에서는 같은 시간에 접속한 사람이 적어 사람끼리의 포인트 래더는 매칭이 빈다. 컴퓨터 상대는 언제든 혼자 한다.
-- 사이트에 맞다. 연승은 숫자(figure) 하나이고, 지금 진행 중인 도전은 앰버 표시 하나다(DESIGN.md "Figures", "Marks"; 2026-11-24까지는 7세그먼트 숫자와 램프였다). 본가의 BP는 순위가 아니라 쓰는 화폐인데, 우리는 쓸 곳이 없으니 만들지 않는다.
+- Elo ratings do not work against a computer of fixed strength. Simple "+n per win" points scale linearly with games played, ranking playtime rather than skill.
+- Streaks shrink the effect of volume logarithmically. Across N attempts at win rate p, the expected best streak is roughly `log N / log(1/p)`. At 80% win rate, 10 runs yield about a 10-win streak and 100 runs yield about 21; at 90%, 10 runs already yield about 22. Playing 10x more games equals a 10 percentage point gain in win rate.
+- At club scale, too few members are online at once for a PvP points ladder to match reliably. Solo play against the computer is always available.
+- A streak fits the site's visual language: one figure for the streak count and one amber mark for an active run (`DESIGN.md` "Figures", "Marks"; until 2026-11-24 these were a 7-segment display and a lamp). Mainline BP is a spendable currency rather than a ranking metric, and we have nothing to spend it on.
 
-## 3. 공정성: 무엇을 막는가
+## 3. Fairness safeguards
 
-지금의 컴퓨터 배틀은 기기에서 돌고, 끝나면 입력 기록만 보낸다(`record`, `readCpuRecord`). 서버는 처음부터 다시 돌려 파티가 규정에 맞는지와 끝까지 가는지만 본다. 순위가 붙으면 아래가 모두 구멍이다.
+Regular computer battles run on the client and upload only the input log on completion (`record`, `readCpuRecord`). The server replays the log to check team legality and completion. Adding a leaderboard exposes all of the gaps below.
 
-| 구멍 | 지금 | 연승 도전에서 |
+| Gap | Regular computer battle | Streak mode |
 |---|---|---|
-| 파티나 시드를 마음에 들 때까지 다시 뽑기 | 기기가 뽑는다(`cpu.worker.js` `start`) | 서버가 판마다 뽑는다 |
-| 시드 미리 보기: 시드를 알면 엔진으로 급소와 명중을 미리 돌려 볼 수 있다 | 기기가 시드를 안다 | 시드는 `battle_secrets`에만 있다 |
-| 컴퓨터 쪽 선택 위조: 컴퓨터가 일부러 지는 수를 둔 기록을 보낸다 | 서버가 컴퓨터의 선택인지 확인하지 못한다 | 컴퓨터가 서버에서 고른다 |
-| 지는 판에서 창을 닫고 다시 하기 | 기록을 안 보내면 그만이다 | 판은 서버에 있다. 90초 시계(`battle_timer.sql`)가 지나면 진 판이다 |
-| 기기마다 컴퓨터가 다르다: 1.4초 동안 쉬는 데스크톱은 표본 평균 14개, 휴대폰은 1개 안팎. 잰 세기 차이는 작지만(4장) 순위에서는 같은 상대여야 한다 | 기기마다 다르다 | 서버에서 같은 시간으로 고르므로 누구에게나 같다 |
-| 한 사람이 여러 이름으로 | 이름만 쓴다 | 승인된 Google 계정의 트레이너 이름만 순위에 든다(`player_accounts.sql`) |
+| Rerolling teams or seeds until satisfied | Client generates them (`cpu.worker.js` `start`) | Server generates them per match |
+| Seed peeking to pre-simulate crits and misses | Client knows the seed | Seed stays in `battle_secrets` only |
+| Forging computer moves to make it throw | Server cannot verify computer choices | Computer picks moves on the server |
+| Closing the tab on a losing match and retrying | Client simply skips uploading the log | Match lives on the server; 90-second timer (`battle_timer.sql`) counts as a loss |
+| Hardware variance (in 1.4 s an idle desktop averages 14 samples vs ~1 on phones; strength gap is small per Chapter 4, but rankings need an identical opponent) | Varies by device | Server uses the same time budget for everyone |
+| One person submitting under multiple names | Free-text name | Only approved trainer names tied to Google accounts appear on the leaderboard (`player_accounts.sql`) |
 
-그래서 연승 도전의 판은 방 배틀(친선, 공식)과 같은 길로 간다: `battles`와 `battle_secrets`에 행이 있고, 좌석 토큰으로 고르고, 엔진은 배틀 함수에서만 돈다. 다른 점은 p2 자리를 컴퓨터가 서버에서 채운다는 것 하나다. 지난번 답에서 "컴퓨터를 서버에서 돌리는 것은 현실적이지 않다"고 했는데, 방 배틀 구조를 그대로 쓰면 가장 작은 변경이다. 남는 질문은 CPU 시간뿐이었고, 0단계에서 재서 통과했다.
+Streak matches therefore follow the same path as room battles (casual and official): rows in `battles` and `battle_secrets`, seat-token submissions, and engine execution solely inside the battle edge function. The only difference is that the server-side computer fills seat p2. Earlier I said running the computer server-side was impractical, yet reusing the room-battle path turned out to be the smallest possible change. CPU time was the sole open question, and Phase 0 passed it.
 
-## 4. 0단계: 잰다 (2026-11-07, 통과)
+## 4. Phase 0 benchmarks (2026-11-07, passed)
 
-| 무엇 | 결과 |
+| Metric | Result |
 |---|---|
-| CPU 한도 | Supabase Edge Function은 요금제와 상관없이 요청당 CPU 2초(문서 확인). 판정 기준은 가장 느린 수가 1초 안 |
-| 정해진 표본 수(`samples`, 시험 후 되돌림) | 표본 3은 1.4초 컴퓨터와 300판 52.3% ± 4.8로 같은 세기였고, 같은 시드면 Edge와 이 PC가 576수 모두 같은 수를 뒀다. 그러나 Edge 30판에서 가장 느린 수가 1906 ms. 무거운 국면은 표본 하나가 비싸서 표본 수로는 최악을 막지 못한다 |
-| 지금의 시간 방식 | 첫 표본의 폭을 시간에 맞춰 줄이므로 최악이 예산의 약 2.2배에서 멈춘다. Edge 30판: 450 ms 예산에서 최대 1028 ms, 700 ms에서 1541 ms, **400 ms에서 평균 407, p95 598, 최대 815 ms** |
-| 400 ms의 세기 | Edge는 같은 일을 이 PC보다 약 1.8배 느리게 한다. 그래서 이 PC의 220 ms로 쟀다: 1.4초 컴퓨터와 300판 50.0% ± 4.9, Elo 0, 차이 없음 |
-| 서버의 비용 | 저장된 상태에서 배틀을 되살리는 데 1 ms, 컴퓨터를 새로 만드는 데 2 ms. 요청 본문은 가장 커도 37 KB |
+| CPU limit | Supabase Edge Functions allow 2 seconds of CPU per request on every plan (per docs). Pass threshold was slowest move under 1 second |
+| Fixed sample count (`samples`, tested and reverted) | 3 samples matched the 1.4 s computer at 52.3% ± 4.8 over 300 games, and Edge matched this PC across all 576 moves on identical seeds. Across 30 games on Edge, the slowest move hit 1906 ms because heavy turns make individual samples expensive |
+| Existing time-budget mode | Narrowing the first sample's width to the budget caps worst-case time around 2.2x budget. Edge over 30 games: max 1028 ms at 450 ms budget, 1541 ms at 700 ms, and mean 407 ms, p95 598 ms, max 815 ms at 400 ms budget |
+| Strength at 400 ms | Edge runs roughly 1.8x slower than this PC, so we benchmarked 220 ms locally against the 1.4 s computer: 50.0% ± 4.9 over 300 games, Elo 0, no difference |
+| Server overhead | Restoring battle state takes 1 ms, creating a computer instance takes 2 ms, and max request body is 37 KB |
 
-**정한 것**: 서버 컴퓨터는 새 코드 없이 지금의 시간 방식을 `budgetMs: 400`으로 쓴다(폴리곤Z). 같은 시드로 같은 수를 두는 재현성은 버린다. 판정은 서버가 하므로 필요 없다. 폴리곤은 지금처럼 300 ms이고, 폴리곤2는 500 ms면 Edge에서 최대 1.1초쯤이 되니 서버에서만 400 ms로 둔다(`cpuLevels.js`의 휴대폰 값은 그대로).
+Decision: the server computer uses the existing time-budget mode at `budgetMs: 400` for 폴리곤Z with no new search code. We drop seed-level move reproducibility since the server adjudicates everything. 폴리곤 stays at 300 ms, and 폴리곤2 drops from 500 ms (which would hit ~1.1 s max on Edge) to 400 ms on the server only (phone settings in `cpuLevels.js` stay unchanged).
 
-**서버에서 추리 이어 가기 (1단계, 됐다).** 컴퓨터의 추리(상대 세트 후보와 직전 국면)는 그 컴퓨터의 메모리에만 있어서, 요청마다 새로 만드는 서버 컴퓨터는 추리를 하지 못했다. 이제 `createCpu`가 `memory()`로 추리를 JSON으로 내주고, `memory` 옵션으로 이어 받는다. 서버는 이것을 `battle_secrets`에 판의 상태와 함께 저장하고, 판이 끝나면 상태와 함께 지운다. 크기는 가장 커도 39 KB, 압축하면 약 5 KB로 판의 상태와 비슷하다. 테스트(`tests/battleCpu.test.mjs`)는 수마다 JSON을 거쳐 새로 만든 컴퓨터가 한 컴퓨터를 끝까지 쓴 것과 입력 기록 한 글자까지 같은 배틀을 두는지, 걸러 낸 후보가 다시 돌아오지 않는지 본다. 고르는 수가 같으니 세기는 위에서 잰 그대로다.
+Carrying deduction across server requests (Phase 1, complete): because deduction state (opponent candidate sets and prior turn) lived only in memory, a stateless server computer recreated each request could not deduce. `createCpu` now exports state as JSON via `memory()` and restores it via the `memory` option. The server saves it alongside battle state in `battle_secrets` and clears both when the match ends. Max size is 39 KB (around 5 KB compressed), similar to battle state. `tests/battleCpu.test.mjs` verifies that a computer recreated from JSON every turn produces the exact same input log character-for-character as a continuous instance, and that pruned candidates stay pruned. Since move choices are identical, strength matches the benchmark above.
 
-**난이도 계단의 세기 (서버 시간으로, 이 PC에서 Edge 시간의 1/1.8).**
+Difficulty ladder strength at server budgets (tested locally at 1/1.8 of Edge time):
 
-| 붙은 단계 | 아래 단계의 승률 | 판단 |
+| Matchup | Lower tier win rate | Verdict |
 |---|---|---|
-| 폴리곤2(Edge 400 ms) 대 폴리곤Z(Edge 400 ms) | 300판 37.3% ± 4.6, Elo -90 | 한 단계 아래 |
-| 폴리곤(Edge 300 ms) 대 폴리곤2(Edge 400 ms) | 300판 39.3% ± 5.1, Elo -75 | 한 단계 아래 |
+| 폴리곤2 (Edge 400 ms) vs 폴리곤Z (Edge 400 ms) | 37.3% ± 4.6 over 300 games, Elo -90 | One tier below |
+| 폴리곤 (Edge 300 ms) vs 폴리곤2 (Edge 400 ms) | 39.3% ± 5.1 over 300 games, Elo -75 | One tier below |
 
-휴대폰 값으로 잰 지금의 계단(폴리곤2가 폴리곤Z에 34%, 폴리곤이 폴리곤2에 32%)과 같은 간격이다. 두 벤치에서 엔진이 컴퓨터의 수를 한 번씩 거절했다(600판에 2번, 벤치는 가장 센 공격으로 대신 둔다). 원인은 숨은 그림자밟기(메가팬텀)였다. 요청에는 `trapped`가 아니라 `maybeTrapped`만 오고 교체가 그대로 나열되는데, 엔진은 그 교체를 거절한다. `decide`를 고친 커밋(c11f1a6)은 브랜치 `claude/vigilant-mendeleev-18581c`에 있고 아직 합치지 않았다. 다만 플레이어가 샘플 세트에 없는 묶는 특성을 쓰면 컴퓨터가 알 수 없어서, 거절이 아직 날 수 있다. 거절 뒤에는 엔진이 요청을 `trapped: true`로 고친다. 그래서 서버는 `decide`, 거절되면 `decide`를 한 번 더, 그래도 거절되면 가장 센 공격(`quickChoice`) 순서로 두고 기록을 남긴다(퍼징의 거절 4건은 모두 두 번째에서 맞았다).
+Spacing matches the phone ladder (폴리곤2 34% vs 폴리곤Z, 폴리곤 32% vs 폴리곤2). Each benchmark had one engine rejection (2 in 600 games; benchmark falls back to strongest attack), caused by hidden 그림자밟기 (메가팬텀) where the request marks `maybeTrapped` instead of `trapped` and still lists switches that the engine rejects. Commit `c11f1a6` fixing `decide` sits on branch `claude/vigilant-mendeleev-18581c` and is not yet merged. Because a player could still bring an off-sample trapping ability unknown to the computer, rejections remain possible. After a rejection, the engine updates the request to `trapped: true`, so the server runs `decide`, retries `decide` once on rejection, falls back to `quickChoice` if still rejected, and logs it (all 4 fuzzing rejections succeeded on retry).
 
-측정용 함수(`cpu-probe`)는 운영 프로젝트에 올려 재고 바로 지웠다. 측정 기록은 BATTLE_COMPUTER.md 5장에도 있다.
+The probe edge function (`cpu-probe`) was deployed to production for testing and deleted immediately afterward. Logs also appear in `BATTLE_COMPUTER.md` Section 5.
 
-## 5. 규칙
+## 5. Rules
 
-- **누가**: 승인된 Google 계정(`player_accounts`의 승인된 이름)만 도전한다. 순위에 그 이름이 나온다. 계정이 없는 방문자에게는 들어가는 곳에 Google 로그인이 함께 선다(DESIGN.md "Composing a screen" 17).
-- **형식**: 싱글 랜덤 배틀 하나. 더블은 따로 잰 뒤 따로 순위를 둔다(지금 측정은 싱글뿐이다).
-- **판마다**: 서버가 양쪽 파티를 새로 뽑는다(`randomTeam`, 컴퓨터 쪽은 지금처럼 `meta: true`). 시드도 판마다 새로 뽑는다. 2026-11-09부터 모든 랜덤 파티는 힘이 같다(11장).
-- **층과 층의 주인**(2026-11-08 바꿈. 처음에는 7판마다 난이도만 오르고 보스 판이 없었는데, 사용자: "그냥 단순한 배틀의 반복으로 느껴져. 한 층 한 층 긴장감 있는 도전을 쌓아간다는 느낌"). 다섯 판이 한 층이고 다섯 번째 판은 **층의 수문장**이다(2026-11-09까지는 "층의 주인", 사용자: "주인이라는 표현 대신 쓸 말이 있을까"). 판은 고유어 서수로 부른다: 1층 첫 번째 판, 두 번째, 세 번째, 네 번째, 1층 수문장(사용자: "1번째 라는 표현은 엄밀히 말하면 적절한 표현은 아닌 걸로 알아"). 2026-11-09 일곱에서 다섯으로 줄였다(사용자: "연승 도전의 템포도 좀 쳐지는 것 같아. 좀 더 매판마다 도파민이 돌았으면 하는데. 주인이 등장하는 주기를 짧게"). 다섯은 화면의 계단과도 맞는다: 한 층의 다섯 판이 DESIGN.md의 높이 다섯(32, 44, 52, 64, 84)으로 오르는 계단이다. 첫 운영 기록에서 폴리곤 일곱 판을 한 번도 지지 않아 첫 층이 몸풀기로 지나갔다(7연승 뒤 폴리곤2 첫 판에서 패배). 진행 중인 도전은 이긴 판 수 그대로 새 층 길이로 읽힌다(6연승이면 2층 2번째 판).
-  - 난이도: 한 층이 난이도 하나다. 1층 일곱 판은 폴리곤, 2층은 폴리곤2, 3층부터 폴리곤Z이고, 층의 주인도 그 층의 난이도다(1층 주인 폴리곤, 2층 주인 폴리곤2, 3층 주인 폴리곤Z). 2026-11-09 바꿈: 처음에는 층의 뒤 세 판과 주인이 한 단계 위여서 주인이 폴리곤2, 폴리곤Z, 폴리곤Z로 섰는데, 사용자가 "통일성을 위해 폴리곤 폴리곤2 폴리곤z로" 하자며 층 = 난이도 하나를 골랐다(1층이 다시 쉬워지는 것을 알고 고름). 주인은 파티로 더 세다(아래). 잰 단계만 쓴다. 판마다 조금씩 올리는 안(slack과 mistake를 판마다 보간)은 재 보니 첫 층 한가운데 값이 폴리곤과 300판 50.3% ± 5.0으로 차이가 없어 버렸다(BATTLE_COMPUTER.md 5장).
-  - 수문장의 파티: 2026-11-08까지는 래더 사용률 상위 24종에서만 뽑았다(같은 컴퓨터끼리 보통 컴퓨터 파티와 300판 56.3% ± 5.6). 2026-11-09부터는 균형 잡힌 파티의 계획에서 가장 약한 급 대신 가운데 급을 하나 더 가진다(`MASTER_PLAN`, 11장에서 잰 세기).
-  - **층마다 정해진 수문장**(2026-11-09, 사용자: "층마다 강력한 포켓몬을 설정하는 거야. 해당 층에 도달하면 고정으로 나오는 포켓몬. 메가진화로 설정하면 아마 좋겠지. 층을 올라갈 때마다 강력해지고. 특정 층 이상으로 가면 그냥 랜덤으로"). 1층부터 8층까지 수문장마다 메가진화 포켓몬 하나가 정해져 있다(`streak.js` `GATEKEEPERS`): 루카리오, 한카리아스(메가 Z), 팬텀, 가디안, 마기라스, 망나뇽, 보만다, 리자몽(메가 X). 순서는 잰 몫(11장)이 오르는 차례다. 수문장 파티는 그 메가진화 포켓몬이 `MASTER_PLAN`의 맨 위 자리에 서고 나머지 다섯은 계획의 나머지로 균형을 맞춘다(`randomTeam` `ace`). 9층부터는 맨 위 급의 메가진화 하나를 판마다 뽑는다. 화면은 지금 층의 수문장을 실루엣으로, 위층과 뽑는 수문장을 ?로, 지나온 층의 수문장을 그대로 보인다.
-  - 화면에는 난이도를 쓰지 않는다(2026-11-09, 사용자: "난이도 표기 자체를 연승 도전에서는 없애자"). 컴퓨터는 여전히 층의 난이도로 둔다.
-  - 파티(2026-11-10 바꿈): 도전을 시작할 때 받은 파티로 끝까지 오른다. 층이 바뀌어도, 수문장을 깨도 새로 뽑지 않는다(사용자: "그냥 처음 시작한 포켓몬으로 쭉 밀고 가는게 더 의미 있는 경험"). 이긴 판마다 이긴 상대의 포켓몬 하나를 같은 급의 내 하나와 바꿀 수 있고, 한 판에 한 마리뿐이다(사용자: "한 라운드에 한 포켓몬만"). 수문장을 깨면 그 수문장 파티의 하나를 받는 것이 보상이다(사용자: "수문장의 보상으로서 파티 한 마리 교체로 가자"). 새 파티 뽑기는 없앴다. 예전: 층마다 새로 받고, 층 안에서는 이어 간다. 이긴 뒤 다음 판을 열 때 이긴 상대의 포켓몬 하나를 내 하나와 바꿀 수 있다(본가의 배틀팩토리 방식). 2026-11-09부터 같은 급끼리만 바꾸고, 한 번에 여러 쌍을 바꿀 수 있다(급마다 한 쌍, 사용자: "포켓몬 교체를 좀 더 자주 하면 재밌을 것 같네"): 이길수록 파티가 세지면 층의 주인과의 차이가 판마다 달라지고, 다시 운과 눈덩이가 판을 가른다. 같은 종이 둘이 되면 바꾸지 못한다. 같은 도구가 둘이 되면 들어오는 포켓몬이 나가는 포켓몬의 도구를 받는다(메가스톤은 넘기지 않는다): 화면은 상대의 도구를 모르므로, 고른 쌍이 나중에 거절되지 않게 한다. 그 뒤 검증기로 한 번 더 본다. 바꾸는 대신 **새로 뽑기**로 다음 판을 새 파티로 열 수도 있다(2026-11-09, 사용자: "포켓몬 리스트를 좀 더 자주 바꿀 수 있다든가"). 모든 파티의 힘이 같으므로 새로 뽑기는 더 센 파티가 아니라 새 손패다.
-  - 한 달 운영한 뒤 실제 연승 분포를 보고 층의 길이와 단계를 다시 정한다.
-- **끝**(2026-11-10 바꿈, 12장): 도전은 램프 셋으로 시작한다. 진 판(패배, 기권, 90초 시간 초과, 무승부)마다 램프 하나가 꺼지고, 셋이 다 꺼지면 도전이 끝난다. 기록은 그때까지 이긴 판 수다. 예전: 한 번 지면 끝. 2026-11-11부터는 램프 둘(14장).
-- **하나씩**: 계정당 진행 중인 도전은 하나다. 진행 중에 새로 시작하면 이전 도전은 그 자리에서 끝난다(그때까지 이긴 판 수로).
-- **순위 기간**: 한 달(KST). 도전은 시작한 달의 순위에 든다. 계정마다 그 달 최고 기록 하나만 선다. 같은 연승이면 그 연승에 먼저 닿은 사람이 위다.
-- **공식 기록과 섞지 않는다**: 연승 도전은 Result도 RankingAward도 만들지 않고, 정규화 스키마의 어떤 행에도 쓰지 않는다. `community_items`처럼 방문자 공간이다(ARCHITECTURE.md의 경계 그대로).
-- **학습에는 쓰지 않는다**: 양쪽이 랜덤 파티라 `learn-cpu-sets.mjs`가 어차피 뺀다. `cpu_battles`에 보내지 않는다.
+- Only approved Google accounts (approved trainer names in `player_accounts`) can enter, and that name appears on the leaderboard. Unauthenticated visitors see a Google sign-in button at the entry point (`DESIGN.md` "Composing a screen" 17).
+- Format is singles random battle only. Doubles will get its own leaderboard after separate benchmarking.
+- Each match generates fresh teams for both sides (`randomTeam`, with `meta: true` on the computer side) and a fresh seed. From 2026-11-09, all random teams are power-balanced (Chapter 11).
+- Floors and gatekeepers (changed 2026-11-08; originally difficulty stepped up every 7 wins with no boss match, until user feedback: "그냥 단순한 배틀의 반복으로 느껴져. 한 층 한 층 긴장감 있는 도전을 쌓아간다는 느낌"): five matches form one floor, and match 5 is the floor gatekeeper (`층의 수문장`, renamed from `층의 주인` on 2026-11-09 after user feedback: "주인이라는 표현 대신 쓸 말이 있을까"). Match labels use native Korean ordinals: `1층 첫 번째 판`, `두 번째`, `세 번째`, `네 번째`, `1층 수문장` (user: "1번째 라는 표현은 엄밀히 말하면 적절한 표현은 아닌 걸로 알아"). Floor length dropped from 7 to 5 on 2026-11-09 (user: "연승 도전의 템포도 좀 쳐지는 것 같아. 좀 더 매판마다 도파민이 돌았으면 하는데. 주인이 등장하는 주기를 짧게"), which also aligns with the five step heights in `DESIGN.md` (32, 44, 52, 64, 84). In initial production testing, zero losses occurred across seven 폴리곤 matches, making Floor 1 feel like a warmup (7-win streak ending on the first 폴리곤2 match). Active runs map their existing win count directly onto the new floor length (6 wins equals Floor 2, match 2).
+  - One difficulty tier covers an entire floor: Floor 1 is 폴리곤, Floor 2 is 폴리곤2, Floor 3 onward is 폴리곤Z, including each floor's gatekeeper. Changed on 2026-11-09 from having the back three matches and boss step up one tier (user: "통일성을 위해 폴리곤 폴리곤2 폴리곤z로", accepting that Floor 1 became easier again). Gatekeepers are stronger through their teams instead. Only tested tiers are used; interpolating `slack` and `mistake` per match showed no gap against 폴리곤 over 300 games (50.3% ± 5.0, `BATTLE_COMPUTER.md` Section 5) and was dropped.
+  - Until 2026-11-08, boss teams drew exclusively from the top-24 usage species (56.3% ± 5.6 over 300 mirror-CPU games against normal teams). From 2026-11-09, they used `MASTER_PLAN`, replacing the weakest tier slot with an extra mid-tier slot (benchmarked in Chapter 11).
+  - Fixed floor gatekeepers (2026-11-09, user: "층마다 강력한 포켓몬을 설정하는 거야. 해당 층에 도달하면 고정으로 나오는 포켓몬. 메가진화로 설정하면 아마 좋겠지. 층을 올라갈 때마다 강력해지고. 특정 층 이상으로 가면 그냥 랜덤으로"): Floors 1 through 8 each have a fixed Mega Evolution ace (`streak.js` `GATEKEEPERS`) in ascending power order (Chapter 11): 루카리오, 한카리아스 (Mega Z), 팬텀, 가디안, 마기라스, 망나뇽, 보만다, 리자몽 (Mega X). That Mega occupies the top slot of `MASTER_PLAN`, with the other five balanced around it (`randomTeam` `ace`). From Floor 9 onward, a top-tier Mega is drawn randomly each match. The UI shows the current floor's gatekeeper in silhouette, higher/random gatekeepers as `?`, and cleared gatekeepers fully revealed.
+  - Difficulty labels are hidden in the UI (2026-11-09, user: "난이도 표기 자체를 연승 도전에서는 없애자"), while the computer still plays at the floor's tier.
+  - Team persistence (changed 2026-11-10): players climb with their starting team all the way through without rerolling on floor changes or gatekeeper clears (user: "그냥 처음 시작한 포켓몬으로 쭉 밀고 가는게 더 의미 있는 경험"). After each win, players can swap one defeated opponent Pokémon with one of their own in the same tier, limited to one swap per match (user: "한 라운드에 한 포켓몬만"). Beating a gatekeeper rewards a swap from the gatekeeper's team (user: "수문장의 보상으로서 파티 한 마리 교체로 가자"). Reroll was removed. Previously, teams refreshed every floor, players could swap multiple same-tier pairs at once (Battle Factory style, 2026-11-09, user: "포켓몬 교체를 좀 더 자주 하면 재밌을 것 같네") without allowing duplicate species (and transferring the outgoing item on duplicate items except Mega Stones before re-validating), or choose `새로 뽑기` for a fresh hand of equal power (2026-11-09, user: "포켓몬 리스트를 좀 더 자주 바꿀 수 있다든가").
+  - Revisit floor length and tiers after one month of live streak data.
+- Run end (changed 2026-11-10, Chapter 12): runs start with three lamps, losing one on each loss, forfeit, 90-second timeout, or draw, and ending when all three go out. Record is total wins. Previously one loss ended the run. Changed to two lamps on 2026-11-11 (Chapter 14).
+- One active run per account. Starting a new run immediately ends the active one at its current win count.
+- Monthly leaderboard periods (KST). A run counts toward the month it started. One best record per account per month; ties break by who reached that streak first.
+- Isolated from official records: streak runs never create a `Result` or `RankingAward` and never touch normalized league tables. Like `community_items`, they live in visitor space (`ARCHITECTURE.md`).
+- Excluded from CPU set learning: both sides use random teams, which `learn-cpu-sets.mjs` skips anyway, so streak games are not sent to `cpu_battles`.
 
-## 6. 데이터 (`docs/db/streak_runs.sql`, 사용자가 실행)
+## 6. Database schema (`docs/db/streak_runs.sql`, operator-run)
 
-SQL은 써 두었고 아직 실행하지 않았다. `node scripts/verify-streak-db.mjs <pglite>`가 운영 DB와 같은 `battles` 구조(열, 검사, 두 트리거를 운영 DB에서 읽어 옮김) 위에서 11가지를 확인한다. 두 번 실행해도 안전한지도 본다.
+SQL is written and verified against `node scripts/verify-streak-db.mjs <pglite>`, which checks 11 invariants and idempotency on top of the production `battles` table definition (columns, constraints, and two triggers copied from production).
 
-- `public.streak_runs`: `id`, `auth_user_id`, `trainer_name`(시작할 때의 승인된 이름, 그때의 사실로 남긴다), `format_id`, `month`(시작한 달의 첫날, KST), `wins`, `status`(`active`, `ended`), `battle_id`(지금 판, 끝났으면 마지막 판), `started_at`, `last_win_at`, `ended_at`. 계정마다 진행 중인 도전은 하나뿐이다(유일 인덱스). 방문자는 이 표를 읽지 못한다.
-- `battles`: 종류에 `streak`을 더하고 `run_id` 칸을 둔다. 연승 판은 언제나 도전에 속하고, 도전에 속하는 것은 연승 판뿐이다(검사). 연승 판도 공개 행이라 진행 중인 도전을 누구나 관전한다. 친선전의 한도(분당 20판, 모두 5000판)는 연승 판을 세지 않도록 `battle_create`를 다시 만든다(본문은 그대로이고 세는 조건만 다르다).
-- `battle_secrets.cpu_memory`: 컴퓨터의 추리. `battle_set_cpu_memory`로 진행 중인 연승 판에만 쓴다(256 KB까지).
-- 쓰기는 배틀 함수가 service_role로 부르는 함수로만 한다.
-  - `streak_start`: 승인된 계정인지 보고, 진행 중인 도전이 있으면 그때까지의 연승으로 끝내고(그 판은 기권), 새 도전과 첫 판을 연다. 첫 판은 컴퓨터가 선출까지 고른 상태로 들어와 처음부터 진행 중이고 90초 시계가 바로 간다.
-  - `streak_after_battle`: 끝난 판의 승자를 공개 행에서 읽는다. 이겼으면 `wins`를 올리고 함께 받은 다음 판을 열고, 아니면 도전을 끝낸다. 같은 판으로 두 번 불러도 한 번만 센다.
-  - 방문자는 쓰지 못하고, 읽기는 `streak_board(p_month)` 하나다: 순위, 이름, 연승, 진행 중인지, 관전할 판(진행 중일 때만), 닿은 시각, 본인 줄인지. 계정 id는 내보내지 않는다. 1연승 이상이거나 지금 진행 중인 도전만 서고, 100명까지다.
-- **따로 도는 청소 작업은 없다.** 누가 새 도전을 시작할 때마다 시간이 1분 넘게 지난 판을 20개까지 시간 초과 패배로 닫고, 지난달보다 오래된 연승 판을 200개까지 행째 지운다(도전 기록은 남고 판만 사라진다). 공식 배틀은 건드리지 않는다. 그 사이에도 순위는 마감이 지난 판을 진행 중으로 보이지 않는다.
-- **무료 요금제 안에 머문다**(무료 한도: DB 500 MB, Edge Function 호출 월 50만, 송신 월 5 GB). 끝난 판은 엔진 상태, 추리, 남은 선택을 지운다. 판은 이번 달과 지난달 것만 남으므로 연승 판이 차지하는 자리는 두 달 치에서 멈춘다. 새 도전은 사이트 전체 하루 300번까지다(한 판에 함수 호출 25번 안팎). 송신량은 함수를 만든 뒤 한 판의 응답 크기를 재서 확인한다.
-- 이상한 행(끝나지 않은 판으로 판 끝 처리를 부름, 승인되지 않은 계정)은 실패로 닫는다. 추측해서 이어 붙이지 않는다.
+- `public.streak_runs` holds `id`, `auth_user_id`, `trainer_name` (approved name snapshot at run start), `format_id`, `month` (first day of start month, KST), `wins`, `status` (`active`, `ended`), `battle_id` (current or final match), `started_at`, `last_win_at`, and `ended_at`. A unique index enforces one active run per account. Visitors cannot read this table directly.
+- `battles` adds `streak` to its kind enum and a `run_id` column. A check constraint ties `kind = 'streak'` strictly to `run_id IS NOT NULL`. Streak matches remain public rows so anyone can spectate active runs. `battle_create` is recreated so casual rate limits (20/min, 5000 total) ignore streak rows.
+- `battle_secrets.cpu_memory` stores computer deduction state via `battle_set_cpu_memory` for active streak matches only (up to 256 KB).
+- Writes go exclusively through `service_role` RPCs called by the battle function:
+  - `streak_start` verifies account approval, closes any active run at its current wins (forfeiting its match), and opens a new run and first match with the computer's team-preview pick already submitted so the 90-second clock starts immediately.
+  - `streak_after_battle` reads the winner from the public match row, increments `wins` and opens the next match on victory or ends the run on defeat, and is idempotent if called twice for the same match.
+  - Public reads use `streak_board(p_month)`, returning rank, name, wins, active flag, spectate match ID (active runs only), timestamp reached, and self flag without exposing user IDs. Lists up to 100 entries with at least 1 win or an active run.
+- No background cleanup cron is needed. Whenever anyone starts a new run, the RPC expires up to 20 matches past deadline by more than 1 minute as timeout losses and deletes up to 200 streak match rows older than last month (keeping `streak_runs` records intact and leaving official battles untouched). The leaderboard also excludes expired matches from active status in between.
+- Fits inside Supabase free tier limits (500 MB DB, 500k edge invocations/month, 5 GB egress/month): finished matches clear engine state, deduction memory, and pending choices, only two months of streak match rows persist, and new runs are capped site-wide at 300/day (~25 invocations per match). Egress is checked after building the function by inspecting per-match response sizes.
+- Invalid states (settling an unfinished match, unapproved accounts) fail closed without guessing.
 
-## 7. 배틀 함수 (만들었다, 아직 배포하지 않았다)
+## 7. Battle function (built, not yet deployed)
 
-엔진 쪽은 `supabase/functions/battle/streakEngine.mjs`(판 만들기와 컴퓨터의 차례), 요청 쪽은 `index.ts`다.
+Engine logic lives in `supabase/functions/battle/streakEngine.mjs` (match creation and computer turns); request routing lives in `index.ts`.
 
-- **`streak` (시작)**: 이 요청만 Google 로그인이 필요하다. 사이트는 로그인한 세션으로 부르고(`storage.js` `invokeFunction`), 함수는 `--no-verify-jwt`로 배포되므로 `Authorization`의 토큰을 `db.auth.getUser`로 직접 확인한다. `streak_trainer_name`으로 승인된 이름을 받은 뒤 첫 판을 만들고(양쪽 랜덤 파티와 시드는 함수가 뽑고, 컴퓨터는 선출까지 고른다) `streak_start`를 부른다. 이 기기가 그 판의 p1 자리다.
-- **`choose`**: 방 배틀과 같은 길이다. 연승 판에서는 플레이어의 선택으로 턴이 돈 뒤, 같은 요청 안에서 컴퓨터가 다음 수를 고른다(`computerTurns`). 그 수는 p2의 대기 선택(`pending`)으로 저장되고, 플레이어의 다음 선택이 둘을 함께 돌린다. 컴퓨터만 고를 차례(컴퓨터의 강제 교체)는 바로 돌고 다시 본다. 거절된 수는 한 번 더 고르고, 그래도 거절되면 가장 센 공격으로 둔다(4장).
-- **추리와 난이도**: `battle_secrets.cpu_memory`에 `{ wins, cpu }`로 저장한다. `wins`는 이 판 전의 연승이라 난이도(`streak.js`)를 정하고, `cpu`는 컴퓨터의 추리(`memory()`)다. 수마다 저장해 다음 요청의 새 컴퓨터가 이어 받는다.
-- **시간**: 연승 판의 선택이 서버 시계로 마감(90초)을 넘겨 오면 그 판은 시간 초과로 진다. 컴퓨터는 늦지 않으므로 방 배틀의 시간 초과 청구는 연승 판에서 일어나지 않는다. 오지 않는 플레이어의 판은 6장의 정리가 닫는다.
-- **판 끝**: 이기든 지든, 기권이든 시간 초과든 `streak_after_battle`을 부른다. 이기면 연승만 올리고, 다음 판은 열지 않는다(2026-11-07 바꿈: 다음 판의 90초가 결과를 보는 동안 흘러, 결과 화면에 머물거나 나가면 시간 초과로 졌다). 도전은 쉬고, 선수가 다음 판을 누르면 그 이긴 판의 좌석으로 `streakNext`가 다음 판을 연다(`streak_next`, 한 번만). 응답에는 언제나 `streak: { wins, status }`가 붙는다. 참가(`join`)는 연승 판을 막는다.
-- **확인**: `tests/streakEngine.test.mjs`는 판이 데이터베이스에 남는 것(상태, 대기 선택, 추리)만 거쳐 끝까지 가고 같은 결과로 리플레이되는지 본다. `scripts/verify-streak-function.mjs <pglite>`는 실제 `index.ts`를 PGlite의 실제 SQL 위에서 돌려 도전 전체를 둔다. 2026-11-07 실행: 7연승 뒤 폴리곤2 첫 판에서 패배, 한 요청 최대 615 ms(로컬 DB 포함), 모든 판이 리플레이되고 끝난 판에 상태가 남지 않음.
-- 리플레이는 방 배틀의 끝난 판과 같이 `battles` 행에서 본다.
-- 다음 판은 이긴 판의 좌석이 여는 것이라, 응답을 잃어도 다시 누르면 된다(이미 열린 다음 판이 이 기기에 있으면 그리로 간다).
-- **파티와 교환**(2026-11-08, 2026-11-10 바꿈): `streakNext`는 언제나 이긴 판의 `battle_secrets.p1_team`을 다음 판에 쓴다(층이 바뀌어도). `swap`은 `{ give, take }` 하나만 받고 둘 이상이면 "한 판이 끝날 때마다 한 마리만 바꿀 수 있습니다."로 거절한다. `reroll`은 없앴다. `scripts/verify-streak-function.mjs --sure`가 첫 승의 교환, 두 마리 교환의 거절, 수문장 뒤의 교환, 층을 넘어 이어지는 파티를 실제 SQL 위에서 확인한다(2026-11-10 실행: 11연승, 수문장 두 번, 한 요청 최대 574 ms). 예전: `streakNext`는 층 안이면 이긴 판의 `battle_secrets.p1_team`(이 함수가 뽑은 파티)을 그대로 다음 판에 쓰고, `swap: { give, take }`(종 이름, 또는 그 목록)가 오면 이긴 판의 공개 입력 기록에서 상대 파티를 읽어(`sideTeam`) 같은 급의 하나를 바꾼다(`swapParty`, 급이 다르면 "tier"로 거절, 그 뒤 `validateTeam`). `reroll: true`면 층의 첫 판처럼 새로 뽑는다. 엔진의 요청은 선출 순서로 파티를 다시 늘어놓으므로 자리가 아니라 종으로 고른다. 층의 첫 판이면 새로 뽑는다. SQL은 바꾸지 않았다(파티는 이미 남는 `p1_team`, 상대는 공개 `input_log`). `scripts/verify-streak-function.mjs`가 첫 승리의 교환, 층 안의 이어 가기, 7연승 뒤 새 층의 새 파티를 실제 SQL 위에서 확인한다(2026-11-08 실행: 8판, 7연승, 한 요청 최대 731 ms).
+- `streak` (start) is the only action requiring Google auth. The client sends the signed-in session (`storage.js` `invokeFunction`), and because the function deploys with `--no-verify-jwt`, `index.ts` verifies the `Authorization` token directly via `db.auth.getUser`, fetches the approved name via `streak_trainer_name`, creates match 1 (server-rolled teams, seed, and computer lead pick), and calls `streak_start`. The caller takes seat p1.
+- `choose` follows the room-battle flow. After resolving the player's turn, the same request runs `computerTurns` to pick the computer's next move and saves it as p2's `pending` choice, which resolves together with the player's next submission. Computer-only forced switches execute immediately in a loop. Rejected choices retry once and fall back to strongest attack (Chapter 4).
+- `battle_secrets.cpu_memory` stores `{ wins, cpu }`, where `wins` determines difficulty (`streak.js`) and `cpu` stores `memory()` output across requests.
+- If a player choice arrives past the 90-second server deadline, the match ends as a timeout loss. The computer never times out, so room-battle timeout claims do not apply; abandoned matches are swept by Chapter 6 cleanup.
+- On any match finish (win, loss, forfeit, or timeout), the function calls `streak_after_battle`. Updated 2026-11-07: winning increments `wins` without immediately opening the next match (previously the next match's 90-second timer ticked while viewing results, causing timeouts). The run pauses until the player clicks next match, calling `streakNext` (`streak_next`, idempotent) with the winning match's seat token. Every response includes `streak: { wins, status }`. `join` rejects streak matches.
+- Verification: `tests/streakEngine.test.mjs` checks that a match completes using only persisted DB fields (state, pending, memory) and replays to the same outcome. `scripts/verify-streak-function.mjs <pglite>` runs the real `index.ts` over real SQL in PGlite through a full run (2026-11-07 run: 7 wins followed by a loss on 폴리곤2 match 1, max request 615 ms including local DB, every match replayed cleanly with no leftover state).
+- Replays load from `battles` rows just like finished room battles.
+- Because the winning match's seat opens the next match, a dropped response recovers safely on retry (or navigates straight to the already-opened match stored on the device).
+- Team persistence and swaps (2026-11-08, updated 2026-11-10): `streakNext` always carries `battle_secrets.p1_team` into the next match even across floors. `swap` accepts a single `{ give, take }` pair and rejects multiple swaps with `"한 판이 끝날 때마다 한 마리만 바꿀 수 있습니다."`. `reroll` was removed. `scripts/verify-streak-function.mjs --sure` verifies match-1 swap, multi-swap rejection, post-gatekeeper swap, and cross-floor team carryover on real SQL (2026-11-10 run: 11 wins, two gatekeepers, max request 574 ms). Earlier 2026-11-08 behavior carried `p1_team` within a floor, read opponent species from the public input log (`sideTeam`), enforced same-tier swaps (`swapParty`, rejecting mismatches with `"tier"` before `validateTeam`), identified Pokémon by species because engine requests reorder by lead, supported `reroll: true`, and rolled fresh teams on floor 1 (2026-11-08 run: 8 matches, 7 wins, max 731 ms).
 
-## 8. 화면
+## 8. Screens
 
-DESIGN.md를 먼저 읽고, 있는 부분만 쓴다. 보이기 전에 390과 1440, 두 테마에서 "Composing a screen"과 "Judging the stage"로 확인하고, 실제로 연승을 몇 판 해 본다.
+Read `DESIGN.md` first and reuse existing components. Verify at 390 px and 1440 px in both themes using "Composing a screen" and "Judging the stage", then play several live matches.
 
-- **들어가는 곳**: 배틀 페이지의 탭 `연승 도전`. 설명하는 줄이나 팝업은 없다(DESIGN.md "Composing a screen" 22, 2026-11-08).
-- **걸린 것**(2026-11-08): 판 중에는 선택 키와 기권 아래에 몇 층 몇 번째 판인지, 걸린 연승(7세그먼트 32, 단위 연승), 그 층의 일곱 칸이 선다. 무엇이 걸렸는지 말하는 문장은 두지 않는다(같은 날 사용자: "4연승이 걸린 판 과 같은 설명들은 굳이 필요 없어", DESIGN.md "Composing a screen" 22). 숫자와 층이 말한다.
-- **판 사이**: 이긴 뒤 다음 판으로 바로 끊지 않는다(14). 연승 수가 7세그먼트로 켜지고(티어 0, 84), 다음 상대의 난이도는 그 난이도의 포켓몬이 발판 위에 선다. 컴퓨터를 그 난이도의 포켓몬으로 세우는 것은 이미 있다(`Stage.jsx` foeLead).
-- **판 중**: 지금 배틀 화면 그대로, 점수판 자리에 지금 연승 수 하나(32 이상, 정수).
-- **연승 순위**: 이번 달 1위가 한 패널에 이름(20)과 연승 7세그먼트(84)로 선다(한 패널이 존재하는 이유인 이름, 20). 2위부터는 행이다: 순위, 이름, 연승은 줄에서 읽으므로 타입이다. 진행 중인 도전은 이름 옆 앰버 램프(지금 살아 있는 것), 누르면 관전. 로그인한 사람의 자기 기록은 찾지 않아도 보이게 위에 고정한다(4). 지난달은 탭으로 본다.
-- **문구**: 합니다체, 명사 라벨. `연승 도전`, `연승 순위`, `이번 달`, `내 최고 기록`, `도전 중`, `N연승`. 가운뎃점과 느낌표는 쓰지 않는다.
+- Entry point is the `연승 도전` tab on the battle page, with no explanatory blurb or popup (`DESIGN.md` "Composing a screen" 22, 2026-11-08).
+- Match stakes (2026-11-08): below move buttons and forfeit sit the floor and match label, current streak (7-segment size 32, unit `연승`), and the floor's match track. No sentence explaining what is at stake (user: "4연승이 걸린 판 과 같은 설명들은 굳이 필요 없어", `DESIGN.md` "Composing a screen" 22).
+- Between matches: never cut straight into the next match (rule 14). Show the streak counter at tier 0 (size 84) with the next difficulty's Pokémon standing on the stage pad (`Stage.jsx` `foeLead`).
+- In match: keep the existing battle screen with the streak count (size >=32 integer) in the scoreboard slot.
+- Leaderboard: current month #1 gets a hero panel with name (20) and 7-segment streak (84); rank 2 onward render as table rows. Active runs show an amber lamp next to the name and open spectating on click. The signed-in user's own record pins at the top (rule 4). Previous month is a tab.
+- Copy style: formal Korean (`합니다체`), noun labels (`연승 도전`, `연승 순위`, `이번 달`, `내 최고 기록`, `도전 중`, `N연승`), no middle dots or exclamation marks.
 
-**만든 것 (2026-11-07)**: `src/pages/battle/Streak.jsx`, `src/styles/streak.css`.
-- 배틀 페이지의 탭 `연승 도전`(`?view=battle&tab=streak`)은 로비처럼 선다. 경기장에는 다음 난이도의 컴퓨터가 발판 위에 서고, 우리 쪽에는 트레이너 이름과 랜덤 파티(진행 중이면 지금 연승)가 선다. 그 아래 주 키가 있다. 주 키는 계정 상태를 따른다: 로그인 전이면 구글 로그인, 이름이 없으면 트레이너 이름 정하기(확인 중이면 이름 확인 중), 승인되면 연승 도전 시작, 이 기기에 진행 중인 판이 있으면 이어서 하기와 새로 도전(한 번 묻는다). 키가 말하지 못하는 이유는 독의 한 줄로 말한다.
-- 옆 칸에는 규칙 한 줄, 승인된 계정의 `이번 달 내 최고 기록` 카운터, 그리고 순위가 선다. 순위는 이번 달과 지난달 칩, 홈과 기록의 랭킹과 같은 `StandTable`이다(시상대, 머리 줄, 4위부터 행). 순위는 DB가 정한 그대로라 공동 순위가 없다. 진행 중인 도전은 앰버 램프와 도전 중이고, 누르면 관전한다.
-- 판 중에는 머리의 상태 줄에 `연승 도전 N번째 판`이 선다.
-- 판이 끝나면 결과 아래에 `이번 도전 N연승` 카운터가 선다. 이겼으면 그 옆에 1 대 1.618로 다음 상대(그 난이도의 포켓몬이 발판 위에)가 서고, 키는 다음 판과 연승 순위다. 졌으면 카운터만 서고, 키는 다시 도전과 연승 순위다.
-- 확인한 것: 390과 1440, 두 테마. 끝난 친선 배틀 둘을 연승 판으로 바꿔 보이고 계정과 순위는 브라우저 안에서만 답해 찍었다. 운영 DB에는 아무것도 쓰지 않았다. localhost에서는 Google 로그인이 돌아오지 않아, 실제 도전은 배포 뒤에 둔다.
+Implemented 2026-11-07 in `src/pages/battle/Streak.jsx` and `src/styles/streak.css`:
+- The `연승 도전` tab (`?view=battle&tab=streak`) mirrors the lobby layout: next-difficulty computer on the stage, trainer name and random team (or active streak) on the player side, and a primary action button adapting to account state (Google login, set trainer name, pending approval, start run, or continue plus start new with confirmation). Any disabled reason sits in one dock line.
+- Side column shows a one-line rule summary, `이번 달 내 최고 기록` for approved accounts, and the leaderboard with `이번 달` and `지난달` chips using the shared `StandTable` component (podium, header row, rank 4+ rows, no ties). Active runs show an amber lamp with `도전 중` and click through to spectate.
+- During a match, the header status line shows `연승 도전 N번째 판`.
+- After a match, `이번 도전 N연승` appears under the result. On a win, the next opponent stands beside it at a 1:1.618 ratio with next-match and leaderboard buttons; on a loss, only the counter, retry, and leaderboard buttons appear.
+- Verified at 390 px and 1440 px in both themes by mocking finished casual matches as streak matches and stubbing account/board responses in-browser without touching production DB. Live Google sign-in runs wait for deployment since OAuth does not return to localhost.
 
-## 9. 순서
+## 9. Rollout order
 
-각 단계 뒤에 확인을 받는다.
+Confirm after each step.
 
-1. **0단계 측정**(4장): 됐다. 결과는 BATTLE_COMPUTER.md 5장에도 남겼다.
-2. **서버 컴퓨터 준비**: 됐다. 추리 이어 가기(`memory()`), 서버 난이도의 세기(4장), 거절된 수의 재시도 규칙.
-3. **규칙 모듈**: 됐다. `src/services/streak.js`에 판 수에서 난이도와 서버의 생각 시간(`tests/streak.test.mjs`). 배틀 함수와 화면이 같이 읽는다. 달과 순위는 DB가 정하므로 여기 두지 않는다.
-4. **SQL**: 실행했고 읽기 전용으로 확인했다(2026-11-07). 함수를 만들며 `streak_trainer_name`과 이름 20자 자르기를 더해, 한 번 더 실행한다.
-5. **배틀 함수**: 만들었다(7장). SQL을 한 번 더 실행한 뒤(`streak_trainer_name`과 이름 20자) `npm run build:battle` 후 배포한다. SQL이 없으면 화면은 연승 도전을 감춘다(Google 로그인과 같은 방식).
-6. **도전 화면과 순위 화면**: 만들었다(8장 끝). 사이트 배포 뒤 운영에서 실제 Google 로그인으로 한 도전을 끝까지 둔다.
+1. Phase 0 benchmarks (Chapter 4): complete, also logged in `BATTLE_COMPUTER.md` Section 5.
+2. Server computer prep: complete (`memory()`, server tier benchmarks in Chapter 4, rejected-move retry logic).
+3. Rules module: complete (`src/services/streak.js` mapping wins to difficulty and server budget, tested in `tests/streak.test.mjs`, shared by function and UI; month and rankings stay in DB).
+4. SQL: executed and read-only verified on 2026-11-07; re-run once more after adding `streak_trainer_name` and 20-character name trimming.
+5. Battle function: built (Chapter 7). Deploy via `npm run build:battle` after the SQL update. Without the SQL, the UI hides streak mode (same pattern as Google sign-in).
+6. Screens: built (end of Chapter 8). Play one full run in production with real Google sign-in after site deploy.
 
-## 10. 아직 정할 것
+## 10. Open questions
 
-- 난이도 계단의 숫자. 단계 간격은 쟀다(4장). 7판씩으로 시작하고 한 달 뒤 실제 연승 분포로 다시 보는 안을 제안한다.
-- 순위 기간: 한 달인가, YPL 시즌인가.
-- 홈에 이번 달 1위나 진행 중인 도전을 보일지("지금 무슨 일이 있는가가 먼저"에 맞지만 홈의 자리가 걸린다).
-- 계정 없는 방문자에게 순위에 들지 않는 연습 도전을 열지. 열지 않는 쪽이 작다.
+- Floor step count: tier spacing is benchmarked (Chapter 4). Proposal is to start at 7 matches per tier and revisit after one month of live distribution.
+- Ranking period: calendar month vs YPL season.
+- Home page surface: whether to show the monthly #1 or active runs (fits "show what is happening now", though home space is tight).
+- Unranked practice runs for signed-out visitors: skipping them keeps scope smaller.
 
-## 11. 랜덤 파티의 균형 (2026-11-09)
+## 11. Random team balancing (2026-11-09)
 
-사용자: "포켓몬 뽑기 운이 너무 강한 것 같아. 보만다나 메타그로스 같은 사기 포켓몬 뽑으면 쭉쭉 밀어. ... 내가 의도한 건 순수 실력으로 올라가는 거였거든. 일반 배틀에서 컴퓨터 상대로하는 배틀도 마찬가지야. 포켓몬 성능별로 밸런스를 맞춰줄래?"
+User feedback: "포켓몬 뽑기 운이 너무 강한 것 같아. 보만다나 메타그로스 같은 사기 포켓몬 뽑으면 쭉쭉 밀어. ... 내가 의도한 건 순수 실력으로 올라가는 거였거든. 일반 배틀에서 컴퓨터 상대로하는 배틀도 마찬가지야. 포켓몬 성능별로 밸런스를 맞춰줄래?"
 
-- **잰다**(`scripts/rate-species.mjs --play`): 컴퓨터(한 수 100 ms)끼리 종을 고르게 뽑은 랜덤 파티로 둔다. 같은 두 파티를 자리를 바꿔 두 번 두어 자리의 이점을 지운다. m-c 싱글 8000판(결정 난 7922판, 종마다 약 350번 뽑힘). 로지스틱 회귀(승패 ~ 내 여섯 몫의 합 − 상대 여섯 몫의 합, L2 2)로 종마다 몫을 읽어 `src/data/species-power.json`에 둔다(`--fit`). 위: 리자몽 0.62, 피죤투 0.62, 대쓰여너 0.62, 보만다 0.57, 망나뇽 0.55. 아래: 프레프티르 −0.57. 메타그로스는 0.26으로 위 급이지만 맨 위는 아니다.
-- **나눈다**(`src/services/partyBalance.js`): 잰 몫으로 종을 여섯 급(같은 수씩)으로 나눈다. 재지 않은 종(주마다 학습이 들이는 종)은 가운데 몫이다. 재지 않은 형식은 가까운 형식의 몫을 빌린다(m-b는 같은 형식의 m-c).
-- **더블**(같은 날): m-c 더블 3000판(종마다 약 130번)을 따로 쟀다. 싱글과 순서가 달라(위: 입치트 0.66, 갑주무사 0.63, 미끄래곤 0.61, 갸라도스 0.58; 블로스터는 더블에서 0.34, 싱글에서 −0.35) 빌리지 않고 제 몫을 쓴다. 고르게 뽑으면 파티만으로 66.3%를 맞히고 ±17.6%p 흔들리던 것이, 균형 파티 600판에서 52.2%, ±2.8%p(첫 파티 49.8% ± 4.4)다.
-- **뽑는다**(`engine.mjs randomTeam`): 모든 랜덤 파티(연승 도전 양쪽, 일반 컴퓨터 배틀의 랜덤 파티와 컴퓨터 파티, 친선의 랜덤 파티)가 급마다 하나씩이고, 여섯 몫의 합이 계획의 평균에서 0.15 안일 때까지 뽑는다. 컴퓨터 파티(`meta`)는 급 안에서 래더 사용률로 뽑아 여전히 사람들이 쓰는 포켓몬이 선다. `even: true`는 예전처럼 고르게 뽑는다(측정과 컴퓨터 벤치가 쓴다. 벤치의 실험 기록은 그 파티로 쟀으므로 바꾸지 않았다).
-- **확인**(`--check`, 몫으로 승패를 얼마나 미리 아는가). 예전처럼 고르게 뽑은 7922판: 파티만으로 62.9%를 맞히고, 파티가 정하는 기대 승률이 판마다 ±15.0%p 흔들린다. 균형 잡힌 파티 1193판: 53.7%, ±2.8%p, 로그 손실 0.6903(동전 0.6931). 뽑기가 정하는 몫이 약 5분의 1로 줄었다. 균형 파티끼리 첫 파티 51.8% ± 3.1(차이 없음).
-- **수문장**: `MASTER_PLAN`(가장 약한 급 대신 가운데 급) 파티가 보통 파티에 800판 54.7% ± 3.8. 정해진 수문장은 맨 위 자리에 그 층의 메가진화가 서므로, 맨 위 급의 평균(약 0.33)보다 약한 루카리오(0.0)의 1층은 이보다 조금 낮고, 리자몽(0.62)의 8층은 약 61%다. 층마다 난이도도 오른다.
-- 화면: 교환은 같은 급끼리, 한 번에 여러 쌍(5장). 이겨도 파티의 힘이 오르지 않으니 다음 판과의 차이가 판마다 같다.
-- 다시 잴 때: 학습이 표본 세트를 바꾸면 몫도 바뀐다. 한 달에 한 번쯤 `--play` 수천 판 뒤 `--fit`으로 표를 새로 쓰고, 균형 파티로 `--check`가 동전에 가까운지 본다.
+- Rating (`scripts/rate-species.mjs --play`): pit 100 ms computers against each other with uniformly drawn random teams, mirrored per pair to cancel seat advantage. Across 8000 m-c singles matches (7922 decided, ~350 picks per species), logistic regression (`win ~ sum(own ratings) - sum(foe ratings)`, L2 = 2) writes per-species ratings to `src/data/species-power.json` (`--fit`). Top species: 리자몽 0.62, 피죤투 0.62, 대쓰여너 0.62, 보만다 0.57, 망나뇽 0.55. Bottom: 프레프티르 -0.57. 메타그로스 rated 0.26 (upper tier, not top).
+- Tiering (`src/services/partyBalance.js`): splits species into six equal-sized tiers by rating. Unrated species (added later by weekly learning) get median rating. Unrated formats borrow from the closest format (m-b borrows m-c).
+- Doubles (same day): 3000 m-c doubles matches (~130 picks per species) were rated separately because rankings diverge sharply (top: 입치트 0.66, 갑주무사 0.63, 미끄래곤 0.61, 갸라도스 0.58; 블로스터 is 0.34 in doubles vs -0.35 in singles). Uniform teams predicted 66.3% of outcomes with ±17.6%p swing; balanced teams dropped to 52.2% and ±2.8%p across 600 games (first team 49.8% ± 4.4).
+- Drawing (`engine.mjs randomTeam`): all random teams (both sides in streak, casual random teams, and regular computer battles) pick one Pokémon per tier until the six-rating sum lands within 0.15 of the plan mean. Computer teams (`meta`) still weight picks inside each tier by ladder usage so familiar Pokémon appear. `even: true` keeps uniform draws for rating runs and CPU benchmarks (preserving historical benchmark comparability).
+- Verification (`--check`): on 7922 uniform singles games, team ratings alone predicted 62.9% with ±15.0%p expected win-rate swing. On 1193 balanced games, predictability dropped to 53.7% with ±2.8%p swing and log loss 0.6903 (coin flip 0.6931), cutting draft luck to roughly one-fifth. First-team win rate between balanced teams was 51.8% ± 3.1 (no difference).
+- Gatekeeper: `MASTER_PLAN` (swapping tier 6 for an extra mid-tier slot) scored 54.7% ± 3.8 over 800 games against normal teams. Fixed Mega aces sit in slot 1, so Floor 1 with 루카리오 (0.0, below top-tier average ~0.33) is slightly softer while Floor 8 with 리자몽 (0.62) hits ~61%, stacked with rising AI difficulty.
+- Swaps stay within the same tier (Chapter 5) so winning does not snowball team power and every match keeps the same power gap.
+- Refresh cadence: re-run a few thousand `--play` games and `--fit` roughly once a month as set learning updates the pool, confirming `--check` stays near a coin flip.
 
-## 12. 재설계 1단계: 부조리부터 끊는다 (2026-11-10)
+## 12. Phase 1 redesign removing unfairness (2026-11-10)
 
-사용자: "도전의 탑을 도파민이 빵빵 터져서 너무나도 재밌고, 플레이어 입장에서 부조리한 불쾌함을 최소화하고 템포가 빠른, 다른 말로 말하면 정말정말 재밌게 게임으로 만들고 싶어. ... 기존의 것은 컨셉만 존중하면 돼. 나머지를 완전히 재설계해도 좋아." 제안한 네 단계(부조리, 매 판 보상, 변주와 템포, 사람) 가운데 사용자가 고른 첫 단계다: "1단계부터 진행".
+User feedback: "도전의 탑을 도파민이 빵빵 터져서 너무나도 재밌고, 플레이어 입장에서 부조리한 불쾌함을 최소화하고 템포가 빠른, 다른 말로 말하면 정말정말 재밌게 게임으로 만들고 싶어. ... 기존의 것은 컨셉만 존중하면 돼. 나머지를 완전히 재설계해도 좋아." From four proposed phases (unfairness, per-match rewards, variety and tempo, social), the user picked Phase 1 first ("1단계부터 진행").
 
-**잰 것**(운영 DB, 2026-11-07부터 11-10까지 연승 판 277개, 계정 둘, 개발 중 시험이 섞임. 구조의 성질로만 읽는다).
+Baseline data from production DB (277 streak matches from 2026-11-07 to 2026-11-10, two accounts, mixed with dev testing; read for structural properties only):
 
-| 잰 것 | 값 |
+| Metric | Value |
 |---|---|
-| 한 판(끝까지 간 224판, 중앙값) | 91초, 약 10턴, 기록 단위 14번에 한 번당 7초 |
-| 판 사이(중앙값) | 약 10초 |
-| 수문장 주기 | 약 8.5분 |
-| 끝난 도전 101번 가운데 0연승 | 54번(중앙값 0연승, 평균 1.7) |
-| 첫 판 승률(기권 제외 68판) | 71% |
-| 기권으로 끝난 판 | 44판, 중앙값 34초 |
-| 최고 기록 | 11연승, 약 17분 |
+| Match duration (224 completed, median) | 91 s, ~10 turns, 14 log chunks at 7 s each |
+| Between-match gap (median) | ~10 s |
+| Gatekeeper cadence | ~8.5 min |
+| Zero-win runs out of 101 ended runs | 54 (median 0 wins, mean 1.7) |
+| Match-1 win rate (68 non-forfeit matches) | 71% |
+| Forfeited matches | 44, median 34 s |
+| Best streak | 11 wins, ~17 min |
 
-급소 한 번에 17분이 0이 되고, 첫 판을 지면 기록이 0이다. 이것이 가장 큰 불쾌함이라, 보상과 변주보다 먼저 고친다.
+Losing 17 minutes to one critical hit or ending at 0 wins on match 1 caused the sharpest frustration, so we fix that before rewards or variety.
 
-**규칙.**
+Rules:
+- Three lamps (`streak.js` `STREAK_LIVES`, `streak_runs.lives`): runs start with 3 lamps. Each loss turns one off; if lamps remain, the run pauses just like after a win. Continuing replays the exact same slot (same floor, match, and gatekeeper if applicable) against a fresh opponent team and seed while keeping the player's team intact with no swap. Losing the third lamp ends the run. Clearing a gatekeeper relights one lamp up to 3. Streaks and rankings stay unchanged, and Chapter 2's logarithmic volume scaling still holds (lamps only lengthen each run; at 75% per-match win rate, mean streak rises from 3 to about 9, excluding gatekeeper relights, via `3 * p / (1 - p)`).
+- Forfeits and timeouts cost one lamp rather than ending the run. Matches that time out after disconnect behave identically (`streak_start` cleanup, `expire`), letting returning players continue with one fewer lamp. Starting a new run still ends the active run immediately.
+- Luck-swing bans (`STREAK_BAN`, both sides): items 밝은가루, 선제공격손톱, 왕의징표석, 기합의머리띠; moves 절대영도, 땅가르기, 뿔드릴, 가위자르기, 그림자분신, 작아지기. Across 1329 m-c singles sets on 2026-11-10, 11 sets were excluded by move and 155 sets stripped those items from their item list (0 sets left itemless, 0 species lost). Core engine RNG (crits, misses, sleep) remains because lamps absorb single bad rolls. Computer deduction still reads the base sample pool (holding banned items in candidates slightly longer). Tier ratings (Chapter 11) were not recomputed because few sets were touched.
+- Loss review: after a loss, the player's seat receives the exact sets (species, ability, item, four moves, nature) of the three Pokémon the opponent brought (`streak.foe`). Nothing new leaks because finished match input logs are public anyway, and the retry rolls a fresh opponent.
 
-- **램프 셋**(`streak.js` `STREAK_LIVES`, `streak_runs.lives`). 도전은 램프 셋으로 시작한다. 진 판마다 하나가 꺼지고, 램프가 남으면 도전은 이긴 뒤처럼 쉰다. 선수가 이어서 하기를 누르면 같은 판(같은 층, 같은 자리, 수문장이면 같은 수문장)을 새로 뽑은 상대 파티와 새 시드로 다시 한다. 내 파티는 그대로이고, 진 판에서는 교환이 없다. 셋이 다 꺼지면 도전이 끝난다. 수문장을 깨면 하나가 다시 켜진다(셋까지). 기록은 그대로 이긴 판 수이고 순위의 규칙도 그대로다. 2장의 계산(판 수의 효과가 로그로 준다)은 그대로 선다: 램프는 도전 하나의 길이를 늘릴 뿐이다. 판마다 승률 75%면 평균 기록이 3판에서 약 9판으로 는다(수문장의 다시 켜짐을 빼고 3 × p / (1 − p)).
-- **기권과 시간 초과도 진 판이다.** 도전이 아니라 램프 하나를 가져간다. 끊긴 채 시계가 지난 판도 같아서(`streak_start`의 정리, `expire`), 돌아온 선수는 램프 하나를 잃고 이어서 한다. 새로 도전은 예전처럼 진행 중인 도전을 그 자리에서 끝낸다.
-- **운이 판을 가르는 것을 뺀다**(`STREAK_BAN`, 양쪽 파티 모두). 도구: 밝은가루, 선제공격손톱, 왕의징표석, 기합의머리띠. 기술: 절대영도, 땅가르기, 뿔드릴, 가위자르기, 그림자분신, 작아지기. 2026-11-10 m-c 싱글 샘플 1329세트 가운데 기술로 11세트가 빠지고 155세트는 도구 목록에서 그 도구만 빠진다(도구가 없어지는 세트 0, 사라지는 종 0). 급소, 명중, 잠듦 같은 엔진의 주사위는 그대로 둔다: 램프가 그 한 번을 받아 낸다. 컴퓨터의 추리는 여전히 원래 샘플 세트를 후보로 읽는다(빠진 도구를 후보로 조금 더 오래 들고 있을 뿐이다). 급별 몫(11장)은 다시 재지 않았다: 닿는 세트가 적다.
-- **패배 복기.** 진 판이 끝나면 그 판의 자리에게만 상대가 데려온 셋의 세트(종, 특성, 도구, 기술 넷, 성격)를 알려 준다(`streak.foe`). 끝난 판의 입력 기록은 원래 공개라(리플레이) 새로 새는 것은 없다. 다시 하는 판의 상대는 새로 뽑으므로 복기가 다음 판의 답이 되지 않는다.
+Data and functions:
+- `streak_runs.lives` (default 3, range 0 to 3). `streak_settle(match, relight)` settles match end: win adds +1 win and (on gatekeeper) +1 lamp; loss subtracts 1 lamp and ends the run at 0. The battle function passes the gatekeeper boolean so floor rules live solely in `streak.js`. Idempotent per match. `streak_run_state(match)` returns wins, lamps, status, and current match. `streak_next` opens the next match after losses too while the run stays active. Cleanup in `streak_start` and `streak_begin` only closes timed-out matches; lamps and next-match doors are settled when the returning seat reads the match in the battle function (updated 2026-11-13; previously cleanup turned off lamps and wiped engine state, leaving returning runs with no doors). Matches that crashed between saving finish and settling follow the same path (`view` `streakSeen`).
+- Keep `streak_after_battle` intact so the deployed function continues running old sudden-death rules between SQL update and function deploy. Deploy order is SQL, battle function, then site. Deploying the site early is safe because lamps only render when the DB returns `lives`.
+- Finished match responses attach `streak: { wins, lives, status, won, foe }`. `view` attaches the same payload on settled active runs (timeouts and reloads). `streakNext` rejects swaps after a loss.
+- Client `localStorage` remembers `lives`, `won`, `ended`, and `foe`. Live spectating reads streak and lamps from run matches (`streak.js` `runTrack`), following through losses until the final lamp goes out.
 
-**데이터와 함수.**
+Screens (`DESIGN.md` "Battle", The run's hearts; hearts since 2026-11-24, scoreboard lamps before): hearts sit on the right end of the match title row (menu stakes, preview strip, between-match next match, tab active run) with no text or numbers. Post-loss between-match sits in the same slot as post-win, replacing swaps with opponent set cards and a continue button. Verified 2026-11-10 via PGlite harness and dev server at 390 px and 1440 px in both themes across loss, retry, win, and final lamp.
 
-- `streak_runs.lives`(기본 3, 0에서 3). `streak_settle(판, 다시 켜는가)`가 판 끝을 센다: 이기면 연승 +1과 (수문장이면) 램프 +1, 지면 램프 −1이고 0이면 도전이 끝난다. 층의 규칙은 `streak.js`만 알도록, 수문장인지는 배틀 함수가 말한다. 같은 판으로 두 번 불러도 한 번만 센다. `streak_run_state(판)`은 연승, 램프, 상태, 도전이 서 있는 판을 준다. `streak_next`는 도전이 서 있는 끝난 판이면 진 판에서도 다음 판을 연다(도전이 진행 중일 때만이므로 램프가 남았을 때만). `streak_start`와 `streak_begin`의 지난 판 정리는 판만 시간 초과로 닫고, 램프와 다음 판의 문은 돌아온 자리가 판을 다시 읽을 때 배틀 함수가 센다(2026-11-13, 그 전에는 여기서 램프를 끄고 엔진 상태를 지워 이어 가는 도전에 문이 없었다). 끝을 저장한 뒤 세기 전에 멈춘 판도 같은 길로 센다(`view`의 `streakSeen`).
-- `streak_after_battle`은 그대로 둔다. SQL을 실행한 뒤 새 배틀 함수를 올리기 전까지, 이미 올라가 있는 함수가 예전 규칙(한 번 지면 끝)으로 부른다. **순서는 SQL, 배틀 함수, 사이트다.** 사이트가 먼저 나가도 깨지지 않는다: 램프는 DB가 말할 때만 그린다(`streak_start`의 답에 `lives`).
-- 배틀 함수: 끝난 판의 답에 `streak: { wins, lives, status, won, foe }`가 붙는다. `view`도 도전이 서 있는 끝난 판이면 같은 것을 붙인다(시계로 끝난 판, 다시 연 화면). `streakNext`는 진 판에서 교환을 거절한다.
-- 화면: 자리(`localStorage`)가 `lives`, `won`, `ended`, `foe`를 기억한다. 중계는 도전의 판들에서 연승과 램프를 읽는다(`streak.js` `runTrack`): 진 판 뒤에도 다음 판을 따라가고, 마지막 램프가 꺼진 판에서 멈춘다.
+Tests: `tests/streak.test.mjs` (lamps, run tracking, ban-list exclusion) and `scripts/verify-streak-function.mjs` (retry same slot after loss, end on third loss, gatekeeper relight, swap rejection after loss on real SQL).
 
-**화면**(DESIGN.md "Battle", The run's hearts; 2026-11-24부터 하트, 그 전에는 전광판의 램프): 하트는 판의 이름 줄 오른쪽 끝에 선다(메뉴의 걸린 것, 선출 화면의 띠, 판 사이의 다음 판, 탭의 내 도전). 글자도 숫자도 붙지 않는다. 진 판의 판 사이는 이긴 뒤와 같은 자리에 서고, 교환 대신 상대 파티의 세트가 카드로 선다. 키는 이어서 하기다. 2026-11-10 하네스(PGlite 위의 실제 함수와 개발 서버)로 390과 1440, 두 테마에서 진 판, 다시 하기, 이긴 판, 마지막 램프까지 돌려 확인했다. 운영에서의 실제 도전은 배포 뒤에 둔다.
+Remaining proposed phases (not yet committed at this point):
+2. Per-match rewards: starting draft (1 of 3 per tier), 1-of-3 win rewards (capture, item, alternate sample set, scouting), and gatekeeper tier promotion matched by tower scaling (preserving Nov 9 skill parity).
+3. Variety and tempo: floor modifiers (weather, room, doubles, monotype), door choices, smooth per-floor power scaling, and 2-Pokémon team preview (benchmark matchup luck first, and profile where the 7 s per chunk goes across server, animations, and thinking).
+4. Social: club members' monthly records pinned along tower floors, plus Daily Tower.
 
-**확인.** `tests/streak.test.mjs`(램프와 판 읽기, 금지 목록이 뽑힌 파티에 없는지), `scripts/verify-streak-function.mjs`(실제 SQL 위에서 진 판 뒤 같은 판 다시 하기, 셋째 패배에서 끝, 수문장 뒤 다시 켜짐, 진 판의 교환 거절).
+## 13. Redesign phases 2 through 4 (2026-11-11)
 
-**남은 단계**(제안만 했고 정하지 않았다).
+User feedback: "나머지 단계도 진행해줘. 진행하면서 도전의 탑 초기화면도 대폭 개선해줘. 지금 너무 단순한 네모의 연속이라 하나도 안 예뻐. 일반 배틀 초기화면처럼 네모를 고집하지 않아도 홈페이지 컬러 톤 앤 매너만 맞추면 돼. 틀에 박히지 말고 자유롭게 상상해. 진입 애니메이션도 새로 짜고."
 
-2. 매 판 보상: 시작 드래프트(급마다 셋 가운데 하나), 이길 때마다 셋 가운데 하나(포획, 도구, 다른 샘플 세트, 정찰), 수문장을 깨면 한 자리 승급과 탑의 같은 폭 강화. 11월 9일의 "순수 실력" 결정과 닿는다: 탑과 같은 폭으로만 오르면 힘의 차이는 그대로다.
-3. 변주와 템포: 층의 규칙(날씨, 룸, 더블, 한 타입), 문 고르기, 층마다 매끄러운 난이도(파티 힘 보정), 일반 판 2마리 선출. 2마리 선출은 상성 운이 커질 수 있어 먼저 잰다. 한 번당 7초가 서버, 연출, 고민 가운데 어디서 나오는지도 먼저 잰다.
-4. 사람: 탑의 층에 동아리원의 이번 달 기록, 오늘의 탑.
+Phase 2, per-match rewards:
+- Starting draft (`streak.js` `STREAK_DRAFT`, `engine.mjs` `draftOffer`, `draftParty`): runs begin without a match (`streak_begin`), offering three complete sets per power tier. Picking one per tier builds the six-Pokémon team and opens match 1 (`streakDraft`, `streak_first`). All candidates are distinct species; if a row rolls all Megas, the third slot forces a non-Mega so any path can respect the one-Mega cap. Duplicate items fall back to the set's next item or a universal fallback item (0 validation rejections across 4000 random picks). Because choices stay inside each tier, team quality depends on drafting skill rather than luck.
+- Doors (`doorsOf`, `streakDoors`): while paused between matches, players pick between two doors, normal and tough (two steps stronger, matching gatekeeper plan without Mega), with all six opponent species visible (preview level, sets hidden). Beating a tough door relights one lamp like a gatekeeper and raises that match's swap reach by one tier. Before a gatekeeper, only one closed door appears. Door teams are rolled on match end and saved in `streak_runs.offer` (cleared when the next match opens).
+- Tier promotion (`swapParty` `reach`): winning a gatekeeper or tough door lets you swap an opponent Pokémon up to one tier higher than your outgoing slot (never two tiers higher or lower). The UI pairs +1 tier options first.
 
-## 13. 재설계 2단계부터 4단계 (2026-11-11)
+Phase 3, variety and tempo:
+- Floor types (`floorType`): each floor concentrates opponent teams into one type by prioritizing that type in every tier (`randomTeam` `prefer`). Floors 1 to 8 match their gatekeeper's type (Fighting, Ground, Ghost, Fairy, Rock, Flying, Dragon, Fire); higher floors cycle the remaining ten types. Sampling 40 matches per floor on 2026-11-11 produced 5 to 6 matching-type Pokémon per team. Because everyone faces the same floor type, drafting and swapping counters rewards planning. Engine rule mods (like Inverse Battle) were skipped because bundled `@pkmn/sim` rejects them (`Unrecognized rule`).
+- Per-floor opponent scaling (`foeSteps`, `foePlan`): opponent teams step up one tier-slot per floor (upgrading the weakest slot by one tier; two steps equals `MASTER_PLAN` at ~55% gatekeeper win rate from Chapter 11, keeping Floor 1 gatekeeper unchanged), capping at Floor 5. Mean rating sums (2026-11-11, 40 teams each): Floor 1 `0.00`, Floor 2 `0.19`, Floor 3 `0.16` (gatekeeper `0.28`), Floor 5 `0.32`, Floor 9 `0.47`. Revisit alongside AI difficulty after one month of live data.
+- Rejected 2-Pokémon bring format: tested 2400 CPU games (300 team pairs x 4 mirrored games at 80 ms/move). Match length halved (mean turns 12.2 to 6.4, move lines 17.1 to 9.7), but matchup luck grew from roughly one-fifth to one-third of outcomes (4-0 sweeps rose from 29.3 ± 5.2% to 39.3 ± 5.5%, split-seed correlation from 0.32 to 0.51). Because that reintroduced the unfairness removed in Phase 1, we kept 3-Pokémon bring and sought tempo through doors, draft decisions, and tighter intros instead. Benchmark script lived in scratch (`pick2.mjs`).
+- No doubles floors (2026-11-11, user: "더블 층은 빼줘"). Weather and room floors lacked engine support and were replaced by floor types.
 
-사용자: "나머지 단계도 진행해줘. 진행하면서 도전의 탑 초기화면도 대폭 개선해줘. 지금 너무 단순한 네모의 연속이라 하나도 안 예뻐. 일반 배틀 초기화면처럼 네모를 고집하지 않아도 홈페이지 컬러 톤 앤 매너만 맞추면 돼. 틀에 박히지 말고 자유롭게 상상해. 진입 애니메이션도 새로 짜고."
+Phase 4, social:
+- Other climbers on the tower: up to four trainers from the monthly (or daily) leaderboard hang by name at their floor and match height on the tower canvas (amber lamp if active), letting you watch yourself pass clubmates as you climb. Reuses `streak_board` with no SQL changes.
+- Daily Tower (`streak_runs.daily`, `streak_daily_board`, `seeded`): retired on 2026-11-19 (operator: "오늘의 탑도 그냥 없애줘. 도전의 탑 이번 달로만 남기자"). Removed from site UI and notification types (`docs/db/drop_daily_tower.sql`), leaving DB and battle function intact so in-flight matches could finish. While active, it allowed one run per KST day where every player at the same position (wins plus matches played, hashed with the day key) received identical draft, doors, and match seeds (AI moves remained unseeded), tracked on a separate daily leaderboard.
 
-**2단계, 매 판의 보상.**
+Data: added `offer` (draft candidates or doors and swap reach, function-only) and `daily` to `streak_runs`, split the active-run unique index by kind, and added `streak_begin`, `streak_active_run`, `streak_first`, `streak_run_public` (spectator read without user IDs), and `streak_daily_board`. `streak_settle` took doors as a third argument (replacing the unrun two-argument version), and `streak_run_state` returned doors, daily flag, and match count. Kept legacy `streak_start` and `streak_after_battle` for rolling deploy safety (SQL, battle function, site).
 
-- **시작 드래프트**(`streak.js` `STREAK_DRAFT`, `engine.mjs` `draftOffer`, `draftParty`). 도전은 판 없이 시작하고(`streak_begin`), 힘의 급마다 후보 셋이 세트 그대로 선다. 급마다 하나를 골라 여섯을 만들고, 고르면 첫 판이 열린다(`streakDraft`, `streak_first`). 모든 후보는 서로 다른 종이고, 한 줄이 모두 메가진화면 마지막 자리는 메가진화가 아닌 세트라 어느 줄에서나 메가진화 하나를 남길 수 있다. 같은 도구가 둘이 되면 뒤의 것이 그 세트의 다음 도구를 받고, 그것도 없으면 누구나 드는 도구 하나를 받는다(무작위로 4000번 골라 거절 0). 같은 급끼리만 고르므로 파티의 힘은 급의 폭 안에서 고르는 사람의 눈이 정한다. 11월 9일의 "순수 실력"과 어긋나지 않는다: 뽑기 운이 아니라 고르는 수다.
-- **문**(`doorsOf`, `streakDoors`). 끝난 판 뒤에 도전이 쉬면 다음 판을 문으로 고른다. 보통은 두 문, 보통 상대와 강한 상대(두 계단 센 계획, 수문장의 계획에서 메가진화를 뺀 것)이고, 문마다 상대의 여섯이 보인다(선출 화면이 보이는 만큼, 세트는 숨긴다). 강한 상대를 이기면 수문장처럼 램프 하나가 다시 켜지고 그 판의 교환이 한 급 위까지 닿는다. 다음 판이 수문장이면 문은 하나, 닫힌 문이다. 문의 파티는 판이 끝날 때 뽑아 도전에 둔다(`streak_runs.offer`, 다음 판이 열리면 지운다).
-- **승급**(`swapParty` `reach`). 수문장이나 강한 상대를 이긴 판의 교환은 상대의 한 급 위 하나를 내 하나와 바꿀 수 있다. 두 급 위와 아래로는 바꾸지 않는다. 화면은 한 급 위를 먼저 짝지어 준다.
+Screens: `DESIGN.md` "Battle" entries for The tower (night cylindrical tower, winding path, balcony party, entrance animation), The draft, The doors, and The two kinds.
 
-**3단계, 변주와 템포.**
+Verification: `tests/streak.test.mjs`, `scripts/verify-streak-db.mjs` (15 checks), `scripts/verify-streak-function.mjs` (draft, tough door after loss, lamp relight and +1 swap on tough door win, Daily Tower seed parity), plus visual checks via PGlite and dev server at 390 px and 1440 px in both themes.
 
-- **층의 타입**(`floorType`). 층마다 상대 파티가 한 타입으로 모인다: 급마다 그 타입의 종이 먼저 선다(`randomTeam` `prefer`). 1층부터 8층까지는 그 층 수문장의 타입(격투, 땅, 고스트, 페어리, 바위, 비행, 드래곤, 불꽃), 그 위로는 남은 열 타입을 차례로 돈다. 2026-11-11 표본으로 40판씩 뽑으면 여섯 가운데 5에서 6이 그 타입이다. 같은 층은 누구에게나 같은 타입이라 교환으로 맞설 포켓몬을 모으는 것이 실력이 된다. 엔진의 규칙(뒤집힌 상성 같은 모드)은 쓰지 않았다: 묶어 둔 @pkmn/sim에 그 규칙이 없다("Unrecognized rule").
-- **층마다 오르는 상대**(`foeSteps`, `foePlan`). 상대 파티가 층마다 한 계단 오른다. 한 계단은 가장 약한 자리 하나를 한 급 올린 것이고, 두 계단이 예전의 `MASTER_PLAN`(같은 실력이면 수문장 약 55%, 11장)이라 1층 수문장은 예전 그대로다. 다섯 층부터는 오르지 않는다. 몫의 합(2026-11-11, 40파티 평균): 1층 0.00, 2층 0.19, 3층 0.16(그 층 수문장 0.28), 5층 0.32, 9층 0.47. 컴퓨터의 난이도(1층 폴리곤, 2층 폴리곤2, 3층부터 폴리곤Z)와 함께 한 달 뒤 실제 분포로 다시 본다. 이 값은 재지 않았다.
-- **2마리 선출은 하지 않는다.** 컴퓨터끼리 2400판(파티 300쌍을 같은 쌍으로 각 4판, 자리를 반씩 바꿈, 한 수 80 ms)을 두어 쟀다. 판의 길이는 절반이다(턴 평균 12.2에서 6.4, 기술 줄 17.1에서 9.7). 그러나 선출에서 맞붙은 파티의 상성이 승패를 정하는 몫이 약 5분의 1에서 3분의 1로 커졌다(같은 파티가 네 판을 모두 이긴 쌍 29.3 ± 5.2%에서 39.3 ± 5.5%, 시드 반쪽 사이 상관 0.32에서 0.51). 1단계가 없앤 "부조리한 불쾌함"을 다시 들이므로 3마리 선출을 둔다. 템포는 문과 드래프트처럼 판 밖의 결정과 진입 장면을 짧게 하는 쪽에서 찾는다. 측정 스크립트는 그 세션의 스크래치(pick2.mjs)에 있었고 저장소에는 넣지 않았다.
+## 14. Real-match practice redesign (2026-11-11)
 
-- **더블 층은 두지 않는다**(2026-11-11, 사용자: "더블 층은 빼줘"). 날씨와 룸이 깔린 층은 엔진에 그 규칙이 없어 층의 타입으로 대신했다(위).
+User feedback: "목숨이 3개로 바뀌면서 긴장감이 없어지고 게임이 늘어지는 경우가 많아졌어", "내가 도전의 탑을 설계했던 이유는 실전 배틀 연습을 재미있게 하라는 목적이었는데, 한 층에서 한 타입만 계속 나오니까 실전을 연습할 수 없어졌어", and "현재 포켓몬들의 샘플도 랭커 수준의 샘플에 부합하도록". Intended experience: "실전 연습이면서 랜덤 파티로 다양한 환경에 유연하게 대처하는 능력을 기르면서 도파민도 챙기는 것". Keep the player side (draft, swaps) intact and align opponents and loss rules with real ladder play.
 
-**4단계, 사람.**
+### 14.1 Goals and non-goals
 
-- **탑의 다른 사람들.** 탭의 탑에 이번 달(또는 오늘) 순위의 다른 트레이너가 그들이 닿은 층과 판의 높이에 이름으로 걸린다(최대 넷, 진행 중이면 앰버 램프). 내 길을 오르다 누군가를 지나치는 순간이 보인다. SQL은 바꾸지 않았다(`streak_board`를 그대로 읽는다).
-- **오늘의 탑**(`streak_runs.daily`, `streak_daily_board`, `seeded`). 2026-11-19에 내렸다(운영자: "오늘의 탑도 그냥 없애줘. 도전의 탑 이번 달로만 남기자"): 사이트는 더 열지 않고 알림 종류에서도 뺐다(`docs/db/drop_daily_tower.sql`). 데이터와 배틀 함수는 그대로라, 진행 중이던 판은 끝까지 할 수 있다. 아래는 그때의 규칙이다. 하루(KST)에 한 번, 그날 오르는 모두가 같은 자리에서 같은 것을 받는다: 같은 드래프트, 같은 문, 같은 판의 시드. 자리는 이긴 판 수와 지금까지 둔 판 수다(그날의 열쇠에 이어 붙인 해시가 씨앗). 컴퓨터가 고르는 수는 시드를 쓰지 않는다. 달의 도전과 따로 하나씩 진행되고, 달의 순위에는 들지 않으며, 오늘 순위가 따로 선다. 같은 날 다른 사람에게 상대를 미리 들을 수 있는 것은 받아들인다.
+- Goal: every match carries real-battle weight against actual top-ranker teams, with draft candidates and opponent sets drawn from Pokémon and items rankers actually use, while keeping randomness (draft offers, opponent builds, sets, seeds).
+- Non-goals: bringing your own built team (user chose to keep draft), doubles, changing regular CPU or casual random teams, changing `learn-cpu-sets`, or scraping per-Pokémon pages on Battle Database (against ToS, Section 14.4).
+- Target run length (user choice): half of runs clear Floor 1 (Section 14.6).
+- Deploy immediately and reset prior records (user: "그냥 바로 적용해줘. 기존 기록은 리셋하면 그만이야", `docs/db/streak_reset_2026_11.sql`) rather than waiting for next month.
+- Failure modes: dragging runs, unrealistic opponents (like monotype floors), or ranker builds crushing almost everyone on Floor 1.
 
-**데이터.** `streak_runs`에 `offer`(드래프트 후보 또는 문과 교환의 닿는 급, 함수만 읽는다)와 `daily`를 더했다. 진행 중인 도전은 계정마다 종류별로 하나다(유일 인덱스 둘). 새 함수: `streak_begin`, `streak_active_run`, `streak_first`, `streak_run_public`(관전 화면이 도전의 램프와 상태를 읽는다, 계정은 말하지 않는다), `streak_daily_board`. `streak_settle`은 세 번째 인자로 다음 판의 문을 받는다(2단계 SQL을 아직 실행하지 않았으므로 두 인자 판은 지우고 다시 만든다). `streak_run_state`는 문과 오늘의 탑과 둔 판 수를 함께 준다. 예전 함수(`streak_start`, `streak_after_battle`)는 이미 올라가 있는 배틀 함수가 부르므로 그대로 둔다. 예전 화면은 드래프트를 모르므로(`draft` 없이 `streak`을 부름) 예전처럼 첫 판을 바로 받는다. 순서는 1단계와 같이 SQL, 배틀 함수, 사이트다.
+### 14.2 Approaches
 
-**화면.** DESIGN.md "Battle"의 The tower(밤의 둥근 탑, 감아 오르는 길, 발코니의 파티, 진입 장면), The draft, The doors, The two kinds.
-
-**확인.** `tests/streak.test.mjs`(층의 계획과 타입, 문, 닿는 급, 시드, 드래프트), `scripts/verify-streak-db.mjs`(15가지, 드래프트로 시작, 문이 다음 판까지 남음, 오늘의 탑 하루 한 번과 따로 서는 순위), `scripts/verify-streak-function.mjs`(실제 함수와 SQL 위에서 드래프트, 진 판 뒤 강한 문, 그 문을 이긴 뒤 램프와 한 급 위 교환, 오늘의 탑의 같은 드래프트와 같은 첫 상대). 화면은 PGlite와 개발 서버로 390과 1440, 두 테마에서 드래프트, 출발 장면, 이긴 판의 문과 교환, 진 판의 복기와 문, 쉬는 탭, 오늘의 탑을 찍어 보았다.
-
-
-## 14. 재설계: 실전 연습으로 (2026-11-11)
-
-사용자: "목숨이 3개로 바뀌면서 긴장감이 없어지고 게임이 늘어지는 경우가 많아졌어", "내가 도전의 탑을 설계했던 이유는 실전 배틀 연습을 재미있게 하라는 목적이었는데, 한 층에서 한 타입만 계속 나오니까 실전을 연습할 수 없어졌어", "현재 포켓몬들의 샘플도 랭커 수준의 샘플에 부합하도록". 의도한 경험(같은 날 사용자): "실전 연습이면서 랜덤 파티로 다양한 환경에 유연하게 대처하는 능력을 기르면서 도파민도 챙기는 것". 그래서 내 쪽(드래프트, 교환)은 그대로 두고, 상대와 지는 규칙을 실전에 맞춘다.
-
-### 14.1 목표와 하지 않는 것
-
-- 목표: 모든 판이 실전 한 판의 무게를 가진다. 상대는 실제 상위 랭커의 구축이다. 내 드래프트 후보와 상대의 세트가 랭커가 실제로 쓰는 포켓몬과 도구에서 나온다. 랜덤(드래프트 후보, 상대 구축, 세트, 시드)은 그대로 남는다.
-- 하지 않는 것: 내 파티를 들고 오르기(사용자가 드래프트 유지를 골랐다), 더블, 일반 컴퓨터 배틀과 친선의 랜덤 파티 바꾸기, 컴퓨터의 학습(`learn-cpu-sets`) 바꾸기, 배틀 데이터베이스의 포켓몬별 페이지 긁기(약관, 14.4).
-- 도전의 길이(사용자가 고름): 절반이 1층을 넘는다(14.6).
-- 바뀐 규칙은 바로 배포하고, 그때까지의 기록은 지운다(사용자: "그냥 바로 적용해줘. 기존 기록은 리셋하면 그만이야", `docs/db/streak_reset_2026_11.sql`). 처음에는 새 달에 맞춰 배포하는 안을 냈다.
-- 실패로 보는 것: 다시 늘어지는 도전, 실전에서 보지 못할 상대(한 타입 층 같은), 랭커 구축이 너무 세서 1층에서 거의 다 끝나는 탑.
-
-### 14.2 고른 길 (Approaches)
-
-| 무엇 | 생각한 안 | 고른 것과 이유 |
+| Area | Options considered | Chosen and reason |
 |---|---|---|
-| 내 파티 | 내 파티로, 랭커 파티 대여, 드래프트 유지 | **드래프트 유지**(사용자). 랜덤 파티로 유연한 대처를 기르는 것이 의도다 |
-| 진 판 | A 한 번 지면 끝, B 램프 하나에 벌어서 얻는 예비 하나, C 램프 셋에 다시 켜짐만 없앰, D 램프 둘로 시작하고 수문장이 다시 켬(둘까지) | 처음에는 **B**(사용자): 첫 판들의 무게는 A와 같고 수문장 돌파가 "실수 한 번을 버는" 보상이 된다. 잰 뒤(14.6) B로는 1층 돌파가 약 19%라 **D**(사용자, 같은 날): 한 층에 실수 한 번까지, 1층 돌파 약 46%. C는 긴장 문제를 반만 푼다 |
-| 상대 | A 실제 랭커 구축 통째로, B 랭커 종만으로 뽑은 균형 랜덤 여섯 | **A**(사용자). 축과 보완이 있는 구축이라 선출 읽기가 실전 그대로다. B는 구축이 아니다 |
-| 기술과 배분 | A 스모곤 래더 1760+ 통계를 랭커의 도구에 맞춰, B 배틀 데이터베이스의 게임 안 통계(운영자 허락 필요), C 구축 기사의 세트를 손으로 | **A 먼저, 허락이 오면 같은 자리에 B**(사용자). 구조가 같아 갈아 끼우기 쉽다 |
+| Player team | Own team, rented ranker team, keep draft | Keep draft (user): preserves adapting with random teams |
+| Loss rule | A sudden death, B 1 lamp + 1 earnable reserve, C 3 lamps with no relight, D start with 2 lamps and gatekeeper relights up to 2 | Initially B (user), giving Floor 1 real stakes and making gatekeepers earn a margin of error. Benchmarks (14.6) put Floor 1 clear rate at ~19% under B, so the user switched to D the same day: up to one mistake per floor, ~46% Floor 1 clear rate. C only half-solved tension |
+| Opponents | A full real ranker teams, B balanced random 6 from ranker species | A (user): real cores and synergy preserve real team-preview reads; B is not a real build |
+| Moves and EVs | A Smogon 1760+ stats matched to ranker items, B Battle Database in-game stats (needs operator permission), C hand-entered blog sets | A first, swap in B at the same hook if permission arrives (user) |
 
-### 14.3 규칙
+### 14.3 Rules
 
-**램프(12장의 램프 셋을 바꾼다).**
-- 도전은 램프 둘로 시작한다(`STREAK_START_LIVES`). 진 판(패배, 기권, 시간 초과, 무승부)마다 하나가 꺼지고, 0이면 도전이 끝난다.
-- 수문장을 이기면 하나가 다시 켜진다. 램프는 둘까지다(`STREAK_LIVES`). 한 층에 실수 한 번까지다. 처음 설계는 하나로 시작해 수문장이 예비를 켜는 것이었다(14.2, 14.6).
-- 강한 문을 이겨도 램프는 켜지지 않는다. 강한 문의 보상은 한 급 위 교환(13장 승급)만 남는다.
-- 진 판 뒤 램프가 남으면 지금처럼 같은 자리(같은 층, 같은 판, 수문장이면 수문장)를 새로 뽑은 상대로 다시 한다. 진 판에는 교환이 없다.
-- 기록과 순위의 규칙은 그대로다(이긴 판 수).
+Lamps (replacing Chapter 12's three lamps):
+- Runs start with 2 lamps (`STREAK_START_LIVES`). Every loss, forfeit, timeout, or draw removes one; 0 ends the run.
+- Beating a gatekeeper relights one lamp up to a max of 2 (`STREAK_LIVES`), allowing one mistake per floor. (Initially designed as 1 starting lamp + 1 reserve; updated after 14.6 benchmarks.)
+- Beating a tough door no longer relights a lamp; its sole reward is +1 tier swap promotion (Chapter 13).
+- When a lamp remains after a loss, players retry the same slot against a fresh opponent with no swap.
+- Streak scoring and leaderboard rules stay unchanged.
 
-**상대: 실제 랭커 구축.**
-- 상대 파티는 공개된 상위 구축 하나를 통째로 쓴다(여섯 종과 각자의 도구). 기술, 특성, 성격, 배분은 14.4로 채운다. 컴퓨터가 선출과 운용을 맡는 것은 지금과 같다.
-- 층이 오를수록 높은 순위대에서 무작위로 하나를 뽑는다. 순위대(2026-11-11, M-6과 M-7 싱글 433구축의 수):
+Opponents (real ranker teams):
+- Opponent teams use a full published top-ranker six (six species and their items), filled with moves, abilities, natures, and spreads per 14.4 and piloted by the computer.
+- Higher floors draw from higher rank bands (433 M-6 and M-7 singles teams as of 2026-11-11):
 
-| 순위대 | 구축 수 | 보통 문 | 강한 문 | 수문장 |
+| Rank band | Teams | Normal door | Tough door | Gatekeeper |
 |---|---|---|---|---|
-| 601-1000위 | 146 | 1층 | | |
-| 301-600위 | 72 | 2층 | 1층 | |
-| 101-300위 | 129 | 3층 | 2층 | 1층 |
-| 31-100위 | 60 | 4층부터 | 3층 | 2층 |
-| 1-30위 | 26 | | 4층부터 | 3층부터 |
+| 601-1000 | 146 | Floor 1 | | |
+| 301-600 | 72 | Floor 2 | Floor 1 | |
+| 101-300 | 129 | Floor 3 | Floor 2 | Floor 1 |
+| 31-100 | 60 | Floor 4+ | Floor 3 | Floor 2 |
+| 1-30 | 26 | | Floor 4+ | Floor 3+ |
 
-  보통 문은 그 층의 순위대, 강한 문은 한 단계 위, 수문장은 두 단계 위(1-30위에서 멈춤)다. 잰 결과 순위대끼리 세기 차이는 잡음 안이어서(14.6), 순위대는 실전의 이름표이고 층의 세기는 컴퓨터의 계단이 맡는다(`STREAK_STEPS`): n층의 보통 판이 계단의 n번째, 수문장과 강한 문은 한 칸 위, 다섯 층부터 맨 위.
-- 한 도전 안에서 같은 구축이 다시 나올 수 있다(내 판단: 기억할 자리를 새로 만들지 않았다. 가장 좁은 1-30위가 26구축이라 한 도전에서 겹칠 일이 드물다).
-- 없애는 것: 층의 타입(`floorType`, `FLOOR_TYPES`), 층마다 정해진 메가 수문장(`GATEKEEPERS`, 11월 9일 결정을 이것으로 바꾼다), 상대 계획의 계단(`PLANS`, `foeSteps`, `foePlan`), 이를 위해서만 있는 `randomTeam`의 `prefer`, `ace` 옵션(다른 곳이 쓰지 않으면).
-- 문은 지금처럼 보통과 강한 둘, 다음 판이 수문장이면 닫힌 문 하나다. 문마다 그 구축의 여섯이 보인다. 문의 타입 칩은 빠진다.
-- 랭커 구축이라는 사실이 보인다: 문과 판 사이, 진 판의 복기에 그 구축의 시즌과 순위가 선다(예: M-7 32위). 어디에 어떤 크기로 서는지는 DESIGN.md의 규칙으로 정한다(14.7).
-- 오늘의 탑은 그대로다: 그날의 열쇠로 같은 순위대에서 같은 구축을 뽑는다.
+- Normal door uses the floor's band, tough door steps up one band, and gatekeeper steps up two (capping at 1-30). Because inter-band strength differences fell inside noise (14.6), rank bands act as real-world flavor while AI tiers (`STREAK_STEPS`) control difficulty: Floor n normal uses step n, gatekeepers and tough doors step up one, capping at Floor 5.
+- Duplicate ranker teams within one run are allowed (even the narrowest 1-30 band has 26 teams, so repeats are rare without extra state).
+- Removed: `floorType` / `FLOOR_TYPES`, fixed Mega `GATEKEEPERS` (replacing Nov 9), `PLANS` / `foeSteps` / `foePlan`, and `randomTeam` `prefer` / `ace` options if unused elsewhere.
+- Doors remain normal and tough (or one closed gatekeeper door), showing all six species without type chips.
+- Season and rank (e.g., `M-7 32위`) display on doors, between-match, and loss review per `DESIGN.md` (14.7).
+- Daily Tower draws the same ranker team from the same band via the daily key.
 
-**내 쪽: 드래프트와 교환은 그대로, 재료만 랭커 풀.**
-- 드래프트 후보는 랭커 구축에 나온 종(지금 134종)에서만 선다. 급마다 셋, 세트 그대로 보이는 방식은 같다. 후보의 도구도 랭커가 그 종에 쥔 도구를 그 빈도대로 뽑고, 세트는 상대와 같은 길(14.4의 도구에 맞는 세트)로 채운다(내 판단: 14.1의 "랭커가 실제로 쓰는 포켓몬과 도구"). 메가진화 하나, 같은 도구 둘 금지, 다음 도구로 넘기는 드래프트의 규칙은 그대로 그 위에 선다.
-- 힘의 급(6급)은 랭커 풀 안에서 다시 나눈다: 잰 몫(`species-power.json`)으로 134종을 같은 수씩 여섯으로. 랭커 종은 위쪽 급에 몰려 있어, 전체 풀의 급을 그대로 쓰면 아래 급의 후보가 모자란다. 교환의 급(`swapTier`)도 같은 표를 쓴다.
-- 교환은 지금 그대로다: 이긴 판마다 이긴 구축의 하나를 같은 급의 내 하나와(수문장과 강한 문 뒤에는 한 급 위까지) 바꾼다. 이제 받아 오는 포켓몬이 랭커 세트다.
-- 금지 목록(`STREAK_BAN`)은 양쪽에 그대로 선다. 랭커 구축의 도구가 금지 목록에 있으면 그 포켓몬은 그 세트의 다음 도구를 든다(같은 도구가 파티에 둘이 되지 않게).
+Player side (same draft and swaps, ranker pool only):
+- Draft candidates draw solely from species appearing in ranker teams (134 species), three complete sets per tier. Candidate items sample from ranker item frequencies for that species and fill sets via the 14.4 item-matching path, keeping existing rules on one Mega, no duplicate items, and fallback items.
+- The six power tiers re-partition the 134 ranker species into equal buckets by `species-power.json` rating so lower tiers do not starve. `swapTier` uses the same table.
+- Swaps stay unchanged (same tier, or +1 after gatekeeper/tough door), now granting ranker sets.
+- `STREAK_BAN` stays active on both sides; if a ranker item is banned, that Pokémon falls back to its set's next non-duplicate item.
 
-### 14.4 데이터
+### 14.4 Data
 
-**상위 구축.** 출처는 배틀 데이터베이스 챔피언스(champs.pokedb.tokyo)의 공개 데이터다: `https://champs.pokedb.tokyo/opendata/s{시즌}_single_ranked_teams.json`. 시즌마다 순위, 레이팅, 여섯 마리(도감 번호와 폼, 일본어 이름, 타입, 도구)가 있고, 기술과 배분, 트레이너 이름은 없다. 지금 규정 M-C의 시즌은 M-6, M-7(s6, s7)이 나와 있고 M-8(s8)은 2026-12-02에 끝난다.
-- 이용 조건(그 사이트의 `guide/opendata`와 `terms`, 2026-11-11 읽음): 프로그램으로 받는 것은 허용되지만, 많은 사용자가 쓰는 앱은 자기 서버에 받아 두고 사용자 기기가 직접 받지 않게 한다. 지나친 연속 접근과 대량 수집은 금지다. 그래서 받는 것은 스크립트가 한 번에 하고, 결과를 저장소에 커밋한다. 출처는 데이터 파일과 이 문서에 적는다.
-- 새 스크립트 `scripts/build-ranker-teams.mjs`: 지금 규정의 시즌 파일을 받아(캐시 디렉터리 옵션은 `build-random-sets.mjs`와 같이) `src/data/ranker-teams.json`을 쓴다: `{ source, built, seasons, teams: [{ season, rank, rating, team: [{ species, item }] }] }`.
-  - 종: 도감 번호와 폼 번호(`0479-01`)를 쇼다운 종 이름으로 옮긴다. 폼은 데이터에 나온 것만 표로 둔다(지금 22개: 히스이, 가라르, 알로라 모습, 히트와 워시 로토, 영원의 꽃 플라엣테, 성별 폼 등).
-  - 도구: 일본어 이름을 쇼다운 도구 이름으로 옮긴다(지금 101종). 옮기는 표는 스크립트가 PokeAPI에서 한 번 받아 만들거나 손으로 둔다(만드는 사람이 정함).
-  - 옮기지 못한 종이나 도구가 있는 구축, 세트를 채운 뒤 검증기(`validateTeam`)가 거절하는 구축은 빼고 이유를 출력한다. 몇 개가 빠졌는지 남긴다.
-- 갱신: 시즌이 끝나 새 파일이 나오면 다시 돌린다. 규정이 바뀌면 그 규정의 시즌만 쓴다.
+Top teams come from Battle Database Champions (`champs.pokedb.tokyo`) open data: `https://champs.pokedb.tokyo/opendata/s{season}_single_ranked_teams.json`, containing rank, rating, and six Pokémon (dex/form, Japanese name, types, item) with no moves, EVs, or trainer names. Regulation M-C has M-6 and M-7 (`s6`, `s7`), with M-8 (`s8`) ending 2026-12-02.
+- Terms (`guide/opendata` and `terms`, read 2026-11-11) allow automated downloads but require multi-user apps to host copies server-side rather than fetching from user devices, and forbid rapid scraping. We therefore run one build script and commit the output with attribution.
+- New script `scripts/build-ranker-teams.mjs` fetches current-regulation season files (with cache-dir option like `build-random-sets.mjs`) and writes `src/data/ranker-teams.json`: `{ source, built, seasons, teams: [{ season, rank, rating, team: [{ species, item }] }] }`.
+  - Species map dex + form (`0479-01`) to Showdown names via a table covering the 22 forms present (Hisui, Galar, Alola, Heat/Wash Rotom, Eternal Flower Floette, gender forms, etc.).
+  - Items map 101 Japanese item names to Showdown names (fetched once from PokeAPI or maintained manually).
+  - Teams with unmapped species/items or failing `validateTeam` are skipped and logged with counts and reasons.
+- Refresh after each season ends; keep only seasons matching the active regulation.
 
-**세트(기술, 특성, 성격, 배분).** 지금의 `random-sets.json`(스모곤 래더 1760+ 통계로 만든 세트)을 그대로 쓰되, 랭커가 든 도구에 맞는 세트를 고른다.
-- 그 종의 세트 가운데 도구 목록에 그 도구가 있는 세트들에서 무게대로 하나를 뽑고 그 도구를 쥐어 준다. 메가스톤이면 메가 세트다. 같은 구축도 판마다 세트가 조금 달라진다(랜덤).
-- 맞는 세트가 없으면 그 종의 가장 무거운 세트에 그 도구를 쥐어 준다. 그러면 안 되는 조합(구애 도구나 돌격조끼에 변화 기술)은 `setFit.mjs`의 규칙으로 기술을 바꾸거나, 만들 때 미리 빼 둔다(만드는 사람이 정함). 결과는 언제나 검증기를 거친다.
-- 이 고르는 곳 하나가 나중에 배틀 데이터베이스의 게임 안 통계로 갈아 끼울 자리다(운영자 허락 뒤, 14.8).
+Sets (moves, ability, nature, EVs) come from `random-sets.json` (Smogon 1760+ stats), matched to the ranker's held item:
+- Weight-sample among the species' sets that include that item (Mega Stones pick Mega sets), keeping natural match-to-match set variety.
+- If no set lists that item, attach it to the species' heaviest set, fixing illegal combos (status moves on Choice items or 돌격조끼) via `setFit.mjs` or filtering at build time, always passing `validateTeam`.
+- This single lookup hook is where Battle Database in-game stats can plug in later upon permission (14.8).
 
-### 14.5 서버와 DB
+### 14.5 Server and database
 
-- `streak.js`: `STREAK_LIVES`를 시작 하트(그때는 램프) 1과 최대 2로 나눈다. `streakRelights`는 수문장만 참이다. `runTrack`(중계)도 같은 규칙으로 센다. 순위대 표와 층, 문 종류에서 순위대를 고르는 함수가 여기 선다. 화면이 같이 읽으므로 무거운 데이터는 들이지 않는다(구축 목록은 배틀 함수만 읽는다).
-- `streakEngine.mjs`, `engine.mjs`: 상대 파티를 `randomTeam` 대신 순위대에서 뽑은 구축으로 만든다(14.4의 세트 채우기). `streakDoors`도 같다. 문에 두는 파티(`streak_runs.offer`)에 그 구축의 시즌과 순위를 함께 둔다. 드래프트(`draftOffer`)와 교환의 급은 랭커 풀과 그 안의 급을 쓴다. 한 도전에서 나온 구축을 기억할 곳이 필요하면 `offer`에 둔다(SQL을 바꾸지 않는 쪽이 먼저다).
-- `docs/db/streak_runs.sql`: 새로 시작하는 도전의 램프를 1로(`streak_begin`, `streak_start`의 답과 행), `streak_settle`의 다시 켜짐 상한을 2로 바꾼다. 램프의 검사(0에서 3)는 그대로 둔다. 진행 중인 예전 도전은 가진 램프로 끝까지 가고, 다시 켜짐만 2에서 멈춘다.
-- 순서는 언제나 SQL, 배틀 함수, 사이트다. 예전 화면과 예전 함수가 어느 순서에서도 깨지지 않는지 본다(12장, 13장과 같이).
+- `streak.js` splits `STREAK_LIVES` into start lives (1, later updated to 2) and max lives (2), restricts `streakRelights` to gatekeepers, updates `runTrack`, and exports rank-band lookup helpers without bundling heavy team data (loaded only by the battle function).
+- `streakEngine.mjs` and `engine.mjs` build opponent teams and `streakDoors` from rank bands using 14.4 set filling, store season and rank on `streak_runs.offer`, and switch `draftOffer` and swap tiers to the ranker pool.
+- `docs/db/streak_runs.sql` updates starting lamps in `streak_begin`/`streak_start` and caps `streak_settle` relights at 2 while keeping the 0-to-3 check constraint so active old runs finish cleanly.
+- Deploy order remains SQL, battle function, then site, verifying backward compatibility at every step.
 
-### 14.6 측정
+### 14.6 Benchmarks
 
-- 균형 잡힌 드래프트 파티(랭커 풀) 대 각 순위대의 구축을 같은 컴퓨터끼리 두어 순위대마다 승률을 잰다(순위대마다 300판 이상, 자리를 바꿔 반씩, `rate-species.mjs` 또는 벤치의 방식으로). 목표(2026-11-11, 사용자: "절반이 1층 돌파로 해줘"): 보통 동아리원의 도전 두 번 가운데 한 번이 1층 수문장을 넘고, 잘하는 사람은 3층에서 4층(10에서 20연승)까지 간다. 램프 하나로 시작하고 1층에서는 예비 램프가 없으므로, 1층 돌파율은 보통 네 판과 수문장을 모두 이길 확률이다. 판마다 85%면 0.85^4 × 0.65 ≈ 0.34에 그치고, 절반에 닿으려면 1층 보통 판 약 90%, 1층 수문장 약 75%(0.9^4 × 0.75 ≈ 0.49)여야 한다. 어려움은 위층에 몰린다. 사람의 승률은 컴퓨터끼리의 측정과 다르므로(예전 기록에서 첫 판 승률 71%), 컴퓨터끼리 잰 값으로 표를 먼저 정하고 운영 한 주 뒤 실제 1층 돌파율로 다시 맞춘다. 결과로 14.3의 순위대 표와 층별 컴퓨터 난이도를 정한다.
+Benchmark balanced ranker-pool draft teams against each rank band (>=300 mirrored games per band). Target from user (2026-11-11, "절반이 1층 돌파로 해줘"): about half of average club runs clear Floor 1, while strong players reach Floors 3 to 4 (10 to 20 wins). With 1 starting lamp, clearing Floor 1 meant winning four normal matches plus the gatekeeper cleanly (85% per match yields only `0.85^4 * 0.65 ≈ 0.34`; hitting 50% requires ~90% on normal matches and ~75% on the gatekeeper). Set initial tables from CPU tests and tune after one week of live Floor 1 clear rates.
 
-**잰 것**(2026-11-11, 이 PC, 한 수 100 ms, 드래프트 후보에서 무작위로 고른 파티를 온전한 컴퓨터가 두고 순위대마다 뽑은 랭커 구축을 각 단계의 컴퓨터가 두어, 같은 두 파티를 자리를 바꿔 두 판씩. 측정 스크립트는 스크래치에 두었다):
+Benchmark results (2026-11-11, local PC, 100 ms/move, full computer playing random draft teams vs each AI tier playing ranker teams by band, mirrored pairs; script in scratch):
 
-| 랭커 쪽 컴퓨터 | 드래프트 쪽이 이긴 몫 | 순위대별(601-1000, 301-600, 101-300, 31-100, 1-30) |
+| Ranker-side AI | Draft-side win rate | By band (601-1000, 301-600, 101-300, 31-100, 1-30) |
 |---|---|---|
-| 온전한 컴퓨터(폴리곤Z) | 37%(1000판) | 32, 35, 38, 37, 46 |
-| 폴리곤2 | 49%(500판) | 40, 50, 46, 50, 57 |
-| 폴리곤 | 60%(500판) | 59, 62, 57, 59, 62 |
-| tower1(slack .75, mistake .45, 읽기와 롤아웃 없음) | 67%(500판) | 68, 63, 68, 69, 69 |
-| tower0(slack .9, mistake .6, 읽기와 롤아웃 없음) | 73%(500판) | 71, 76, 70, 73, 76 |
+| Full computer (폴리곤Z) | 37% (1000 games) | 32, 35, 38, 37, 46 |
+| 폴리곤2 | 49% (500 games) | 40, 50, 46, 50, 57 |
+| 폴리곤 | 60% (500 games) | 59, 62, 57, 59, 62 |
+| `tower1` (slack .75, mistake .45, no reads/rollout) | 67% (500 games) | 68, 63, 68, 69, 69 |
+| `tower0` (slack .9, mistake .6, no reads/rollout) | 73% (500 games) | 71, 76, 70, 73, 76 |
 
-- 순위대끼리의 차이는 판마다 ±7에서 10%p의 잡음 안이다(오히려 1-30위가 조금 약하게 잰다: 높은 순위의 구축일수록 컴퓨터가 다루기 어려운 운용이 많다고 본다). 그래서 순위대는 세기의 손잡이가 아니다.
-- 사람의 세기는 온전한 컴퓨터와 비슷하다고 본다: 예전 기록에서 사람의 첫 판 승률이 폴리곤 상대 71%였고, 같은 실력의 파티로 온전한 컴퓨터가 폴리곤에 약 72%(4장의 계단으로 셈)다.
-- 계단(`STREAK_STEPS`): 1층 tower0, 2층 tower1, 3층 폴리곤, 4층 폴리곤2, 5층부터 폴리곤Z. 수문장과 강한 문은 한 칸 위. 탑의 두 단계는 탑에만 있고 컴퓨터가 고르는 방법은 바꾸지 않았다(설정만 다르다).
-- 판마다 90%는 컴퓨터를 아무리 약하게 해도 닿지 않는다. 랭커 구축이 균형 랜덤 파티보다 세기 때문이다. 램프 하나로 시작하면 1층 돌파는 약 0.73^4 × 0.67 ≈ 19%라, 사용자가 램프 둘로 시작을 골랐다: 1층에서 실수 한 번까지 되어 약 46%(0.73^4 × 0.67에 한 번 진 경우를 더함).
-- 운영 한 주 뒤 실제 1층 돌파율을 보고 계단을 다시 맞춘다.
-- 한 판의 세트 채우기와 상대 만들기가 배틀 함수의 요청 시간에 들어가는지 본다(4장의 1초 기준).
-- 매칭이 실패한 구축 수와 이유(14.4)를 적는다.
+- Inter-band differences sit within ±7 to 10%p noise (1-30 even scored slightly weaker, likely because high-rank builds require tighter piloting than the AI manages), so rank bands do not scale difficulty.
+- Human strength tracks close to the full computer: live match-1 human win rate against 폴리곤 was 71%, vs ~72% for the full computer against 폴리곤 on equal teams (Chapter 4).
+- Resulting `STREAK_STEPS`: Floor 1 `tower0`, Floor 2 `tower1`, Floor 3 폴리곤, Floor 4 폴리곤2, Floor 5+ 폴리곤Z, with gatekeepers and tough doors one step up. The two tower-only presets change options only, not AI logic.
+- Even at the weakest AI preset, ranker teams outperform balanced random teams enough that 90% per match is unreachable. Starting at 1 lamp gave ~19% Floor 1 clear rate (`0.73^4 * 0.67`), so the user chose 2 starting lamps: ~46% Floor 1 clear rate (allowing one loss on Floor 1).
+- Re-tune after one week of live Floor 1 clear rates, verify per-match team generation stays inside the 1-second request budget (Chapter 4), and log skipped ranker builds (14.4).
 
-### 14.7 화면
+### 14.7 Screens
 
-- 문: 상대 여섯의 그림마다 밑에 타입 눈금이 선다(2026-11-16 시안 A).
-- 드래프트: 후보 카드에 레벨 50 실수치 여섯 막대가 선다(시안 B).
-- 교환: 고른 줄의 두 세트가 시트를 열지 않고 표 위에 나란히 선다. 상대 실수치는 모르므로 두 쪽 모두 종족의 레벨 50 수치로 비교한다(시안 A).
+- Doors display type ticks below each of the six opponent sprites (2026-11-16 mockup A).
+- Draft candidate cards show six level-50 actual stat bars (mockup B).
+- Swaps show both selected sets side by side above the table without opening a sheet, comparing base level-50 stats since opponent EVs are hidden (mockup A).
+- `RunHearts` (called `RunLamps` until 2026-11-24) draws two hearts at the end of the match title row.
+- Doors drop type chips and show build season and rank. Tough door drops `램프 +1` and keeps `교환 승급`. Closed gatekeeper door stays unchanged.
+- Between-match and loss review display the build's season and rank.
+- Update `DESIGN.md` "Battle" and "Composing a screen" first, keep zero explanatory copy (rule 22), and verify at 390 px and 1440 px in both themes.
 
-- 하트: 판의 이름 줄 끝의 하트(`RunHearts`, 2026-11-24까지 `RunLamps`의 램프)는 둘을 그린다.
-- 문: 타입 칩이 빠지고, 구축의 시즌과 순위가 선다. 강한 문의 보상 표시는 `램프 +1`이 빠지고 `교환 승급`만 남는다. 수문장의 닫힌 문은 그대로다.
-- 판 사이와 진 판의 복기에 그 판의 구축의 시즌과 순위가 선다.
-- DESIGN.md "Battle"(The run's hearts, 그때는 lamps, The doors)과 "Composing a screen"을 먼저 고친 뒤 화면을 고친다. 설명하는 문장은 두지 않는다(22). 390과 1440, 두 테마에서 확인한다.
+### 14.8 Follow-ups
 
-### 14.8 남은 것
+- User to contact Battle Database operator (X `@pokedb_tokyo`) for permission to use per-Pokémon in-game stats (moves, natures, spreads), then plug them into 14.4.
+- Noonparty Naver blog (`1209sung`) blocks automated fetching; cross-check Korean sample sets in-browser later.
+- Fetch `s8` once M-8 ends (2026-12-02) to expand the ranker pool.
 
-- 배틀 데이터베이스 운영자(X @pokedb_tokyo)에게 포켓몬별 게임 안 통계(기술, 성격, 배분)를 쓸 수 있는지 묻는 것은 사용자가 한다. 허락이 오면 14.4의 세트 고르기를 그 통계로 바꾼다.
-- 눈파티 블로그(네이버 블로그 1209sung)는 자동으로 읽지 못했다(네이버가 막음). 앱 안의 브라우저로 열어 한국 샘플과 우리 세트를 맞대어 보는 것은 나중의 확인으로 둔다.
-- M-8이 끝나면(2026-12-02) s8을 받아 구축을 늘린다.
+### 14.9 Implementation discretion
 
-### 14.9 만드는 사람에게 맡기는 것
+- Whether to generate the item map from PokeAPI or maintain it manually, and whether to patch moves or drop builds when no item-matching set exists.
+- How to track seen builds in a run (preferring `offer`).
+- Exact placement and sizing of season/rank labels within `DESIGN.md`.
+- Keeping benchmark scripts in scratch vs repo, following `BATTLE_COMPUTER.md` convention.
 
-- 도구 이름 표를 PokeAPI에서 받을지 손으로 둘지, 맞는 세트가 없을 때 기술을 바꿀지 그 구축을 뺄지.
-- 한 도전에서 나온 구축을 기억하는 방법(`offer` 안이 먼저).
-- 시즌과 순위를 보이는 정확한 자리와 크기(DESIGN.md 안에서).
-- 측정 스크립트의 형태(저장소에 남길지 스크래치에 둘지는 BATTLE_COMPUTER.md의 관례를 따른다).
+## 15. Role-built random opponent teams (2026-11-11)
 
-## 15. 상대는 역할로 짠 랜덤 구축으로 (2026-11-11)
+User feedback: "도전의 탑에 랭커 파티가 그대로 등장하는 방식은 진부하고 다양성이 떨어짐", "랭커 파티들의 특징을 분석하여 포켓몬의 핵심 역할(스위퍼, 탱커, 서포터 등)과 시너지 조합을 역산", "진정한 '랜덤 배틀'의 재미를 살릴 것", "여러 가지 서로 다른 파티 빌딩 알고리즘", "특정 포켓몬이나 특정 파티 조합이 빈번하게 반복되어 나오는 현상을 엄격히 방지", and "최대한 다양한 포켓몬이 각자의 역할군에 맞춰 고루 기용". Replaces Chapter 14's verbatim ranker teams (14.2 A): ranker builds now serve as structural templates rather than literal opponents.
 
-사용자: "도전의 탑에 랭커 파티가 그대로 등장하는 방식은 진부하고 다양성이 떨어짐", "랭커 파티들의 특징을 분석하여 포켓몬의 핵심 역할(스위퍼, 탱커, 서포터 등)과 시너지 조합을 역산", "진정한 '랜덤 배틀'의 재미를 살릴 것", "여러 가지 서로 다른 파티 빌딩 알고리즘", "특정 포켓몬이나 특정 파티 조합이 빈번하게 반복되어 나오는 현상을 엄격히 방지", "최대한 다양한 포켓몬이 각자의 역할군에 맞춰 고루 기용". 14장의 상대(랭커 구축 통째로, 14.2의 A)를 바꾼다. 랭커 구축은 이제 상대 그 자체가 아니라 짜는 법의 교본이다.
+### 15.1 Goals and non-goals
 
-### 15.1 목표와 하지 않는 것
+- Goal: generate a fresh role-synergized opponent team every match (aces, walls, support) modeled on real ranker structures, core pairs, and archetypes, drawing from the full random pool (269 species, 1318 m-c singles sets after bans, user choice).
+- Diversity: no single species or combo dominates. Species draw uniformly within roles (never skewed by set count or usage), and species already seen in a run rarely repeat.
+- Non-goals: player side (134-species ranker draft pool, swaps, tiers), regular CPU/casual `randomTeam`, and `battleCpu.js` stay unchanged.
+- Failure modes: incoherent teams (no ace or six walls), recurring species across matches, large power swings across builders, or Floor 1 clear rate drifting far from 14.6's ~46% target.
 
-- 목표: 상대 파티가 판마다 새로 짠 구축이다. 역할이 맞물리고(에이스, 받이, 보조), 랭커가 실제로 짜는 모양(틀, 핵심 짝, 유형)을 닮는다. 재료는 랜덤 풀 전체(m-c 싱글, 금지 목록을 뺀 269종 1318세트, 사용자가 고름)다.
-- 다양성(핵심): 한 종이나 한 조합이 자주 나오지 않는다. 역할 안에서 종은 고르게 뽑히고(세트 수나 사용률로 기울지 않는다), 한 도전 안에서 이미 본 종은 거의 다시 나오지 않는다.
-- 하지 않는 것: 내 쪽(드래프트 후보는 랭커 풀 134종, 교환, 급)은 그대로다. 일반 컴퓨터 배틀과 친선의 랜덤 파티(`randomTeam`)도 그대로다. 컴퓨터가 고르는 방법(`battleCpu.js`)은 바꾸지 않는다.
-- 실패로 보는 것: 역할이 엉킨 파티(에이스 없음, 받이만 여섯), 같은 종이 판마다 보이는 것, 빌더에 따라 세기가 크게 흔들리는 것, 1층 돌파율이 14.6의 목표(약 46%)에서 크게 벗어나는 것.
+### 15.2 Approaches
 
-### 15.2 고른 길 (Approaches)
-
-| 생각한 안 | 무엇을 내주는가 | 고른 것 |
+| Option | Tradeoff | Decision |
 |---|---|---|
-| A 서로 다르게 짜는 빌더 넷을 판마다 무작위로 | 코드가 가장 많다 | **A**(사용자). 요구한 "여러 알고리즘"과 "무작위로 선택" 그대로다 |
-| B 점수 하나(타입 보완, 역할 필요)로 조립하고 판마다 비중만 바꿈 | 코드는 적지만 사실상 알고리즘 하나 | 요구("단일 결론을 내지 말 것")에 맞지 않는다 |
-| C 랭커 구축의 동반 확률로 한 마리씩 이어 뽑기 | 자연스럽지만 손잡이가 없고 같은 흐름에 빠지기 쉽다 | A의 빌더 ②가 그 생각을 핵심 짝에만 쓴다 |
+| A Four distinct builders chosen uniformly per match | Most code | Chosen (user): matches the request for multiple randomly selected algorithms |
+| B One composite score (type synergy, role need) with randomized weights | Less code, effectively one algorithm | Rejected: fails "단일 결론을 내지 말 것" |
+| C Chain-sampling by ranker co-occurrence | Natural, lacks knobs, falls into loops | Reused only for core pairs inside Builder 2 |
 
-풀(사용자): 랭커 134종이 아니라 랜덤 풀 전체 269종. 실전 메타와는 조금 멀어지지만 다양성이 가장 크다.
+Pool choice (user): full 269-species random pool instead of 134 ranker species for maximum variety, accepting slight distance from strict ladder meta.
 
-### 15.3 역할
+### 15.3 Roles
 
-세트(기술, 특성, 도구, 배분, 성격)에서 정한다. 한 세트는 주역할 하나와 꼬리표 여럿을 가진다(`supabase/functions/battle/towerBuild.mjs` `roleOf`, 엔진 쪽 Dex를 읽는다).
+Derived from each set (moves, ability, item, EVs, nature) via `roleOf` in `supabase/functions/battle/towerBuild.mjs` using engine Dex data. Every set gets one primary role and zero or more tags:
 
-- 주역할: `setup`(능력을 올리는 기술로 싸우는 에이스: 칼춤, 나쁜음모, 용의춤, 명상, 나비춤, 벌크업, 껍질깨기 등), `physical`, `special`(공격 기술이 셋 이상, 물리와 특수는 공격 기술과 배분으로), `bulky`(회복 기술이나 HP, 방어 배분이 크고 공격 기술이 둘 이하), `support`(그 밖: 깔기, 상태이상, 벽, 순회가 중심).
-- 꼬리표: `pivot`(유턴, 볼트체인지, 퀵턴, 막말내뱉기 등), `hazard`(스텔스록, 압정뿌리기, 독압정, 끈적끈적네트), `removal`(고속스핀, 안개제거), `weather:sun|rain|sand|snow`(날씨 특성이나 날씨 기술), `abuser:<날씨>`(엽록소, 쓱쓱, 모래헤치기, 눈치우기 등), `room`(트릭룸), `slow`(스피드 종족값 50 이하), `scarf`, `mega`, `priority`.
-- 정한 값의 경계(몇 개부터 공격 기술 셋인가 등)는 만드는 사람이 정하되, 1318세트의 주역할 분포를 출력해 한쪽이 비지 않는지 본다.
+- Primary roles: `setup` (boosting sweepers with 칼춤, 나쁜음모, 용의춤, 명상, 나비춤, 벌크업, 껍질깨기, etc.), `physical` and `special` (3+ attacking moves split by attack types and EVs), `bulky` (recovery or heavy HP/defensive investment with <=2 attacks), and `support` (hazards, status, screens, pivoting).
+- Tags: `pivot` (유턴, 볼트체인지, 퀵턴, 막말내뱉기, etc.), `hazard` (스텔스록, 압정뿌리기, 독압정, 끈적끈적네트), `removal` (고속스핀, 안개제거), `weather:sun|rain|sand|snow` (weather ability or move), `abuser:<weather>` (엽록소, 쓱쓱, 모래헤치기, 눈치우기, etc.), `room` (트릭룸), `slow` (base Speed <=50), `scarf`, `mega`, `priority`.
+- Exact thresholds are left to implementation, checking role distribution across all 1318 sets to ensure no bucket is empty.
 
-### 15.4 랭커 구축에서 배우는 것
+### 15.4 Patterns learned from ranker teams
 
-`ranker-teams.json`의 433구축을 모듈을 읽을 때 한 번 역할로 옮긴다(데이터 파일을 새로 두지 않는다): 각 포켓몬에 14.4의 길(`setFor`, 그 도구를 든 세트)로 세트를 붙이고 `roleOf`로 읽는다.
-- 틀: 구축마다 주역할 여섯의 모양(예: setup, physical, special, bulky, bulky, support)과 꼬리표 요구(깔기가 있었는가, 순회가 몇인가).
-- 핵심 짝: 한 구축 안 두 포켓몬의 (주역할, 타입) 짝을 센 표.
-- 유형: 구축마다 하나. 날씨(날씨 꼬리표), 트릭룸(room), 공격(setup, physical, special이 넷 이상), 받이(bulky가 셋 이상), 그 밖은 균형. 유형마다 몇 구축인지도 센다.
+On module load (no extra data file), all 433 builds in `ranker-teams.json` are mapped to roles via 14.4 `setFor` and `roleOf`:
+- Templates: each build's six primary roles (e.g., `setup, physical, special, bulky, bulky, support`) plus tag counts (hazards, pivots).
+- Core pairs: frequency table of `(primaryRole, type)` pairs occurring together in a team.
+- Archetypes: one per build: weather (weather tag), trick room (`room`), offense (4+ of `setup`/`physical`/`special`), stall/bulk (3+ `bulky`), or balance otherwise, with counts per archetype.
 
-### 15.5 빌더 넷 (`towerBuild.mjs`)
+### 15.5 Four builders (`towerBuild.mjs`)
 
-판마다 넷 가운데 하나를 같은 확률로 고른다. 모두 같은 끝맺음(15.6)을 거친다.
+Each match picks one of the four at equal odds, followed by shared post-processing (15.6):
 
-1. 틀 채우기: 랭커 틀 하나를 같은 확률로 고르고, 칸마다 그 주역할의 종을 뽑는다. 틀의 꼬리표 요구(깔기, 순회)는 칸을 채울 때 그 꼬리표를 가진 종을 먼저 본다.
-2. 핵심 짝부터: 핵심 짝 표에서 짝 하나를 센 수의 제곱근 무게로 고르고(많이 나온 짝이 독차지하지 않게) 두 칸을 그 (주역할, 타입)으로 채운다. 남은 넷은 지금 파티의 약점 타입(둘 이상이 약점인 공격 타입)을 받는 종을 먼저, 깔기와 에이스가 없으면 그것을 먼저 채운다.
-3. 에이스 중심: setup, physical, special 가운데 하나를 에이스로 뽑고(메가가 될 수 있다), 에이스의 약점 타입을 반감 이하로 받는 종 둘, 깔기나 순회 하나, 나머지는 주역할이 겹치지 않게 채운다.
-4. 유형: 유형 하나를 고르고(구축 수의 제곱근 무게, 다만 어느 유형도 10% 아래로 내려가지 않게) 그 유형의 몫을 채운다. 날씨: 그 날씨의 setter 하나와 abuser 둘 이상. 트릭룸: room 하나와 slow 공격 셋. 공격: 공격 주역할 넷 이상과 깔기 하나. 받이: bulky 셋과 removal이나 hazard. 균형: 공격 셋, bulky 둘, support 하나. 몫을 채울 종이 모자라면 남은 칸은 빌더 3처럼 채운다.
+1. Template fill: pick a ranker template uniformly and fill each slot from species matching that primary role, prioritizing required tags (hazard, pivot).
+2. Core pair first: pick a `(role, type)` pair weighted by square-root frequency (preventing top pairs from dominating), fill two slots, then fill the remaining four prioritizing resists to team weaknesses (2+ weak to an attack type), missing hazards, and missing aces.
+3. Ace-centered: pick one `setup`, `physical`, or `special` ace (may be Mega), add two Pokémon resisting the ace's weaknesses, one hazard or pivot user, and fill the rest with non-overlapping primary roles.
+4. Archetype: pick an archetype by square-root frequency (floored at 10% each) and fill its quota: weather (1 setter + >=2 abusers), trick room (1 `room` + 3 `slow` attackers), offense (4+ attackers + 1 hazard), bulk (3 `bulky` + `removal` or `hazard`), balance (3 attackers + 2 `bulky` + 1 `support`), falling back to Builder 3 if candidates run dry.
 
-"종을 뽑는다"는 언제나 같다: 그 조건을 채우는 종 가운데 종마다 같은 무게(세트가 많은 종이 더 나오지 않는다), 그 종의 조건을 채우는 세트 가운데서는 세트의 무게대로.
+Species sampling is uniform per matching species (preventing multi-set species from appearing more often), then weighted by set weight among that species' matching sets.
 
-### 15.6 끝맺음과 편중 막기
+### 15.6 Post-processing and anti-bias
 
-- 지금의 규칙 그대로: 한 종(기본 종)은 하나, 메가는 하나까지, 같은 도구 둘 금지(세트의 다음 도구로), 금지 목록, 검증기(`validateTeam`).
-- 세기: 여섯 몫의 합(`partyBalance.js` `ratingOf`)이 보통 파티(`PLAN`)의 목표에서 `BAND` 안에 들 때까지 같은 빌더로 다시 짠다(최대 40번, 못 들면 가장 가까운 것). 그래서 어느 빌더가 뽑혀도 세기가 같고, 층의 세기는 지금처럼 컴퓨터의 계단(`STREAK_STEPS`)이 맡는다. 문의 종류(보통, 강한, 수문장)는 계단만 바꾼다. 수문장도 `PLAN`이다(`MASTER_PLAN`은 쓰지 않는다, 14.6과 같이 세기는 계단이 맡는다). 날씨, 트릭룸, 받이 유형이 `BAND`에 잘 들지 않으면 처음 잰 값을 보고 다시 짜는 횟수를 늘린다(내 판단, 15.7의 빌더 사이 0.1을 지키는 쪽으로).
-- 한 도전 안의 기억: `seen`(지금까지 문에 보인 종, 최근 36까지)을 둔다. 판마다 그 종들의 무게는 0.05배다. 판을 열 때 `streak_open_battle`이 `offer`를 비우므로(`streak_runs.sql` 135행), seen은 문을 고를 때(`streakNext`) `offer`에서 읽어 그 판의 컴퓨터 기억(`StreakMemory`)으로 옮기고, 판이 끝나면(`streakAfter`) 기억의 seen에 새 문의 종을 더해 `p_offer`에 싣는다. SQL은 바꾸지 않는다. 보인 것만 센다: 문의 여섯은 세고, 닫힌 수문장 문과 문 없이 뽑힌 판의 상대는 판이 끝난 뒤 그 판의 상대 여섯을 더한다. 드래프트 직후 첫 판에는 seen이 비어 있다.
-- 오늘의 탑: 지금처럼 그날의 열쇠로 뽑는다(`drawFor`). 빌더 고르기도 같은 수열에서 뽑는다. seen은 쓰지 않는다(사용자): 그날 같은 자리의 모두가 같은 문을 본다는 13장의 약속이 먼저이고, 하루 한 번의 도전에서 반복은 빌더 넷과 종의 고른 무게가 막는다.
-- 교환의 급(사용자): 상대가 랭커 풀 밖의 종(약 135종)을 가질 수 있다. 이 종은 지금 `swapTier`가 모두 가운데 급으로 읽어 같은 급끼리의 규칙이 무너진다. 그래서 풀 밖의 종은 잰 몫(`ratingOf`)으로 134종 급의 경계(급마다 가장 낮은 몫)에 끼워 넣는다. 134종의 급과 드래프트는 그대로다. `streak.js`가 화면과 함께 읽으므로 몫의 표(`species-power.json`)는 이미 `partyBalance.js`가 들인 것을 쓴다.
-- 교환과 메가: 상대가 메가를 가질 수 있으므로 `swapParty`는 메가가 둘이 되는 교환을 "mega"로 거절한다(드래프트의 규칙과 같다).
-- 만드는 법(내 판단): `setFor`, `towerPool`은 `towerBuild.mjs`로 옮겨 순환 가져오기를 피한다. 랭커에서 배우기는 처음 상대를 짤 때 한 번(게으르게) 하고, 검증기는 끝맺음에서 한 파티에 한 번만 부른다(15.7의 50 ms).
-- 문의 시즌과 순위: 상대가 랭커 구축이 아니므로 `season`, `rank`, `foeRank`와 순위대(`RANK_BANDS`, `bandOf`)는 없앤다(화면은 이미 보이지 않는다, bbd3f96). 예전 도전의 `offer`에 남은 `foe`는 읽지 않을 뿐 해가 없다.
+- Existing legality rules stay intact: unique base species, at most one Mega, no duplicate items (falling back to next item), ban list, and `validateTeam`.
+- Power parity: rebuild with the same builder until the six-rating sum (`partyBalance.js` `ratingOf`) lands inside `BAND` of `PLAN` (up to 40 tries, keeping closest). Every builder outputs equal strength; AI steps (`STREAK_STEPS`) handle floor and door difficulty, including gatekeepers (no `MASTER_PLAN`, matching 14.6). Increase retry cap if weather, room, or bulk struggles to stay within 0.1 across builders (15.7).
+- Within-run memory: `seen` tracks up to the last 36 species shown on doors, weighting them at 0.05x. Because `streak_open_battle` clears `offer` (`streak_runs.sql` line 135), `streakNext` copies `seen` from `offer` into `StreakMemory`, and `streakAfter` appends newly shown door species when writing `p_offer`, requiring zero SQL changes. Closed gatekeeper doors and doorless matches append the opponent's six after the match ends; match 1 after draft starts with empty `seen`.
+- Daily Tower draws builders and teams from the daily seeded RNG (`drawFor`) without `seen` (user choice) to keep Chapter 13's identical-door guarantee; four builders plus uniform species weights already prevent repeats inside a single daily run.
+- Swap tiers for off-ranker species (user): opponents now carry ~135 species outside the 134-species ranker pool, which `swapTier` previously defaulted to mid-tier. Map off-pool species by inserting their `ratingOf` into the 134-species tier cutoffs (lowest rating per tier), leaving draft and ranker tiers untouched and reusing `partyBalance.js`'s loaded `species-power.json`.
+- Mega swap guard: `swapParty` rejects swaps creating two Megas with `"mega"`, matching draft rules.
+- Implementation detail: move `setFor` and `towerPool` into `towerBuild.mjs` to avoid circular imports, lazily learn ranker patterns on first opponent build, and run `validateTeam` once per finished team to stay under 50 ms (15.7).
+- Remove `season`, `rank`, `foeRank`, `RANK_BANDS`, and `bandOf` since opponents are no longer ranker teams (already hidden in UI per `bbd3f96`). Stale `foe` metadata in old `offer` rows is harmlessly ignored.
 
-### 15.7 측정
+### 15.7 Benchmarks
 
-- 다양성(`tests/towerBuild.test.mjs`, 고정 씨앗): 파티 10000개(빌더마다 2500)를 짜서 잰다.
-  - 풀의 269종 가운데 한 번이라도 나온 종이 250종 이상.
-  - 가장 많이 나온 종의 횟수가 종 평균의 4배 이하.
-  - 여섯 종이 모두 같은 파티가 두 번 나오는 쌍의 비율 0.1% 이하.
-  - 빌더마다 몫의 합 평균이 서로 0.1 안.
-  - seen을 이어 받는 한 도전 흉내(문 둘씩 20판)에서 같은 종이 다시 보인 횟수가 판당 0.5 이하.
-  - 모든 파티가 검증기를 통과한다.
-  - 숫자는 처음 잰 값을 보고 만드는 사람이 조이되, 느슨하게 풀지는 않는다.
-  - 잰 것(2026-11-11): 테스트는 실행 시간 때문에 파티 4000개(빌더마다 1000, 약 23초)로 잰다(내 판단). 2000개 탐색에서 269종 모두 나왔고, 가장 많이 나온 종이 평균의 3.2배(Houndstone, Empoleon, Tyranitar 같은 깔기와 타입 받이), 같은 여섯은 0쌍, 빌더별 몫의 합 평균 -0.002에서 0.009, 한 파티 평균 6 ms(가장 느린 것도 50 ms 아래). 그래서 테스트의 상한은 평균의 3.5배로 조였다. seen은 한 도전(40판)에서 다시 보인 종을 판당 1.71에서 0.13으로 줄인다. 랭커 433구축 가운데 310개가 틀이 되었다(나머지는 풀의 세트로 그 도구를 들 수 없는 종이 있다). 유형의 몫은 날씨와 공격이 각 약 38%, 트릭룸, 받이, 균형이 각 10%(하한)다.
-  - 깔기: 랭커 구축이 깔기를 가진 몫만큼만 상대도 깔기를 찾는다. 처음에는 모든 상대가 깔기를 하나씩 찾아 깔기 종이 몰렸다.
-  - 세트 정리 뒤(2026-11-18, docs/SAMPLE_SETS.md 5장): 종마다 빌드가 대개 하나가 되어 역할과 꼬리표를 가진 종이 줄었다(세트 1318개에서 약 280개, support 16, removal 4종). 좁은 요구(구멍을 받는 support, removal)가 같은 몇 종만 뽑아, 가장 많이 나온 종이 평균의 6.7배(Empoleon)가 되었다. 그래서 `addAny`에서 다음 요구가 남아 있으면 12종(`FEW`) 미만만 채우는 요구는 다음으로 넘긴다. 2000개 탐색에서 FEW 1은 6.7배, 6은 3.7배, 12는 3.2배(Hippowdon, Tyranitar, Houndstone 같은 깔기 종)로 정리 전과 같다. 테스트는 그대로 통과한다(상한 3.5배는 풀지 않았다). 주역할 수 테스트의 하한만 세트 수에 맞춰 50에서 10으로 낮췄다.
-- 세기: 14.6과 같은 방법(드래프트 파티를 온전한 컴퓨터가, 새 상대를 각 단계가, 자리를 바꿔 두 판씩, 단계마다 500판)으로 다시 잰다. 1층 돌파율 약 46%(14.6의 셈)에 가깝게 `STREAK_STEPS`의 단계 옵션만 고친다. 잰 표는 14.6 아래에 더한다.
-- 시간: 상대 하나 짜기가 배틀 함수의 요청에서 50 ms 안(4장의 1초 기준 가운데 작은 몫).
+Diversity (`tests/towerBuild.test.mjs`, fixed seed) targets across 10,000 teams (2500 per builder):
+- At least 250 of 269 pool species appear.
+- Most frequent species appears <=4x the species mean.
+- Exact 6-species duplicate pair rate <=0.1%.
+- Mean rating sums across builders stay within 0.1 of each other.
+- Simulated 20-match run (2 doors each) with `seen` averages <=0.5 repeated species per match.
+- 100% pass `validateTeam`.
+- Tighten thresholds after initial measurement; never loosen.
 
-**잰 세기**(2026-11-11, 이 PC, 한 수 100 ms, 14.6과 같은 방법: 드래프트 후보에서 무작위로 고른 파티를 온전한 컴퓨터가, 15장의 상대를 각 단계가, 같은 두 파티를 자리를 바꿔 두 판씩, 단계마다 500판):
+Observed results (2026-11-11): test suite runs 4000 teams (1000/builder, ~23 s) for CI speed. A 2000-team sweep hit all 269 species, max frequency 3.2x mean (Houndstone, Empoleon, Tyranitar as hazard/type-resist fillers), 0 duplicate sixes, builder rating means from -0.002 to 0.009, and 6 ms mean build time (<50 ms max). Tightened test cap to 3.5x mean. `seen` cut repeat sightings over a 40-match run from 1.71 to 0.13 per match. 310 of 433 ranker builds produced valid templates (others had species lacking a matching-item set). Archetype shares landed at ~38% each for weather and offense and 10% floor each for room, bulk, and balance.
+- Hazards: only request hazards at the same rate ranker builds run them, fixing initial clustering on hazard setters.
+- After set curation (2026-11-18, `docs/SAMPLE_SETS.md` Section 5): trimming 1318 sets to ~280 left narrow buckets (`support` 16, `removal` 4), spiking max species frequency to 6.7x (Empoleon). Skipping any requirement matched by fewer than 12 species (`FEW`) in `addAny` when later requirements exist brought 2000-team max frequency from 6.7x (`FEW=1`) to 3.7x (`FEW=6`) and 3.2x (`FEW=12`, Hippowdon, Tyranitar, Houndstone), passing the unloosened 3.5x test cap. Lowered only the primary-role count floor from 50 to 10 to reflect fewer total sets.
 
-| 상대 쪽 컴퓨터 | 드래프트 쪽이 이긴 몫 | 14장(랭커 구축)에서 |
+Strength benchmark (2026-11-11, local PC, 100 ms/move, same setup as 14.6, 500 mirrored games per tier):
+
+| Opponent AI | Draft-side win rate | Chapter 14 (ranker teams) |
 |---|---|---|
-| tower0 | 84.0% ± 4.5 | 73% |
-| tower1 | 80.2% ± 4.9 | 67% |
+| `tower0` | 84.0% ± 4.5 | 73% |
+| `tower1` | 80.2% ± 4.9 | 67% |
 | 폴리곤 | 76.6% ± 5.2 | 60% |
 | 폴리곤2 | 67.8% ± 5.8 | 49% |
 | 폴리곤Z | 57.0% ± 6.1 | 37% |
 
-- 새 상대는 랭커 구축보다 약하다(같은 컴퓨터끼리 약 20%p). 세기를 몫의 합으로 맞춘 랜덤 파티라서다.
-- 계단(내 판단, 14.6의 셈): 옛 계단이면 1층 돌파가 약 73%(보통 84%, 수문장 80%, 램프 둘)라 목표 46%에서 너무 멀다. 그래서 탑만의 두 단계(tower0, tower1)를 빼고 1층 폴리곤(수문장 폴리곤2), 2층 폴리곤2(수문장 폴리곤Z), 3층부터 폴리곤Z로 한 칸씩 올렸다. 1층 돌파는 약 53%(0.766^4 × 0.678에 한 번 진 경우를 더함), 2층은 약 33%로 14장의 계단(46%, 약 33%)과 비슷하다.
-- 남는 것: 3층부터의 맨 위가 57%라 14장(37%)보다 쉽다. 컴퓨터가 고르는 방법을 바꾸지 않고는 더 센 단계가 없다. 위층을 더 어렵게 해야 하면, 수문장과 위층의 상대 몫의 목표를 `MASTER_PLAN`으로 올리는 것이 다음 손잡이다. 운영 한 주 뒤 실제 돌파율로 다시 맞춘다.
+- New opponents play roughly 20 percentage points weaker than ranker teams at equal AI because their rating sums match normal random teams.
+- Keeping the old ladder yielded ~73% Floor 1 clear rate (84% normal, 80% gatekeeper, 2 lamps), far above 46%. Dropping `tower0` and `tower1` and shifting up to Floor 1 폴리곤 (gatekeeper 폴리곤2), Floor 2 폴리곤2 (gatekeeper 폴리곤Z), Floor 3+ 폴리곤Z brings Floor 1 clear rate to ~53% and Floor 2 to ~33%, close to Chapter 14's 46% and ~33%.
+- Floor 3+ now caps at 57% vs 37% in Chapter 14 because no stronger AI tier exists; if upper floors prove too easy after one week live, raising upper-floor and gatekeeper targets to `MASTER_PLAN` is the next lever.
 
-### 15.8 바뀌는 곳
+### 15.8 Changed files
 
-- 새 `supabase/functions/battle/towerBuild.mjs`: `roleOf`, 랭커에서 배우기, 빌더 넷, `towerFoe(random, seen)`.
-- `streakEngine.mjs`: `foeTeam`이 `towerFoe`를 부른다. `streakDoors(wins, random, seen)`, `streakGame`의 문 없는 판도 같다. `shownDoors`에서 시즌과 순위가 빠진다.
-- `index.ts`: seen을 15.6의 길(문 고르기에서 기억으로, 판 끝에서 `p_offer`로)로 잇는다. `foeRank`와 `memory.foe`의 시즌, 순위를 없앤다. `npm run build:battle` 뒤 함수를 배포한다(사이트보다 먼저, SQL은 없음).
-- `streak.js`: `RANK_BANDS`, `bandOf` 삭제, `swapTier`의 풀 밖 종 급, `swapParty`의 메가 검사, 14장 머리 주석 고침. `battleService.js`: `foeRank` 삭제.
-- 테스트: `tests/streak.test.mjs`의 `bandOf`, `RANK_BANDS`, 랭커 `foeTeam` 기대를 새 상대로 바꾸고, `tests/towerBuild.test.mjs`를 더한다.
+- New `supabase/functions/battle/towerBuild.mjs`: `roleOf`, ranker pattern extraction, four builders, `towerFoe(random, seen)`.
+- `streakEngine.mjs`: `foeTeam`, `streakDoors(wins, random, seen)`, and doorless `streakGame` call `towerFoe`; drop season/rank from `shownDoors`.
+- `index.ts`: thread `seen` per 15.6 (door pick to memory, match end to `p_offer`), drop `foeRank` and `memory.foe` season/rank, rebuild (`npm run build:battle`) and deploy before the site (no SQL changes).
+- `streak.js`: delete `RANK_BANDS` and `bandOf`, add off-pool `swapTier` mapping and Mega check in `swapParty`, update header comment. `battleService.js`: delete `foeRank`.
+- Tests: update `tests/streak.test.mjs` expectations and add `tests/towerBuild.test.mjs`.
 
-### 15.9 만드는 사람에게 맡기는 것
+### 15.9 Implementation discretion
 
-- `roleOf`의 정확한 경계와 기술 목록(15.3).
-- 빌더 2, 3의 "약점을 받는 종" 셈의 세부(타입 상성표는 Dex에서).
-- 다양성 숫자의 최종 값(15.7, 조이는 쪽으로만).
+- Exact `roleOf` boundaries and move lists (15.3).
+- Type-resist scoring details in Builders 2 and 3 (using Dex type chart).
+- Final tightened diversity bounds (15.7).
 
-## 16. 통째 세트, 메가스톤 여럿, 한 칸씩 고르는 드래프트, 교환 표 (2026-11-18)
+## 16. Intact sets, multiple Mega Stones, one-slot draft, and trade table (2026-11-18)
 
-사용자: "메가진화를 하나만 허용하는 게 이해가 안 돼", "도구 중복 불가 때문에 의미 없어지는 샘플이 너무 많아", "배치는 같은 줄에 있는 포켓몬끼리 교환될 것처럼 보이는데, 막상 눌러보면 다른 경우가 많아", "뒤에 나올 슬롯은 미리 고르지 못하게 해줘. 그래야 더 긴장감 있을 것 같아". 사용자가 고른 것: 도구 중복 금지는 지키되 샘플은 통째로, 메가스톤은 여럿, 교환 표는 시안 A.
+User feedback: "메가진화를 하나만 허용하는 게 이해가 안 돼", "도구 중복 불가 때문에 의미 없어지는 샘플이 너무 많아", "배치는 같은 줄에 있는 포켓몬끼리 교환될 것처럼 보이는데, 막상 눌러보면 다른 경우가 많아", and "뒤에 나올 슬롯은 미리 고르지 못하게 해줘. 그래야 더 긴장감 있을 것 같아". User choices: keep Item Clause while keeping sets intact, allow multiple Mega Stones, and use mockup A for the trade table.
 
-**잰 것.** 실제 포켓몬 챔피언스 규칙(쇼다운 `Flat Rules`)에 도구 중복 금지(`Item Clause = 1`)가 있다. 메가진화 하나는 사이트가 덧붙인 규칙이었다: 엔진은 메가스톤을 여럿 들게 두고 한 판에 한 번만 진화시킨다(컴퓨터의 추리 `battleCpu.js`도 이미 그 상태를 읽는다). 겹친 도구는 그 세트의 다음 도구(종 전체의 래더 통계에서 온 예비 목록)로 넘어가, 기술과 맞지 않는 세트가 되었다. 교환은 드래프트 후 40판의 표본에서 내 포켓몬 하나가 받을 수 있는 상대가 0에서 5마리였고(15장의 상대는 급마다 하나가 아니다), 80번 가운데 52번에 도구가 겹쳐 막히는 짝이 있었다.
+Findings: real 포켓몬 챔피언스 rules (Showdown `Flat Rules`) enforce Item Clause (`Item Clause = 1`), whereas the one-Mega-Stone cap was a site invention; the engine allows multiple Mega Stones and enforces one Mega Evolution per battle (which `battleCpu.js` already tracks). Swapping duplicate items to fallback items from species-wide ladder stats broke set cohesion. In a 40-match post-draft sample, each player Pokémon had 0 to 5 legal swap targets (Chapter 15 opponents do not have one per tier), and 52 of 80 swaps hit an item collision.
 
-**규칙.**
-- 세트는 통째다. 세트의 도구는 그 세트가 맨 앞에 든 하나뿐이고(`engine.mjs` `itemOf`), 다른 도구를 넘겨받지 않는다. 그 도구가 이미 파티에 있으면 같은 종의 다른 세트 가운데 도구가 비는 것, 없으면 다음 종이다. 랜덤 파티(`drawInto`), 탑의 상대(`towerBuild.mjs` `add`), 드래프트가 모두 같다. 금지 도구(`STREAK_BAN`)가 맨 앞인 세트는 뽑히지 않는다.
-- 메가스톤은 여럿 들 수 있다(드래프트, 교환, 상대, 랜덤 파티).
-- 드래프트의 후보 열여덟은 서로 다른 도구를 든다(`draftOffer`). 그래서 무엇을 고르든 보인 세트 그대로 파티가 되고, 하나를 고른 것이 다른 칸을 바꾸지 않는다. 예전의 예비 도구(`items`)와 `SPARE_ITEMS`, 줄마다 메가가 아닌 자리 하나, 랭커가 그 종에 쥔 도구의 빈도(`HELD`)는 없앴다. 이미 열린 예전 드래프트는 `items`를 남겨 두었으므로 `draftParty`가 그대로 받는다.
-- 드래프트는 한 칸씩이다. 아직 닿지 않은 자리는 꺼져 있어 열 수 없고, 그 자리의 셋은 차례가 와야 보인다. 이미 고른 자리는 다시 열린다. 후보는 지금처럼 한 번에 서버에서 오므로 이것은 화면의 규칙이다(엿보기를 막는 보안이 아니다).
-- 교환에서 들어오는 포켓몬은 제 세트 그대로다. 남는 다섯 가운데 하나가 그 도구를 들면 "item"으로 거절한다(`swapParty`). 나가는 포켓몬이 그 도구를 들었으면 된다.
-- 이긴 판이 끝나면 배틀 함수는 상대 여섯(`beaten`)과 판이 시작될 때의 내 여섯(`own`, 열매를 먹기 전)을 통째로 보낸다. 끝난 판의 입력 기록은 원래 공개라(리플레이) 새로 새는 것이 없다. 화면은 같은 `swapParty`로 칸마다 된다, 안 된다를 미리 그린다(`Streak.jsx` `tradeRows`). 함수가 이보다 오래되면 종만으로 그린다.
+Rules:
+- Sets stay intact. Each set has only its primary item (`engine.mjs` `itemOf`) with no item substitution. On item collision, pick another set of the same species with a free item, or move to another species. Applies uniformly to `drawInto`, `towerBuild.mjs` `add`, and draft. Sets whose primary item is in `STREAK_BAN` are skipped.
+- Multiple Mega Stones are allowed everywhere (draft, swaps, opponents, random teams).
+- All 18 draft candidates hold 18 distinct items (`draftOffer`), so every pick enters the team exactly as displayed without mutating other slots. Removed legacy fallback `items`, `SPARE_ITEMS`, per-row non-Mega forcing, and `HELD` item frequencies. Existing open drafts keep `items` compatibility inside `draftParty`.
+- Draft unlocks one slot at a time: unreached slots stay locked and hidden until their turn, while already-picked slots can be reopened. All candidates still arrive from the server at once (UI pacing rule, not anti-peek security).
+- Swapped-in Pokémon keep their exact set. If any of the five remaining team members holds that item, `swapParty` rejects with `"item"`; swapping out the holder of that item is legal.
+- On victory, the battle function returns both full six-Pokémon teams (`beaten` and pre-battle `own` before berries are consumed; nothing new leaks since replays are public). The UI runs the exact same `swapParty` check to mark legal and blocked trades upfront (`Streak.jsx` `tradeRows`), falling back to species-only display against older functions.
 
-**화면.** DESIGN.md "Battle"의 The draft와 the trades: 내 포켓몬마다 한 줄, 오른쪽에 그 포켓몬과 바꿀 수 있는 상대 전부(셋 자리 이상, 남는 자리는 빈 패널), 못 바꾸는 내 포켓몬은 꺼지고, 도구가 겹치는 상대는 그 줄에 꺼진 채 이유가 한 번 누르면 나온다.
+Screens (`DESIGN.md` "Battle", The draft and the trades): one row per owned Pokémon with all eligible opponent targets to its right (at least three slots, empty panels filling gaps). Owned Pokémon with no legal swap dim out; item-blocked opponent slots dim in-row and explain why on click.
 
-**확인.** `tests/streak.test.mjs`(후보의 도구가 모두 다름, 고른 대로의 도구, 메가스톤 둘의 교환, 겹치는 도구의 거절과 그 도구를 든 포켓몬과의 교환), `tests/battleEngine.test.mjs`와 `tests/towerBuild.test.mjs`(파티의 모든 포켓몬이 제 세트를 통째로 든다). 상대의 종 편중(15.7의 3.5배 상한)은 이 규칙만으로 3.8배(파이어로)가 되었다: 흔한 도구(기합의띠 등)를 맨 앞에 든 세트가 막히면 남는 종으로 몰린다. 같은 날 샘플 세트를 종마다 한두 빌드로 정리하고(SAMPLE_SETS.md 5장) 좁은 요구를 12종 미만이면 다음 요구로 넘기게 한 뒤(`towerBuild.mjs` `FEW`, 15.7) 테스트를 통과한다. 드래프트는 2000번 뽑아 줄마다 셋을 모두 채웠다(기합의띠는 거의 모든 드래프트에 하나, 메가 후보는 평균 8.2). 교환 표는 실험실(실제 `SwapTable`, `tradeRows`)에서 390과 1440, 두 테마, 보통과 한 급 위 교환을 찍어 보았다. 실제 함수와 SQL 위의 도전은 배포 전에 `scripts/verify-streak-function.mjs`로 돌린다.
+Verification: `tests/streak.test.mjs` (18 distinct draft items, exact picked items, multi-Mega swaps, item-collision rejection and same-item replacement), `tests/battleEngine.test.mjs`, and `tests/towerBuild.test.mjs` (every team member uses an intact set). Opponent species max frequency briefly rose to 3.8x (파이어로) above the 3.5x cap because common items like 기합의띠 blocked sets; curating sets to 1-2 builds per species (`SAMPLE_SETS.md` Section 5) and adding `FEW = 12` (`towerBuild.mjs`, 15.7) brought it back under 3.5x. 2000 draft simulations filled all three candidates in every row (기합의띠 in nearly every draft, mean 8.2 Mega candidates). Trade table verified in the lab (`SwapTable`, `tradeRows`) at 390 px and 1440 px in both themes across normal and +1 swaps, with full-run harness verification (`scripts/verify-streak-function.mjs`) before deploy.
 
-## 17. 표가 아니라 놀이로: 드래프트, 판 사이, 문 (2026-11-18)
+## 17. Game-like draft, between-match beats, and doors (2026-11-18)
 
-사용자: "지금 배틀과 도전의 탑은 실제 게임처럼 느껴지지 않고 엑셀처럼 느껴져", 시안을 보고 "전부 B로 진행해줘", 문의 여섯 아래 타입 네모는 "상당히 무의미한 것 같아. 그냥 포켓몬 이미지만 넣어서 심플하게 해줘".
+User feedback: "지금 배틀과 도전의 탑은 실제 게임처럼 느껴지지 않고 엑셀처럼 느껴져", choosing "전부 B로 진행해줘" on mockups, and dropping type squares under door sprites ("상당히 무의미한 것 같아. 그냥 포켓몬 이미지만 넣어서 심플하게 해줘").
 
-**바뀐 것은 화면뿐이다.** 배틀 함수의 요청과 응답(`streakStart`, `streakDraft`, `streakNext`의 `swap`과 `door`), SQL, 컴퓨터는 그대로다. `scripts/verify-streak-function.mjs`가 그대로 통과한다.
+UI-only change: battle function requests/responses (`streakStart`, `streakDraft`, `streakNext` `swap` and `door`), SQL, and computer stay untouched, and `scripts/verify-streak-function.mjs` passes unchanged.
 
-**화면.** DESIGN.md "Battle"의 The draft, The doors, The break in three beats.
-- 드래프트: 단계의 셋이 빈 뒷면으로 서 있다가 그림이 준비되면 차례로 뒤집힌다. 고른 카드의 그림은 위의 자리로 날아가고 나머지 둘은 꺼진다. 다음 단계의 셋은 지금 단계가 뒤집힌 뒤 한가할 때 미리 읽는다.
-- 판 사이: 한 박자에 하나만 묻는다. 결과(승리나 패배, 연승, 층의 트랙과 램프, 진 판이면 상대 셋), 교환(이긴 판, 두 여섯을 알 때만), 다음 문(탭과 같이 다음 문 발치에서 올려다본 탑, 그 아래 문). 문의 키가 그 문으로 걸어 들어간다(`tower.js towerBreak`, 이어서 `towerShow`가 같은 탑에서). 서버가 거절한 교환은 교환 박자로 돌아가 그 칸이 꺼진다.
-- 문: 여섯은 그림만 선다(타입 눈금을 뺐다). 실루엣 안도 찍어 보였고, 그림만이 기본이다.
-- 도전이 끝난 판은 지금처럼 한 장면(올라온 층들과 이달의 셋)이다.
+Screens (`DESIGN.md` "Battle", The draft, The doors, The break in three beats):
+- Draft: each slot's three cards start face-down and flip in sequence once sprites finish loading. The chosen sprite flies to its top slot while the other two dim. Next slot's three sprites preload during idle time after the current flip.
+- Between-match asks one thing per beat: result (win/loss, streak, floor track and lamps, or opponent sets on loss), trade (on win when both full teams are present), and next doors (tower viewed from the base of the next door with doors below, walking into the chosen door via `tower.js towerBreak` and `towerShow`). Server-rejected trades return to the trade beat with that slot disabled.
+- Doors display sprites only without type ticks (silhouettes were mocked; plain sprites are default).
+- Run end stays one combined scene (climbed floors plus monthly top three).
 
-**확인(PGlite 하네스와 개발 서버, `ypl-dev-battle`).** 새 도전을 드래프트부터 돌려 이긴 판, 교환, 강한 문, 진 판(램프 하나 남음), 수문장의 문과 수문장을 이긴 뒤 2층 첫 문까지 1440과 390, 두 테마로 찍었다. 키보드만으로(카드, 교환 칸, 문, 키 모두 Enter) 그리고 움직임 줄이기에서 여섯 판을 끝까지 돌렸다. 휴대폰 속도(CPU 4배)의 프레임은 `docs/BATTLE_FRAMES.md`에 적었다. 하네스가 실제 배틀로 지게 한 판에서 결과 박자 안의 복기(진 상대 셋)도 보았다.
+Verification (PGlite harness + dev server `ypl-dev-battle`): captured full runs from draft through win, trade, tough door, loss (1 lamp left), gatekeeper door, and Floor 2 match 1 at 1440 px and 390 px in both themes. Completed a six-match run using keyboard only (Enter across cards, trade cells, doors, buttons) and under reduced motion. Mobile-speed frame metrics are logged in `docs/BATTLE_FRAMES.md`. Also verified loss review inside the result beat after a real harness loss.
 
-## 18. 등반전: 기간과 참가자가 있는 순위 (2026-11-19)
+## 18. Climbing cups with time windows and participants (2026-11-19)
 
-사용자: "정모 기간 순위 산출을 따로 했다는데 관련 기능을 구현할 수 있어? ... 이건 정모용입니다! 라고 하는 것보다는 다양한 곳에 활용될 수 있는 기능을 추가하고 그것을 정모에 활용하는 방향", "배틀의 방 만들기 기능처럼 누군가 방을 만들어서 정해진 규칙대로 도전의 탑 등반을 경쟁". 운영위(정모 이야기): "정모 기간 동안 서로 경쟁하는", "그냥 정모 기간동안 순위 따로 산출하기 + 실시간 전광판기능?", "누가 1위 경신하면 알림이 가도록". 제안한 계획에 사용자: "이대로 진행".
+User feedback: "정모 기간 순위 산출을 따로 했다는데 관련 기능을 구현할 수 있어? ... 이건 정모용입니다! 라고 하는 것보다는 다양한 곳에 활용될 수 있는 기능을 추가하고 그것을 정모에 활용하는 방향" and "배틀의 방 만들기 기능처럼 누군가 방을 만들어서 정해진 규칙대로 도전의 탑 등반을 경쟁". Committee notes on meetups: "정모 기간 동안 서로 경쟁하는", "그냥 정모 기간동안 순위 따로 산출하기 + 실시간 전광판기능?", "누가 1위 경신하면 알림이 가도록". Approved plan ("이대로 진행").
 
-### 18.1 한 줄
+### 18.1 Summary
 
-누구나(이름이 승인된 계정) 등반전을 연다: 이름, 시작과 마감 시각, 공개 또는 코드, 반영하는 도전 횟수. 들어간 사람이 그 기간에 시작한 평소 도전이 이번 달 순위와 등반전에 함께 반영된다. 정모는 등반전 하나를 여는 것이다.
+Any approved account can open a climbing cup (`등반전`) with a title, start and end times, public or code access, and a counted-run cap. Normal runs started by participants inside that window count toward both the monthly leaderboard and the cup. Running a meetup event simply means opening a cup.
 
-### 18.2 고른 길
+### 18.2 Approaches
 
-| 생각한 안 | 무엇을 내주는가 | 고른 것 |
+| Option | Tradeoff | Decision |
 |---|---|---|
-| A 등반전은 평소 도전을 세는 창(기간, 참가자) | 탑은 하나로 남고 배틀 함수를 건드리지 않는다. 같은 드래프트 같은 상대는 없다 | **A** |
-| B 등반전마다 따로 도는 도전(방 안의 도전) | 한 계정에 진행 중인 도전이 여럿, 배틀 함수와 화면이 갈린다. 정모의 도전이 이달 순위에 남지 않는다 | 버림 |
-| C 모두 같은 드래프트와 같은 시드 | 오늘의 탑(13장)과 같다. 여러 번 도전하면 외운다. 오늘 내렸다 | 버림 |
+| A Cup is a filtered window (time + participants) over normal runs | One tower, zero battle-function edits, no shared draft/seed | Chosen (A) |
+| B Separate per-cup runs | Multiple active runs per account, split engine and UI, meetup runs absent from monthly board | Dropped |
+| C Shared draft and seed for everyone | Same as retired Daily Tower (Chapter 13); memorizable over retries | Dropped |
 
-### 18.3 규칙
+### 18.3 Rules
 
-- **누가 연다**: 이름이 승인된 계정. 계정마다 끝나지 않은 등반전은 하나다. 사이트 전체 하루 50개까지. 연 사람은 저절로 참가자다.
-- **기간**: 시작과 마감 시각. 시작이 지금보다 앞이면 지금이다. 마감은 시작 뒤 31일 안이다.
-- **입장**: 공개(누구나, 목록에 선다) 또는 코드(숫자 4자리, 서버가 정한다. 목록에는 들어간 사람에게만 선다. 코드는 연 사람과 참가자에게 보인다). 링크로도 들어온다(`?view=battle&tab=streak&cup=<id>`).
-- **무엇을 세는가**: 참가자가 기간 안에 **시작한** 도전(오늘의 탑 제외). 들어가기 전에 시작한 도전, 시작 전에 시작한 도전은 세지 않는다. 마감 뒤에 이긴 판은 세지 않는다: 순위가 마감 시각에 그대로 굳는다.
-- **반영 횟수**: 무제한, 또는 처음 N번(1, 3). 짧은 정모에서 오래 한 사람이 이기는 것을 막는다. 0연승으로 끝난 도전도 한 번이다.
-- **순위**: 참가자마다 센 도전 가운데 최고 연승, 같으면 먼저 닿은 쪽이 위(이번 달 순위와 같다). 아직 이긴 판이 없는 참가자도 0연승으로 선다(정모에서는 누가 들어왔는지가 보여야 한다). 진행 중이면 앰버 램프, 누르면 관전.
-- **1위 경신 알림**: 2연승 이상으로 다른 참가자의 최고를 넘어서는 판이면 나머지 참가자에게 알린다(종류 `record`, 계정에 이어진 기기에만, 한 등반전의 같은 연승은 한 번). 마감 뒤에는 알리지 않는다.
-- **연 사람의 마감**: 연 사람은 지금 마감할 수 있다(시작 전이면 등반전이 지워진다).
-- **공식 기록과 섞지 않는다**: 5장과 같다.
+- Any approved account can create a cup, capped at one active cup per account and 50 site-wide per day. The host is automatically enrolled.
+- Start times earlier than now clamp to now; end time must fall within 31 days of start.
+- Access is either public (listed for everyone) or code-gated (server-assigned 4-digit code, listed only for joined members, visible to host and members). Direct links (`?view=battle&tab=streak&cup=<id>`) also work.
+- Counts normal runs (excluding Daily Tower) started by a joined participant inside the window. Runs started before joining or before cup start do not count, and wins after the deadline stop updating so final standings freeze at close.
+- Run limit is unlimited or first N runs (1 or 3) to prevent grinding during short meetups. A 0-win run still uses one attempt.
+- Ranks each participant by best counted streak, breaking ties by earliest reach (matching monthly rules). Participants with zero wins still appear at `0연승` so meetup rosters stay visible. Active runs show an amber lamp and open spectating.
+- New-leader alert: reaching >=2 wins and beating every other participant's best sends a `record` notification to all other participants (account-linked devices only, once per streak value per cup, never after close).
+- The host can close the cup early (deleting it if it has not started yet).
+- Isolated from official league records, same as Chapter 5.
 
-### 18.4 데이터 (`docs/db/tower_cups.sql`, 사용자가 실행)
+### 18.4 Data (`docs/db/tower_cups.sql`, operator-run)
 
-- `tower_cups`(id, title, host_user, host_name, starts_at, ends_at, room, code, run_limit, created_at), `tower_cup_players`(cup_id, auth_user_id, trainer_name, joined_at), `tower_cup_runs`(cup_id, run_id, auth_user_id, nth, wins, reached_at). 세 표 모두 방문자가 직접 읽거나 쓰지 못한다.
-- `streak_runs`의 두 트리거: 도전이 생기면(`tower_cup_enter`) 기간 안이고 참가자이고 횟수가 남은 등반전마다 줄을 만든다. 연승이 오르면(`tower_cup_climb`) 마감 전인 등반전의 그 줄을 올리고 1위 경신이면 알림을 넣는다. 둘 다 실패해도 도전을 막지 않는다(경고만 남긴다).
-- RPC: `tower_cup_create`, `tower_cup_join`, `tower_cup_close`(계정), `tower_cups`, `tower_cup_board`(누구나). 배틀 함수는 바꾸지 않는다. 순서는 SQL, 사이트다. SQL 전에는 화면이 등반전을 감춘다.
-- 확인: `node scripts/verify-tower-cups-db.mjs <pglite>`.
+- Three tables (`tower_cups`: id, title, host_user, host_name, starts_at, ends_at, room, code, run_limit, created_at; `tower_cup_players`: cup_id, auth_user_id, trainer_name, joined_at; `tower_cup_runs`: cup_id, run_id, auth_user_id, nth, wins, reached_at), all locked against direct visitor reads and writes.
+- Two triggers on `streak_runs`: `tower_cup_enter` inserts a cup-run row on new runs for each matching active cup with attempts remaining; `tower_cup_climb` updates wins before deadline and queues leader notifications. Both catch errors and log warnings so cup issues never block a run.
+- RPCs: `tower_cup_create`, `tower_cup_join`, `tower_cup_close` (authenticated), plus `tower_cups` and `tower_cup_board` (public). Battle function stays unchanged. Deploy order is SQL then site; UI hides cups until SQL is applied.
+- Verified with `node scripts/verify-tower-cups-db.mjs <pglite>`.
 
-### 18.5 화면
+### 18.5 Screens
 
-DESIGN.md "Battle" 도전의 탑의 **등반전**.
+Specified in `DESIGN.md` "Battle" under 도전의 탑 `등반전`.
 
-## 19. 샘플 단위의 급과 수문장다운 수문장 (2026-11-19)
+## 19. Per-set tiers and stronger gatekeepers (2026-11-19)
 
-사용자: "포켓몬 샘플에 큰 변화가 있었으니, 티어를 포켓몬 단위가 아니라 샘플 단위로 새로 측정하고, 수문장의 파티도 수문장답게 아주 강력한 구성으로 나오게 고쳐줘", "수문장의 파티가 수문장답지 않은 경우가 많아. 오히려 그 전의 파티가 훨씬 강해 보여", "리더인(배경이 흰색으로 표시되는) 포켓몬도 메가진화 포켓몬이 아니야".
+User feedback: "포켓몬 샘플에 큰 변화가 있었으니, 티어를 포켓몬 단위가 아니라 샘플 단위로 새로 측정하고, 수문장의 파티도 수문장답게 아주 강력한 구성으로 나오게 고쳐줘", "수문장의 파티가 수문장답지 않은 경우가 많아. 오히려 그 전의 파티가 훨씬 강해 보여", and "리더인(배경이 흰색으로 표시되는) 포켓몬도 메가진화 포켓몬이 아니야".
 
-**무엇이 잘못이었나.**
-- 급과 몫(`species-power.json`)은 2026-11-09에 종마다, 정리 전의 세트(1318개)로 잰 것이었다. 2026-11-18에 세트를 종마다 한두 빌드(310개)로 정리하고 배분을 바꾼 뒤에도 다시 재지 않았다(SAMPLE_SETS.md). 같은 종의 두 세트(예: 에이스번 생명의구슬과 구애스카프)는 늘 같은 급이었다.
-- 15장부터 수문장은 보통 상대와 같은 빌더, 같은 목표 몫(`PLAN`)으로 짜고 컴퓨터만 한 칸 위였다. 그래서 수문장 파티가 바로 앞 판의 파티보다 약한 일이 흔했다. 11장의 층마다 메가진화 수문장(`GATEKEEPERS`)도 15장에서 빠져, 첫 칸(선출 화면에서 뒤집혀 보이는 리더)은 빌더가 처음 넣은 아무 포켓몬이었다.
+Root causes:
+- Ratings and tiers (`species-power.json`) were still per-species from 2026-11-09 on pre-curation sets (1318 sets), never recomputed after 2026-11-18 trimmed sets to 310 curated builds (`SAMPLE_SETS.md`). Two sets of the same species (e.g., 에이스번 생명의구슬 vs 구애스카프) always shared one tier.
+- Since Chapter 15, gatekeepers used the same builders and `PLAN` rating target as normal opponents with only a one-step AI bump, often rolling weaker teams than the prior match. Fixed Mega gatekeepers (`GATEKEEPERS`) had also been removed in Chapter 15, leaving slot 1 (the inverted-background leader on team preview) as whichever Pokémon the builder picked first.
 
-**잰다**(`scripts/rate-species.mjs --play --draw sets`). 판마다 여섯을 종이 아니라 m-c 싱글의 샘플 세트 310개에서 고르게 뽑는다(한 종 하나, 같은 도구 둘 금지, 검증기). 판의 기록은 세트의 열쇠(`partyBalance.js` `setKey`: 종, 그 세트의 도구, 기술)다. 6018판(결정 난 판, 처음 422판은 한 수 100 ms, 나머지는 다른 세션의 벤치와 코어를 나눠 50 ms. 두 쪽이 같은 조건이라 세트끼리의 몫은 비교된다), 세트마다 평균 233번 뽑혔다. 자리 바꾼 두 판의 앞쪽 49.9% ± 1.4.
+Rating run (`scripts/rate-species.mjs --play --draw sets`): draw six uniformly from all 310 m-c singles sets (unique species, no duplicate items, validated) keyed by `partyBalance.js` `setKey` (species, item, moves). Across 6018 decided games (first 422 at 100 ms/move, rest at 50 ms sharing cores with another benchmark; symmetric conditions preserve relative ratings), each set averaged 233 appearances. First-seat win rate across mirrored pairs was 49.9% ± 1.4.
 
-**읽는 법(남겨 둔 판으로 고름).** 짝수 쌍 2986판으로 읽고 홀수 쌍 3032판을 맞혀 보았다(동전의 log loss 0.6931):
+Fitting method chosen via holdout (train on 2986 even pairs, score on 3032 odd pairs; coin-flip log loss 0.6931):
 
-| 읽는 법 | log loss | 맞힘 |
+| Method | Log loss | Accuracy |
 |---|---|---|
-| 세트마다, 예전처럼 0으로 당김(L2 2) | 0.7421 | 54.6% |
-| 종마다, 같은 판(L2 2) | 0.7367 | 53.7% |
-| 세트마다, 0으로 세게 당김(L2 50) | 0.6860 | 53.9% |
-| 종마다, 0으로 세게 당김(L2 50) | 0.6845 | 53.9% |
-| 예전 표(11장, 종마다) 그대로 | 0.6997 | 56.4% |
-| 예전 표의 절반 | 0.6822 | 56.4% |
-| **세트마다, 예전 종 몫의 절반 쪽으로 당김(L2 100에서 200)** | **0.6795** | **56.5%** |
+| Per-set, shrunk to 0 (L2 2) | 0.7421 | 54.6% |
+| Per-species, same games (L2 2) | 0.7367 | 53.7% |
+| Per-set, shrunk strongly to 0 (L2 50) | 0.6860 | 53.9% |
+| Per-species, shrunk strongly to 0 (L2 50) | 0.6845 | 53.9% |
+| Old table (Chapter 11, per-species) as-is | 0.6997 | 56.4% |
+| Half of old table | 0.6822 | 56.4% |
+| Per-set, shrunk toward half of old species rating (L2 100 to 200) | 0.6795 | 56.5% |
 
-- 3000판으로 몫 310개를 0에서부터 읽으면 동전보다 못하다. 세트와 종의 차이도 이 판 수에서는 잡음 안이다. 예전 8000판의 정보(종의 순서)는 여전히 맞지만 크기가 지나쳤다.
-- 그래서 세트의 몫을 그 종의 예전 몫의 절반 쪽으로 당겨 읽는다(`--fit --prior --prior-scale 0.5`, 판이 두 배라 `--lambda 200`). 새 세트가 다르게 놀면 그만큼 옮겨 가고, 판이 모자란 차이는 종의 몫이 메운다. 다시 잴 때는 그때의 종 몫(세트 평균)이 당기는 곳이 된다.
-- 표(`species-power.json`의 m-c 싱글): `sets`가 세트마다 몫, `rating`은 종마다 그 세트들의 평균(뽑힌 횟수로 가중), `fit`에 당김의 값. 더블은 그대로 종마다다(따로 재지 않았다).
+- Fitting 310 parameters from scratch on 3000 games underperforms a coin flip, and set-vs-species splits sit inside noise at that sample size. The old 8000-game species ordering remained accurate but over-scaled.
+- We therefore shrink each set toward half its prior species rating (`--fit --prior --prior-scale 0.5`, `--lambda 200` for the full 6018 games). Sets that perform differently move away from their prior, while low-sample gaps inherit species strength. Future re-fits will shrink toward the current weighted species mean.
+- In `species-power.json` (m-c singles), `sets` stores per-set ratings, `rating` stores appearance-weighted species means, and `fit` records shrinkage params. Doubles remains per-species (not re-run).
 
-**나눈다.**
-- 모든 랜덤 파티(`engine.mjs` `randomTeam`, 일반 컴퓨터 배틀과 친선 포함): 싱글 m-c는 급이 세트를 담는다. 같은 종의 두 세트가 다른 급에 설 수 있고, 몫의 합도 세트로 센다.
-- 탑의 급(`src/data/tower-tiers.json`, `rate-species.mjs --tiers`): 랭커 구축에 나온 134종의 세트 173개를 몫 순으로 같은 수씩 여섯. 열쇠는 세트의 열쇠다. `build-ranker-teams.mjs`는 이제 구축만 쓰고 끝에 `--tiers`를 따로 돌린다(한 프로세스는 처음 읽은 몫을 쥐고 있어서).
-- 드래프트의 줄(`draftOffer`)은 그 급의 세트들이다. 교환의 급(`swapTier`)은 파티의 한 마리(도구와 기술을 가진 세트)로 읽는다. 종 이름만 오면(세트를 보내지 않는 예전 함수) 그 종의 평균 몫으로 경계에 끼워 넣는다.
-- 결과: 173세트 가운데 71개(41%)가 예전 급(종마다)에서 옮겼고 10개는 두 급 이상이다. 21종은 두 세트가 다른 급에 선다(에이스번, 마스카나, 핫삼, 맘모꾸리, 루카리오 등). 크게 오른 것: 불카모스 자뭉열매 5급에서 2급, 에써르 구애스카프와 포푸니크 노말주얼 4급에서 2급, 이상해꽃과 아쿠스타 메가 5급에서 3급. 크게 내린 것: 미끄래곤(히스이)과 입치트 메가 1급에서 3급, 우츠보트와 이어롭 메가 2급에서 4급. 가운데 급(3급에서 5급)의 몫 차이는 0.1 안으로 잡음과 비슷하다: 위와 아래 급은 뚜렷하고, 가운데는 거의 같은 세기다.
+Tiering:
+- All m-c singles random teams (`engine.mjs` `randomTeam`, including regular CPU and casual) now bucket and sum by set, letting two sets of the same species occupy different tiers.
+- Tower tiers (`src/data/tower-tiers.json`, built by `rate-species.mjs --tiers`) split the 173 sets of the 134 ranker species into six equal-sized tiers keyed by `setKey`. `build-ranker-teams.mjs` now writes teams only and runs `--tiers` in a separate step so the new ratings reload cleanly.
+- `draftOffer` draws from per-set tier rows, and `swapTier` reads the full set (item + moves), falling back to species-mean rating cutoffs if an older function sends only species names.
+- Impact: 71 of 173 sets (41%) changed tier from species-level bucketing, 10 by two or more tiers, and 21 species split their two sets across tiers (에이스번, 마스카나, 핫삼, 맘모꾸리, 루카리오, etc.). Big risers: 불카모스 자뭉열매 (tier 5 to 2), 에써르 구애스카프 and 포푸니크 노말주얼 (4 to 2), 이상해꽃 and 아쿠스타 Mega (5 to 3). Big drops: 미끄래곤 (Hisui) and 입치트 Mega (1 to 3), 우츠보트 and 이어롭 Mega (2 to 4). Tiers 3 through 5 sit within ~0.1 rating of each other (near noise), making top and bottom tiers distinct while the middle band is closely matched.
 
-**수문장**(`towerBuild.mjs` `towerFoe(..., keeper)`, `streakDoors`의 `gate`).
-- 리더: 여섯의 첫 칸(선출 화면에서 뒤집혀 보이는 칸)은 늘 메가진화다. 전체 풀의 세트 급으로 위 두 급(`GATE_LEAD`)의 메가 세트에서 뽑는다.
-- 나머지 다섯: 위 세 급(`GATE_REST`, 강한 절반)의 메가가 아닌 세트에서만 짠다. 그래서 리더가 그 파티의 유일한 메가다. 빌더 넷과 seen은 그대로이고, 짠 파티 열둘 가운데 몫의 합이 가장 큰 것이 선다(목표와 `BAND` 없음).
-- 선출: 컴퓨터가 리더를 데려오지 않으면 리더가 그 선출의 마지막 자리에 들어간다(`streakEngine.mjs` `withLeader`). 고르는 법(`battleCpu.js`)은 바꾸지 않았다.
-- 컴퓨터의 계단(수문장은 한 칸 위)은 그대로다.
+Gatekeepers (`towerBuild.mjs` `towerFoe(..., keeper)`, `streakDoors` `gate`):
+- Leader (slot 1, inverted card on team preview) is always a Mega Evolution drawn from the top two full-pool set tiers (`GATE_LEAD`).
+- Remaining five draw solely from non-Mega sets in the top three tiers (`GATE_REST`, upper half), making the leader the team's sole Mega. All four builders and `seen` still apply; the builder generates 12 candidates and picks the highest rating sum (no `PLAN`/`BAND` cap).
+- If the computer leaves the leader out during team preview, `withLeader` (`streakEngine.mjs`) inserts it into the third slot without modifying `battleCpu.js`.
+- AI ladder stays unchanged (gatekeepers remain one step above normal).
 
-**잰 세기**(이 PC, 한 수 100 ms, 드래프트에서 무작위로 고른 파티를 온전한 컴퓨터가, 상대를 그 판의 컴퓨터가, 같은 두 파티를 자리를 바꿔 두 판씩, 조건마다 300판):
+Strength benchmarks (local PC, 100 ms/move, full computer with random draft vs match AI, 300 mirrored games per row):
 
-| 상대 | 드래프트 쪽이 이긴 몫 |
+| Opponent | Draft-side win rate |
 |---|---|
-| 1층 보통 상대(폴리곤) | 78.0% ± 4.9 |
-| 1층 수문장, 예전(보통 파티, 폴리곤2) | 68.0% ± 5.6 |
-| 1층 수문장, 새 파티(폴리곤2) | 52.7% ± 6.0 |
-| 3층 수문장, 새 파티(폴리곤Z) | 46.0% ± 6.4 |
+| Floor 1 normal (폴리곤) | 78.0% ± 4.9 |
+| Floor 1 gatekeeper, old (normal team, 폴리곤2) | 68.0% ± 5.6 |
+| Floor 1 gatekeeper, new team (폴리곤2) | 52.7% ± 6.0 |
+| Floor 3 gatekeeper, new team (폴리곤Z) | 46.0% ± 6.4 |
 
-- 몫의 합: 수문장 0.79, 보통 상대 0.04(40파티씩).
-- 1층 돌파(보통 넷과 수문장을 실수 한 번 안에): 예전 약 55%(0.78^4 × 0.68에 한 번 진 경우를 더함)에서 약 46%로, 14.6의 처음 목표(약 46%)에 닿는다. 운영 한 주 뒤 실제 돌파율로 다시 본다. 더 세게 하려면 `GATE_REST`를 2로 줄이는 것이 다음 손잡이다.
+- Mean rating sums (40 teams each): gatekeeper `0.79` vs normal `0.04`.
+- Floor 1 clear rate (four normal matches + gatekeeper with <=1 loss) drops from ~55% (`0.78^4 * 0.68` plus one-loss paths) to ~46%, hitting 14.6's ~46% target. Re-check after one week live; tightening `GATE_REST` from 3 to 2 is the next lever if needed.
 
-**날씨 유형**(같은 날). 세트 몫으로 다시 짜자 상대의 종 편중(15.7의 3.5배 상한)이 4.0배(마기라스)로 넘었다(바꾸기 전에도 3.37배). 랭커 구축에서 배운 날씨는 모래가 절반(제곱근 무게)인데, 풀에는 모래를 까는 종이 마기라스와 하마돈뿐이고 모래를 쓰는 종은 없다. 그래서 빌더 ④의 날씨는 랭커가 쓰는 날씨끼리 같은 무게로 고른다. 상한은 풀지 않았다.
+Weather archetype fix (same day): switching to per-set ratings pushed max opponent species frequency to 4.0x (마기라스, already 3.37x before) above the 3.5x test cap because sand accounted for half of ranker weather weight yet only 마기라스 and 하마돈 set sand (with no sand abusers in the pool). Builder 4 now weights all ranker weather types equally, keeping the 3.5x cap intact.
 
-**확인.** `npm test` 643개 통과. `tests/streak.test.mjs`: 탑 풀의 모든 세트가 급표에 있고 급의 크기가 같으며 위 급의 몫이 아래 급보다 크다, 드래프트의 줄이 그 세트의 급이다, 수문장의 첫 칸이 메가이고 유일한 메가이며 몫이 보통 상대보다 0.5 이상 크다, `withLeader`. `tests/towerBuild.test.mjs`는 세트 몫으로 빌더의 세기를 잰다. 실제 함수와 SQL 위의 도전(`scripts/verify-streak-function.mjs`)은 이 PC에 PGlite가 없어 돌리지 않았다(배틀 함수 `index.ts`는 바꾸지 않았다). 배포는 배틀 함수(`npm run build:battle` 뒤 배포), 그다음 사이트 순서다. SQL은 없다.
+Verification: all 643 `npm test` tests pass. `tests/streak.test.mjs` checks full tier coverage, equal bucket sizes, monotonic tier ratings, per-set draft rows, Mega-only gatekeeper leader with rating sum >=0.5 above normal, and `withLeader`. `tests/towerBuild.test.mjs` scores builders by set rating. Full-function SQL verification (`scripts/verify-streak-function.mjs`) was skipped locally due to missing PGlite (`index.ts` was untouched). Deploy order is battle function (`npm run build:battle` then deploy), followed by site; no SQL changes.
 
-## 20. 연감의 움직임 (2026-11-24)
+## 20. Almanac motion (2026-11-24)
 
-사이트가 전광판(YPL Scoreboard)에서 연감(YPL League Almanac)으로 바뀐 날, 녹화한 프레임으로 본 탑의 움직임이 아직 전광판의 것이었다(카드가 뒷면에서 뒤집히고, 고른 것이 한 프레임에 굵어지고, 하트와 판 사이가 잘려 바뀌고, 어둠이 레이아웃으로 움직였다). 사용자: "짚은 거 싹 다 바꿔." 이제 탑은 연감의 동사만 쓴다(DESIGN.md "Motion"). 화면은 `src/pages/battle/Streak.jsx`가 제 `.animate`로 움직이고(무대처럼 이 폴더는 디자인 법의 검사 밖이다), 길이는 `DUR`, 움직이는 것은 transform과 opacity뿐이다.
+When the site moved from YPL Scoreboard to YPL League Almanac, recorded frames showed the tower still using Scoreboard motion (card flips from backs, 1-frame bold selection snaps, hard cuts between hearts and beats, layout-animated darkness). User feedback: "짚은 거 싹 다 바꿔." The tower now uses only Almanac motion verbs (`DESIGN.md` "Motion"). `src/pages/battle/Streak.jsx` animates via `.animate` (excluded from design-law checks like the stage), timed with `DUR` and animating only `transform` and `opacity`.
 
-- **도착**: 들어오는 것은 12 아래에서 420에 걸쳐 켜지며 올라온다. 함께 오는 것은 읽는 순서로 38씩 떨어져 오고(260에서 멈춘다), 그림은 그 뒤에 톤으로, 키는 맨 끝에 온다. 아직 받는 중인 그림은 받은 순간 톤으로 켜져 튀지 않는다(`arrive`).
-- **드래프트**: 한 칸의 셋은 뒷면 없이 바로 도착한다(2026-11-18의 뒤집기는 없앴다). 칸이 바뀌면 그 칸의 셋은 제자리에서 260에 나가고, 다음 셋이 160부터 같은 자리에서 올라오므로 줄이 비는 프레임이 없다. 고른 카드의 2px 줄은 왼쪽에서 그어진다(160). 여섯 자리 아래의 줄은 하나이고 자리를 따라 미끄러진다(`slideLine`).
-- **고른 것**: 문, 교환, 카드, 수문장의 줄은 채워지지도 둘러지지도 않는다. 고른 것 아래 2px 줄이 그 시작 끝에서 그어진다(`::after`의 scaleX). 문은 제 색의 줄이 420에 그어지고 놓은 문의 줄은 260에 거두어진다. 교환은 내 것, 표시, 받을 것의 셋이 38씩 왼쪽에서 오른쪽으로 그어진다. 수문장의 판(메뉴의 걸린 것, 선출의 띠, 판 사이의 이름판)은 나타날 때 줄이 그어진다. 1px 선은 그대로 두고 2px 줄만 움직인다.
-- **하트**: 결과에서 숫자가 바뀐 뒤(420) 쓴 하트는 제자리에서 비고(채움이 420에 ease-in으로 사라지고 윤곽은 dim으로 남는다), 수문장이 돌려준 하트는 톤으로 찬다. 게임 전의 하트 수는 진 판이면 하나 더, 수문장을 이긴 판이면 그 게임에서 그린 하트(`heldLives`)로 안다. 새로고침 뒤에는 돌려준 하트를 움직이지 않는다.
-- **판 사이의 세 박자**: 박자가 바뀌면 지금 박자가 키와 함께 260에 나가고, 다음 박자의 것이 38씩 올라온다(결과의 줄들, 교환표의 머리와 여섯 줄, 문 박자의 이름판과 문). 교환표와 문의 그림은 결과가 서 있는 동안 미리 읽는다.
-- **이긴 판의 줄**: 숫자가 바뀐 뒤 이긴 판의 줄이 제 1px 선 위로 왼쪽에서 그어지고(420), 다음 판의 줄이 톤으로 dim이 된다(`climb`). 수문장을 이기면 옛 층의 다섯 줄이 다 켜진 채로 서 있다가(1260) 층의 숫자가 톤으로 바뀌고 새 층의 줄이 선다. 층을 깬 것이 장면으로 선다.
-- **도전의 끝**: 하나의 장면으로 읽는 순서대로 38씩 온다. 연승, 순위, 복기의 셋, 높은 층부터 층의 줄(각 줄은 왼쪽에서 오른쪽으로 그어진다), 맨 끝에 진 판의 줄이 켜졌다가 muted로 가라앉고, 그다음 이달의 셋. 이달의 순위를 읽을 때까지(길어야 1200) 장면은 서지 않아 순위가 뒤늦게 끼어들지 않는다.
-- **어둠**: 문 안으로 걸어 들어간 어둠은 다음 화면의 무대로 갈 때 레이아웃으로 움직이지 않는다. 새 자리에 바로 놓고 옛 자리에서 transform(이동과 크기)으로 옮긴 뒤 680에 걸쳐 걷힌다.
-- **앰버 표시**: 탭의 내 도전 줄에는 그 판이 지금 진행 중일 때만 선다. 쉬는 도전에는 없다.
-- **움직임 줄이기**(reduced motion): 모두 제자리에 서고 톤만 남는다.
+- Arrivals rise 12 px while fading in over 420 ms. Grouped elements stagger in reading order by 38 ms (capped at 260 ms), followed by sprites via tone and buttons last. Sprites still downloading fade in via tone on arrival so they never pop (`arrive`).
+- Draft candidates arrive directly without card backs (removing the 2026-11-18 flip). When switching slots, current cards exit in place over 260 ms and the next three rise in the same spot starting at 160 ms, leaving no blank frame. A selected card's 2 px rule draws left-to-right over 160 ms. One underline slides across the six top slots (`slideLine`).
+- Selections on doors, trades, cards, and gatekeepers neither fill nor box-outline; a 2 px rule draws from the start edge via `::after` `scaleX`. Door rules draw in their own color over 420 ms and retract over 260 ms when deselected. Trade rules draw in sequence across own slot, marker, and target in 38 ms steps left-to-right. Gatekeeper banners (menu stakes, preview strip, between-match nameplate) draw their rule on entry. Existing 1 px rules stay still while only the 2 px rule moves.
+- Hearts: 420 ms after the result number updates, a spent heart empties in place (fill fades out over 420 ms ease-in, outline stays dim), while a heart restored by a gatekeeper fills via tone. Pre-match heart count is derived from `lives + 1` on loss or the held count (`heldLives`) on a gatekeeper win; reloads do not replay restored hearts.
+- Three between-match beats: switching beats exits the current beat and its buttons over 260 ms, then rises the next beat's elements in 38 ms steps (result lines, trade header and six rows, door nameplate and doors). Trade and door sprites preload while the result beat sits on screen.
+- Win track: after the counter updates, the won match's rule draws left-to-right over its 1 px line (420 ms) and the next slot shifts to dim via tone (`climb`). On a gatekeeper win, all five lit floor rules hold for 1260 ms before the floor number shifts via tone and the new floor's track appears.
+- Run end arrives as one choreographed scene in 38 ms reading-order steps: streak, rank, three loss-review sets, climbed floor rules from top down (each drawing left-to-right), the losing match's rule lighting up then settling to muted, and finally the monthly top three. The scene waits up to 1200 ms for the monthly board to load so rank never jumps in late.
+- Darkness from walking through a tower door never animates layout when transitioning into the next stage; it mounts directly at the stage rect, transforms from the old rect (translate + scale), and clears over 680 ms.
+- The amber mark on the tab's active-run row shows only while a match is live, never while paused between matches.
+- Under reduced motion, everything mounts in place with tone transitions only.

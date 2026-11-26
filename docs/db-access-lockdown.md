@@ -1,68 +1,72 @@
-# DB 쓰기 권한 잠금
+# Database write access lockdown
 
-상태: 2026-10-16 Production(`rqffrogcverfjqzjasax`)에 Migration A와 B를 적용했다. 클라이언트 로그인 변경은 158c3f3로 배포했다. 남은 일은 5절 6단계(원본 SQL, 테스트, ARCHITECTURE 정리)다.
-조사일: 2026-10-16. 근거는 Production 카탈로그 조회와 `src/` 의 모든 `.from()` / `.rpc()` 호출이다.
+Status: Migration A and Migration B were applied to Production (`rqffrogcverfjqzjasax`) on 2026-10-16. Client login changes shipped in `158c3f3`. Step 6 of section 5 (updating source SQL files, tests, and `ARCHITECTURE.md`) remains.
+Survey date: 2026-10-16. Based on Production catalog queries and every `.from()` and `.rpc()` call under `src/`.
 
-## 1. 문제
+## 1. Problem
 
-번들에 실린 공개 anon key 하나로 누구나 PostgREST에 직접 요청해 공식 데이터를 바꿀 수 있다.
+Anyone with the public `anon` key shipped in the frontend bundle can send direct PostgREST requests and alter official data.
 
-- `public.site_data` 와 `ypl_schema_validation` 22개 table 모두 RLS가 꺼져 있다.
-- anon은 `site_data` 에 SELECT, INSERT, UPDATE, DELETE, **TRUNCATE** 를 갖는다. `ypl_data_v4` 한 줄을 덮어쓰면 공지와 legacy 기록이 사라진다.
-- anon은 normalized table 14개에 INSERT, 11개에 DELETE, 5개에 UPDATE를 갖는다 (`results`, `ranking_awards`, `matches`, `events` 포함).
-- anon이 실행할 수 있는 함수가 27개다. 그중 SECURITY DEFINER 10개는 호출자 확인 없이 table 권한을 우회한다 (`finalize_championship_qualifier`, HOF 생성과 삭제 등). 나머지 SECURITY INVOKER 함수는 anon의 table 권한으로 돌기 때문에 위 table 권한이 곧 함수 권한이다.
-- 관리자 모드는 클라이언트 검사뿐이고, `src/admin/adminAuth.js` 에 관리자 아이디와 비밀번호가 평문으로 있다. 배포된 JS와 git 기록에 이미 공개됐으므로 이 비밀번호는 버린다.
-- `auth.users` 는 0명이다. `authenticated` 역할은 `ypl_schema_validation` 스키마 USAGE조차 없다.
+- RLS is disabled on `public.site_data` and all 22 tables in `ypl_schema_validation`.
+- `anon` has SELECT, INSERT, UPDATE, DELETE, and TRUNCATE on `site_data`. Overwriting the `ypl_data_v4` row wipes announcements and legacy records.
+- `anon` has INSERT on 14 normalized tables, DELETE on 11, and UPDATE on 5 (including `results`, `ranking_awards`, `matches`, and `events`).
+- `anon` can execute 27 functions. Ten of them are SECURITY DEFINER and bypass table privileges without checking the caller (including `finalize_championship_qualifier` and HOF create/delete). The remaining SECURITY INVOKER functions run with `anon`'s table grants, so those table grants effectively authorize function writes.
+- Admin mode is a client-only check, and `src/admin/adminAuth.js` stores the admin ID and password in plaintext. Because that password is already exposed in deployed JS and git history, it should be discarded.
+- `auth.users` has 0 rows, and the `authenticated` role does not even have USAGE on `ypl_schema_validation`.
 
-`docs/ARCHITECTURE.md` 10절이 말하는 "RPC/DB가 integrity boundary"는 지금 성립하지 않는다.
+As a result, the claim in section 10 of `docs/ARCHITECTURE.md` that RPCs and the DB act as the integrity boundary does not hold yet.
 
-## 2. 누가 무엇을 써야 하나
+## 2. Write ownership
 
-### 방문자(로그인 없음)가 정당하게 쓰는 것은 네 가지뿐이다
+### Visitor writes
 
-| 경로 | 코드 | DB 쓰기 |
+Unauthenticated visitors only need four write paths:
+
+| Path | Code | DB write |
 | --- | --- | --- |
-| 참가 신청 (Event 연결 신청서) | `App.jsx` submitForm → `submitEventApplication` | `event_registrations` INSERT 1행 |
-| 공식 파티 제출 | `TeamBuilderPage` → `submitEventTeamSnapshot` | RPC `submit_registration_team_snapshot` (내부에서 `team_snapshots`, `team_snapshot_members`, `registration_submissions` INSERT, `events` 와 `event_registrations` 에 FOR UPDATE 잠금) |
-| 게시판 샘플과 파티 소개글 | `communityStore.updateCommunity(SHOWCASE_KEY)` | `site_data` key `ypl_showcase_v1` upsert |
-| 사설 대진표 | `communityStore.updateCommunity(PRIVATE_BRACKETS_KEY)` | `site_data` key `ypl_private_brackets_v1` upsert |
+| Tournament registration (Event-linked form) | `App.jsx` (`submitForm` to `submitEventApplication`) | 1-row INSERT on `event_registrations` |
+| Official party submission | `TeamBuilderPage` (`submitEventTeamSnapshot`) | RPC `submit_registration_team_snapshot` (inserts into `team_snapshots`, `team_snapshot_members`, `registration_submissions`; locks `events` and `event_registrations` with `FOR UPDATE`) |
+| Board samples and party showcases | `communityStore.updateCommunity(SHOWCASE_KEY)` | Upsert `site_data` key `ypl_showcase_v1` |
+| Private brackets | `communityStore.updateCommunity(PRIVATE_BRACKETS_KEY)` | Upsert `site_data` key `ypl_private_brackets_v1` |
 
-예외 하나: Event에 연결되지 않은 **legacy 신청서**는 방문자가 `ypl_data_v4` 행 전체를 다시 써서 응답을 붙인다 (`App.jsx` submitForm 아래쪽). 지금 `enabled=true` 인 legacy 신청서가 두 개 있다 (2026-08-01 운영위원 모집, 2026-07-13 6회 챔피언스). 잠금 후에는 이 경로가 막힌다. 결정 필요 (6절).
+One exception exists: legacy forms not linked to an Event append responses by rewriting the entire `ypl_data_v4` row (bottom of `submitForm` in `App.jsx`). Two legacy forms currently have `enabled=true` (`2026-08-01 운영위원 모집` and `2026-07-13 6회 챔피언스`). Lockdown will block that path; see section 6 for the decision.
 
-### 그 밖의 모든 쓰기는 관리자 전용이다
+### Admin writes
 
-- `site_data` key `ypl_data_v4` 저장 (`App.jsx` save → `saveSiteData`)
-- normalized table 직접 쓰기 전부: `events`, `players`, `event_registrations` UPDATE/DELETE, `entries`, `entry_participants`, `matches`, `results`, `ranking_awards`, `bracket_*` (`normalizedCompetitionService.js` 의 기록 반영, 참가자 확정, 롤백 경로)
-- RPC 26개 전부 (`submit_registration_team_snapshot` 제외). `ensure_current_ypl_season` 도 공지 작성과 챔피언스 pair 생성에서만 부른다.
+All other writes belong to admins:
 
-읽기는 지금처럼 전부 공개로 둔다. 사이트 전체가 anon 읽기로 돈다.
+- Saving `site_data` key `ypl_data_v4` (`App.jsx` `save` to `saveSiteData`).
+- All direct writes on normalized tables: `events`, `players`, UPDATE/DELETE on `event_registrations`, `entries`, `entry_participants`, `matches`, `results`, `ranking_awards`, and `bracket_*` (record apply, participant confirmation, and rollback paths in `normalizedCompetitionService.js`).
+- All 26 other RPCs (every RPC except `submit_registration_team_snapshot`). `ensure_current_ypl_season` is called only when creating announcements or Champions pairs.
 
-## 3. 제안: Supabase Auth 관리자 계정 + RLS
+Reads remain public, since the entire site relies on `anon` reads.
 
-관리자만 `authenticated` 로 요청하게 하고, DB가 JWT의 `app_metadata.ypl_admin` 으로 판정한다. `app_metadata` 는 서버(대시보드, service role)만 바꿀 수 있어서 클라이언트가 위조할 수 없다.
+## 3. Supabase Auth admin account and RLS
 
-| 대상 | 방문자(anon) | 관리자(authenticated + ypl_admin) |
+Only admins send requests as `authenticated`, and the database verifies `app_metadata.ypl_admin` inside the JWT. Because only the server (dashboard or service role) can modify `app_metadata`, clients cannot forge it.
+
+| Target | Visitor (`anon`) | Admin (`authenticated` + `ypl_admin`) |
 | --- | --- | --- |
-| normalized 22 table 읽기 | 허용 | 허용 |
-| normalized table 쓰기 | `event_registrations` INSERT만, 정책으로 제한 | 전부 (지금 anon이 가진 범위 + DEFINER에서 바뀌는 함수가 쓰는 table) |
-| `site_data` 읽기 | 허용 | 허용 |
-| `site_data` 쓰기 | 커뮤니티 두 key만 INSERT/UPDATE | 전부 |
-| `site_data` DELETE, TRUNCATE | 금지 | DELETE만 |
-| `submit_registration_team_snapshot` | 실행 (DEFINER로 전환, 함수 안 검사가 관문) | 실행 |
-| 나머지 RPC | 금지 | 실행 |
+| Read 22 normalized tables | Allowed | Allowed |
+| Write normalized tables | `event_registrations` INSERT only, gated by policy | Full access (current `anon` scope plus tables used by Champions functions switching from DEFINER) |
+| Read `site_data` | Allowed | Allowed |
+| Write `site_data` | INSERT/UPDATE on two community keys only | Full access |
+| `site_data` DELETE, TRUNCATE | Denied | DELETE only |
+| `submit_registration_team_snapshot` | Execute (switched to DEFINER; internal checks gate access) | Execute |
+| All other RPCs | Denied | Execute |
 
-### 결정 근거
+### Design rationale
 
-- **챔피언스 DEFINER 함수 8개는 SECURITY INVOKER로 바꾼다.** DEFINER는 RLS를 건너뛰므로 함수마다 호출자 검사를 본문에 넣어야 하는데, 그러면 함수 8개를 통째로 다시 써야 한다. INVOKER로 바꾸면 `ALTER` 한 줄씩이고, table RLS가 하나의 관문이 된다. 이 함수들이 DEFINER였던 이유는 anon에게 `championship_advancements`, `championship_qualifier_direct_selections`, `hall_of_fame_entries` 쓰기 권한이 없어서였으니, 관리자에게 그 권한을 주면 대체된다. 본문이 `championship_advancements` 와 `hall_of_fame_entries` 를 FOR UPDATE로 잠그므로 두 table에는 UPDATE 권한도 준다.
-- **`ensure_current_ypl_season` 은 DEFINER로 둔다.** 비공개 `ensure_current_ypl_season_for_date` 를 부르고 DB `now()` 만 쓰므로 누가 불러도 결과가 같다. 실행 권한만 관리자로 옮긴다.
-- **`submit_registration_team_snapshot` 은 거꾸로 DEFINER로 바꾼다.** 방문자가 부르는 유일한 RPC다. 본문이 이미 Event 상태, 기록 반영 여부, Registration exact match를 트랜잭션 안에서 검사한다. INVOKER로 두면 anon에게 snapshot table INSERT와 `events`/`event_registrations` UPDATE(FOR UPDATE 잠금에 필요)를 남겨야 하고, 그러면 RPC를 거치지 않는 직접 INSERT가 열린다.
-- **방문자 신청은 RPC 대신 RLS 정책으로 막는다.** 클라이언트 코드를 바꾸지 않아도 된다. 정책은 `registration_source='application'`, `final_submission_id` 없음, Event가 `open` 이고 기록 반영 전, `player_id` 는 비었거나 같은 이름의 Player만 허용한다. anon INSERT는 열 단위로 허용해 `final_submission_id`, `id`, `created_at` 은 쓸 수 없다.
-- **TRUNCATE는 RLS를 무시한다.** anon과 authenticated 모두에게서 뺀다.
-- **가입 차단.** 대시보드에서 일반 가입과 익명 로그인을 끈다. 익명 로그인 사용자는 `authenticated` 역할을 받으므로, `ypl_admin` 검사를 함수 실행 권한이 아닌 RLS 정책에 둔 이유이기도 하다.
+- Switch the 8 Champions DEFINER functions to SECURITY INVOKER. Keeping them DEFINER would bypass RLS and require rewriting all 8 function bodies to add caller checks. Switching to INVOKER takes one `ALTER` statement per function and makes table RLS the single gate. Those functions were DEFINER only because `anon` lacked write grants on `championship_advancements`, `championship_qualifier_direct_selections`, and `hall_of_fame_entries`, so granting those privileges to `authenticated` replaces the need. Because their bodies lock `championship_advancements` and `hall_of_fame_entries` with `FOR UPDATE`, `authenticated` also gets UPDATE on both tables.
+- Keep `ensure_current_ypl_season` as SECURITY DEFINER. It calls the private `ensure_current_ypl_season_for_date` using only DB `now()`, so its result does not depend on the caller. Only its execute grant moves to `authenticated`.
+- Switch `submit_registration_team_snapshot` to SECURITY DEFINER. It is the only RPC visitors call, and its body already validates Event status, record-apply state, and exact Registration match inside a transaction. Leaving it INVOKER would require keeping snapshot INSERT grants and `events`/`event_registrations` UPDATE grants (for `FOR UPDATE`) on `anon`, which would allow direct inserts bypassing the RPC.
+- Gate visitor registrations with an RLS policy instead of an RPC so client code does not need to change. The policy requires `registration_source = 'application'`, `final_submission_id IS NULL`, an `open` Event with no `record_applied_at`, and a `player_id` that is either `NULL` or matches a Player with the same `display_name`. Column-level INSERT grants prevent `anon` from setting `final_submission_id`, `id`, or `created_at`.
+- Revoke TRUNCATE from both `anon` and `authenticated` because TRUNCATE bypasses RLS.
+- Disable public sign-ups and anonymous sign-ins in the Supabase dashboard. Anonymous sign-in users receive the `authenticated` role, which is also why the `ypl_admin` check lives in RLS policies rather than relying on role membership alone.
 
-## 4. 클라이언트 변경 (초안)
+## 4. Client changes
 
-supabase-js 전체를 다시 넣지 않는다 (`storage.js` 주석대로 첫 화면 JS가 두 배가 된다). Auth REST 한 번과 fetch 감싸기로 충분하다.
+Do not pull in the full `supabase-js` client (as noted in `storage.js`, it doubles initial JS size). One Auth REST call and a `fetch` wrapper are enough.
 
 `src/storage.js`:
 
@@ -70,7 +74,7 @@ supabase-js 전체를 다시 넣지 않는다 (`storage.js` 주석대로 첫 화
 let session = null; let refreshTimer = 0;
 const authBase = SUPA_URL ? new URL("auth/v1/", SUPA_URL.replace(/\/?$/, "/")).href : "";
 
-// 관리자로 로그인했으면 그 토큰, 아니면 anon key로 요청한다.
+// Use the admin access token when signed in; otherwise fall back to the anon key.
 const authFetch = (url, init = {}) => {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${session?.access_token || SUPA_KEY}`);
@@ -90,7 +94,7 @@ async function requestToken(grant, body) {
   if (!r.ok) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
   session = await r.json();
   clearTimeout(refreshTimer);
-  // 만료 1분 전에 갱신한다. 실패하면 로그아웃 상태가 되고, 다음 쓰기는 권한 오류로 끝난다.
+  // Refresh 1 minute before expiry. On failure, sign out so the next write fails with a permission error.
   refreshTimer = setTimeout(() => requestToken("refresh_token", { refresh_token: session.refresh_token }).catch(signOutAdmin), (session.expires_in - 60) * 1000);
 }
 
@@ -98,50 +102,50 @@ export const signInAdmin = (email, password) => requestToken("password", { email
 export function signOutAdmin() { session = null; clearTimeout(refreshTimer); }
 ```
 
-- `src/admin/adminAuth.js` 는 지운다 (평문 계정). `AdminEditors.jsx` 의 `LoginModal` 이 `signInAdmin` 을 await한다. 로그인 칸은 운영진 공용 아이디를 받고, `@` 가 없으면 `아이디@ypl.invalid` 로 바꿔 보낸다 (`.invalid` 는 메일이 가지 않는 예약 도메인이라 재설정 메일로 계정을 뺏길 수 없다).
-- `App.jsx` 의 관리자 로그아웃 두 곳은 `signOutAdmin()` 을 부른다.
-- **배포는 Migration A 다음이다.** A 전에는 `authenticated` 에게 스키마 USAGE가 없어서, 로그인한 관리자의 normalized 읽기와 쓰기가 실패한다.
-- 새로고침하면 관리자 모드가 풀리는 지금 동작은 그대로다. 토큰은 메모리에만 둔다.
+- Delete `src/admin/adminAuth.js` (plaintext credentials). `LoginModal` in `AdminEditors.jsx` awaits `signInAdmin`. The login field accepts the shared admin ID and appends `@ypl.invalid` when `@` is absent (`.invalid` is a reserved non-routable domain, preventing password-reset email hijacking).
+- Both admin logout handlers in `App.jsx` call `signOutAdmin()`.
+- Deploy the client only after Migration A. Before Migration A, `authenticated` has no schema USAGE, so signed-in admins fail both normalized reads and writes.
+- Refreshing the page still exits admin mode because the token lives only in memory.
 
-## 5. 적용 순서
+## 5. Rollout order
 
-각 단계는 앞 단계 없이도 사이트를 깨지 않는다.
+Each step keeps the site working on its own.
 
-1. **대시보드 (운영자)** (2026-10-16 완료, 관리자 1명 `ypl_admin=true`, 가입과 익명 로그인 꺼짐, legacy 신청서 두 개 닫음): Authentication에서 관리자 사용자 생성 (새 비밀번호, 이메일 확인 완료로). 일반 가입과 익명 로그인 끄기. 아래 SQL로 `ypl_admin` 표시:
+1. Dashboard setup by an operator (completed 2026-10-16: 1 admin with `ypl_admin=true`, sign-ups and anonymous login disabled, both legacy forms closed). Create the admin user in Authentication with a new password and email confirmed, disable public sign-ups and anonymous login, and flag `ypl_admin`:
    ```sql
-   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"ypl_admin": true}'::jsonb where email = '<관리자 이메일>';
+   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"ypl_admin": true}'::jsonb where email = '<admin-email>';
    ```
-2. **Migration A (추가만, 즉시 안전)**: 관리자 판정 함수, `authenticated` 권한, 파티 제출 RPC의 DEFINER 전환. 이 시점에는 anon 권한이 그대로라 아무것도 깨지지 않는다.
-3. **클라이언트 배포**: 4절 변경. 배포 후 관리자 로그인으로 공지 저장, 대진 승자 입력, 기록 반영 한 번씩 확인한다 (이때부터 관리자 요청은 `authenticated` 로 간다).
-4. **Migration B (잠금, 한 트랜잭션)**: RLS 켜기와 정책, anon 쓰기와 TRUNCATE 회수, 관리자 RPC 실행 권한 이동, 챔피언스 함수 INVOKER 전환.
-5. **검증**: 7절.
-6. **기록 정리 (같은 PR)**: `docs/db/*.sql` 원본이 아직 `grant ... to anon` 과 `security definer` 를 담고 있고 `tests/championsApplicationEventPairRpc.test.mjs`, `tests/championsHallOfFameRevert.test.mjs` 가 그 문자열을 검사한다. 원본 SQL과 테스트를 B에 맞게 고치고, `ARCHITECTURE.md` 10절을 갱신한다. 원본을 그대로 두면 누군가 재실행할 때 anon 권한이 되살아난다.
+2. Apply Migration A (additive only, immediately safe). Adds the admin check function, grants `authenticated` privileges, and switches party submission to SECURITY DEFINER. `anon` grants remain untouched so nothing breaks.
+3. Deploy the client changes from section 4. After deploy, sign in as admin and verify saving an announcement, recording a bracket winner, and applying records once each (admin requests now run as `authenticated`).
+4. Apply Migration B (lockdown, single transaction). Enables RLS and policies, revokes `anon` writes and TRUNCATE, moves admin RPC execute grants, and switches Champions functions to SECURITY INVOKER.
+5. Run the verification checks in section 7.
+6. Clean up source files in the same PR. Source files under `docs/db/*.sql` still contain `grant ... to anon` and `security definer`, and `tests/championsApplicationEventPairRpc.test.mjs` and `tests/championsHallOfFameRevert.test.mjs` assert on those strings. Update the SQL files and tests to match Migration B, and update section 10 of `ARCHITECTURE.md` so re-running source SQL cannot restore `anon` privileges.
 
-## 6. 적용 전에 정할 것
+## 6. Pre-rollout decisions
 
-1. **legacy 신청서 두 개를 닫을지.** 2026-10-16 닫기로 결정 (`enabled=false`, 응답은 보존). Migration B 전에 닫혔는지 확인한다. 둘 다 지난 공지다. 닫지 않으면 잠금 후 제출이 "이 화면에만 반영됨"으로 실패한다. 계속 받아야 한다면 응답 하나를 `jsonb` 로 붙이는 DEFINER RPC를 따로 만든다.
-2. **관리자 이메일.** 대시보드 1단계에 필요하다.
+1. Whether to close the two legacy forms. Decided on 2026-10-16 to close them (`enabled=false`, responses preserved). Confirm they are closed before Migration B. Both belong to past announcements; leaving them open would cause submissions after lockdown to fail with `"이 화면에만 반영됨"`. If a standalone form must keep accepting responses later, add a dedicated DEFINER RPC that appends one `jsonb` response.
+2. Admin email address, needed for step 1 in the dashboard.
 
-## 7. 검증
+## 7. Verification
 
-Migration B 직후, 아래를 SQL 편집기에서 실행해 anon이 막혔는지 본다 (전부 rollback).
+Right after Migration B, run this rollback block in the SQL editor to confirm `anon` is blocked:
 
 ```sql
 begin;
 set local role anon;
-select count(*) from ypl_schema_validation.events;                               -- 성공해야 함
-insert into ypl_schema_validation.results (event_id) values (gen_random_uuid());   -- 42501 이어야 함
-update public.site_data set value = value where key = 'ypl_data_v4';              -- 0행이어야 함 (RLS가 걸러냄)
-select ypl_schema_validation.finalize_championship_qualifier(gen_random_uuid());   -- 42501 이어야 함
+select count(*) from ypl_schema_validation.events;                               -- must succeed
+insert into ypl_schema_validation.results (event_id) values (gen_random_uuid());   -- must fail with 42501
+update public.site_data set value = value where key = 'ypl_data_v4';              -- must affect 0 rows (filtered by RLS)
+select ypl_schema_validation.finalize_championship_qualifier(gen_random_uuid());   -- must fail with 42501
 rollback;
 ```
 
-그다음 사이트에서: 방문자로 게시판 글 쓰기와 지우기, 사설 대진표 만들기, 열린 Event 신청과 파티 제출 (열린 Event가 없으면 Test 환경에서). 관리자로 로그인해 공지 저장, 승자 입력, 기록 반영과 되돌리기.
+Next, test on the live site: as a visitor, create and delete a board post, create a private bracket, and register plus submit a party for an open Event (in Test if no Event is open in Production). As a signed-in admin, save an announcement, record a winner, and apply then revert records.
 
-## 8. Migration A (2026-10-16 적용)
+## 8. Migration A (applied 2026-10-16)
 
 ```sql
--- A1. 관리자 판정. JWT app_metadata는 서버만 쓸 수 있다.
+-- A1. Admin check. Only the server can write JWT app_metadata.
 create or replace function ypl_schema_validation.is_ypl_admin()
 returns boolean
 language sql
@@ -153,7 +157,7 @@ $$;
 revoke all on function ypl_schema_validation.is_ypl_admin() from public;
 grant execute on function ypl_schema_validation.is_ypl_admin() to anon, authenticated;
 
--- A2. 관리자 역할이 쓸 권한. 지금 anon이 가진 범위에, INVOKER로 바뀔 챔피언스 함수가 쓰고 잠그는 table을 더한다.
+-- A2. Admin role privileges: current anon scope plus tables written/locked by Champions INVOKER functions.
 grant usage on schema ypl_schema_validation to authenticated;
 grant select on all tables in schema ypl_schema_validation to authenticated;
 grant insert, delete         on ypl_schema_validation.bracket_entry_slots,
@@ -186,16 +190,16 @@ begin
   end loop;
 end $$;
 
--- A3. 방문자가 부르는 유일한 RPC. 본문이 Event 상태와 Registration exact match를 검사한다.
+-- A3. Only RPC callable by visitors. Body validates Event status and exact Registration match.
 alter function ypl_schema_validation.submit_registration_team_snapshot(uuid, uuid, text, jsonb, jsonb) security definer;
 ```
 
-## 9. Migration B (2026-10-16 적용, 한 트랜잭션)
+## 9. Migration B (applied 2026-10-16, single transaction)
 
 ```sql
 begin;
 
--- B1. normalized table: RLS, 공개 읽기, 관리자 쓰기.
+-- B1. Normalized tables: RLS, public read, admin write.
 do $$
 declare t text;
 begin
@@ -210,7 +214,7 @@ begin
   end loop;
 end $$;
 
--- B2. anon 쓰기 회수. 신청 INSERT만 열 단위로 되돌린다.
+-- B2. Revoke anon writes; re-grant column-level INSERT for applications only.
 revoke insert, update, delete, truncate on all tables in schema ypl_schema_validation from anon;
 revoke truncate on all tables in schema ypl_schema_validation from authenticated;
 grant insert (event_id, player_id, registration_name, registration_data, registration_source, registered_at, updated_at)
@@ -228,7 +232,7 @@ create policy visitor_apply on ypl_schema_validation.event_registrations
                                          and p.display_name = event_registrations.registration_name))
   );
 
--- B3. site_data: 공개 읽기, 커뮤니티 두 key만 방문자 쓰기, 나머지는 관리자.
+-- B3. site_data: public read, visitor write on two community keys only, admin for the rest.
 alter table public.site_data enable row level security;
 revoke all on public.site_data from anon, authenticated;
 grant select, insert, update on public.site_data to anon;
@@ -244,7 +248,7 @@ create policy site_data_admin on public.site_data for all to authenticated
   using ((select ypl_schema_validation.is_ypl_admin()))
   with check ((select ypl_schema_validation.is_ypl_admin()));
 
--- B4. RPC 실행 권한: 파티 제출과 관리자 판정만 anon에 남긴다.
+-- B4. RPC execute grants: leave only party submission and read helpers on anon.
 do $$
 declare f regprocedure;
 begin
@@ -256,9 +260,9 @@ begin
     execute format('revoke execute on function %s from public, anon', f);
   end loop;
 end $$;
-revoke execute on function public.rls_auto_enable() from public, anon, authenticated;  -- event trigger 전용
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;  -- event trigger only
 
--- B5. 챔피언스 DEFINER 함수를 INVOKER로. 이제 RLS의 admin_write가 관문이다.
+-- B5. Switch Champions DEFINER functions to INVOKER so RLS admin_write gates them.
 alter function ypl_schema_validation.add_championship_qualifier_manual_registration(uuid, uuid) security invoker;
 alter function ypl_schema_validation.cancel_championship_advancement(uuid) security invoker;
 alter function ypl_schema_validation.create_championship_advancement(uuid, uuid, uuid, uuid, text, uuid, text) security invoker;
@@ -271,7 +275,7 @@ alter function ypl_schema_validation.set_championship_qualifier_direct_selection
 commit;
 ```
 
-### Migration B 되돌리기
+### Rolling back Migration B
 
 ```sql
 begin;
@@ -288,7 +292,7 @@ begin
 end $$;
 drop policy if exists visitor_apply on ypl_schema_validation.event_registrations;
 
--- 2026-10-16 조사 시점의 anon 권한으로 복구
+-- Restore anon grants as surveyed on 2026-10-16.
 grant insert, delete         on ypl_schema_validation.bracket_entry_slots, ypl_schema_validation.bracket_identity_changes,
                                 ypl_schema_validation.bracket_runtimes, ypl_schema_validation.entries,
                                 ypl_schema_validation.entry_participants, ypl_schema_validation.players,
@@ -329,12 +333,11 @@ alter function ypl_schema_validation.set_championship_qualifier_direct_selection
 commit;
 ```
 
-## 10. 이 제안이 고치지 않는 것
+## 10. Remaining risks
 
-잠금과 별개로 남는 위험이다. 따로 다룬다.
+These risks remain outside the scope of this lockdown and need separate follow-up.
 
-- **공용 관리자 비밀번호는 공개돼 있다.** 운영진 합의로 공용 계정(`yplofficial`)과 기존 비밀번호를 그대로 쓴다 (2026-10-16 결정). 그 비밀번호는 공개 저장소의 git 기록과 예전 배포 JS에 남아 있으므로, 잠금 후에도 기록을 찾아본 사람은 관리자로 로그인할 수 있다. 잠금이 막는 것은 anon key만으로 하는 쓰기다. 비밀번호를 바꾸면 이 구멍이 닫히고, 바꾸는 데 코드 변경은 필요 없다 (대시보드에서 계정 비밀번호만 바꾼다).
-
-- **커뮤니티 행은 여전히 누구나 통째로 덮어쓸 수 있다.** 게시판 전체 글을 빈 목록으로 바꾸는 요청이 가능하다. `communityStore.js` 의 ponytail 주석대로 글 단위 table과 RPC로 옮겨야 막힌다. 잠금 후에는 피해가 이 두 key에 갇힌다.
-- **공개 읽기에 개인정보가 섞여 있다.** `ypl_data_v4` 의 legacy 신청서 응답(운영위원 모집 응답 5건 포함)과 `event_registrations.registration_data` 를 anon이 읽을 수 있다. 응답을 관리자 전용 저장소로 옮기거나 열 단위 SELECT 권한으로 가려야 한다.
-- 신청 정책은 열린 Event에 아무 이름으로나 신청하는 것을 막지 않는다. 지금 제품 동작과 같다.
+- The shared admin password is still exposed. By staff decision on 2026-10-16, the shared account (`yplofficial`) keeps its existing password. Because that password remains in public git history and older deployed JS bundles, anyone who looks it up can still sign in as admin after lockdown. Lockdown stops writes made with only the `anon` key. Rotating the password in the dashboard closes this gap without any code changes.
+- Anyone can still overwrite an entire community row, such as replacing all board posts with an empty list. As noted in the ponytail comment in `communityStore.js`, blocking that requires moving to a per-post table and RPC. Lockdown limits the blast radius to those two keys.
+- Public reads still expose personal information. `anon` can read legacy form responses in `ypl_data_v4` (including 5 responses for `운영위원 모집`) and `event_registrations.registration_data`. Responses should move to an admin-only store or be restricted with column-level SELECT grants.
+- The application policy does not stop someone from registering for an open Event under any name, matching current product behavior.

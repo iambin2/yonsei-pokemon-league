@@ -1,39 +1,39 @@
-# YPL 기술 구조 및 데이터 아키텍처
+# YPL technical architecture and data model
 
-## 1. 시스템과 환경 경계
+## 1. System and environment boundaries
 
-YPL은 Team Builder, 대회 운영, Records를 하나의 Event lifecycle으로 연결한다.
+YPL connects Team Builder, tournament operations, and Records in a single Event lifecycle.
 
 ```text
 YPL Tools
 └─ Team Builder
 
-YPL 운영
-├─ 공지 / Event / 신청
+YPL Operations
+├─ 공지 / Event / Registration
 ├─ official party submission
-├─ 참가자 확정 / 대진 / 경기
+├─ participant confirmation / 대진표 / match
 └─ record apply / revert
 
 YPL Records
-├─ 트레이너
-├─ 대회 archive
+├─ trainers
+├─ tournament archive
 ├─ Pokémon usage
 └─ ranking
 ```
 
-Test에서 검증한 normalized architecture는 새 Production `YPL_DB` (`rqffrogcverfjqzjasax`, Seoul)의 `ypl_schema_validation`에도 migration/cutover 완료됐다.
+The normalized architecture verified in Test has been migrated and cut over to `ypl_schema_validation` on the new Production `YPL_DB` (`rqffrogcverfjqzjasax`, Seoul).
 
-- Production: active Event-linked competition runtime은 `ypl_schema_validation` normalized facts만 사용한다. `public.site_data / ypl_data_v4`는 기존 site-level data 및 historical legacy compatibility를 위해 보존한다.
-- Test: regression과 migration verification reference, clean production-candidate / rollback reference를 유지한다.
-- Old Production: active app source가 아닌 rollback/archive source로 보존한다.
+- In Production, active Event-linked competition runtime reads and writes only normalized facts in `ypl_schema_validation`. `public.site_data / ypl_data_v4` stays in place for site-level data and historical legacy compatibility.
+- Test holds the regression and migration verification reference, along with clean production-candidate and rollback references.
+- Old Production stays untouched as a rollback and archive source, not an active app source.
 
 ## 2. Data source boundary
 
 ### Active normalized Event
 
-공식 회차는 `competition_editions`의 regular/champions/light 세 계열로 관리한다. 신규 Event는 `competition_edition_id`를 가지며 정규 파이컵의 마스터/루키/팀전은 같은 regular 회차 체계를 사용한다. Champions 싱글/더블과 각 선발전/본선은 명시적으로 같은 회차에 연결한다. 서버가 계열별 잠금으로 회차를 예약한다. 과거 기록은 회차 catalogue만 등록하고 경기/파티/포인트를 변경하지 않는다. 상세 규칙은 [COMPETITION_EDITIONS.md](COMPETITION_EDITIONS.md)를 따른다.
+Official editions are tracked under three families in `competition_editions`: `regular`, `champions`, and `light`. Each new Event carries a `competition_edition_id`. Master, Rookie, and Team divisions of the regular PokéCup share the `regular` sequence. Champions Singles and Doubles, along with each Qualifier and Final, link explicitly to the same edition. The server reserves edition numbers under per-family locks. Historical records only register entries in the edition catalog without altering matches, parties, or points. See [COMPETITION_EDITIONS.md](COMPETITION_EDITIONS.md) for the full rules.
 
-신규 active Event-linked runtime의 canonical facts는 normalized schema에 있다.
+Canonical facts for new active Event-linked runtimes live in the normalized schema.
 
 ```text
 Season
@@ -51,67 +51,56 @@ Season
          └─ Result / RankingAward
 ```
 
-- `BracketRuntime`은 active normalized bracket의 discriminator다.
-- `BracketEntrySlot`은 실제 draw position의 persistent fact다. Entry seed는 draw slot이 아니다.
-- `BracketIdentityChange`는 runtime이 만든/연결/변경한 identity와 rollback ownership을 기록한다.
-- Match에는 실제 formed node와 winner fact만 저장한다.
-- bracket graph, BYE, unresolved future Match, advancement edge, loser movement, GF/reset activation은 persisted graph가 아니라 pure projection이다.
-- BracketDraw animation은 저장된 projection을 읽는 presentation-only UI다. 추첨, slot 변경, Match write를 하지 않는다.
+- `BracketRuntime` is the discriminator for an active normalized bracket.
+- `BracketEntrySlot` persists the actual draw position. Entry seed is not a draw slot.
+- `BracketIdentityChange` logs identities created, linked, or modified by the runtime, along with rollback ownership.
+- `Match` stores only formed nodes and winner facts.
+- Bracket graphs, BYEs, unresolved future Matches, advancement edges, loser movement, and GF/reset activation are pure projections rather than persisted graphs.
+- The `BracketDraw` animation is a presentation-only UI that reads stored projections. It never runs draws, changes slots, or writes Matches.
 
-공식 개인전은 `groups_then_elimination`을 선택할 수 있다. 같은 Event와 Entry를 사용하고,
-`BracketEntrySlot`의 group 단계에는 조별 배치, elimination 2단계에는 확정된 본선 배치를 저장한다.
-조별 풀리그, 단판 순위 결정전, 본선은 각각 `group:`, `playoff:`, `single:` 또는 `double:` 경기 키로 구분한다.
-순위는 조별 전체 승수, 동률자 간 승수, 남은 동률 집단에 같은 규칙 재적용 순이다.
-동률 집단 전체가 진출하거나 탈락할 때는 공동 순위를 유지한다. 본선은 순위별 시드 없이 추첨한다.
-진출선에 걸친 동률만 동률 집단에서 두 명을 서버가 추첨해 단판으로 한 명씩 가른다.
-이 결과는 조별 승수에 포함하지 않는다. 본선 이후 조별 결과는 잠그고, 필요하면 본선 결과와 배치를 먼저 취소한다.
-최종 입상과 포인트는 기존 기록 반영 단계에서 한 번만 반영한다.
+Official individual tournaments can use `groups_then_elimination`. They share the same Event and Entry records, storing group assignments in the `BracketEntrySlot` group stage and confirmed finals assignments in the elimination stage. Group round-robin matches, single-game tiebreakers, and finals use `group:`, `playoff:`, and `single:` or `double:` match keys. Standings sort by total group wins, head-to-head wins among tied players, and then re-applying the same rule to any remaining tied group. When an entire tied group advances or is eliminated together, players keep a shared rank. Finals are drawn without rank-based seeding. Only ties straddling the advancement cutoff trigger tiebreakers: the server randomly draws two players from the tied group for single-game matches until each spot is decided. Tiebreaker results do not count toward group wins. Once finals begin, group results lock; operators must cancel finals results and placements first to edit group matches. Final placements and points apply once during the existing record apply step.
 
-통합 접수의 같은 회차 루키 우승자는 기록이 확정된 경우 마스터 대진표의 기본 선택 후보로 읽는다.
-최종 대진 확정에서만 서버가 우승 이력을 다시 확인하고 같은 Player의 마스터 Registration과 Entry를 함께 저장한다.
-루키 대회의 등록과 파티는 그대로 유지한다. 적용 SQL은 `docs/db/group_brackets_and_rookie_candidates.sql`이다.
-배포 시 DB 변경을 먼저 적용한 뒤, `npm run build:battle`로 새 projection을 포함한 배틀 함수를 빌드해 배포하고,
-대응 프런트엔드를 배포한다. 세 구성 요소가 같은 단계 구조를 읽어야 사이트 배틀 승자 자동 반영까지 동작한다.
+In a unified intake, a same-edition Rookie champion whose records are finalized appears as a default candidate in the Master bracket. Only when confirming the final bracket does the server re-verify that championship and save a Master Registration and Entry for the same Player. The Rookie registration and party stay intact. The database script is `docs/db/group_brackets_and_rookie_candidates.sql`. For deployment, apply the DB change first, run `npm run build:battle` to build and deploy battle functions with the updated projection, and then deploy the matching frontend. All three components must read the same stage structure for automatic site-battle winner recording to work.
 
-새 active bracket을 `public.site_data / ypl_data_v4.brackets`에 저장하거나 legacy graph를 fallback source로 사용하지 않는다. active runtime의 legacy dependency는 0이어야 한다.
+New active brackets are never saved to `public.site_data / ypl_data_v4.brackets`, and legacy graphs are never used as a fallback source. Active runtime must have zero legacy dependency.
 
-방문자 공간(자유게시판, 샘플과 파티 소개글, 사설 대진표)은 `public.community_items`에 행 단위로만 저장한다(`src/services/communityStore.js`, `docs/db/visitor_gates.sql`). 쓰기는 `community_write` 함수뿐이고, 비공개 글은 RLS가 가리며, 비밀번호는 방문자가 읽을 수 없는 `public.visitor_pins`에서 서버가 대조한다. 이 데이터는 Event, Registration, Result, RankingAward, 칭호, 명예의 전당과 어떤 경로로도 연결하지 않으며, 사설 대진표는 기록 반영 흐름을 갖지 않는다(`tests/community.test.mjs`).
+The visitor area (free board, sample and party showcases, and private brackets) stores data row-by-row only in `public.community_items` (`src/services/communityStore.js`, `docs/db/visitor_gates.sql`). All writes go through `community_write`, RLS hides private posts, and the server checks passwords against `public.visitor_pins`, which visitors cannot read. This data has no path into Event, Registration, Result, RankingAward, titles, or Hall of Fame, and private brackets have no record apply flow (`tests/community.test.mjs`).
 
-사설 대진표의 수정은 DB가 발급한 `updatedAt` 토큰을 `_expectedUpdatedAt`으로 제출한다. `community_write`가 행 잠금 아래 토큰을 비교하므로 같은 대진표를 두 기기가 읽었어도 뒤늦은 저장으로 먼저 입력한 결과를 덮지 않는다. 충돌하면 화면은 최신 값을 다시 읽고 재입력을 안내한다. 일반 게시판의 쓰기 형식은 유지한다. 적용 스크립트는 `docs/db/private_bracket_conflict_guard.sql`, 검증 범위는 [COMPETITION_FLOW_VERIFICATION.md](COMPETITION_FLOW_VERIFICATION.md)를 따른다.
+Private bracket edits submit the DB-issued `updatedAt` token as `_expectedUpdatedAt`. `community_write` compares tokens under a row lock so a late save from another device cannot overwrite earlier results. On conflict, the UI reloads the latest version and asks the user to re-enter their change. General board writes keep their existing format. The migration script is `docs/db/private_bracket_conflict_guard.sql`, and verification scope is documented in [COMPETITION_FLOW_VERIFICATION.md](COMPETITION_FLOW_VERIFICATION.md).
 
 ### Historical legacy compatibility
 
-`site_data.ypl_data_v4.brackets`의 legacy graph는 다음 조건의 completed historical display에만 허용한다.
+Legacy graphs in `site_data.ypl_data_v4.brackets` are allowed only for displaying completed historical brackets that meet all three conditions:
 
-- Event-linked active runtime이 아니다.
-- `eventId`가 없는 pre-normalized completed bracket이다.
-- read-only presentation만 제공한다.
+- Not an Event-linked active runtime.
+- A pre-normalized completed bracket with no `eventId`.
+- Read-only presentation only.
 
-historical bracket은 winner 변경, participant/party 변경, delete, record apply/revert, active sync 대상이 아니다. legacy compatibility는 active lifecycle을 되살리는 근거가 아니다.
+Historical brackets are excluded from winner edits, participant or party edits, deletion, record apply or revert, and active sync. Legacy compatibility is never a reason to revive the legacy active lifecycle.
 
-## 3. Event, Registration, Submission
+## 3. Event, Registration, and Submission
 
-### Event / Registration
+### Event and Registration
 
-`Event`는 season, event type, division, battle format, competition format, rule, schedule, record lifecycle의 canonical owner다.
+`Event` is the canonical owner of season, event type, division, battle format, competition format, rules, schedule, and record lifecycle.
 
-- 신청은 `EventRegistration`이다.
-- 이름 기반 연결은 같은 Event 안에서 `registration_name` match만 허용한다. 같음은 띄어쓰기와 대소문자만 무시하며(`playerNameKey`), 그 밖의 fuzzy match나 동명이인 임의 선택은 금지한다.
-- 선수 이름 하나에 Player 한 명이다. `docs/db/player_name_unique.sql`의 고유 색인이 같은 규칙으로 지킨다. 신청 화면은 기존 선수의 이름이면 그 선수의 최근 대회를 보이고 본인인지 묻는다. 동명이인은 비어 있는 다음 글자의 이름(`nextAliasName`, 이제빈 B, C …)으로 신청한다.
-- 기존 Event 수정은 기존 `season_id`와 `round_number`를 유지한다.
-- Event가 completed 또는 record-applied이면 official submission write를 막는다.
+- Applications are stored as `EventRegistration`.
+- Name-based linking is allowed only on `registration_name` within the same Event. Equality ignores only whitespace and letter case (`playerNameKey`); fuzzy matching and arbitrary selection among players with the same name are prohibited.
+- One Player exists per player name, enforced by the unique index in `docs/db/player_name_unique.sql`. When an applicant enters an existing player's name, the form shows that player's recent tournament and asks for confirmation. A different person with the same name registers under the next open letter alias (`nextAliasName`, such as `이제빈 B`, `C`).
+- Editing an existing Event keeps its original `season_id` and `round_number`.
+- Completed or record-applied Events reject official submission writes.
 
-### 루키와 마스터 통합 접수
+### Unified Rookie and Master intake
 
-`league_intakes`는 하나의 공지와 Rookie/Master Event 두 개를 묶는다. 공지는 함께 접수하고 대진표 생성에서 리그를 선택한다. Registration, official submission, runtime, Result, RankingAward 및 기록 완료 상태는 여전히 각 Event가 소유한다. 신규 팀전은 Master로 고정하며 역사 Light 팀전은 보존한다.
+`league_intakes` links one announcement to two Events, Rookie and Master. The announcement collects registrations together, and operators pick the league during bracket creation. Each Event still owns its own Registration, official submission, runtime, Result, RankingAward, and record completion state. New team tournaments are fixed to Master while historical Light team tournaments remain preserved.
 
-개인 Master 참가 또는 개인 Rookie/Light champion 이력으로 개인 Master 자격을 판정한다. 팀전은 자격 근거에서 제외한다. DB가 신청 destination과 양쪽 중복을 검사하고 EntryParticipant 생성 때 재검사한다. 공통 파티 제출 경로는 실제 Registration 소유 Event로 연결하고 Submission/final pointer를 복사하지 않는다. 양쪽 후속 사실 검사와 공지 삭제는 원자적 DB 처리다.
+Individual Master eligibility is based on prior individual Master participation or an individual Rookie or Light championship. Team tournaments do not count toward eligibility. The DB validates the target league and cross-league duplicates at insert time and re-validates them on EntryParticipant creation. The shared party submission flow routes to the Event that owns the Registration without copying Submission rows or final pointers. Downstream checks across both Events and announcement deletion run atomically in the database.
 
-2026-11-02 운영 DB에 통합 접수와 공식 회차 확장을 적용했다. 이후 재설치 시에도 DB 스크립트를 먼저 적용한 다음 프런트엔드를 배포한다. 전환 제약, 적용 순서와 검증은 `docs/LEAGUE_INTAKE.md`와 `docs/COMPETITION_EDITIONS.md`를 따른다.
+Unified intake and official edition extensions were applied to the Production DB on 2026-11-02. On any future reinstall, apply the DB scripts before deploying the frontend. Transition constraints, rollout order, and verification details are in `docs/LEAGUE_INTAKE.md` and `docs/COMPETITION_EDITIONS.md`.
 
 ### Official submission
 
-공식 파티는 mutable Team Builder draft가 아니라 immutable revision chain이다.
+An official party is an immutable revision chain, not a mutable Team Builder draft.
 
 ```text
 EventRegistration
@@ -120,14 +109,14 @@ EventRegistration
 → TeamSnapshotMember
 ```
 
-- 재제출은 기존 row update가 아니라 새 Submission/Snapshot revision 생성이다.
-- Event rule (`regulation_id`, `cup_rule_id`, `cup_rule_settings`)은 authoritative다.
-- `submission_target_at`은 운영 경고 기준일 수 있으나 lifecycle 상태를 우회하지 않는다.
-- `final_submission_id`는 제출 여부가 아니라 record apply 시점의 official freeze pointer다.
+- Resubmitting creates a new Submission and Snapshot revision instead of updating an existing row.
+- Event rules (`regulation_id`, `cup_rule_id`, `cup_rule_settings`) are authoritative.
+- `submission_target_at` can drive operational warnings, but it never bypasses lifecycle state.
+- `final_submission_id` is the official freeze pointer set at record apply, not a submission indicator.
 
-### Record apply와 roster 공개
+### Record apply and roster reveal
 
-record apply는 실제 `EntryParticipant.registration_id`만 대상으로 최신 Submission을 freeze한다. Result, RankingAward, freeze, Event 완료, Champions HOF는 `apply_event_record` 한 트랜잭션으로 함께 반영되고, 취소도 `revert_event_record` 한 트랜잭션이다(`docs/db/record_apply_rpc.sql`). 브라우저는 계획만 계산한다.
+Record apply freezes the latest Submission only for actual `EntryParticipant.registration_id` records. Result, RankingAward, freeze, Event completion, and Champions HOF commit together in one `apply_event_record` transaction, and `revert_event_record` rolls them back in one transaction (`docs/db/record_apply_rpc.sql`). The browser only computes the plan.
 
 ```text
 EntryParticipant.registration_id
@@ -137,18 +126,18 @@ EntryParticipant.registration_id
 → TeamSnapshotMember
 ```
 
-- 실제 참가했지만 미제출이면 Result/참가 이력은 가능하고 roster/Pokémon usage는 없다.
-- 제출했지만 actual EntryParticipant가 없는 no-show는 official roster/Pokémon usage에 포함하지 않는다.
-- official roster 공개가 필요한 `on_record_apply` Event는 apply 후 `status=completed`, `record_applied_at`, `team_revealed_at`을 모두 가진다.
-- revert는 Result/Award rollback과 pointer release, Event 공개 상태 해제를 수행하되 immutable Submission/Snapshot history는 보존한다.
-- 공개된 normalized Event는 final pointer가 없는 참가자를 legacy party로 보충하지 않는다.
-- 칭호는 `site_data.titleGroups`의 이름 기반 기록이라 트랜잭션 밖이다. 반영 뒤 운영자가 고른 칭호는 그 Event id를 `grants`/`createdBy`로 남기고, 반영 취소가 그 Event가 준 해당자만 되돌린다(`revertTitleAwards`).
+- A player who competed without submitting a party can still have a Result and participation history, with no roster or Pokémon usage recorded.
+- A no-show who submitted a party without an actual EntryParticipant is excluded from official rosters and Pokémon usage.
+- An `on_record_apply` Event that requires official roster reveal has `status=completed`, `record_applied_at`, and `team_revealed_at` set after apply.
+- Revert rolls back Results and Awards, releases the freeze pointer, and clears the Event's reveal state while keeping immutable Submission and Snapshot history.
+- A revealed normalized Event never backfills a participant without a final pointer from legacy party data.
+- Titles live in `site_data.titleGroups` as name-based records outside the transaction. Titles selected by an operator after record apply record the Event ID in `grants` and `createdBy`, and reverting records rolls back only the recipients granted by that Event (`revertTitleAwards`).
 
 ## 4. Bracket runtime
 
-### 생성과 projection
+### Creation and projection
 
-active Event-linked bracket은 다음 lifecycle으로 생성한다.
+Active Event-linked brackets follow this lifecycle:
 
 ```text
 EventRegistration preflight
@@ -159,18 +148,18 @@ EventRegistration preflight
 → Bracket UI
 ```
 
-Single, Double, Team runtime은 normalized lifecycle을 사용한다. malformed Event ownership, slot set, Entry identity, Match topology는 legacy fallback 대신 fail closed 한다.
+Single, Double, and Team runtimes all use this normalized lifecycle. Malformed Event ownership, slot sets, Entry identities, or Match topology fail closed instead of falling back to legacy graphs.
 
-### Match와 성적
+### Matches and standings
 
-- winner select/change/cancel은 canonical Match fact를 갱신한다.
-- winner 변경은 downstream stale Match를 정리하고 formed downstream node만 다시 materialize한다.
-- Result는 Entry placement fact이며 Match/Result source ownership은 historical row를 덮어쓰지 않는다.
-- team Result는 Team Entry 단위이며 member-level ranking payout과 혼동하지 않는다.
+- Selecting, changing, or cancelling a winner updates canonical Match facts.
+- Changing a winner clears stale downstream Matches and re-materializes only formed downstream nodes.
+- Result records Entry placement facts, and Match or Result ownership never overwrites historical rows.
+- Team Results are scoped to Team Entries and stay separate from member-level ranking payouts.
 
-### Runtime delete / rollback
+### Runtime deletion and rollback
 
-runtime delete는 UI graph delete가 아니다. ownership이 명확한 runtime-owned facts를 FK-safe 순서로 정리한다.
+Deleting a runtime is not a UI graph delete. It cleans up runtime-owned facts with clear ownership in FK-safe order:
 
 ```text
 runtime-owned Match
@@ -180,35 +169,35 @@ runtime-owned Match
 → BracketRuntime
 ```
 
-- Submission이 있거나 `final_submission_id`가 있는 durable EventRegistration은 삭제하지 않는다.
-- durable existing Registration의 player link는 rollback으로 복원하지 않는다.
-- non-durable runtime-created Registration만 삭제할 수 있다.
-- runtime이 non-durable existing Registration의 player link를 바꿨고 exact ownership이 확인되면 이전 player로 복구한다.
-- Player는 다른 Registration, EntryParticipant, Match, RankingAward, HOF 등 참조가 없을 때만 삭제한다.
-- ambiguous ownership, durable downstream, applied bracket은 fail closed 한다.
+- Durable `EventRegistration` rows that have a Submission or a `final_submission_id` are never deleted.
+- Player links on durable existing Registrations are not reverted on rollback.
+- Only non-durable, runtime-created Registrations can be deleted.
+- If the runtime changed the player link on a non-durable existing Registration and exact ownership is confirmed, rollback restores the previous player.
+- A Player is deleted only when no other Registration, EntryParticipant, Match, RankingAward, or HOF row references it.
+- Ambiguous ownership, durable downstream facts, or applied brackets fail closed.
 
-## 5. Result, Ranking, Records
+## 5. Result, Ranking, and Records
 
-### Result와 RankingAward
+### Result and RankingAward
 
-`Result`와 `RankingAward`는 다른 사실이다.
+`Result` and `RankingAward` represent separate facts.
 
-- Result: Event Entry의 champion, runner-up, semifinalist placement.
-- RankingAward: 실제 지급한 points/win/runner-up/top4 ledger delta.
-- `RankingBaseline + RankingAward`가 normalized ranking의 canonical source다.
+- `Result` stores an Event Entry's champion, runner-up, or semifinalist placement.
+- `RankingAward` stores the actual ledger delta for points, wins, runner-up finishes, and top-4 finishes.
+- `RankingBaseline + RankingAward` is the canonical source for normalized rankings.
 
-정책:
+Award policy:
 
-- Rookie는 RankingAward를 만들지 않는다.
-- ordinary Master/Light는 현재 placement policy에 따라 RankingAward를 만든다.
-- team placement는 team history에는 보존하지만 개인 wins/runner-ups/top4 count에는 포함하지 않는다.
-- Champions Qualifier와 Final은 RankingAward, points delta, season/series ranking delta를 만들지 않는다.
+- Rookie events do not create `RankingAward` rows.
+- Ordinary Master and Light events create `RankingAward` rows according to the current placement policy.
+- Team placements remain in team history but are excluded from individual wins, runner-ups, and top-4 counts.
+- Champions Qualifiers and Finals create no `RankingAward`, points delta, or season/series ranking delta.
 
-normalized ranking UI는 YPL/Classic normalized Season을 최신순으로 보여 주며 legacy `+ 추가` mutation UI를 제공하지 않는다. 기본 Season 순서는 YPL 최신→과거, 그 다음 Classic 최신→과거다.
+The normalized ranking UI lists YPL and Classic normalized Seasons from newest to oldest and removes the legacy `+ 추가` mutation UI. Default Season order is YPL newest to oldest, followed by Classic newest to oldest.
 
 ### Records projection
 
-Records는 completed official Event를 normalized facts에서 projection한다.
+Records projects completed official Events from normalized facts.
 
 ```text
 Event → Entry → EntryParticipant → Player
@@ -217,62 +206,62 @@ Event → RankingAward / RankingBaseline
 EventRegistration.final_submission_id → official roster → Pokémon usage
 ```
 
-동일 Event에 linked legacy record가 있으면 normalized projection과 중복 표시하지 않는다. historical compatibility Event만 legacy read를 유지한다.
+When a linked legacy record exists for the same Event, Records suppresses the duplicate and shows only the normalized projection. Only historical compatibility Events keep legacy reads.
 
-Records용 rule display는 `competition_settings.recordRuleLabel`이다.
+Rule display in Records uses `competition_settings.recordRuleLabel`.
 
-- 자유 텍스트이며 비어 있으면 표시하지 않는다.
-- `cup_rule_id`는 Team Builder validation/enforcement의 technical identifier이며 raw Records label로 사용하지 않는다.
+- It is free text and hidden when empty.
+- `cup_rule_id` is a technical identifier for Team Builder validation and enforcement, not a raw Records label.
 
 ## 6. Champions
 
-### Pair와 phase boundary
+### Pair and phase boundary
 
-하나의 Champions 공지는 Qualifier와 Final Event pair를 만든다.
+One Champions announcement creates a Qualifier and Final Event pair.
 
-| 구분 | Qualifier | Final |
+| Field | Qualifier | Final |
 | --- | --- | --- |
-| `battle_format` | singles 또는 doubles | pair와 동일 |
-| `competition_format` | 생성 전 NULL, 생성 시 single/double 선택 | 생성 전 NULL, 생성 시 single/double 선택 |
-| division | `NULL` | `NULL` |
-| schedule | `qualifierHeldOn`, `qualifierSubmissionTargetAt` | `finalHeldOn`, `finalSubmissionTargetAt` |
-| Registration/Submission/Snapshot | Qualifier 전용 X | Final 전용 Y |
+| `battle_format` | `singles` or `doubles` | Same as pair |
+| `competition_format` | `NULL` before creation, `single` or `double` chosen at creation | `NULL` before creation, `single` or `double` chosen at creation |
+| `division` | `NULL` | `NULL` |
+| Schedule | `qualifierHeldOn`, `qualifierSubmissionTargetAt` | `finalHeldOn`, `finalSubmissionTargetAt` |
+| Registration / Submission / Snapshot | Qualifier-only X | Final-only Y |
 
-`battle_format`은 Pokémon battle format이고 `competition_format`은 bracket topology다. 두 개념을 혼동하지 않는다.
+`battle_format` is the Pokémon battle format and `competition_format` is the bracket topology. Keep the two separate.
 
-공지에서는 대진 방식을 정하지 않는다. `create_selected_bracket_runtime`이 관리자 선택을 해당 Event에 저장하고 실제 runtime을 같은 트랜잭션에서 생성한다. 실패하면 방식 변경도 취소하며, 기존 runtime의 방식을 바꾸는 요청은 거부한다. 통합 접수의 두 리그와 Champions의 두 단계는 각각 선택한다. 공지 수정은 이미 선택한 방식을 보존한다. 적용 스크립트는 `docs/db/bracket_format_at_creation.sql`이다.
+Announcements do not set the bracket format. `create_selected_bracket_runtime` saves the admin's choice on the Event and creates the runtime in the same transaction. If creation fails, the format update rolls back, and requests to change the format of an existing runtime are rejected. Each league in a unified intake and each phase in Champions chooses its format independently. Editing an announcement preserves any format already chosen. The migration script is `docs/db/bracket_format_at_creation.sql`.
 
-Qualifier X와 Final Y는 Player identity만 공유한다. Submission, Snapshot, `final_submission_id`, Registration을 copy, reuse, fallback하지 않는다. Final official roster/HOF는 Final Y만 사용한다.
+Qualifier X and Final Y share only Player identity. Submission, Snapshot, `final_submission_id`, and Registration are never copied, reused, or used as fallbacks across phases. Final official rosters and HOF read only Final Y.
 
-### Direct selection과 Qualifier setup
+### Direct selection and Qualifier setup
 
-Qualifier setup은 다음 순서다.
+Qualifier setup follows four steps:
 
-1. Qualifier EventRegistration 중 direct entrant를 선택하고 normalized direct selection fact로 저장한다. 화면은 선발전 시즌 랭킹 상위 신청자 4명을 추천만 한다(`recommend_championship_direct_entrants`, `docs/db/champions_direct_recommendation.sql`). 고르는 것은 운영자다.
-2. direct entrant를 제외한 Registration 중 actual Qualifier participant를 확정한다.
-3. direct entrant와 no-show는 Qualifier Entry를 만들지 않는다.
-4. actual participant만 Entry/EntryParticipant와 운영자가 선택한 Single 또는 Double Elimination runtime에 들어간다.
+1. Select direct entrants from Qualifier `EventRegistration` rows and save them as normalized direct selection facts. The UI only recommends the top 4 applicants from the qualifier season ranking (`recommend_championship_direct_entrants`, `docs/db/champions_direct_recommendation.sql`). Operators make the actual selection.
+2. Confirm actual Qualifier participants from the remaining non-direct Registrations.
+3. Direct entrants and no-shows do not receive Qualifier Entries.
+4. Only actual participants enter Entry/EntryParticipant and the admin-selected Single or Double Elimination runtime.
 
-`finalCapacity=C`, direct entrant 수 `D`, actual Qualifier participant 수 `A`일 때:
+Given `finalCapacity = C`, direct entrant count `D`, and actual Qualifier participant count `A`:
 
 ```text
 qualifierTarget Q = C - D
 requiredEliminations E = A - Q
 ```
 
-`qualification_slots`는 공지 작성 시 운영자가 입력하는 값이 아니다. setup에서 derived `Q`를 Qualifier runtime의 값으로 저장한다.
+Operators do not type `qualification_slots` when drafting an announcement. Setup derives `Q` and saves it on the Qualifier runtime.
 
-Qualifier는 Single이면 1패, Double이면 2패 탈락 Match facts로 E명이 탈락할 때까지 진행한다.
+The Qualifier runs until `E` players are eliminated via Match facts (1 loss in Single Elimination, 2 losses in Double Elimination).
 
-- `eliminatedCount < E`: 정상 진행/수정.
-- `eliminatedCount = E`: 새 winner 입력과 새 downstream materialization은 금지, 이미 played된 결정 Match의 correction/cancel은 apply 전 허용.
-- qualifier apply 후: Match mutation은 금지하며 reopen 후에만 수정 가능.
+- While `eliminatedCount < E`, matches proceed and can be edited normally.
+- Once `eliminatedCount = E`, new winner entries and downstream materialization stop, while corrections or cancellations on already-played deciding Matches remain allowed until apply.
+- After qualifier apply, match mutations are blocked and require a reopen first.
 
-Qualifier는 champion을 결정하지 않으며 fake final Match를 만들지 않는다.
+A Qualifier never crowns a champion and never creates a fake final Match.
 
-### Qualifier apply / reopen
+### Qualifier apply and reopen
 
-survivor 도달 자체는 Final entry 확정이 아니다. 운영자가 Qualifier apply를 실행할 때 atomic flow가 direct/survivor를 재검증한다.
+Reaching the survivor count does not confirm Final entries on its own. When an operator runs Qualifier apply, an atomic flow re-validates direct entrants and survivors:
 
 ```text
 persisted direct selection → ranking Advancement + Final EventRegistration
@@ -280,98 +269,98 @@ survivor Qualifier Entry → qualifier Advancement + Final EventRegistration
 Qualifier → completed
 ```
 
-- Final Registration은 이 시점에 생성되지만 Final Entry와 Final Submission은 생성하지 않으며 `final_submission_id`는 `NULL`이다.
-- Qualifier actual participant의 Submission X는 Qualifier official roster/usage에만 쓰인다.
-- Qualifier는 Result, RankingAward, HOF, champion/runner-up/semifinalist placement를 생성하지 않는다.
-- reopen/apply-revert는 Final downstream이 없는 경우에만 허용한다. Final Submission도 blocker다.
-- apply-revert 후 direct selection과 played Qualifier Match는 유지한다. bracket delete before apply는 direct selection과 runtime-owned qualifier facts를 rollback한다.
+- Final Registrations are created at this point, but Final Entries and Final Submissions are not, and `final_submission_id` stays `NULL`.
+- Submission X from actual Qualifier participants is used only for Qualifier official rosters and usage.
+- A Qualifier never creates Result, RankingAward, HOF, or champion/runner-up/semifinalist placements.
+- Reopen and apply-revert are allowed only when no Final downstream facts exist. Even a Final Submission blocks reopen.
+- After apply-revert, direct selections and played Qualifier Matches remain intact. Deleting the bracket before apply rolls back direct selections and runtime-owned qualifier facts.
 
 ### Final
 
-Final candidate source는 Advancement가 만든 Final EventRegistration이다. Final wizard는 ordinary participant confirmation을 재사용하여 당일 actual participant만 선택한다.
+Final candidates come from the Final `EventRegistration` rows created by Advancement. The Final wizard reuses ordinary participant confirmation to pick actual day-of participants.
 
-- finalCapacity는 advancement capacity이지 actual bracket participant count가 아니다.
-- Final wizard는 direct/ranking selection, provenance mutation, arbitrary Registration 생성, submission completion을 bracket prerequisite로 삼지 않는다.
-- manual replacement capability는 provenance fact로 보존하지만 Final bracket creation surface와 섞지 않는다.
-- Final apply는 actual participant의 Final Submission Y만 freeze하고 Result, placement, HOF를 만든다.
-- Champions Final은 RankingAward를 만들지 않는다.
+- `finalCapacity` is the advancement capacity, not the actual bracket participant count.
+- The Final wizard does not perform direct or ranking selection, mutate provenance, create arbitrary Registrations, or require submission completion to build a bracket.
+- Manual replacement capability is preserved as a provenance fact without mixing it into the Final bracket creation UI.
+- Final apply freezes only Final Submission Y for actual participants and creates Result, placement, and HOF records.
+- Champions Finals do not create `RankingAward` rows.
 
-### Champions Records와 HOF
+### Champions Records and HOF
 
-Qualifier와 Final은 Records archive에서 하나의 Champions tournament row로 보인다.
+Qualifier and Final appear as one Champions tournament row in the Records archive.
 
-- Qualifier-only archive row는 표시하지 않는다.
-- Final이 완료되면 Final participant/result를 우선 표시하고, Final에 없는 Qualifier-only actual participant는 `참가`로 병합한다.
-- 같은 Player가 두 phase에 있으면 Final result를 우선해 한 번만 표시한다.
-- Trainer/Pokémon roster history에서는 Qualifier X와 Final Y를 별도의 official roster로 보존한다.
+- Qualifier-only archive rows are not displayed.
+- Once the Final finishes, Final participants and results take precedence, and Qualifier-only actual participants merge in as `참가`.
+- A Player who appears in both phases is shown once with their Final result.
+- Trainer and Pokémon roster history preserves Qualifier X and Final Y as separate official rosters.
 
-HOF는 Final champion Result에만 생성한다. party는 Final frozen TeamSnapshot chain을 사용하며 Pokémon display name은 Records의 canonical localization pipeline을 재사용한다. artwork identity는 `pokemon_id` 기반이다.
+HOF entries are created only for the Final champion Result. The party comes from the Final frozen TeamSnapshot chain, Pokémon display names use the canonical Records localization pipeline, and artwork identity uses `pokemon_id`.
 
-Champions ordinal은 하나다. Final record apply가 확정한 ordinal을 paired Qualifier/Final `round_number`와 `HallOfFameEntry.generation_number`에 동일하게 사용한다. 예를 들어 Records의 `제7회 챔피언스`와 HOF의 `7대 싱글 챔피언`은 같은 ordinal이다.
+Champions uses a single ordinal. The ordinal finalized at Final record apply is shared by the paired Qualifier and Final `round_number` and `HallOfFameEntry.generation_number`. For example, `제7회 챔피언스` in Records and `7대 싱글 챔피언` in HOF share the same ordinal.
 
 ## 7. Announcement deletion
 
-공지 삭제는 delete-then-restore가 아니라 read-only preflight다.
+Announcement deletion runs a read-only preflight instead of a delete-then-restore flow.
 
-다음 downstream fact 중 하나라도 있으면 deletion을 차단한다.
+Deletion is blocked if any of these downstream facts exist:
 
-- EventRegistration
-- RegistrationSubmission
-- Entry / EntryParticipant
-- BracketRuntime / Match
-- Result / RankingAward / HallOfFameEntry
+- `EventRegistration`
+- `RegistrationSubmission`
+- `Entry` or `EntryParticipant`
+- `BracketRuntime` or `Match`
+- `Result`, `RankingAward`, or `HallOfFameEntry`
 - `record_applied_at`
 
-차단 시 announcement, Event, Registration 등 어떤 mutation도 하지 않는다. pristine Event만 announcement reference를 정리하고 Event status를 `cancelled`로 바꾼다. Event physical delete는 하지 않는다. Champions는 Qualifier/Final pair 전체를 검사한다.
+When blocked, nothing is mutated across announcements, Events, or Registrations. Only a pristine Event clears its announcement reference and changes status to `cancelled`. Events are never physically deleted. For Champions, preflight checks both the Qualifier and Final pair.
 
-## 8. Season과 round numbering
+## 8. Season and round numbering
 
 ### Event round number
 
-새 Event의 `round_number`는 Event name이 아니라 existing non-cancelled Event history로 자동 배정한다.
+A new Event's `round_number` is assigned automatically from existing non-cancelled Event history rather than parsed from the Event name.
 
-| 새 Event | sequence source | 새 round |
+| New Event | Sequence source | New round |
 | --- | --- | --- |
-| Rookie individual | non-team Rookie max | max + 1 |
-| Master individual | non-team Master max | max + 1 |
-| Light individual | non-team Light max | max + 1 |
-| Team | non-team Master max | max + 1 |
-| Champions pair | Champions max | max + 1, Qualifier/Final shared |
+| Rookie individual | Non-team Rookie max | `max + 1` |
+| Master individual | Non-team Master max | `max + 1` |
+| Light individual | Non-team Light max | `max + 1` |
+| Team | Non-team Master max | `max + 1` |
+| Champions pair | Champions max | `max + 1`, shared by Qualifier and Final |
 
-Team Event는 Master sequence를 참조하지만 자체가 Master sequence를 전진시키지 않는다. 따라서 Master 36 뒤 Team 37이 있어도 다음 Master는 37일 수 있다.
+Team Events read the Master sequence without advancing it themselves. If Team 37 follows Master 36, the next Master event can still be 37.
 
 ### Season rollover
 
-`resolve_ypl_season_for_date(p_at)`가 Asia/Seoul 날짜를 반기 window로 계산하고, 비공개 날짜 주입 함수 `ensure_current_ypl_season_for_date(p_at)`가 advisory transaction lock 안에서 canonical Season row와 YPL-only current 상태를 만든다. 앱은 DB `now()`만 쓰는 `ensure_current_ypl_season()` wrapper를 호출하므로 anon caller가 임의 날짜로 rollover할 수 없다. anchor는 `2026-09-01 KST = YPL 시즌 3`이며 이후 매년 3월 1일/9월 1일에 전환한다. anchor 이전 날짜는 fail closed로 자동 생성하지 않는다.
+`resolve_ypl_season_for_date(p_at)` maps an `Asia/Seoul` timestamp to a half-year window, and the private date-injection function `ensure_current_ypl_season_for_date(p_at)` creates the canonical Season row and sets YPL-only current status under an advisory transaction lock. The app calls the `ensure_current_ypl_season()` wrapper, which only uses DB `now()`, preventing `anon` callers from triggering rollovers with arbitrary dates. The anchor is `2026-09-01 KST = YPL 시즌 3`, rolling over every March 1 and September 1. Dates before the anchor fail closed without auto-creating rows.
 
-- partial unique index는 `series='ypl' AND status='current'`만 보호한다. Classic row와 기존 Event 연결은 rollover가 변경하지 않는다.
-- 신규 ordinary Event와 Champions Qualifier/Final pair는 생성 직전에 ensure RPC를 호출해 같은 YPL Season을 사용한다. 기존 Event/pair 수정은 현재 Season으로 이동하지 않고 기존 `season_id`를 유지한다.
-- `pg_cron` scheduler는 사용하지 않는다. idempotent ensure RPC를 current-season 진입점에서 호출하며, 이 방식은 Production에도 적용됐다. anchor는 `2026-09-01 = YPL 시즌 3`, `2027-03-01 = YPL 시즌 4`, `2027-09-01 = YPL 시즌 5`다.
+- A partial unique index protects only `series='ypl' AND status='current'`. Rollover never modifies Classic rows or existing Event links.
+- New ordinary Events and Champions Qualifier/Final pairs call the ensure RPC right before creation so they share the same YPL Season. Editing an existing Event or pair keeps its original `season_id` instead of moving it to the current Season.
+- `pg_cron` is not used. Production calls the idempotent ensure RPC at current-season entry points. Anchors are `2026-09-01 = YPL 시즌 3`, `2027-03-01 = YPL 시즌 4`, and `2027-09-01 = YPL 시즌 5`.
 
-## 9. Production migration / cutover 완료
+## 9. Production migration and cutover
 
-Production은 새 `YPL_DB`의 `ypl_schema_validation`을 active normalized schema로 사용한다. `public.site_data / ypl_data_v4`는 기존 site-level data 및 historical legacy compatibility를 위해 보존한다. 특히 `ypl_data_v4.brackets`의 legacy graph는 Event-unlinked pre-normalized completed bracket의 read-only compatibility에만 허용하며 active Event-linked bracket runtime fallback으로 사용하지 않는다.
+Production uses `ypl_schema_validation` on the new `YPL_DB` as its active normalized schema. `public.site_data / ypl_data_v4` remains for site-level data and historical legacy compatibility. Legacy graphs in `ypl_data_v4.brackets` are limited to read-only display of Event-unlinked pre-normalized completed brackets and are never used as a fallback for active Event-linked runtimes.
 
-- normalized application table 22개, function 26개, constraint 174개, index 100개, trigger 2개를 migration했다.
-- source/destination의 table row count, non-empty data hash, function/constraint/index/trigger catalog fingerprint, table/function/schema ACL fingerprint parity를 확인했다.
-- orphan Event/Registration/Entry/Submission/Result/HOF, broken `final_submission_id`는 모두 0이며 current YPL Season은 정확히 하나다.
-- custom schema API exposure와 `ypl_schema_validation` REST/RPC HTTP 200을 검증했고 production env는 `VITE_YPL_DATA_SCHEMA=ypl_schema_validation` 경계를 사용한다.
-- 기존 Production은 변경하지 않고 rollback/archive source로 보존했다.
+- Migration moved 22 normalized application tables, 26 functions, 174 constraints, 100 indexes, and 2 triggers.
+- Source and destination matched on table row counts, non-empty data hashes, function/constraint/index/trigger catalog fingerprints, and table/function/schema ACL fingerprints.
+- Orphan Events, Registrations, Entries, Submissions, Results, HOF rows, and broken `final_submission_id` pointers are all 0, and exactly one current YPL Season exists.
+- Custom schema API exposure and `ypl_schema_validation` REST/RPC HTTP 200 responses were verified, and the production environment sets `VITE_YPL_DATA_SCHEMA=ypl_schema_validation`.
+- Old Production stayed untouched as a rollback and archive source.
 
 ## 10. Security boundary
 
-Client/UI는 UX guard일 뿐 canonical integrity boundary가 아니다. RPC/service/DB는 Event ownership, phase, lifecycle state, exact Registration/Entry identity, durable downstream fact를 independently validate하고 fail closed 해야 한다.
+Client and UI checks are UX guards only, not the canonical integrity boundary. RPCs, services, and the database must independently validate Event ownership, phase, lifecycle state, exact Registration and Entry identity, and durable downstream facts, failing closed on error.
 
-2026-10-16부터 Production DB가 쓰기 권한의 관문이다 (`docs/db/access_lockdown.sql`, 근거와 검증과 되돌리기는 `docs/db-access-lockdown.md`).
+Since 2026-10-16, the Production DB has enforced write access (`docs/db/access_lockdown.sql`; rationale, verification, and rollback are in `docs/db-access-lockdown.md`).
 
-- `ypl_schema_validation` 22개 table과 `public.site_data` 모두 RLS가 켜져 있다. anon은 전부 읽을 수 있다. `visitor_pins`는 어떤 방문자 역할도 읽을 수 없다.
-- anon이 쓰는 것은 다섯 가지뿐이다. 방문자 공간 RPC `community_write` (SECURITY DEFINER, 글마다 서버가 비밀번호 대조), 열린 Event의 신청서 `event_registrations` INSERT (열 단위 grant와 `visitor_apply` 정책), 공식 파티 제출 RPC `submit_registration_team_snapshot` (6개 인자판, SECURITY DEFINER, 첫 제출이 정한 비밀번호를 재제출에 요구하고 운영진은 `reset_submission_pin`으로 초기화한다), 알림 구독 RPC `save_push_subscription`과 `delete_push_subscription` (SECURITY DEFINER, `docs/db/announcement_push.sql`), 그 구독의 알림 종류를 읽고 바꾸는 `push_settings`와 `set_push_kinds` (SECURITY DEFINER, endpoint를 가진 그 구독 하나만, `docs/db/push_kinds.sql`). `push_subscriptions`와 `push_outbox` table은 anon에게 닫혀 있고 endpoint는 알려진 푸시 서비스만 받는다. 구독의 계정은 저장할 때의 `auth.uid()`로만 잇는다(`docs/PUSH.md`). 대회에 연결하지 않은 신청서의 응답 RPC `submit_announcement_response` (SECURITY DEFINER, `docs/db/backend_hardening.sql`)는 `ypl_data_v4`를 열지 않고 켜진 신청서에 응답 하나만 덧붙인다.
-- 그 밖의 모든 쓰기와 관리자 RPC 실행은 `authenticated` 역할만 가능하고, RLS `admin_write` 정책이 JWT `app_metadata.ypl_admin = true` 를 요구한다. 관리자는 Supabase Auth로 로그인한다 (`src/storage.js` 의 `signInAdmin`).
-- 챔피언스 RPC는 SECURITY INVOKER라 같은 RLS를 거친다. DEFINER로 남은 것은 파티 제출, 공지 알림 구독, `ensure_current_ypl_season` 계열, Qualifier direct selection 정리 trigger뿐이다.
-- TRUNCATE는 anon과 authenticated 모두에게 없다.
-- `site_data` 쓰기는 읽은 `revision`이 그대로일 때만 성공한다 (`src/services/revisionedRow.js`, 트리거는 `docs/db/backend_hardening.sql`). 읽기에 실패한 행은 쓰지 않으므로, 씨드를 띄운 화면의 저장이 실제 데이터를 덮지 않는다. 재방문 첫 그림에 쓰는 브라우저 사본(`ypl-seen-site`, `siteDataService.js`)도 같은 이유로 보이기만 하고 저장의 근거가 되지 않는다.
-- 공지 신청서의 `form.closesAt`(한국 시각)이 지나면 방문자의 신청을 DB가 거절한다: 대회 연결 신청은 `event_registrations` BEFORE INSERT 트리거, 연결하지 않은 신청서는 `submit_announcement_response` (`docs/db/application_close.sql`). 운영진의 늦은 등록은 막지 않는다.
-- 파티(`team_snapshots`, `team_snapshot_members`)는 제출된 대회의 `team_revealed_at` 이 있거나 운영진일 때만 읽힌다. 화면의 공개 판정만으로는 REST 직접 조회를 막지 못한다 (`docs/db/private_answers.sql`).
-- 신청서 답 중 `public` 표시가 있는 질문의 답만 `site_data` 의 `form.responses` 와 `registration_data.answers` 에 남는다. 나머지는 운영진만 읽는 `public.form_private_answers` (subject = 응답 id 또는 registration id) 로 저장 전에 떼어 내고, 운영진 화면이 합쳐 읽는다 (`loadPrivateAnswers`). 질문의 공개 표시를 나중에 바꿔도 이미 들어온 답은 옮기지 않는다.
+- RLS is enabled on all 22 tables in `ypl_schema_validation` and on `public.site_data`. `anon` can read all of them. No visitor role can read `visitor_pins`.
+- `anon` can write through only five paths: the visitor-space RPC `community_write` (SECURITY DEFINER, server checks each post's password); `event_registrations` INSERT for open Events (column-level grant plus the `visitor_apply` policy); the official party submission RPC `submit_registration_team_snapshot` (6-argument version, SECURITY DEFINER, requires the PIN set on first submission, which admins can clear via `reset_submission_pin`); push subscription RPCs `save_push_subscription` and `delete_push_subscription` (SECURITY DEFINER, `docs/db/announcement_push.sql`) along with `push_settings` and `set_push_kinds` for reading and updating notification categories on that single endpoint (SECURITY DEFINER, `docs/db/push_kinds.sql`); and `submit_announcement_response` (SECURITY DEFINER, `docs/db/backend_hardening.sql`), which appends one response to an enabled non-Event form without opening `ypl_data_v4`. `push_subscriptions` and `push_outbox` are closed to `anon`, endpoints must belong to known push services, and account links use only `auth.uid()` at save time (`docs/PUSH.md`).
+- All other writes and admin RPC calls require the `authenticated` role, and the `admin_write` RLS policy requires `app_metadata.ypl_admin = true` in the JWT. Admins sign in through Supabase Auth (`signInAdmin` in `src/storage.js`).
+- Champions RPCs run as SECURITY INVOKER and go through the same RLS policies. Only party submission, announcement push subscriptions, the `ensure_current_ypl_season` family, and the Qualifier direct-selection cleanup trigger remain SECURITY DEFINER.
+- Neither `anon` nor `authenticated` has TRUNCATE privileges.
+- `site_data` writes succeed only when the row's `revision` matches what was read (`src/services/revisionedRow.js`, trigger in `docs/db/backend_hardening.sql`). Rows that failed to load are never written, so a screen showing seed data cannot overwrite real data. For the same reason, the browser cache used for initial paint on return visits (`ypl-seen-site`, `siteDataService.js`) is display-only and never backs a save.
+- Once an announcement form's `form.closesAt` (KST) passes, the DB rejects visitor applications via a `BEFORE INSERT` trigger on `event_registrations` for Event-linked forms and via `submit_announcement_response` for standalone forms (`docs/db/application_close.sql`). Late admin registrations are not blocked.
+- Parties (`team_snapshots`, `team_snapshot_members`) are readable only when the submitted Event has `team_revealed_at` set or the caller is an admin. Client-side reveal checks alone do not stop direct REST queries (`docs/db/private_answers.sql`).
+- Only answers to questions marked `public` stay in `form.responses` on `site_data` and `registration_data.answers`. All other answers are stripped before save into `public.form_private_answers` (keyed by response ID or registration ID), which only admins can read, and merged back in the admin view (`loadPrivateAnswers`). Changing a question's `public` flag later does not move existing answers.
 
-`docs/db/*.sql` 원본의 ACL 줄은 이 상태와 같게 유지한다. 새 함수나 table을 추가하면 anon에게 쓰기나 관리자 RPC 실행을 주지 않는다 (`tests/championsApplicationEventPairRpc.test.mjs` 가 검사한다). broad table write grant, broad anon mutation, ambiguous cascade cleanup을 도입하지 않는다.
+Keep ACL lines in `docs/db/*.sql` aligned with this lockdown state. Never grant `anon` write access or admin RPC execution when adding tables or functions (`tests/championsApplicationEventPairRpc.test.mjs` checks this). Avoid broad table write grants, broad `anon` mutations, and ambiguous cascade cleanups.

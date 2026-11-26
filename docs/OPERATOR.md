@@ -1,85 +1,85 @@
-# 대회 운영 안내
+# Tournament operations guide
 
-대회 하나를 처음부터 끝까지, 사이트 화면 순서대로 적습니다. 코드를 몰라도 됩니다. 모든 운영 작업은 관리자 로그인(더보기 화면의 관리자 로그인 줄) 뒤에 **운영** 화면(`?view=admin`)에서 시작합니다.
+This guide walks through running a single tournament from start to finish in screen order. No coding knowledge is required. Every operator action begins on the `운영` screen (`?view=admin`) after signing in from the admin login row on the `더보기` screen.
 
-이 안내의 2026-11-22에 더한 기능(굵은 글씨 가운데 턴 시간, 게시 예약, 체크인, 자리 교체, 기권과 실격, 선출, 결과 보고, 시계, 칭호 다시 판정, 이름 바꾸기, 화면 오류, 신고)은 `docs/db/handover_features.sql`이 운영에 실행된 뒤에 보입니다(docs/db/README.md "실행 대기").
+Features added on 2026-11-22 (`턴 시간`, `게시 예약`, `체크인`, `자리 교체`, `기권` and `실격`, `선출`, result reporting, clock controls, `칭호 다시 판정`, renaming, `화면 오류`, and `신고`) appear only after `docs/db/handover_features.sql` is run in production (see `docs/db/README.md`).
 
-운영 화면에는 할 일, 신청 수, 남은 경기, 연결 요청 카운터와 대회마다 네 단계(접수, 대진, 경기, 기록)가 보이고, 각 대회의 버튼이 지금 해야 할 일로 바로 데려갑니다.
+The `운영` screen displays counters for pending tasks, registrations, remaining matches, and account link requests, along with four stages per tournament (registration, bracket, matches, records). Each tournament's action button jumps straight to the next required step.
 
-## 1. 공지와 신청서
+## 1. Announcements and registration forms
 
-1. 운영 화면, 편집, **공지 쓰기**.
-2. 제목과 내용을 쓰고, 신청서를 붙이면 대회 설정을 채웁니다: 대회 종류, 접수 구분(마스터, 루키, 통합), 참가 단위(개인, 팀), 배틀 형식, 경기 진행(게임, 사이트 배틀, 랜덤 배틀), 레귤레이션, 대회일과 시작 시각, 신청 마감 시각, 칭호 보상.
-3. 지난 대회와 비슷하면 "지난 대회에서 불러오기"로 설정을 복사합니다.
-4. 경기 진행이 사이트 배틀이면 **턴 시간**(60, 90, 120, 180초)을 고릅니다.
-5. 미리 써 두려면 **게시 예약**에 시각을 넣습니다. 그 시각까지 방문자에게 보이지 않고, 시각이 되면 알림이 갑니다. 고친 공지를 다시 알리려면 **수정 알림 보내기**를 켜고 저장합니다.
-6. 저장하면 대회가 만들어지고, 알림을 켠 기기에 새 공지 알림이 갑니다. 통합 접수는 마스터와 루키 대회가 같이 생기고, 챔피언스는 선발전과 본선이 같이 생깁니다.
+1. Open `운영`, go to editing, and click `공지 쓰기`.
+2. Enter the title and body. Attach a registration form to fill in the tournament settings: competition type, intake division (`마스터`, `루키`, or combined), entry unit (individual or team), battle format, match mode (in-game, site battle, or random battle), regulation, tournament date and start time, registration deadline, and title rewards.
+3. If the setup matches a past event, use `지난 대회에서 불러오기` to copy its settings.
+4. For site battles, pick a `턴 시간` (60, 90, 120, or 180 seconds).
+5. To draft an announcement ahead of time, set a time in `게시 예약`. Visitors will not see it until that time, when the notification goes out automatically. To notify visitors about an edited notice, turn on `수정 알림 보내기` before saving.
+6. Saving creates the tournament and sends a new-notice alert to subscribed devices. Combined intake creates `마스터` and `루키` events together, and Champions creates the qualifier and final together.
 
-## 2. 신청 받기
+## 2. Registration
 
-- 신청은 자동으로 마스터와 루키로 나뉘고, 중복과 마감 뒤 신청은 서버가 막습니다. 마감 하루 전에 알림이 갑니다.
-- 신청 현황은 공지 화면에서 봅니다. 응답은 CSV로 받을 수 있습니다.
-- 예정보다 일찍 닫으려면 운영 화면의 **지금 마감**. 실수면 알림 줄의 되돌리기를 누릅니다.
-- Google 계정으로 "이 기록이 내 것"이라고 요청한 사람은 운영 화면 맨 위 **연결 요청**에서 승인하거나 거절합니다.
+- Registrations sort into `마스터` and `루키` automatically, and the server blocks duplicates and late submissions. A reminder notification goes out one day before the deadline.
+- View registration counts on the `공지` screen and export responses as CSV if needed.
+- To close registration early, click `지금 마감` on the `운영` screen. If clicked by mistake, use the undo button on the toast banner.
+- When a player signs in with Google and submits an ownership claim ("이 기록이 내 것"), approve or reject it under `연결 요청` at the top of the `운영` screen.
 
-## 3. 파티 제출
+## 3. Team submission
 
-- 참가자는 팀 빌더에서 이름과 제출 비밀번호로 공식 파티를 냅니다. 다시 내면 새 제출이 쌓이고 옛 제출은 지워지지 않습니다.
-- 대진표 화면의 제출 현황에서 누가 냈는지 봅니다. 마감 뒤 제출도 받되 횟수가 표시됩니다.
-- 비밀번호를 잊은 사람은 제출 현황에서 **비밀번호 초기화**. 파티는 그대로 남고 다음 제출 때 새 비밀번호를 정합니다.
+- Players submit official parties in the team builder using their name and a submission password. Resubmitting adds a new revision without deleting earlier submissions.
+- Check submission status on the `대진표` screen. Late submissions after the deadline are still accepted, with the count displayed.
+- If a player forgets their submission password, click `비밀번호 초기화` in the submission status view. Their existing team stays intact, and they set a new password on their next submission.
 
-## 4. 대진표 만들기
+## 4. Bracket creation
 
-1. 운영 화면의 대회에서 **대진표 만들기**.
-2. 방식(싱글 엘리미, 더블 엘리미, 개인전은 조별리그 뒤 본선도)을 고릅니다.
-3. 참가자를 체크합니다. **체크를 풀면 불참**입니다. 신청하지 않은 사람은 이름으로 추가합니다. 대회 날 선수들이 홈에서 체크인했다면 **체크인한 N명**이 그 사람들만 고릅니다.
-4. 챔피언스 선발전이면 직행자를 고릅니다(시즌 랭킹 상위 4명이 추천됩니다).
-5. 팀전은 팀 이름과 팀원을 넣습니다. **팀 나누기**는 신청자를 이번 시즌 랭킹 포인트로 고르게 나눠 칸을 채웁니다(다시 누르면 다른 배분).
-6. 추첨 결과가 마음에 들지 않으면 **다시 추첨**, 자리를 바꾸려면 두 자리를 차례로 누릅니다.
-7. 확정하면 첫 경기들이 생기고 대진표 공개 알림이 갑니다.
+1. Open the tournament on the `운영` screen and click `대진표 만들기`.
+2. Pick the format (single elimination, double elimination, or group stage into knockout for individual events).
+3. Check off participating players. Unchecking a player marks them as `불참`. Add unregistered walk-ins by name. If players checked in from the home screen on event day, click `체크인한 N명` to select only checked-in players.
+4. For a Champions Qualifier, select direct-entry players (the top 4 in season rankings are recommended automatically).
+5. For team events, enter team names and rosters. `팀 나누기` splits registrants evenly by current season ranking points and fills the slots (clicking again generates a different split).
+6. Click `다시 추첨` to reshuffle seeds, or click two slots in sequence to swap them.
+7. Confirming the bracket generates the opening matches and sends a bracket-published alert.
 
-대진표를 만든 뒤에는 참가자 수를 바꿀 수 없습니다. 아직 결과가 없는 자리의 사람은 결과 입력의 **OO 자리 교체**로 다른 신청자로 바꿉니다(개인전). 기록에 반영한 대진표는 지울 수 없습니다.
+Participant count cannot be changed after creating a bracket. For an individual event, you can replace a player in a slot with no recorded results by clicking `OO 자리 교체` in result entry. Brackets whose results have been applied to records cannot be deleted.
 
-## 5. 경기 진행
+## 5. Match play
 
-- 경기를 누르면 경기 시트가 열립니다. 승자를 누르면 다음 경기가 생깁니다. 잘못 눌렀으면 알림 줄의 되돌리기.
-- 이미 다음 경기가 진행된 뒤 승자를 바꾸면, 그 뒤의 결과가 지워진다고 몇 경기인지 먼저 묻습니다.
-- 개인전(엘리미, 조별리그, 조별 뒤 본선)에서는 점수(0~9)와 **불참**을, 팀전에서는 **불참**을 넣을 수 있습니다. 대회 도중 그만둔 선수는 **기권 처리**, 규칙 위반은 **실격 처리**를 누르면 그 경기가 불참으로 남고 출전에 사유가 붙습니다.
-- 게임으로 치른 경기는 승자를 넣은 뒤 두 선수의 파티 칸을 눌러 **선출**(낸 포켓몬)을 남깁니다.
-- 선수가 경기 시트에서 결과를 직접 보고합니다. 둘이 같으면 싱글 엘리미는 저절로 들어가고, 더블과 조별은 결과 입력의 **보고대로 OO 승리**를 누릅니다. 다르면 등이 켜지고 운영진이 정합니다.
-- 라운드 시작 시각과 테이블 번호를 넣으면 참가자 화면에 보입니다.
-- 경기 진행을 사이트 배틀로 정한 대회는 선수들이 경기 시트의 배틀 열기로 치르고, 끝나면 승자가 저절로 들어갑니다. 들어가지 못하면 시트에 이유가 보이고 **다시 넣기**가 있습니다. 문제가 있는 배틀은 **배틀 무효**로 지우고 승자를 직접 넣거나 다시 치르게 합니다.
-- 진행 중인 사이트 배틀은 **시계 멈춤**, **시계 다시**, **1분 연장**으로 시간을 다룹니다. 한 선수만 들어와 기다리면 **OO 부전승**이 배틀을 닫고 그 선수의 승리, 상대 불참으로 넣습니다.
-- 대진표의 **목록** 탭은 경기를 라운드별 줄로, **QR**은 행사장 화면에 띄울 대진표 주소를 보여 줍니다.
-- 팀전은 판마다 승자를 넣고, 동점이면 에이스 결정전을 넣습니다.
+- Click a match to open the match sheet, then click the winner to generate the next match. Use the toast undo button if you clicked the wrong player.
+- If you change a winner after downstream matches have already been played, the dialog tells you how many downstream results will be cleared before confirming.
+- Individual events (elimination, group stage, and group-to-knockout) accept game scores (0 to 9) and `불참`. Team events accept `불참`. For mid-tournament drops, click `기권 처리`; for rule violations, click `실격 처리`. Both record the match as `불참` and attach the reason to the entry.
+- For in-game matches, record the winner first, then click each player's team slot to record `선출` (brought Pokémon).
+- Players can self-report results in the match sheet. When both players report the same winner, single elimination records it automatically, while double elimination and group stages show `보고대로 OO 승리` in result entry. Conflicting reports trigger an indicator for operators to resolve.
+- Entering round start times and table numbers displays them on the participant view.
+- In site-battle tournaments, players launch matches from the match sheet and winners record automatically when a battle ends. If auto-recording fails, the sheet shows the reason and provides `다시 넣기`. For broken matches, use `배틀 무효` to void the battle, then enter the winner manually or replay.
+- During a live site battle, use `시계 멈춤`, `시계 다시`, and `1분 연장` to manage the turn clock. If only one player joins and waits, `OO 부전승` closes the battle and records a win with the opponent marked `불참`.
+- On the `대진표` screen, the `목록` tab lists matches by round and `QR` displays a QR code for the venue screen.
+- In team matches, record each bout's winner and add an ace match if tied.
 
-## 6. 기록에 반영
+## 6. Recording results
 
-1. 모든 경기가 끝나면 운영 화면의 대회가 **기록에 반영**을 가리킵니다.
-2. 미리보기에서 우승, 준우승, 4강, 포인트를 확인하고 **이대로 반영**.
-3. 한 번에 들어가는 것: 순위, 랭킹 포인트, 최종 파티 고정과 공개, 대회 완료, 챔피언스면 명예의 전당. 하루 안에 결과 알림이 갑니다.
-4. 이어서 칭호 후보가 뜹니다. 맞는 것을 체크해 **칭호에 반영**합니다.
-5. 잘못 반영했으면 대진표 화면의 **반영 취소**. 한 번에 되돌아가고, 그 대회가 준 칭호도 같이 빠집니다. 고친 뒤 다시 반영합니다.
-6. 칭호를 새로 만들었거나 조건을 고친 뒤에는 **칭호 다시 판정**이 아직 받지 않은 칭호만 다시 보여 줍니다.
-7. 5위 아래(8강, 16강, 공동 N위)도 순위로 남습니다. 포인트는 주지 않습니다. 순위마다 주는 포인트는 운영 화면, 편집, **포인트**에서 바꿉니다(다음 반영부터).
+1. Once all matches finish, the tournament card on the `운영` screen points to `기록에 반영`.
+2. Verify the champion, runner-up, semifinalists, and points in the preview, then click `이대로 반영`.
+3. A single step records placements, ranking points, locked public final teams, tournament completion, and Hall of Fame entry for Champions events. A results notification goes out within a day.
+4. Title candidates appear next. Check the valid ones and click `칭호에 반영`.
+5. If something was recorded incorrectly, click `반영 취소` on the `대진표` screen. Everything reverts together, including titles granted by that event. Fix the mistake and apply again.
+6. After adding a new title or editing title criteria, `칭호 다시 판정` surfaces only unclaimed titles.
+7. Placements below 5th (quarterfinals, round of 16, tied Nth) are recorded as placements without points. Adjust point payouts per placement under `운영`, editing, `포인트` (applies to future events).
 
-챔피언스 선발전은 **선발전 기록 반영**이 따로 있습니다.
+Champions Qualifiers use a separate `선발전 기록 반영` action.
 
-## 7. 대회가 끝난 뒤
+## 7. Post-tournament tasks
 
-- 우승 이미지와 대진표 이미지는 대진표 화면에서 내려받습니다.
-- 매주 일요일에 모든 기록이 자동으로 백업됩니다(RUNBOOK "백업"). 표 계산기로 볼 사본은 운영 화면의 **내보내기**(전체 JSON, 결과, 경기, 랭킹, 명단 CSV).
-- 운영 화면의 **화면 오류**는 방문자 화면에서 난 오류, **신고**는 방문자가 신고한 게시판 글입니다.
-- 같은 사람이 두 이름으로 남았거나 이름을 바꿔야 하면 그 트레이너 시트 맨 아래 **운영**에서 이름 바꾸기, 같은 사람 합치기(되돌릴 수 없음).
+- Download winner graphics and bracket images from the `대진표` screen.
+- All records back up automatically every Sunday (see RUNBOOK "Backups"). For spreadsheet copies, use `내보내기` on the `운영` screen (full JSON, plus CSVs for results, matches, rankings, and rosters).
+- Check `화면 오류` on the `운영` screen for client errors reported from visitor browsers, and `신고` for flagged board posts.
+- If one person appears under two names or needs a name change, open their trainer sheet, scroll to `운영` at the bottom, and use rename or merge (merging cannot be undone).
 
-## 자주 묻는 것
+## Frequently asked questions
 
-| 상황 | 할 일 |
+| Situation | Action |
 |---|---|
-| 참가자가 제출 비밀번호를 잊음 | 3절, 비밀번호 초기화 |
-| 신청을 잘못 마감함 | 마감 직후 알림 줄의 되돌리기. 지났으면 공지 편집에서 마감 시각을 다시 넣음 |
-| 승자를 잘못 넣음 | 경기 시트에서 맞는 승자를 다시 누름 |
-| 기록 반영 뒤 결과가 틀린 것을 발견 | 반영 취소, 고치기, 다시 반영 |
-| 사이트 배틀이 멈춤 | 시계 멈춤, 또는 배틀 무효 뒤 다시 치르거나 승자를 직접 넣음 |
-| 대진표 만든 뒤 한 사람이 못 옴 | 결과 입력의 자리 교체, 대신할 사람이 없으면 불참 |
-| 사이트가 안 열림, 저장이 안 됨 | RUNBOOK.md |
+| Player forgot submission password | Section 3, `비밀번호 초기화` |
+| Closed registration by mistake | Click undo on the toast right away. If it disappeared, edit the notice and set a new deadline |
+| Entered the wrong match winner | Open the match sheet and click the correct winner |
+| Found an error after applying records | Click `반영 취소`, fix the result, and apply again |
+| Site battle froze | Click `시계 멈춤`, or use `배틀 무효` and either replay or enter the winner manually |
+| No-show after bracket creation | Use `자리 교체` in result entry, or mark `불참` if no replacement is available |
+| Site will not load or saves fail | See `RUNBOOK.md` |

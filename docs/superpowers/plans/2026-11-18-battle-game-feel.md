@@ -1,290 +1,288 @@
-# 배틀과 도전의 탑을 게임으로: 구현 계획
+# Battle and 도전의 탑 game feel plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> For agentic workers: use the required sub-skill `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task by task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 배틀과 도전의 탑이 표가 아니라 게임으로 읽히게 한다: 무대가 주인공인 하나의 틀, 게임 문법의 HUD, 타격의 박자, 판의 의식, 장면 안에서 고르는 탑, 버벅임 없는 전환.
+Goal: make battle and 도전의 탑 read as a game rather than a spreadsheet, with one layout where the stage leads, a game-grammar HUD, punchy hit timing, match rituals, in-scene tower picks, and stutter-free transitions.
 
-**Architecture:** 바뀌는 것은 화면뿐이다. 엔진(`@pkmn/sim`), 배틀 함수, DB, 컴퓨터(`battleCpu.js`)는 손대지 않는다. 먼저 법(DESIGN.md)과 측정 도구를 세우고, 그 위에 틀, HUD, 타격감, 의식, 탑의 순서로 쌓는다. 단계마다 시안을 사용자에게 보이고 글자로 고른 뒤 구현한다.
+Architecture: only the UI changes. The engine (`@pkmn/sim`), battle functions, database, and AI (`battleCpu.js`) stay untouched. First establish the design rules (`DESIGN.md`) and measurement tooling, then layer the frame, HUD, hit feel, rituals, and tower in order. Show mockups to the user at each phase and implement only after a written selection.
 
-**Tech Stack:** React 18, 순수 CSS, WebGL2(`gl.js`, `arena.js`, `towerGL.js`), Web Animations(`motion.js`), Web Audio(`sfx.js`). 새 의존성 없음.
+Tech stack: React 18, plain CSS, WebGL2 (`gl.js`, `arena.js`, `towerGL.js`), Web Animations (`motion.js`), and Web Audio (`sfx.js`). No new dependencies.
 
-**Spec:** 2026-11-18 대화의 진단(이 문서 "진단 대응표"가 항목을 옮겨 적었다), `DESIGN.md` "Battle", `docs/BATTLE_STREAK.md`, `CLAUDE.md` "Working with the owner".
+Spec: the 2026-11-18 conversation diagnosis (mapped in the diagnosis table below), `DESIGN.md` "Battle", `docs/BATTLE_STREAK.md`, and `CLAUDE.md` "Working with the owner".
 
-## Global Constraints
+## Global constraints
 
-- 사용자 인터페이스만 바꾼다. 데이터 동작, 엔진의 판정, 배틀 함수의 응답 모양은 그대로다.
-- 새 모양은 시안(스크린샷, 글자로 나눈 안, 추천 하나)부터다. 사용자가 글자로 고르기 전에는 구현하지 않는다.
-- DESIGN.md를 먼저 고치고 코드를 고친다. 새 값이나 패턴을 코드에서 먼저 만들지 않는다.
-- 모든 화면은 390과 1440, 두 테마에서 본다. 움직임은 녹화한 프레임으로, 배치는 잰 잉크로 판단한다.
-- 성능 예산: 휴대폰 속도(CPU 4배 감속)에서 50 ms를 넘는 프레임 0개. 기준선은 리플레이 첫 12초에 20개, 가장 긴 것 817 ms.
-- 움직임은 CSS와 Web Animations, transform과 opacity만. `prefers-reduced-motion`에서는 모든 새 연출이 멈춘 그림으로 선다.
-- 고친 것은 일반 배틀과 도전의 탑, 싱글과 더블, 선수와 관전자와 리플레이 모두에 적용한다(같은 부품을 쓰는 곳 전부).
-- 한국어 문구는 합니다체, 명사 라벨, 느낌표와 가운뎃점 없음. 쇼다운만의 말은 화면에 나오지 않는다.
-- 원작과 맞춰야 하는 것(컷인, 타격, 소리)은 실제 영상을 찾아 비교한다. 내려받기는 이름, 출처, 크기를 말하고 먼저 묻는다.
-- 커밋 메시지는 네 절(문제 인식, 사고 과정, 기획 방향성, 프롬프트). `npm test`와 `npm run build`가 경고 없이 통과해야 한다.
-- 배포는 사용자가 "배포"라고 할 때만 한다.
+- Change only the user interface. Data behavior, engine rulings, and battle function response shapes stay unchanged.
+- Start every new visual shape with mockups (screenshots, labeled options in text, and one recommendation). Do not implement until the user picks an option in writing.
+- Update `DESIGN.md` before changing code. Never introduce new values or patterns in code first.
+- Check every screen at 390 and 1440 in both themes. Judge motion from recorded frames and layout from ink metrics.
+- Performance budget: zero frames over 50 ms at mobile speed (4x CPU throttle). Baseline is 20 frames over 50 ms in the first 12 seconds of a replay, with the longest at 817 ms.
+- Animate only with CSS and Web Animations using `transform` and `opacity`. Under `prefers-reduced-motion`, every new effect holds as a still image.
+- Apply changes across regular battles and 도전의 탑, singles and doubles, players, spectators, and replays (everywhere the shared components run).
+- Korean UI copy uses polite formal style (합니다체) and noun labels, with no exclamation marks or middle dots. Showdown-specific terms must not appear on screen.
+- Compare elements that must match the source game (cut-ins, hits, audio) against real footage. Ask before downloading anything, stating name, source, and size.
+- Write commit messages in four sections (`문제 인식`, `사고 과정`, `기획 방향성`, `프롬프트`). Both `npm test` and `npm run build` must pass with no warnings.
+- Deploy only when the user says `"배포"`.
 
-## Review Focus
+## Review focus
 
-- **움직임 줄이기 설정:** 멈칫, 흔들림, 컷인, 카드 뒤집기가 꺼져도 결과(피해, 급소, 고른 카드)는 같은 순간에 읽혀야 한다. 2단계 측정 도구에 reduced 모드 한 번을 넣는다.
-- **옛 판의 리플레이와 더블:** 새 HUD와 컷인이 더블(판 넷), 14장 이전 도전의 판, 턴이 100을 넘는 판에서 겹치거나 밀리지 않아야 한다. 4, 5단계 확인에 더블 리플레이 한 판과 긴 판 한 판을 넣는다.
-- **관전자와 이어서 온 사람:** 중간에 들어온 화면은 컷인을 건너뛰고 지금 상태에 선다(따라잡기에서 연출을 재생하지 않는다). 5, 6단계 확인에 "턴 중간에 연 관전"을 넣는다.
-- **느린 기기에서 누르기:** 연출 중에도 건너뛰기(무대 탭)가 먹어야 하고, 연출이 끝나기 전에 키가 눌려 잘못 보내지지 않아야 한다. 5단계에서 연출 중 탭을 CDP 터치로 확인한다.
-- **라이트 테마의 무대 위 글자:** 컷인과 결과 카드의 글자가 밝은 테마에서 무대 위에 읽혀야 한다. 5, 6단계 스크린샷에 라이트를 넣는다.
+- With reduced motion enabled, results (damage, critical hits, selected cards) must remain readable at the exact same moment even when hit stop, screen shake, cut-ins, and card flips are turned off. Include one reduced-motion run in the Task 2 measurement tool.
+- The new HUD and cut-ins must not overlap or drift in doubles (four plates), pre-chapter-14 challenge runs, or matches past 100 turns. Include one doubles replay and one long match in the Task 4 and Task 5 checks.
+- Spectators and reconnecting players who join mid-match must skip cut-ins and land on the current state without replaying animations during catch-up. Include a mid-turn spectator join in the Task 5 and Task 6 checks.
+- On slow devices, tapping the stage during an animation must still skip it, and keys pressed before an animation finishes must not submit accidental actions. Verify mid-animation stage taps with CDP touch in Task 5.
+- Cut-in and result card text must stay legible over the stage in light theme. Include light theme in Task 5 and Task 6 screenshots.
 
-## 진단 대응표
+## Diagnosis map
 
-| 진단 | 단계 |
+| Diagnosis | Phase |
 |---|---|
-| 전광판 법이 게임 장면을 덮음 | 1 |
-| 전환 버벅임(50 ms 초과 20개, 817 ms) | 2 (프레임), 3과 4와 6 (흐름, `docs/BATTLE_TRANSITIONS.md`) |
-| 무대가 화면의 40%, 가로 띠 여덟, 400 폭 기록 칸, 틀이 상태마다 바뀜 | 3 |
-| 이름 없는 머리 숫자, 배율 칩, HP 판과 포켓몬의 X자, 빽빽한 기술 키, 타수 스티커, 표 같은 기록, 고장 난 숫자 같은 대기 표시 | 4 |
-| 멈칫, 흔들림, 잔상 HP 없음. 급소와 효과 굉장이 한 줄로 지나감. 문장 박자 없음 | 5 |
-| 시작과 끝의 의식 없음, 동영상 플레이어 재생 막대, 끝이 나가기 버튼 하나 | 6 |
-| 로비가 신청서, 선출 카드가 사양서 | 7 |
-| 탑 꼭대기 잘림, 이름표 겹침, 축척, 1위 중복, 첫 키가 로그인, 웹 토글, 휴대폰에서 잘리는 내 도전 | 8 |
-| 드래프트, 문, 판 사이가 모두 표. 한 박자에 결정 셋 | 9 |
+| Scoreboard rules cover game scenes | 1 |
+| Transition stutter (20 frames over 50 ms, 817 ms worst) | 2 (frames), 3, 4, and 6 (flow, `docs/BATTLE_TRANSITIONS.md`) |
+| Stage takes 40% of screen, eight horizontal strips, 400-width log column, layout shifts per state | 3 |
+| Unlabeled header numbers, multiplier chips, X-crossing between HP plates and Pokemon, cramped move keys, hit-count stickers, table-like log, broken-digit wait indicator | 4 |
+| No hit stop, screen shake, or trailing HP bar; critical and super-effective pass as one line; no message cadence | 5 |
+| No start or end ritual, video-player style playback bar, end state is a single leave button | 6 |
+| Lobby looks like an application form, team-pick cards look like spec sheets | 7 |
+| Tower top clipped, overlapping nameplates, off scale, duplicate 1st place, login as primary button, web toggle, clipped active run on mobile | 8 |
+| Draft, doors, and between-games are all tables; three decisions in one beat | 9 |
 
 ---
 
-### Task 0: 앞 작업 닫기
+### Task 0 (closing prior work)
 
-이 계획은 깨끗한 트리에서 시작한다.
+Start this plan from a clean tree.
 
-- [ ] 샘플 정리 에이전트의 결과를 검토하고 합친다. `tests/towerBuild.test.mjs`의 편중 검사(상한 3.5배)를 다시 돌려 통과시키거나 15.7에 새 수치를 적는다.
-- [ ] 데미지 도우미 시안(A 게이지만, C 상대 HP 판)의 사용자 선택을 받는다. 구현은 Task 4에서 한다.
-- [ ] 게시판 파일 넷의 주인 모를 변경과 남은 stash를 사용자에게 확인받는다.
-- [ ] `npm test`, `npm run build` 통과 뒤 사용자 말에 따라 커밋한다(도구 통째 세트, 메가 여럿, 한 칸씩 드래프트, 교환 표 A, 터치, 알림, 중계 틀).
+- [ ] Review and merge the sample-cleanup agent's output. Re-run the skew check in `tests/towerBuild.test.mjs` (3.5x upper limit) until it passes, or record the new numbers in section 15.7.
+- [ ] Get the user's pick on the damage helper mockups (A gauge only, C opponent HP plate). Implement the choice in Task 4.
+- [ ] Confirm the untracked edits in four board files and the remaining stash with the user.
+- [ ] After `npm test` and `npm run build` pass, commit per the user's direction (full item sets, multiple megas, one-slot-at-a-time draft, swap table A, touch, notifications, relay layout).
 
-### Task 1: 법을 고친다 (DESIGN.md)
+### Task 1 (updating DESIGN.md)
 
-**Files:**
-- Modify: `DESIGN.md` "Battle" 첫 문단(게임 예외의 범위), The tower, The draft, The doors, the trades
-- Modify: `tests/designLaw.test.mjs`의 제외 목록
-- Create: `src/styles/tower-play.css` (`streak.css`에서 드래프트, 문, 판 사이, 교환 규칙을 옮긴다. `src/main.jsx`의 import 순서에 `streak.css` 다음으로 넣는다)
-- Modify: `CLAUDE.md` "Product and design constraints"의 예외 문장과 CSS 파일 수(21에서 22)
+Files:
+- Modify `DESIGN.md`: first paragraph of "Battle" (scope of the game exception), "The tower", "The draft", "The doors, the trades".
+- Modify `tests/designLaw.test.mjs`: exclusion list.
+- Create `src/styles/tower-play.css`: move draft, door, between-games, and swap rules out of `streak.css`, and import it right after `streak.css` in `src/main.jsx`.
+- Modify `CLAUDE.md`: exception sentence in "Product and design constraints" and CSS file count (21 to 22).
 
-**정하는 것:**
-- 게임 예외는 "판에 들어간 뒤와 판 사이"까지다: 선출, 배틀, 끝, 드래프트, 문, 판 사이, 교환, 진입 장면. 탭의 첫 화면(탑 옆 칸, 순위, 기록), 시트, 다이얼로그, 토스트는 전광판 법 그대로다.
-- 예외 안에서도 남는 것: 사이트의 색(토큰, 타입 색, 호박색은 살아 있는 것), 글꼴, 한국어 문구 규칙, 사각 모서리, 그러데이션과 원 없음(메가 문양만 예외).
-- 예외 안에서 새로 허용하는 것: 무대 위 덮개(컷인, 결과 카드), 화면 흔들림, 카드 뒤집기, 빛과 입자. "날지 않고 켜진다"는 예외 밖의 법으로 남는다.
+Decisions:
+- The game exception covers everything after entering a run and between games: team pick, battle, end screen, draft, doors, between-games, swap, and entry scenes. The tab's landing view (tower side panel, rankings, records), sheets, dialogs, and toasts stay under scoreboard rules.
+- What stays inside the exception: site colors (tokens, type colors, amber for live state), fonts, Korean copy rules, square corners, and no gradients or circles (except the Mega emblem).
+- What becomes allowed inside the exception: stage overlays (cut-ins, result cards), screen shake, card flips, light, and particles. "Turns on rather than flies in" stays the rule outside the exception.
 
-- [ ] **Step 1:** DESIGN.md 개정문을 쓴다(왜 넓히는지 사용자 말 인용: "실제 게임처럼 느껴지지 않고 엑셀처럼 느껴져", "기존 틀에서 완전히 벗어나 구조를 새로 쌓아도 돼").
-- [ ] **Step 2:** 개정문을 사용자에게 보이고 승인받는다. 승인 전에는 다음 단계로 가지 않는다.
-- [ ] **Step 3:** `streak.css`의 놀이 흐름 규칙을 `tower-play.css`로 옮기고(값은 그대로) `designLaw.test.mjs` 제외 목록에 넣는다.
-- [ ] **Step 4:** `node tests/designLaw.test.mjs` 통과, 실험실 `swap.html`과 `draft.html`을 옮기기 전후로 찍어 픽셀이 같은지 본다(옮기기만 했으므로 차이 0).
-- [ ] **Step 5:** 커밋.
+- [ ] Step 1. Draft the `DESIGN.md` revision quoting the user's reasons for widening the scope (`"실제 게임처럼 느껴지지 않고 엑셀처럼 느껴져"`, `"기존 틀에서 완전히 벗어나 구조를 새로 쌓아도 돼"`).
+- [ ] Step 2. Show the revision to the user for approval. Do not proceed before approval.
+- [ ] Step 3. Move the play-flow rules from `streak.css` to `tower-play.css` with identical values and add the file to the `designLaw.test.mjs` exclusion list.
+- [ ] Step 4. Verify `node tests/designLaw.test.mjs` passes and compare before/after screenshots of lab `swap.html` and `draft.html` (zero pixel diff since rules only moved).
+- [ ] Step 5. Commit.
 
-### Task 2: 프레임 측정 도구와 기준선, 버벅임 원인 제거
+### Task 2 (frame measurement tool, baselines, and stutter removal)
 
-**Files:**
-- Create: `scripts/measure-frames.cjs` (스크래치의 `audit.cjs`를 저장소로: Playwright는 npx 캐시에서, `--use-angle=d3d11`, CPU 4배 감속, rAF 간격 기록)
-- Create: `docs/BATTLE_FRAMES.md` (장면별 기준선과 바꿀 때마다의 표. `BATTLE_COMPUTER.md`의 실험 표와 같은 방식)
-- Modify: 원인이 확인된 곳만 (`BattlePage.jsx`, `Stage.jsx`, `tower.js`, `towerGL.js`, `gl.js`)
+Files:
+- Create `scripts/measure-frames.cjs` (promote scratch `audit.cjs` into the repo: Playwright from npx cache, `--use-angle=d3d11`, 4x CPU throttle, rAF interval logging).
+- Create `docs/BATTLE_FRAMES.md` (per-scene baselines and a log table updated after each change, matching the experiment table format in `BATTLE_COMPUTER.md`).
+- Modify only verified causes (`BattlePage.jsx`, `Stage.jsx`, `tower.js`, `towerGL.js`, `gl.js`).
 
-**Interfaces:**
-- Produces: `node scripts/measure-frames.cjs <scene> [--reduced] [--desktop]`. scene은 `replay-open`, `battle-open`(실험실 `?view=lab`), `tower-tab`, `tower-enter`, `between-games`, `end`. 출력은 한 줄: `frames N over34 N over50 N worst N sumLong N`. over50이 0이 아니면 종료 코드 1.
+Interfaces:
+- Produces `node scripts/measure-frames.cjs <scene> [--reduced] [--desktop]`. Valid scenes are `replay-open`, `battle-open` (lab `?view=lab`), `tower-tab`, `tower-enter`, `between-games`, and `end`. Outputs one line: `frames N over34 N over50 N worst N sumLong N`. Exits with code 1 if `over50` is non-zero.
 
-- [ ] **Step 1:** 도구를 쓰고 여섯 장면의 기준선을 `BATTLE_FRAMES.md`에 적는다(리플레이 열기는 지금 over50 20, worst 817).
-- [ ] **Step 2:** 장면마다 Chrome 성능 추적(CDP `Tracing`)으로 긴 작업의 주인을 찾는다. 확인할 후보: 기록 한 줄마다 경기 전체 다시 그리기, 처음 보이는 그림의 디코드, GL 모델 생성(`buildModel`, `arena.js`), 칸 높이 바뀜으로 인한 레이아웃, 폰트 조각.
-- [ ] **Step 3:** 확인된 원인만 하나씩 고치고, 고칠 때마다 다시 재서 표에 한 줄씩 적는다(실패한 시도도 적는다). 추측으로 고치지 않는다.
-- [ ] **Step 4:** 여섯 장면 모두 over50 0. 보이는 것은 고치기 전과 같아야 한다(장면별 스크린샷 비교).
-- [ ] **Step 5:** 커밋. 이후 모든 단계는 끝에 관련 장면을 이 도구로 잰다.
+- [ ] Step 1. Write the tool and record baselines for all six scenes in `BATTLE_FRAMES.md` (replay-open currently sits at over50 20, worst 817).
+- [ ] Step 2. Capture Chrome performance traces (CDP `Tracing`) for each scene to identify the owners of long tasks. Candidates to inspect: full match re-render on each log line, initial image decoding, GL model creation (`buildModel`, `arena.js`), layout shifts from changing box heights, and font subsets.
+- [ ] Step 3. Fix only confirmed causes one at a time, re-measuring after each fix and adding a row to the table (including failed attempts). Do not guess.
+- [ ] Step 4. Reach `over50` of 0 across all six scenes with no visual change (verify via per-scene screenshot comparison).
+- [ ] Step 5. Commit. Every subsequent phase ends by measuring its affected scenes with this tool.
 
-### Task 3: 하나의 틀과 하나의 전환 문법
+### Task 3 (one frame and one transition grammar)
 
-**Files:**
-- Modify: `src/pages/BattlePage.jsx` (`Arena`의 배치: `bt-main`, `bt-side`, `bt-deck`, 끝 화면 `bt-end`, `EndSets`)
-- Modify: `src/styles/battle.css`, `src/styles/battle-stage.css`
-- Modify: `DESIGN.md` "Battle"의 From 860, 휴대폰 배치, After the battle
+Files:
+- Modify `src/pages/BattlePage.jsx` (`Arena` layout: `bt-main`, `bt-side`, `bt-deck`, end screen `bt-end`, `EndSets`).
+- Modify `src/styles/battle.css` and `src/styles/battle-stage.css`.
+- Modify `DESIGN.md` "Battle": "From 860", mobile layout, "After the battle".
 
-**시안에서 고를 것(사용자):** 데스크톱의 기록과 파티를 (a) 무대 옆 서랍으로 접기, (b) 무대 아래 한 줄 띠로, (c) 지금처럼 400 칸을 두되 무대를 키우기. 휴대폰에서 가로 띠를 몇 개까지 줄일지(상대 줄과 내 줄을 무대 위 HUD로 올리는 안 포함).
+Mockup choices for the user: for desktop log and party, choose between (a) folding into a drawer beside the stage, (b) a single strip below the stage, or (c) keeping the 400-width column while enlarging the stage. On mobile, decide how many horizontal strips to collapse (including moving opponent and player rows into stage HUD).
 
-**지켜야 할 것:**
-- `docs/BATTLE_TRANSITIONS.md` 3장의 전환 문법 다섯 줄. 같은 문서 2장의 T1, T2, T3, T4, T8을 이 단계에서 닫는다.
-- 선출, 진행, 끝, 관전, 리플레이가 같은 틀이다. 상태가 바뀌어도 무대의 자리와 크기가 1px도 움직이지 않는다.
-- 끝 화면과 판 사이는 무대 위의 덮개이고, 아래 칸의 높이를 바꾸지 않는다.
-- 휴대폰에서 무대가 화면 높이의 절반 이상이다(지금 844 가운데 약 340).
+Requirements:
+- Follow the five transition grammar rules in section 3 of `docs/BATTLE_TRANSITIONS.md`, and close T1, T2, T3, T4, and T8 from section 2 in this phase.
+- Team pick, active battle, end screen, spectating, and replay share one frame. The stage position and size must not shift by even 1px across state changes.
+- The end screen and between-games screens overlay the stage without changing the height of the lower panel.
+- On mobile, the stage takes more than half the viewport height (currently about 340 out of 844).
 
-- [ ] **Step 1:** 지금 틀을 상태 다섯(선출, 진행, 끝, 관전, 리플레이)에서 390과 1440으로 찍고 무대의 사각형(x, y, w, h)을 잰다.
-- [ ] **Step 2:** 시안 세 가지를 실험실 페이지로 만들어 한 장으로 보내고 고르게 한다.
-- [ ] **Step 3:** DESIGN.md를 고친 뒤 구현한다.
-- [ ] **Step 4:** 확인: 상태 다섯을 오가며 무대의 `getBoundingClientRect`가 같은지 Playwright로 단언한다(이 검사를 `tests/`가 아니라 `scripts/verify-battle-frame.cjs`로 남긴다: 브라우저가 필요하다). `measure-frames`의 `battle-open`, `end` 통과.
-- [ ] **Step 5:** 커밋.
+- [ ] Step 1. Screenshot the current frame across all five states (team pick, active, end, spectate, replay) at 390 and 1440, and measure the stage bounding box (x, y, w, h).
+- [ ] Step 2. Build three lab mockup variants, send them together as one sheet, and let the user pick.
+- [ ] Step 3. Update `DESIGN.md`, then implement.
+- [ ] Step 4. Verify with a Playwright assertion that the stage `getBoundingClientRect` stays identical across all five states (keep this check in `scripts/verify-battle-frame.cjs` rather than `tests/` since it needs a browser). Pass `measure-frames` on `battle-open` and `end`.
+- [ ] Step 5. Commit.
 
-### Task 4: HUD를 게임의 문법으로
+### Task 4 (game-grammar HUD)
 
-**Files:**
-- Modify: `src/pages/battle/Stage.jsx` (HP 판, 능력 변화, 상태), `src/pages/BattlePage.jsx` (머리, 기술 키 `moveKeys`, 길게 누른 카드 `tipFor`, 대기 표시, 기록 `Log`)
-- Modify: `src/styles/battle.css`, `src/styles/battle-stage.css`
-- Modify: `DESIGN.md` "Battle"의 The head, HP plates, The move keys, Information at hand
-- 전환: `docs/BATTLE_TRANSITIONS.md`의 T5(특성과 도구 판), T6(매 턴 다시 뜨는 안내), T7(턴 중에도 밝은 키)을 이 단계에서 닫는다.
+Files:
+- Modify `src/pages/battle/Stage.jsx` (HP plates, stat stages, status), `src/pages/BattlePage.jsx` (header, move keys `moveKeys`, long-press card `tipFor`, wait indicator, `Log`).
+- Modify `src/styles/battle.css` and `src/styles/battle-stage.css`.
+- Modify `DESIGN.md` "Battle": "The head", "HP plates", "The move keys", "Information at hand".
+- Transitions: close T5 (ability and item plates), T6 (repeated prompt every turn), and T7 (lit keys during turn playback) from `docs/BATTLE_TRANSITIONS.md`.
 
-**정하는 것(시안으로 확인):**
-- HP 판은 제 포켓몬의 머리 위나 발치에 선다. 판과 포켓몬 사이를 시선이 가로지르지 않는다. 더블에서도 같다.
-- 능력 변화는 배율(×1.5)이 아니라 능력 이름과 화살표의 단계(▲1에서 ▲6, ▼)다. 배율은 판을 누르면 나온다.
-- 머리의 숫자는 이름을 단다(층, 턴). 이름 없이 설 수 없으면 뺀다.
-- 기술 키: 이름, 타입 색, PP가 주인이고, 상성은 칩 하나, 타수는 Task 0에서 고른 안(A면 키 바닥 게이지, 길게 누를 때 차는 막대는 키 윗변으로 옮긴다. C면 겨눈 기술의 범위가 상대 HP 판에 선다). 위력과 명중과 우선도는 길게 누른 카드로 간다.
-- 기록은 표의 행이 아니라 턴으로 묶인 흐름이다(턴 머리, 그 아래 줄들). Task 3에서 고른 자리에 선다.
-- 대기 표시는 빈 세그먼트 칸이 아니라 도는 세그먼트(`Busy`)다.
+Decisions to confirm via mockups:
+- Each HP plate sits directly above or below its own Pokemon so sightlines never cross, in both singles and doubles.
+- Stat changes display as stat name and arrow stages (`▲1` through `▲6`, `▼`) instead of multipliers (`×1.5`). Tapping the plate shows the multiplier.
+- Every header number carries a label (floor, turn). Remove any number that cannot stand with a label.
+- Move keys lead with name, type color, and PP, with one effectiveness chip and hit-count display per the Task 0 selection (option A places a gauge along the key bottom and moves the long-press progress bar to the top edge; option C shows the targeted move's damage range on the opponent's HP plate). Power, accuracy, and priority move to the long-press card.
+- The battle log groups lines under turn headers rather than table rows, placed in the slot chosen in Task 3.
+- The wait indicator uses a spinning segment (`Busy`) instead of empty segment cells.
 
-- [ ] **Step 1:** 항목별 시안을 실험실에서 만든다(HP 판 자리 두 가지, 능력 변화 표기, 기술 키). 싱글과 더블, 390과 1440, 두 테마.
-- [ ] **Step 2:** 사용자 선택 뒤 DESIGN.md를 고치고 구현한다.
-- [ ] **Step 3:** 확인: 더블 리플레이 한 판과 100턴이 넘는 판에서 판이 겹치지 않는지, 능력 변화 여섯 단계가 한 줄에 서는지 스크린샷으로 본다. `tests/`의 기존 배틀 테스트 통과.
-- [ ] **Step 4:** 커밋.
+- [ ] Step 1. Build lab mockups for each piece (two HP plate positions, stat stage display, move keys) in singles and doubles, at 390 and 1440, in both themes.
+- [ ] Step 2. Update `DESIGN.md` after the user's pick, then implement.
+- [ ] Step 3. Verify with screenshots of a doubles replay and a 100+ turn match that plates never overlap and six stat stages fit on one line. Pass existing battle tests in `tests/`.
+- [ ] Step 4. Commit.
 
-### Task 5: 타격의 세 박자
+### Task 5 (three beats of a hit)
 
-**Files:**
-- Modify: `src/pages/battle/stageFx.js`, `moveFx.js`, `gl.js` (멈칫, 흔들림), `Stage.jsx` (잔상 HP, 컷인), `sfx.js` (컷인의 소리 자리), `stageCamera.js`
-- Modify: `src/styles/battle-stage.css`
-- Modify: `DESIGN.md` "Battle"의 The moves, The big moments, Judging a game
+Files:
+- Modify `src/pages/battle/stageFx.js`, `moveFx.js`, `gl.js` (hit stop, shake), `Stage.jsx` (trailing HP, cut-in), `sfx.js` (cut-in audio slots), `stageCamera.js`.
+- Modify `src/styles/battle-stage.css`.
+- Modify `DESIGN.md` "Battle": "The moves", "The big moments", "Judging a game".
 
-**값(시작점, 녹화로 다듬는다):**
-- 멈칫: 맞는 순간 60 ms, 효과 굉장 90 ms, 급소 120 ms. 재생 속도를 따른다.
-- 흔들림: 피해 비율에 비례, 최대 무대 폭의 1%, 180 ms 안에 잦아든다.
-- 잔상 HP: 깎인 만큼이 흰 띠로 남아 400 ms 뒤 줄어든다.
-- 급소, 효과 굉장, 일격에 쓰러짐은 무대 위 큰 글자 컷인(700 ms 이내)이고 메시지 창은 같은 말을 되풀이하지 않는다.
-- 메시지의 박자: 기술 이름은 길게, 결과는 짧게. 턴 전체 길이는 지금보다 늘지 않는다.
+Initial targets (to refine from recordings):
+- Hit stop: 60 ms on normal hit, 90 ms on super-effective, 120 ms on critical hit, scaled by playback speed.
+- Screen shake: proportional to damage share, capped at 1% of stage width, settling within 180 ms.
+- Trailing HP: lost portion remains as a white band and shrinks after 400 ms.
+- Critical hits, super-effective hits, and OHKOs show a large stage text cut-in (under 700 ms) without repeating the line in the message box.
+- Message cadence: longer beat on move names, shorter on outcomes, without lengthening total turn time.
 
-- [x] **Step 1:** 원작(포켓몬 챔피언스)의 타격 장면을 영상으로 찾아 멈칫과 흔들림의 길이를 프레임으로 센다(내려받기는 먼저 묻는다).
-- [x] **Step 2:** 실험실 `?view=lab`의 기술 탭에서 구현하고 CDP 화면 녹화로 전후를 나란히 놓아 사용자에게 보인다.
-- [x] **Step 3:** 확인: 한 턴의 길이를 전후로 잰다(늘지 않음). `--reduced`에서 멈칫과 흔들림이 없고 컷인은 멈춘 글자로 선다. 연출 중 무대 탭이 건너뛰는지 CDP 터치로 본다. 턴 중간에 연 관전이 컷인 없이 지금 상태에 서는지 본다. `tests/battleSfx.test.mjs` 통과. `measure-frames battle-open` 통과.
-- [x] **Step 4:** DESIGN.md에 값을 적고 커밋.
+- [x] Step 1. Find hit footage from the source game (`포켓몬 챔피언스`) and count hit-stop and shake frames (ask before downloading).
+- [x] Step 2. Implement in the lab `?view=lab` moves tab and show side-by-side before/after CDP recordings to the user.
+- [x] Step 3. Verify total turn duration did not grow. Check `--reduced` removes hit stop and shake while holding cut-ins static. Verify mid-animation stage tap skips via CDP touch. Verify mid-turn spectator join lands on current state with no cut-in. Pass `tests/battleSfx.test.mjs` and `measure-frames battle-open`.
+- [x] Step 4. Record values in `DESIGN.md` and commit.
 
-**잰 것과 바꾼 것(2026-11-18).** 받은 영상: "Pokémon Champions Switch 2 Gameplay: 17 Minutes of Ranked Battles in 4K"(YouTube, 720p60 영상만, 194.55 MiB, 주인이 받기를 허락). 17분의 프레임마다 화면 전체의 이동(위상 상관)과 변화량을 쟀다.
-- 움직이는 두 프레임 사이에 67 ms 넘게 멈춘 곳이 하나도 없다. 히트 스톱이 없다.
-- 타격에 흔들림이 없다. 화면 이동은 카메라의 느린 밀기뿐이다.
-- 무대 위의 큰 글자 컷인도 보지 못했다.
-- 타격 셋(서핑, 드래곤테일, 폭풍)을 한 프레임씩 보았다.
-  - 맞는 순간 큰 섬광(약 280 ms)이 터지고 맞은 쪽이 젖혀진다.
-  - HP 판은 약 50에서 80 ms 뒤에 들어온다. 숫자는 약 300 ms 뒤부터 700에서 1100 ms에 걸쳐 센다.
-  - 막대에 잔상이 없다.
-- 그래서 이 단계의 시작값(멈칫 60에서 120, 흔들림, 잔상 400, 컷인)은 원작과 달라 하지 않았다. 원작에 맞춰 뺐다.
-  - 무대의 히트 스톱(62, 100, 160)과 엔진의 `hold`.
-  - 급소와 효과 굉장의 흔들림.
-  - HP의 분홍 잔상.
-- 맞은 쪽의 반응은 바로 시작하고, HP는 300 뒤에 줄기 시작한다(`Stage.jsx HP_BEAT`).
-- 확인: 같은 리플레이 턴을 전후로 녹화해 나란히 놓았다.
-  - 전에는 불꽃이 날아가는 중에 HP가 80%로 떨어지고 잔상이 남았다. 후에는 불꽃이 닿은 뒤에 떨어진다.
-  - 멈칫이 빠져 한 타격마다 약 150 ms 짧아졌다.
-- replay-open 16 / 334, 14 / 334, reduced 움직이는 중 4 / 117. `tests/battleSfx.test.mjs` 통과. 컷인을 더하지 않았으므로 관전과 건너뛰기의 동작은 그대로다.
+Measurements and changes (2026-11-18). Source video: "Pokémon Champions Switch 2 Gameplay: 17 Minutes of Ranked Battles in 4K" (YouTube, 720p60 video-only, 194.55 MiB, downloaded with owner permission). Phase correlation and frame-to-frame deltas were logged across all 17 minutes.
+- No pause longer than 67 ms appeared between moving frames. There is no hit stop.
+- Hits produce no screen shake. Screen motion comes only from slow camera pushes.
+- No large text cut-ins appeared over the stage.
+- Three hits (Surf, Dragon Tail, Hurricane) were inspected frame by frame:
+  - Impact triggers a bright flash (about 280 ms) and the target recoils.
+  - The HP plate slides in about 50 to 80 ms later. Numbers count down starting around 300 ms for 700 to 1100 ms.
+  - The bar has no trailing ghost segment.
+- Because the initial targets (60 to 120 ms hit stop, shake, 400 ms trail, cut-ins) diverged from the source game, they were not added. Instead, matching the source, we removed:
+  - Stage hit stop (62, 100, 160) and engine `hold`.
+  - Critical and super-effective screen shake.
+  - Pink trailing HP bar.
+- Target recoil starts immediately, and HP begins draining after 300 ms (`Stage.jsx HP_BEAT`).
+- Verification: side-by-side recordings of the same replay turn showed HP previously dropping to 80% with a trail while flames were still mid-flight, whereas after the change HP drops after impact. Removing hit stop shortened each hit by about 150 ms.
+- `replay-open` logged 16 / 334 and 14 / 334; reduced-motion mid-turn logged 4 / 117. `tests/battleSfx.test.mjs` passed. Because no cut-ins were added, spectator and skip behavior stayed unchanged.
 
-### Task 6: 판의 의식
+### Task 6 (match rituals)
 
-**Files:**
-- Modify: `src/pages/BattlePage.jsx` (열림 `opening`, 끝 `bt-end`, `ReplayBar`), `src/pages/battle/Stage.jsx`, `stageFx.js`, `changeover.js`, `Replay.jsx`
-- Modify: `src/styles/battle.css`, `src/styles/battle-stage.css`
-- Modify: `DESIGN.md` "Battle"의 The big moments, After the battle, Replay
+Files:
+- Modify `src/pages/BattlePage.jsx` (`opening`, end `bt-end`, `ReplayBar`), `src/pages/battle/Stage.jsx`, `stageFx.js`, `changeover.js`, `Replay.jsx`.
+- Modify `src/styles/battle.css` and `src/styles/battle-stage.css`.
+- Modify `DESIGN.md` "Battle": "The big moments", "After the battle", "Replay".
 
-**정하는 것(시안):**
-- 시작: 두 이름과 두 파티가 마주 서는 VS 장면(2초 이내, 탭으로 건너뜀). 2026-11-07에 뺀 "배틀 시작" 팝업이 버벅였던 이유(BATTLE 기록)를 먼저 읽고 같은 길을 가지 않는다: 이미 그려진 것의 투명도와 위치로만 만든다.
-- 끝: 이긴 포켓몬으로 카메라가 다가가고(1초), 무대 위에 결과 카드가 선다(승패, 판의 숫자, 도전의 탑이면 연승과 램프). 키는 카드 아래다. 나가기는 주 키가 아니다.
-- 리플레이: 재생 막대는 턴의 눈금이 있는 줄이다. 쓰러짐과 메가진화가 눈금 위 표식으로 선다. 처음, 이전, 재생, 다음, 끝 키는 남는다.
+Decisions (via mockups):
+- Opening: a VS scene pairing both names and parties (under 2 seconds, skippable on tap). Read the battle notes on why the `"배틀 시작"` popup removed on 2026-11-07 stuttered, and avoid repeating it by animating only opacity and position of already-rendered elements.
+- Ending: camera moves toward the winning Pokemon (1 second) and a result card appears over the stage (win/loss, match stats, plus streak and lamps in 도전의 탑). Action buttons sit below the card, and leaving is not the primary button.
+- Replay: replace the video-style scrubber with a turn-tick timeline marking KOs and Mega Evolutions on the ticks. Keep first, previous, play, next, and last controls.
 
-- [x] **Step 1:** 시안(VS 두 가지, 결과 카드 두 가지, 타임라인) → 선택 → DESIGN.md.
-- [x] **Step 2:** 구현. 일반 배틀, 도전의 탑, 공식 경기, 관전, 리플레이에 같은 부품을 쓴다.
-- [x] **Step 3:** 확인: 끝에서 무대 사각형이 움직이지 않는다(Task 3의 검사). 진 판, 무승부, 기권, 시간 초과의 결과 카드. 라이트 테마. `measure-frames replay-open`, `end` 통과.
-- [x] **Step 4:** 커밋.
+- [x] Step 1. Create mockups (two VS options, two result cards, timeline), get selection, and update `DESIGN.md`.
+- [x] Step 2. Implement using shared components across regular battles, 도전의 탑, official matches, spectating, and replays.
+- [x] Step 3. Verify the stage box does not shift at match end (Task 3 check). Check result cards for loss, draw, forfeit, and timeout, plus light theme. Pass `measure-frames` on `replay-open` and `end`.
+- [x] Step 4. Commit.
 
-**고른 것(2026-11-18):** 시작은 지금대로(VS 장면 없음). 끝은 시안 A, 무대가 그대로 서고 메시지 창이 결과 띠가 된다(카메라 접근은 하지 않았다). 리플레이는 턴 눈금 타임라인. 확인: 끝과 되돌아감에서 무대 사각형이 390과 1440 모두 그대로, replay-open 최악 317 ms. 진 판, 무승부, 기권, 시간 초과의 띠는 코드로만 보았다(자리를 가진 진 판의 화면은 다음 확인에서).
+Selection (2026-11-18): opening stays as-is (no VS scene). Ending uses option A, where the stage stays in place and the message box becomes the result strip (no camera zoom). Replay uses the turn-tick timeline. Verification: stage box stayed fixed across end and rewind at both 390 and 1440, with `replay-open` worst at 317 ms. Loss, draw, forfeit, and timeout strips were verified in code only (a live loss screen with slot data will be checked in the next pass).
 
-### Task 7: 로비와 선출
+### Task 7 (lobby and team pick)
 
-**Files:**
-- Modify: `src/pages/BattlePage.jsx` (로비: `LobbyArena`, 상대와 난이도와 형식의 선택), `src/pages/battle/Sets.jsx` (`TeamPick`, `MonCard`, `PickDock`)
-- Modify: `src/styles/battle.css`
-- Modify: `DESIGN.md` "Battle"의 The opponent and the rooms, The party
+Files:
+- Modify `src/pages/BattlePage.jsx` (lobby: `LobbyArena`, opponent, difficulty, and format selection), `src/pages/battle/Sets.jsx` (`TeamPick`, `MonCard`, `PickDock`).
+- Modify `src/styles/battle.css`.
+- Modify `DESIGN.md` "Battle": "The opponent and the rooms", "The party".
 
-**정하는 것(시안):**
-- 로비는 무대가 주인이다. 선택(상대, 난이도, 형식, 파티)은 무대 위나 아래의 한 줄 선택으로 줄이고, 빈 코트의 물음표 열둘 대신 고른 것이 무대에 선다(컴퓨터면 그 폴리곤이 제 자리에, 내 파티가 정해졌으면 내 여섯이).
-- 선출 카드는 그림과 이름과 타입과 도구가 앞면이고, 능력치 격자는 정보 키 뒤로 간다. 고른 순서가 크게 선다.
+Decisions (via mockups):
+- The stage leads the lobby. Condense selections (opponent, difficulty, format, party) into a single bar above or below the stage, and place the active selections on the court instead of twelve empty question marks (the AI's polygons on its side, and the player's six once a party is chosen).
+- Team-pick cards show sprite, name, type, and item on the front, moving the stat grid behind an info button. Display pick order prominently.
 
-- [x] **Step 1:** 시안 → 선택 → DESIGN.md → 구현.
-- [x] **Step 2:** 확인: 방 만들기, 코드 방, 공식 경기 대기, 도전의 탑 선출이 같은 부품으로 선다. 여섯 가운데 넷째 뒤를 고르는 선출(2026-11-06의 버그 자리)을 실험실에서 직접 눌러 본다.
-- [x] **Step 3:** 커밋.
+- [x] Step 1. Mockups, user selection, `DESIGN.md`, and implementation.
+- [x] Step 2. Verify room creation, code rooms, official match waiting, and 도전의 탑 team pick all share the same components. Manually click through picking slots past the fourth of six in the lab (the 2026-11-06 bug site).
+- [x] Step 3. Commit.
 
-**고른 것(2026-11-18):** 로비는 B(무대가 메뉴), 규정처럼 늘어나는 것은 시트 안의 목록으로. 선출은 A(무대 위 선출), 코트 자리는 보고 있는 포켓몬의 정보 판으로. 확인: 390과 1440 두 테마, 넷째, 다섯째, 첫째 순서의 선출, 저장한 팀 두 규정, 로비 프레임(이전 커밋과 같음). 도전의 탑 선출과 참가하는 사람의 화면은 서버가 있어야 해서 이번에 화면으로 보지 못했다(같은 부품).
+Selection (2026-11-18): lobby uses B (stage as menu), with growing lists like regulations placed inside a sheet. Team pick uses A (pick on stage), turning the court area into an info plate for the focused Pokemon. Verification: 390 and 1440 in both themes, picking 4th, 5th, and 1st in order, two saved-team regulations, and lobby frame timing (unchanged from prior commit). 도전의 탑 team pick and joiner screens require a live server so they were not captured here (same components).
 
-### Task 8: 탑의 첫 화면
+### Task 8 (tower landing screen)
 
-**Files:**
-- Modify: `src/pages/battle/Streak.jsx` (탭: `StreakOpen`, 내 도전 패널, 키), `tower.js` (`climbersHTML`, 시점 `viewOf` 사용), `towerGL.js` (`viewOf("hall")`, 가로등, 기준물)
-- Modify: `src/styles/streak.css`, `src/styles/battle-stage.css` (`.tw-hall`)
-- Modify: `DESIGN.md` 도전의 탑, The tower
+Files:
+- Modify `src/pages/battle/Streak.jsx` (tab: `StreakOpen`, active run panel, buttons), `tower.js` (`climbersHTML`, `viewOf` camera), `towerGL.js` (`viewOf("hall")`, streetlamps, scale reference).
+- Modify `src/styles/streak.css` and `src/styles/battle-stage.css` (`.tw-hall`).
+- Modify `DESIGN.md`: `도전의 탑`, "The tower".
 
-**고치는 것(대부분 시안 없이 바로, 시점과 기준물만 시안):**
-- 쉬는 시점에서 탑의 꼭대기(등불)가 보인다. 내 위치는 호박색 램프, 오를 길이 위로 이어진다.
-- 이름표가 겹치지 않는다: 같은 높이의 둘은 한 줄씩 띄운다(`climbersHTML`의 28 간격이 1440에서 지켜지지 않은 원인을 먼저 찾는다).
-- 가로등을 문보다 작게, 문 앞에 사람 크기의 기준물 하나(시안).
-- 옆 칸의 "이번 달 1위"와 시상대 1위의 중복을 없앤다: 내 도전이 없으면 패널은 "도전의 탑" 한 줄과 시작 키의 안내만 든다.
-- 주 키는 언제나 "도전"이다. 로그인이 필요하면 누른 뒤 시트에서 구글 로그인을 받는다. "컴퓨터와 연습"은 그대로 둘째 키다.
-- "이번 달 / 오늘의 탑"은 장면 모서리의 토글에서 탭 아래의 선택 줄로 내려온다.
-- 휴대폰에서 내 도전 패널이 고정 키에 가리지 않는다.
+Fixes (most direct without mockups; mockups only for camera angle and scale reference):
+- Show the tower top (lantern) in the idle camera. Mark the player's position with an amber lamp and lead the path upward.
+- Prevent nameplate overlaps by offsetting players at the same height by one row (first find why the 28px gap in `climbersHTML` failed at 1440).
+- Scale streetlamps smaller than the door and add one human-scale reference by the entrance (mockup).
+- Remove the duplicate 1st-place display between the side panel (`이번 달 1위`) and the podium: when the user has no active run, show only a `도전의 탑` line and start-button guidance.
+- Make `도전` always the primary button. If login is required, open the Google sign-in sheet after clicking. Keep `컴퓨터와 연습` as the secondary button.
+- Move `이번 달 / 오늘의 탑` out of the scene corner toggle into a selector row under the tab.
+- Keep the active run panel above the fixed action buttons on mobile.
 
-- [x] **Step 1:** 이름표 겹침의 원인을 재현하고 고친다(`tower.js`). 1440과 390에서 도전자 넷으로 찍어 확인.
-- [x] **Step 2:** 시점과 기준물 시안 → 선택 → 구현. 탭 진입 장면과 층 이동 장면이 새 시점에서 이어지는지 녹화로 본다.
-- [x] **Step 3:** 키와 패널과 토글을 고친다. 로그아웃, 이름 확인 중, 도전 없음, 도전 중, 오늘의 탑 마친 뒤의 다섯 상태를 하네스(PGlite + 개발 서버)로 찍는다.
-- [x] **Step 4:** `measure-frames tower-tab`, `tower-enter` 통과. 커밋. (`tower-tab`은 통과하지 못함, 아래 고른 것)
+- [x] Step 1. Reproduce and fix nameplate overlap (`tower.js`), verified with four climbers at 1440 and 390.
+- [x] Step 2. Camera and scale reference mockups, selection, implementation. Record tab entry and floor transition to verify they connect cleanly from the new viewpoint.
+- [x] Step 3. Fix buttons, panels, and toggle. Capture five states (logged out, name check, no run, active run, daily tower finished) using the harness (PGlite + dev server).
+- [x] Step 4. Pass `measure-frames` on `tower-tab` and `tower-enter`, then commit. (`tower-tab` did not pass; details below.)
 
-**고른 것(2026-11-18):** 시점은 C, 문 발치에서 길을 올려다본다(주인: "올려다보는 구도가 너무 좋은데"). 꼭대기는 들어올 때의 장면(탑 전체에서 내려옴)에만 보인다. 축척은 B, 가로등을 0.55배(문의 2/3)로, 사람 크기의 말은 넣지 않았다. 키와 패널은 B에 "의미 없이 낭비되는 공간을 최소화": 주 키는 늘 도전 시작이고 계정이 더 필요하면 누른 뒤 시트로 묻는다. 내 도전 패널은 제 기록이 있을 때만 서고, 토글은 옆 칸의 머리(장면 위 줄)로, 기록이 없으면 토글 아래 20에 순위가 선다. 휴대폰의 탑도 16:10이라 패널이 고정 키 위에 다 보인다. 아래에서 본 원근 때문에 이름표가 10연승을 12연승 위에 세우던 것은 연승 순서로 고쳤고, 구름의 밑면을 밝혀 검은 얼룩을 걷었다. 확인: 다섯 상태를 하네스로 1440과 390 두 테마에서 찍음, 진입과 문 안으로 걷기를 프레임으로 봄. `tower-tab`은 휴대폰에서 50 ms 넘는 프레임 8개로 통과하지 못했다. HEAD도 6에서 7개라 이번 변경 때문은 아니고, 페이지를 불러오는 첫 2초의 일이다(`docs/BATTLE_FRAMES.md`). `tower-enter`는 장면이 도구에 없어 프레임 시트로만 보았다. 층 이동(판 사이)은 탭의 시점을 쓰지 않아 그대로다.
+Selection (2026-11-18): camera uses C, looking up the path from the base of the door (owner: `"올려다보는 구도가 너무 좋은데"`). The summit appears only during the entry sequence descending from the full tower. Scale uses B, shrinking streetlamps to 0.55x (two-thirds of the door) with no human-scale figure. Buttons and panels use B with `"의미 없이 낭비되는 공간을 최소화"`: the primary button always starts a run and prompts for an account in a sheet if needed. The active run panel renders only when the player has a record; the toggle sits at the top of the side column (above the scene), and without a record, rankings appear 20px below the toggle. Mobile keeps a 16:10 tower aspect so the panel clears the fixed button. Fixed bottom-up perspective sorting that put a 10-win streak above a 12-win streak by sorting strictly by streak count, and brightened cloud undersides to clear dark blotches. Verification: captured all five states via harness at 1440 and 390 in both themes, and checked entry and door-walk frames. `tower-tab` failed on mobile with 8 frames over 50 ms, though HEAD already had 6 to 7 in the first 2 seconds of page load (`docs/BATTLE_FRAMES.md`). `tower-enter` is not in the tool, so it was checked via frame sheet. Floor transitions between games do not use the tab camera and stayed unchanged.
 
-### Task 9: 탑의 놀이 흐름
+### Task 9 (tower play flow)
 
-**Files:**
-- Modify: `src/pages/battle/Streak.jsx` (`DraftBoard`, `DoorPick`, `StreakEnd`, `SwapTable`), `tower.js`와 `towerGL.js` (문을 누르는 판정, 문 뒤의 여섯)
-- Modify: `src/styles/tower-play.css`
-- Modify: `DESIGN.md` The draft, The doors, the trades, `docs/BATTLE_STREAK.md` 17장(화면만 바뀐다는 것과 확인한 것)
+Files:
+- Modify `src/pages/battle/Streak.jsx` (`DraftBoard`, `DoorPick`, `StreakEnd`, `SwapTable`), `tower.js` and `towerGL.js` (door hit-testing, six Pokemon behind doors).
+- Modify `src/styles/tower-play.css`.
+- Modify `DESIGN.md`: "The draft", "The doors, the trades", and `docs/BATTLE_STREAK.md` section 17 (UI-only note and verification).
 
-**정하는 것(시안):**
-- 드래프트: 자리의 차례가 오면 카드 석 장이 뒤집히며 공개된다. 고른 카드는 파티 칸으로 들어가고 나머지 둘은 꺼진다. 카드 앞면은 Task 7의 선출 카드와 같은 부품이다.
-- 판 사이는 세 장면이다, 한 번에 하나만 묻는다: (1) 결과: 연승 숫자가 오르고 램프가 켜지거나 꺼진다. (2) 보상: 교환(11월 18일 A안의 표를 그대로 쓰되 이 장면의 전부로 선다) 또는 건너뛰기. (3) 다음 문.
-- 문은 3D 탑의 실제 문이다: 카메라가 다음 층의 두 문 앞에 서고, 문을 누르면 그 뒤의 여섯이 문 위에 서며, 다시 누르면 들어간다. 수문장의 문은 닫힌 큰 문 하나다. 접근성과 움직임 줄이기에서는 지금의 두 패널이 대신 선다.
-- 진 판의 복기는 (1)의 자리에 선다.
+Decisions (via mockups):
+- Draft: when a slot's turn arrives, three cards flip open. The chosen card moves into the party slot and the other two dim out. Card fronts reuse the Task 7 team-pick card component.
+- Between-games splits into three beats, asking one thing at a time: (1) result, where the streak increments and lamps toggle; (2) reward, offering swap (using the Nov 18 option A table as the entire scene) or skip; (3) next door.
+- Doors are actual doors on the 3D tower: the camera stops before the next floor's two doors, clicking a door reveals its six Pokemon above it, and clicking again enters. The gatekeeper has one large closed door. Accessibility and reduced-motion modes show the existing two panels instead.
+- Loss review appears in beat (1).
 
-- [x] **Step 1:** 세 장면의 흐름을 실험실에서 시안으로 만든다(정지 화면과 녹화). 문 고르기는 3D 안과 지금 패널 안을 나란히 보인다.
-- [x] **Step 2:** 선택 뒤 DESIGN.md → 구현. 배틀 함수의 요청(`streakNext`의 `swap`, `door`)은 그대로다.
-- [x] **Step 3:** 확인: `scripts/verify-streak-function.mjs`(함수 쪽 불변), 하네스로 실제 도전을 이긴 판, 교환, 강한 문, 진 판, 수문장, 끝까지 돌린다. 키보드만으로 드래프트와 문과 교환을 끝낼 수 있다. `measure-frames between-games` 통과. (프레임은 통과하지 못함, 아래 고른 것)
-- [x] **Step 4:** 커밋.
+- [x] Step 1. Build lab mockups (stills and recordings) for the three-beat flow, showing the 3D door picker beside the current panel picker.
+- [x] Step 2. After selection, update `DESIGN.md` and implement without altering battle function requests (`swap` and `door` in `streakNext`).
+- [x] Step 3. Verify `scripts/verify-streak-function.mjs` (function invariance) and run a full challenge in the harness through a win, swap, strong door, loss, gatekeeper, and completion. Confirm draft, doors, and swap work by keyboard alone. Pass `measure-frames between-games`. (Frames did not pass; details below.)
+- [x] Step 4. Commit.
 
-**고른 것(2026-11-18):** 전부 B(주인: "전부 B로 진행해줘"). 드래프트는 빈 뒷면이 차례로 뒤집히고 고른 그림이 자리로 날아간다. 판 사이는 결과, 교환, 다음 문의 세 박자이고, 문은 탭과 같은 올려다본 탑 아래에 서며 그 문으로 걸어 들어간다(3D의 갈림길 문 C는 하지 않았다). 문의 여섯은 그림만 선다(주인: 타입 네모가 "상당히 무의미"). 실루엣 안은 찍어 보이기만 했다. 확인: 하네스로 이긴 판, 교환, 강한 문, 배틀로 진 판(복기), 기권으로 진 판, 수문장과 그 다음 층을 1440과 390, 두 테마로 찍었다. 키보드만으로, 움직임 줄이기에서 여섯 판을 돌렸다. `verify-streak-function.mjs` 통과. `measure-frames`에 판 사이 장면이 없어 하네스 빌드본에서 같은 방식으로 쟀다: 휴대폰 속도에서 결과에서 교환 0, 교환에서 문 1(83에서 100 ms, 탑 캔버스의 첫 그림), 드래프트 5에서 6(판이 처음 서는 0.4초에 몰림, 뒤집기 중에는 하나). 0은 아니다.
+Selection (2026-11-18): option B across the board (owner: `"전부 B로 진행해줘"`). Draft flips blank card backs in sequence and flies the picked sprite into its slot. Between-games runs the three beats (result, swap, next door), with doors under the same upward-looking tower as the tab and walking into the chosen door (3D branching doors option C was skipped). Door previews show sprites only (owner noted type squares were `"상당히 무의미"`; the silhouette variant was shown as a capture only). Verification: captured win, swap, strong door, battle loss (review), forfeit loss, gatekeeper, and the next floor at 1440 and 390 in both themes via harness. Completed six runs keyboard-only under reduced motion. `verify-streak-function.mjs` passed. Because `measure-frames` lacks a between-games scene, it was timed the same way on the harness build at mobile speed: result to swap had 0 long frames, swap to door had 1 (83 to 100 ms, first draw of the tower canvas), and draft had 5 to 6 (clustered in the first 0.4s on mount, 1 during flips), so not yet 0.
 
-### Task 10: 전체를 다시 본다
+### Task 10 (full review)
 
-- [x] 일반 배틀 한 판(싱글, 더블), 도전의 탑 한 도전(드래프트부터 끝까지), 관전, 리플레이를 390과 1440, 두 테마에서 처음부터 끝까지 직접 한다.
-- [x] 2026-11-18 진단의 항목을 하나씩 다시 채점한다(진단 대응표의 아홉 줄). 남은 것은 숨기지 않고 적는다.
-- [x] `measure-frames` 여섯 장면, `npm test`, `npm run build`.
-- [x] 실제 휴대폰에서 본 것과 못 본 것을 나눠 보고한다.
+- [x] Play through one regular battle (singles and doubles), one full 도전의 탑 run (draft to finish), one spectate session, and one replay at 390 and 1440 in both themes.
+- [x] Re-score all nine rows of the 2026-11-18 diagnosis table and record any remaining gaps openly.
+- [x] Run `measure-frames` on all six scenes, `npm test`, and `npm run build`.
+- [x] Report separately what was verified on a real phone and what was not.
 
-**본 것(2026-11-18).** 모두 Playwright(채널 chrome, GPU)로 돌렸다. 실제 휴대폰은 하나도 보지 않았다.
-- 컴퓨터와의 싱글 한 판(1440 어둡게)과 더블 한 판(390 밝게)을 로비부터 끝 띠까지 돌렸다.
-- 도전의 탑은 하네스(PGlite, 실제 SQL과 배틀 함수)로 여러 번 돌렸다. 드래프트부터 이긴 판, 교환, 강한 문, 진 판(기권, 배틀), 수문장의 문, 수문장 판의 선출(띠와 수문장 칸 반전), 수문장 뒤 2층까지, 1440과 390, 두 테마로 보았다.
-- 같은 판의 관전, 링크로 들어오는 쪽 로비(390 밝게, 1440 어둡게), 끝난 판의 리플레이(네 가지)를 보았다.
-- `npm test` 628 통과. `npm run build`는 원래 있던 큰 묶음 경고 하나뿐이다.
+Observations (2026-11-18). Everything ran in Playwright (chrome channel, GPU). Nothing was tested on a real phone.
+- Played one AI singles match (1440 dark) and one doubles match (390 light) from lobby through the end strip.
+- Ran 도전의 탑 multiple times on the harness (PGlite, real SQL and battle functions) from draft through win, swap, strong door, losses (forfeit and battle), gatekeeper door, gatekeeper team pick (inverted strip and gatekeeper slot), and floor 2 past the gatekeeper, at 1440 and 390 in both themes.
+- Checked spectating the same match, the joiner lobby via link (390 light, 1440 dark), and replays of finished matches (all four combinations).
+- `npm test` passed 628 tests. `npm run build` produced only the pre-existing large-chunk warning.
 
-**진단 아홉 줄 다시 보기.**
-1. 전광판 법이 게임을 덮음: 닫음(Task 1).
-2. 전환 버벅임: 남음. replay-open이 20 / 817에서 18 / 450이 되었지만 어느 장면도 0이 아니다(`docs/BATTLE_FRAMES.md`). tab-switch의 최악 951 ms는 이 단계들 전부터 있었다.
-3. 하나의 틀: 대부분 닫음. 390의 리플레이에서 머리와 파티 띠 사이에 빈 띠(약 120)가 남는다.
-4. HUD: 대부분 닫음. 390 더블에서 네 포켓몬이 서로 겹쳐 선다.
-5. 타격의 세 박자: 하지 않음. 원작 영상을 내려받아야 해서 주인에게 묻기 전이다.
-6. 판의 의식: 닫음. 휴대폰의 리플레이 타임라인이 키 다섯 옆에서 60 남짓으로 눌린다.
-7. 로비와 선출: 닫음(링크 쪽 로비와 탑 선출은 이번에 보았다). 남은 둘: 관전자가 보는 선출은 무대 없이 두 파티가 표로 선다. 방을 만든 쪽의 대기 무대 위 띠가 비어 있다.
-8. 탑 첫 화면: 닫음(Task 8). 프레임만 남음.
-9. 탑의 놀이: 닫음(Task 9). 문 박자 1, 드래프트 첫 순간 5에서 6의 긴 프레임이 남음.
+Nine-item diagnosis review:
+1. Scoreboard rules covering game scenes: closed (Task 1).
+2. Transition stutter: open. `replay-open` improved from 20 / 817 to 18 / 450, but no scene reached 0 (`docs/BATTLE_FRAMES.md`). `tab-switch` worst of 951 ms predates these phases.
+3. One frame: mostly closed. A blank strip (about 120px) remained between the header and party strip on 390 replay.
+4. HUD: mostly closed. Four Pokemon overlapped in 390 doubles.
+5. Three beats of a hit: not done yet; waiting to ask the owner before downloading source footage.
+6. Match rituals: closed. Mobile replay timeline got squeezed to around 60px beside the five buttons.
+7. Lobby and team pick: closed (link joiner lobby and tower team pick verified here). Two items left: spectator team pick showed two party tables without a stage, and the room host's waiting stage had an empty top strip.
+8. Tower landing screen: closed (Task 8), frames still open.
+9. Tower play flow: closed (Task 9), with 1 long frame on the door beat and 5 to 6 on draft mount.
 
-**남은 것 정리(2026-11-18, 주인: "남은 수정사항도 전부 진행해줘").**
-- 그림의 잉크는 미리 계산한 표에서 읽는다(`scripts/build-sprite-ink.cjs`, `tests/spriteInk.test.mjs`).
-- 휴대폰 무대가 남는 높이를 다 받는다(리플레이의 빈 띠 137이 없어짐). 리플레이 막대는 휴대폰에서 처음과 끝 키를 접어 타임라인이 66에서 158이 되었다.
-- 휴대폰 더블은 각 쌍의 그림이 두 자리의 간격보다 넓지 않다(가까운 쌍 31, 먼 쌍 28, 먼 쌍은 조금 위로).
-- 관전자의 선출은 선수와 같은 무대 틀(위 띠, 경기장, 아래 띠)이다.
-- 방을 만든 쪽 대기의 "참가 대기"는 무대 위 상대 띠에 한 번만 선다(옆 칸에서 뺐다). 대기 무대의 위 띠는 상대가 올 자리라 비워 둔 것이 맞다고 보았다.
-- 그대로 남은 것: 프레임 0(위의 주인들), Task 5(원작 영상), 실제 휴대폰.
+Remaining items resolved (2026-11-18, owner: `"남은 수정사항도 전부 진행해줘"`):
+- Sprite ink now reads from a precomputed table (`scripts/build-sprite-ink.cjs`, `tests/spriteInk.test.mjs`).
+- Mobile stage now absorbs remaining viewport height (removing the 137px empty strip in replay). The replay bar folds first and last buttons on mobile, widening the timeline from 66px to 158px.
+- Mobile doubles caps each pair's sprite width at the slot gap (near pair 31, far pair 28 with the far pair lifted slightly).
+- Spectator team pick now uses the same stage frame as players (top strip, arena, bottom strip).
+- Host waiting label (`참가 대기`) now appears once on the opponent strip above the stage (removed from the side panel). Leaving the waiting stage's top strip otherwise empty was kept because it holds the incoming opponent's spot.
+- Still open: zero long frames (owners listed above), Task 5 (source footage), and real phone testing.
 
-## 순서와 묶음
+## Order and grouping
 
-- 0 → 1 → 2는 차례대로다(법과 측정이 나머지의 바닥이다).
-- 3 → 4 → 5 → 6은 배틀 쪽, 8 → 9는 탑 쪽이다. 7은 4 뒤 어디든 된다.
-- 3 이후의 배틀 쪽과 8 이후의 탑 쪽은 파일이 거의 겹치지 않아 따로 진행할 수 있다(`BattlePage.jsx`의 `StreakEnd` 호출부만 만난다).
-- 단계마다 사용자에게 보이는 것: 시안 한 장, 고른 뒤의 전후 비교, 잰 숫자.
+- Tasks 0, 1, and 2 run sequentially because the design rules and measurements underpin everything else.
+- Tasks 3, 4, 5, and 6 cover battle, while Tasks 8 and 9 cover the tower. Task 7 fits anywhere after Task 4.
+- Battle work from Task 3 onward and tower work from Task 8 onward barely overlap in files (meeting only at the `StreakEnd` call site in `BattlePage.jsx`), so they can progress independently.
+- Deliverable at each phase: one mockup sheet, a before/after comparison after selection, and recorded numbers.

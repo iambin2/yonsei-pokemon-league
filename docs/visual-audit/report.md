@@ -1,399 +1,399 @@
-# 시각 검수 진단 보고서
+# Visual audit diagnostic report
 
-2026-11-22 ~ 23. 대상은 `design/scoreboard` 브랜치(3ffd32c), 개발 서버에 운영 데이터를 읽기 전용으로 붙여 본 화면이다.
+2026-11-22 to 23. Audited branch `design/scoreboard` (3ffd32c) on the dev server connected read-only to production data.
 
-## 읽는 법
+## How to read this report
 
-- 스크린샷 경로는 `docs/visual-audit/shots/` 기준이다. 이 폴더는 git에 올리지 않는다(`scripts/visual-audit.cjs` 로 다시 만든다, plan.md 참고). 스크린샷에는 실제 참가자 이름이 들어 있다.
-- 수치는 `getBoundingClientRect`, `getComputedStyle` 로 잰 CSS px다(dpr 1). "샷에서 읽음"이라고 적은 것만 그림에서 읽었다.
-- 화면 ID는 `inventory.md` 의 것이다.
-- 심각도: **높음** 누구나 느낀다 / **중간** 예민한 사람이 느낀다 / **낮음** 나란히 놓고 봐야 안다.
-- "확인"은 검수자의 발견을 내가 별도로 다시 재거나 화면·코드로 대조했다는 뜻이다. 표시가 없는 항목은 검수 한 번의 측정이다.
+- Screenshot paths are relative to `docs/visual-audit/shots/`. This folder is not committed to git (regenerate with `scripts/visual-audit.cjs`, see `plan.md`). Screenshots contain real participant names.
+- Measurements are CSS px read from `getBoundingClientRect` and `getComputedStyle` at dpr 1. Items marked "read from shot" were read directly from the image.
+- Screen IDs match `inventory.md`.
+- Severity levels are High (anyone notices), Medium (attentive users notice), and Low (noticeable only side by side).
+- Items marked "verified" were re-measured or cross-checked against screenshots and code independently. Unmarked items come from a single audit pass.
 
-## 먼저 알아둘 것
+## Key takeaways
 
-1. **토큰 체계는 지켜지고 있다.** 사이트 CSS(배틀 3개 파일 제외 20개)에서 간격 토큰 사용 1,205회, 전환 토큰 136회, 토큰을 거치지 않은 전환 선언 0건. 화면에 그려진 글자 크기도 12/16, 15/20, 15/24, 20/28, 32/40 다섯 가지뿐이다(1,781장 측정). 가로 넘침은 페이지 수준에서 0건이다.
-2. 그래서 발견의 대부분은 "값이 체계 밖"이 아니라 **구성**에 있다: 휴대폰 배치를 데스크톱 1200에 그대로 늘린 곳, 같은 역할이 화면마다 다른 모양인 곳, 빈 요소가 간격을 한 번 더 먹는 곳, 특정 폭 구간(860~1199)이 비어 있는 곳.
-3. 검수 중 **기능 결함**도 네 건 나왔다(9장). 시각 수정 계획에는 넣지 않았다.
-
----
-
-## 1. 공통 원인 (여러 화면에 반복)
-
-### K-01 데스크톱에서 한두 낱말짜리 조작이 1200 폭으로 늘어난다 — 높음
-휴대폰의 전폭 조작을 860 이상에서 그대로 쓴 곳들이다. 조작과 그 값, 조작과 그 대상이 수백 px 떨어진다.
-
-| 어디 | 측정 (1440) | 원인 | 샷 |
-|---|---|---|---|
-| 기록 트레이너 탭: 검색, 정렬 칩, 시즌 드롭다운이 세 줄 (확인) | 검색 1200x52 → 12 → 칩 178x32 → 2 → 드롭다운 1200x52 ("모든 시즌" 글자 50, 화살표까지 1090) | `RecordsPage.jsx:343-347`, `records-board.css:76-77`, `components.css:103` | `REC-02/1440x900-dark.png` |
-| 랭킹 탭 시즌 드롭다운과 그 메뉴 | 버튼 1200x52 (글자 68), 메뉴 1200x356, 체크가 글자에서 1090 | `components.css:103-124` | `REC-14-dd/1440x900-dark.png` |
-| 사설 대진표 도구 키 | 결과 입력·링크 공유·이미지 둘 각 599x52, 수정 1200x52 (공식 대진표는 같은 키가 제목 오른쪽 한 줄, 높이 44, 폭 62~113) | `brackets.css:24-26`, `BracketsPage.jsx:2694-2701` | `_extra-c/pb-1440x900.png` |
-| 운영 진입 키: 칭호 추가, 이전 챔피언 추가, 성적 수정, 회차 편집, 대진표 삭제 | 각 1200x52. 랭킹 탭은 시즌 추가 599 + 누적 탭 추가 599 + 성적 수정 1200 = 1200x104 덩어리. 반면 공지 작성·새 대진표는 50x20 밑줄 링크 | `TitlesPage.jsx:124`, `ChampionsPage.jsx:106`, `RecordsPage.jsx:896,1136-1139,1158,1174`, `BracketsPage.jsx:3074` | `ADM-REC-03-offline/rank-1440x900-dark.png`, `ADM-TTL-01-offline/page-1440x900-dark.png` |
-| 시트 맨 아래 키 (트레이너·포켓몬 시트의 링크 공유 등) | 1160x52 | `RecordsPage.jsx:262,1094` | `REC-05/1440x900-dark-sheet.png` |
-| 팀 빌더 규정 드롭다운 둘 | 599 + 599 (아래 두 단의 경계 559/611과도 어긋남) | `builder.css:149` | `BLD-07/1440x900-dark-team-full.png` |
-| 대진표 마법사 1단계 | 드롭다운 둘은 1200, 취소·다음은 오른쪽 439 열, 입력에서 760 떨어짐 (샷에서 읽음) | `BracketsPage.jsx:632-872` | `ADM-BRK-02/1440x900-dark.png` |
-
-### K-02 읽는 글이 709 열을 넘는다 — 높음
-DESIGN.md "Made by people": 읽는 글은 709, 한 줄 약 47자.
-
-| 어디 | 측정 | 원인 |
-|---|---|---|
-| 게시판 자유 글 본문과 댓글 | `.prose` 1200 (한 줄 약 95자), 유튜브 1200x675, 댓글 폼의 닉네임·비밀번호 각 599, 등록 키는 라벨에서 1089 | `BoardPage.jsx:265-276`, `posts.css:57,63` (709는 `.bd-art.many` 에만) |
-| 랭킹 탭 각주 | 잉크 1032, 한 줄 약 80자 | `records-board.css:24` |
-
-샷: `BOARD-03/1440x900-dark.png`, `REC-14/1440x900-dark.png`
-
-### K-03 검색어를 넣으면 검색 칸이 움직이고 줄어든다 — 높음 (확인)
-- 건수("19건", "0건")가 칸 밖 오른쪽에 붙어 칸 폭이 1200 → 1157 → 1167로 자릿수마다 바뀐다(390: 350 → 321). `ListSearch.jsx:13`, `board.css:209-215`.
-- 공지에서는 검색어가 생기면 "다가오는 대회" 섹션이 사라져 입력 중인 칸이 124 위로 뛴다(1440: top 344 → 220, 390: 352 → 212). `NewsPage.jsx:269,279`.
-- 사설 대진표(390)는 주 키에 밀려 검색 입력이 143, 360에서는 113이라 안내 글이 잘리고, 검색어를 넣으면 입력이 약 60만 남는다. `posts.css:110-111`, `BracketsPage.jsx:2726`.
-- 샷: `REC-02/1440x900-dark-search.png`, `NEWS-02/1440x900-dark-none.png`, `BRK-13-noresult/390x844-dark.png`
-
-### K-04 섹션 제목과 그 아래 내용 사이 간격이 여러 가지다 — 중간
-법은 12(`--s3`)다. 실제:
-
-| 간격 | 어디 | 원인 |
-|---|---|---|
-| 2 | 대진표 조 머리("1조") → 첫 행 | `BracketsPage.jsx:1552-1553` (stack 안의 맨 h2) |
-| 12 | 공지 "다가오는 대회" 등 대부분 | `board.css:11` |
-| 14 | 대진표 목록 보기 라운드 머리, 게시판 "댓글 N", 기록 대회 탭 시즌 장 머리 | `.sh` 12 + stack seam 2. `BracketsPage.jsx:1324`, `posts.css:77`, `records-board.css:80` |
-| 24 | 운영 화면 구역 제목 | `.sh` 12 + `.ad-block` gap 12. `admin.css:139` |
-| 34 | 기록 대회 탭 장과 장 사이 (법은 32) | `records-board.css:80` |
-
-### K-05 페이지 제목(h1) 아래, 탭 줄 아래 간격이 화면마다 다르다 — 중간
-- h1 → 다음 요소(1440): 공지·알림·소개 20, 더보기·기록 32. `news.css:9`, `more.css:27`, `hall.css:80`, `more.css:6`, `.rc-tabs`.
-- 탭 줄 → 내용: 기록 12, 칭호 20. `records-board.css:10`, `titles.css:7`.
-- 같은 "화면 안의 화면"인데 뒤로 링크의 윗선이 다르다: 공지 글 148(옆 단은 160), 신청서 160. 휴대폰에서는 뒤로 키의 44 상자가 LiveStrip과 6 겹친다. `news.css:18`, 같은 규칙이 `brackets.css:15`, `posts.css:40`. (확인: 1440 샷에서 뒤로 링크가 옆 단보다 12 위)
-
-### K-06 "새 글" 램프와 행 끝 램프의 자리 — 중간 (확인)
-- 순서가 셋: 리드 판은 램프 뒤에 말(간격 8), 행은 말 뒤에 램프(간격 22), 더보기 "새 알림"은 램프 뒤에 말. `NoticeRows.jsx:13`, `Board.jsx:101-102,116`, `more.css:10`.
-- 데스크톱에서 행 끝 램프의 오른쪽 여백이 12(램프 끝 1308)인데 같은 화면의 다른 것은 모두 20(1300). 홈만 22. `board.css:30`, `home.css:74`.
-- 샷: `HOME/1440x900-dark.png`, `NEWS-01/1440x900-dark.png`
-
-### K-07 제목 아래 회색 줄의 굵기가 둘이다 — 중간
-리드 판의 회색 줄은 400(`.reg`), 바로 아래 행의 회색 줄은 600. 공지, 대진표 목록, 알림, 더보기 모두. 법(Hierarchy 5)은 "라벨 600, 회색 줄 400". `Board.jsx:99` (Row의 line에 `reg` 없음), `Board.jsx:119`.
-
-### K-08 확인 창과 시트의 공통 부품 — 중간
-- **두 키의 비가 1 : 1.618이 아니다.** 390에서 158 : 230 (1.46), 1440에서 229 : 345 (1.51). `flex-grow` 가 안쪽 여백을 뺀 나머지에만 걸린다. `components.css:223-225`.
-- **알림 켜기 창은 두 키가 세로로 쌓였다** (536x52 둘, 사이 20). `PushControl.jsx:57-60`, `board.css:275`.
-- **데스크톱 대화상자 위쪽에 빈 띠 20.** 손잡이(`.grip`)의 자리만 남아 제목 위 28, 옆 20, 아래 32. `components.css:189,235,237`.
-- **닫기 ×가 제목보다 4 낮다** (제목 줄 가운데 68, × 가운데 72; 390은 94 대 98). `components.css:208`.
-- **위험한 확인도 "✓ 삭제"** 로 저장과 같은 모양이다. `danger` 값은 받지만 그리는 데 쓰지 않는다. 알림 창도 "✓ 닫기". 배틀 메뉴의 기권 키만 토큰이 아닌 `#4A1820`. `SiteDialog.jsx:23-24,66-71`, `battle.css:348`. → 법(DESIGN.md Hierarchy)이 "위험한 확인도 주 행동"이라고 적고 있어 취향 질문으로 뺐다(questions Q-01).
-- **시트 맨 아래 행동이 시트마다 다르다.** 파티 시트는 가장자리까지 1200x52 붙박이, 챔피언 시트는 안쪽 1160x52, 트레이너·포켓몬 시트의 링크 공유는 위 간격 20, 칭호 시트는 32(폭 536). `RecordsPage.jsx:136,262,1094`, `ChampionSheet.jsx:33`, `hall.css:43-44`, `TitlesPage.jsx:76`, `titles.css:38`.
-- 샷: `BRK-09/1440x900-dark.png`, `ALERT-04/1440x900-light.png`, `ADM-09-offline/delete-confirm-1440x900-dark.png`, `REC-13/1440x900-dark.png`
-
-### K-09 떠 있는 면에 가장자리가 없다 — 중간
-- 더보기 팝오버(860~1099에서만 뜸): 항목 rgb(18,41,79), 아래 패널 rgb(14,36,73). 선도 베일도 없어 라이트에서는 LiveStrip과 이어져 보인다. 항목 안쪽 여백은 12(데스크톱 `--pad` 는 20). `components.css:139,149`.
-- 드롭다운 메뉴: 배경이 아래 행과 같은 rgb(14,36,73), 값(x 140)과 항목(x 132)이 8 어긋난다. `components.css:116-124`.
-- 샷: `SHELL-04/1024x768-light.png`, `REC-14-dd/1440x900-dark.png`
-
-### K-10 반전 패널 위의 초점 테두리가 보이지 않는다 — 중간
-흰 바탕(반전) 위의 흰 2px 테두리. 기록 상위 1위 패널에서 측정: `outline: 2px solid rgb(255,255,255)`, 배경 rgb(255,255,255). 반전된 모든 문에 해당. `tokens.css:175`.
-
-### K-11 패널 위의 second 키가 패널과 같은 색이다 — 중간
-신청서의 "구글 로그인": 키 배경 rgb(14,36,73) = 행 배경. 138x52 키가 떠 있는 글자로 읽힌다. 다른 곳(`bracket.css:74`, `team-builder.css:26`, `components.css:198`)은 `--btn-bg: var(--panel-2)` 를 준다. `NewsPage.jsx:487`. 같은 계열: 공지 시트의 링크 첨부 접힘 안 입력칸(둘 다 rgb(18,41,79), `admin.css:123` 목록에 `.fold` 없음), 객관식 선택지 앞 표시 `.fb-dot` (카드와 같은 색, `admin.css:61-64,124`), 기록 상위 패널을 가리키면 칸이 패널과 같은 색이 되어 사라짐(`records-board.css:37,40`).
-
-### K-12 격자의 짧은 마지막 줄 처리가 셋이다 — 중간
-- 뚫어 둠: 역대 챔피언 벽(1440에서 5명이 3열, 둘째 줄 399x192 빈 칸; 768도 2열에 5명). `hall.css:73,76`.
-- 빈 패널로 메움: 메달 판(파트너 7 + 빈 5, 기타 3 + 3, 이벤트 8 + 4). `TitleFaces.jsx:69,84`, `TitlesPage.jsx:25`.
-- 빈 칸: 알림 종류 7개 2열(219x64 빈 칸), 모노타입 타입 18개 4열(휴대폰, 마지막 줄 2칸), 포켓몬 시트의 도구 3 / 특성 2 / 성격 3. `board.css:291`, `builder.css:44`.
-- 404의 갈 곳 셋은 1 + 2 (439 / 219 / 219). `board.css:316-317`.
-
-### K-13 빈 요소가 간격을 한 번 더 먹는다 — 중간
-- 팀 빌더: 규정 줄 → "포켓몬 선택" 40 (자식이 모두 숨은 `.tb-rules` 가 20을 두 번). `builder.css:150-151`.
-- 팀 빌더 편집기: 특성·도구·성격 → 능력 포인트 44, 능력 포인트 → 기술 32 (빈 `<p class="tb-field-meta">`). `TeamBuilderPage.jsx:1644`.
-- 공식 제출 패널: 이름 칸 → 오류 줄 32, 다른 블록 20. `team-builder.css:14,30`.
-- 공지 작성 시트 대회 설정 묶음: 위 20, 아래 40. `AdminEditors.jsx:216`.
-- 포인트 시트: 칸 사이 32 (공지 시트는 20), 제목 → 첫 라벨 24. `admin.css:141`.
-- 샷: `BLD-07/1440x900-dark-team-full.png`, `ADM-06-offline/points-1440x900-dark.png`
-
-### K-14 폭 구간이 비어 있다 — 높음 (확인)
-- **1100~1150: 상단 바가 깨진다.** 전체 탭 12개로 바뀌는 순간 "명예의 전당", "팀 빌더", "진행 중"이 두 줄, 계정 버튼은 "내 …"로 잘린다. 진행 중 램프와 계정 버튼이 함께 있는 대회 당일에 드러난다. 1160부터 정상. `Navigation.jsx:14` (`WIDE = 1100`). 샷: `SHELL-01/1100x900-dark-topbar.png`
-- **860~1099: 팀 빌더 후보 목록이 198px 안쪽 스크롤에 갇힌다** (행 124, 1.6행만 보임). `team-builder.css:138-141`. 샷: `BLD-04/1099x900-dark.png`
-- **860~1199: 배틀이 한 창에 서지 않는다.** 860x900에서 벤치가 4 잘리고 머리가 덱 아래(y 936), 1199x800에서 기술 키 넷이 모두 창 밖(y 851~935), 문서 높이 2467. 두 단 배치가 1200부터만 있다. `battle.css:157-182`. 샷: `BTL-12/moves-1199x800-dark.png`
-
-### K-15 누르는 자리가 44 미만 — 중간
-- 능력 포인트 슬라이더(휴대폰): 행 32, 여섯 개가 간격 0으로 붙음. 같은 부품인 계산기는 44. `builder.css:85`.
-- 데스크톱 댓글 키(답글·수정·삭제·신고): 30.7x44. `posts.css:81`. 탭 줄 키 폭 22.9~34.4. `board.css:243`.
-- 소리 시트 스위치(데스크톱): 52x32. 섹션 링크 `.sh-link` "열기" 23x20.
-- 관리자 띠 키 40, 질문 도구 32 (데스크톱).
-- 모션·상호작용 검수(F)의 전수 목록은 7장.
-
-### K-16 같은 말을 두 번 한다 — 낮음~중간
-검색 결과 없음에 "0건" + "맞는 공지가 없습니다." + "'없는말'에 맞는 공지를 찾지 못했습니다." (`NewsPage.jsx:280-283`) / 주인 없는 칭호 시트 "주인 0명" + "아직 주인이 없습니다." (`TitlesPage.jsx:67-74`) / 챔피언 시트 "현 챔피언" + "6대 챔피언" / 팀 빌더 "임시저장됨" + "마지막 임시저장 오후 11:21" (`TeamBuilderPage.jsx:1589,1599`) / 기술 시트 "위력 70"과 오른쪽 "70" / 방 목록 0 카운터 셋 + "기다리는 방이 없습니다." / 대회 당일 공지 글 첫 화면에 "진행 중" 세 번 / 상대 시트 제목 "상대" 아래 라벨 "상대", 게이트 시트 제목과 키가 모두 "구글 로그인".
-
-### K-17 검색 결과 없음의 모양이 화면마다 다르다 — 중간
-게시판은 글 두 줄 패널. 사설 대진표와 공지는 왼쪽에 세그먼트 두 칸 + 글인데, 값 0에 켜진 획이 없어 꺼진 "88"로 보인다. 공지는 그 아래 "최근 공지"가 12단 라벨인데 같은 화면의 "다가오는 대회"는 h2 20. `BoardPage.jsx:294,508`, `BracketsPage.jsx:2729`, `NewsPage.jsx:280-283`.
+1. The token system holds up well. Across the 20 site CSS files (excluding the 3 battle files), spacing tokens appear 1,205 times, transition tokens appear 136 times, and raw transition declarations appear 0 times. Rendered text sizes across 1,781 captures stay strictly within five scales (12/16, 15/20, 15/24, 20/28, and 32/40). Page-level horizontal overflow is 0.
+2. Most findings stem from layout composition rather than out-of-system values: mobile layouts stretched unchanged across 1200px desktop widths, identical roles rendered differently across pages, empty DOM elements doubling gaps, and unhandled viewport ranges between 860 and 1199.
+3. The audit also uncovered four functional bugs (section 9), kept out of the visual fix plan.
 
 ---
 
-## 2. 셸, 홈, 소개, 공지, 더보기, 알림
+## 1. Shared root causes (recurring across screens)
 
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| A-02 | **홈 시계가 360에서 화면 밖으로 나간다** (확인: 샷에서 "시작"이 잘림, 일시·신청 마감 값이 화면 끝에 붙음). `HOME/360x800-dark.png` | `.ho-board.today` 335 (시계 292 + 12 + "시작" 31), 패널 안쪽 296. 오른쪽 끝 366.6. 390에서는 오른쪽 여백 3 (법 12) | `home.css:15-16` (열 폭 없는 grid) | 높음 |
-| A-04 | **더보기 1440: 관리자 로그인이 오른쪽 단 중간에 뜬다** (확인: 자식 168~244, 714~766, 사이 470 빈칸) `MORE-01/1440x900-dark.png` | 왼쪽 단 끝 1054, 오른쪽 단 끝 830 | `more.css:18` (`span 3`, 왼쪽 그룹은 넷) | 높음 |
-| A-05 | **챔피언 시트 1440: 반전 패널 1160x156에 내용은 왼쪽 195** `HOME-15/1440x900-dark.png` | 오른쪽 945가 빈 흰 면 (법: 패널 안 잉크 없는 띠 40 이하) | `hall.css:46`, `ChampionSheet.jsx:23-28` | 높음 |
-| A-10 | 공지 글 옆 단: 주 키 아래 52 키 넷이 같은 무게 (신청 수정, 파티 제출, 캘린더, 링크 공유). 휴대폰은 본문(2390) 뒤 | 각 439x52, 사이 2. 목록에서 "캘린더에 추가"는 밑줄 링크 72x20 | `news.css:22,33,67`, `NewsPage.jsx:221-233` | 중간 |
-| A-12 | 같은 사실 행이 홈과 공지에서 다르다 | 홈: 값 오른쪽 정렬 700, `--panel-2`, padding 0 20. 공지: 72 라벨 열 뒤 왼쪽 600, `--panel`, padding 12 20 | `home.css:21-23`, `board.css:218` | 중간 |
-| A-13 | 홈 히어로 1440: 이름 아래 72 빈 띠 (확인) | "개인전" 하단 232, 시계 top 304. 같은 날짜·시각이 세 번 | `home.css:64` (`align-items: end`) | 중간 |
-| A-16 | 신청 수정: 오류가 칸에서 36 떨어진다 `NEWS-14-errors/1440x900-dark.png` | 이름 칸은 8. 비밀번호 칸은 힌트 아래로 밀려 36 | `NewsPage.jsx:465-466` | 중간 |
-| A-20 | 소개: 리드 판 아래 56 빈 띠, "2", "3"만 있고 1이 없음, 두 단 끝 선 122 어긋남, 분할이 홈과 다름(740+2+458 대 759+2+439) | | `hall.css:81,109,113`, `AboutPage.jsx:56-59`, `home.css:62` | 중간 |
-| A-21 | 소개 휴대폰: 시즌의 흐름이 2x2로 접히며 셋째 칸 화살표가 빠져 두 쌍으로 읽힘. 반전 52 띠가 주 키 모양인데 눌리지 않음 | | `hall.css:94-97` | 중간 |
-| A-22 | 휴대폰 상단 바: "내 기록" 15/600 옆 "진행 중" 12/700 | | `shell.css:34`, `SiteHeader.jsx:93` | 낮음 |
-| A-23 | 휴대폰 푸터: 면책 문장 15/24가 저작권 줄 12/16보다 크다 | | `shell.css:127,132` | 낮음 |
-| A-25 | 홈 360: 역대 챔피언 벽의 시즌 이름이 "클래식 시즌…"으로 잘려 숫자가 사라짐 | 5칸 중 4칸 | `home.css` `.ho-line` | 낮음 |
-| A-26 | 공지 목록 1440: 행의 오른쪽 1000 이상이 빔 (법은 목록이 1200을 쓰라고 함) | | 취향 (Q-08) | 낮음 |
-| A-28 | 개인정보: 번호 목록의 둘째 줄이 번호 아래(x 120)로 돌아옴 | | `Prose` 목록 | 낮음 |
+### K-01 Short controls stretched to 1200 width on desktop (high)
+Full-width mobile controls are reused unchanged at 860 and above, separating controls from their values and targets by hundreds of pixels.
 
-문제 없음: 휴대폰 탭 바, 상단 바 860/1099/1280/1920, 신청서 검증 오류(칸 아래 8, 다음 칸 20), 개인정보 두 단 윗선.
-
-## 3. 기록, 칭호, 명예의 전당
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| B-02 | 순위 숫자가 자릿수 정렬이 아니다 | "4" 잉크 140~149.6, "10" 140~159.2 (왼쪽 맞춤) | `records-board.css:48` | 중간 |
-| B-03 | 태그 폭이 뒤 열을 민다 | 표식 열 왼쪽: 마스터 행 312.5, 루키 행 301.1 (29위와 30위 사이에서 꺾임) | `records-board.css:57` (`auto 1fr`) | 중간 |
-| B-04 | 상위 3 패널 중 첫째만 카운터 배치가 다르다 | 첫째: 칸 투명, 라벨 x 140 = 이름. 둘째·셋째: `--panel-2` 칸, 라벨 688.9 (이름 676.9보다 12 안쪽) | `records-board.css:37,40` | 중간 |
-| B-06 | **대회 탭이 1440에서 15,568px.** 대회 62개가 각각 1200 폭 카드. 순위 띠 1160x44에 이름 하나(45), 토글 글자와 화살표 1040 떨어짐 `REC-09/1440x900-dark.png` | 390은 14,456px | `records-board.css:85-106`, `RecordsPage.jsx:831-852` | 높음 |
-| B-06b | 펼친 공식 파티 행이 카드와 같은 색 (확인: 선택자가 실제 클래스와 안 맞는 죽은 규칙) | 행 rgb(14,36,73) = 카드. 2px 솔기도 안 보임 | `records-board.css:108` (`.records-round-detail .row`, 실제는 `.rc-party-row`) | 중간 |
-| B-08 | 랭킹 행 높이가 섞인다 | 84 / 64 / 52 / 52 / 52 / 64 / 64 / 52 / 52 (같은 "공동 6위" 넷이 64, 64, 52, 52) | `board.css:37-39` | 낮음 |
-| B-12 | 명예의 전당 왕관: 1440에서 여섯 위 120이 비고, 390에서는 현 챔피언의 여섯(55.3)이 역대 벽(54.3)과 같은 크기 | | `hall.css:22-24,70-72` | 중간 |
-| B-14 | 칭호 탭 줄: 360에서 뒤의 두 탭이 흔적 없이 숨는다 | 파트너 310.8~344.9에서 온전히 끝나고 다음이 화면 밖. 390은 13px 조각만 | `board.css:239` (gap 32) | 중간 |
-| B-16 | 바닥에 선 포켓몬의 이름 띠 정렬이 둘 (`.rc-band` 왼쪽, `.hof-band` 가운데) | | `records-board.css:115`, `hall.css:25` | 낮음 |
-| B-17 | 포켓몬 시트: 무대 왼쪽 열에 162 빈칸 / "많이 등록한 트레이너" 막대가 1160 한 열(이름과 막대 600 떨어짐) / "10개 전체 보기"가 8개 뒤 2개를 여는 1160 키 | | `records-board.css:165-185`, `RecordsPage.jsx:1067-1080` | 중간 |
-| B-18c | 트레이너 시트 "최근 대회" 날짜 표기가 섞인다 | "11월 7일 (토)", "2026년 8월", "5월 2일 (토)", "2025년 10월" | `services/dateFormat.js:22-25` | 중간 |
-| B-18d | 결과 태그 오른쪽 끝: 반전 "우승" 1280, 흐린 "4강" 1272 | | `records-board.css:138` | 낮음 |
-| B-18e | "내 기록 연결"(구글 로그인 행)이 모든 트레이너 시트의 최근 대회와 사용한 파티 사이에 선다 | | `RecordsPage.jsx:531` | 중간 |
-| B-18f | 390: 시트 안 시즌 칩 8개가 두 줄, 줄 간격 2라 터치 영역이 겹친다 | | `components.css:226`, `board.css:261-263` | 낮음 |
-| B-19a | 칭호 시트 제목 "초대 챔피언", 같은 사람의 다른 곳은 "1대 챔피언" | | `TitlesPage.jsx:63` | 중간 |
-| B-20 | 지방 엘리트 메달이 휴대폰에서 다른 판의 절반 (52.4 대 99.3) | | `TitlesPage.jsx:25` | 낮음 |
-| B-21 | 공동 순위 표기: 포켓몬 탭은 "2, 2, 4", 랭킹 탭은 "공동 3위" | | `RecordsPage.jsx:940` | 낮음 |
-
-문제 없음: 내 기록 찾기(로그아웃), 파티 시트 휴대폰, 검색 빈 문구 위치, 페이저, 라이트 시트 가장자리.
-
-## 4. 대진표, 게시판
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| C-01 | **결승 한 라운드짜리 트리에서 우승 패널이 위아래로 잘리고 "우승" 열 머리를 덮는다** `BRK-02/1440x900-dark.png` | `.bk-scroll` 804~930 (126), `.bk-champ-pos` 783~963 (180). 위 21, 아래 33 잘림 | `brackets.css:36-37,66` | 높음 |
-| C-02 | **5열 트리(9~16명)가 1200보다 8 넓다** (확인: clientWidth 1200, scrollWidth 1208, 우승 열 1112~1328) | 216x5 + 32x4 = 1208. 768에서도 28만 움직이는 스크롤 | `brackets.css:89,92` (`flex: 1 0`) | 높음 |
-| C-05 | **휴대폰 댓글 머리에서 날짜가 두 줄로 꺾여 댓글마다 높이가 다르다** `BOARD-03/390x844-dark.png` | 이름 18일 때 패널 68, 이름 36일 때 84. 키 셋(148 + 16)이 326 줄의 절반 | `posts.css:79-82`, `BoardPage.jsx:206-208,270` | 높음 |
-| C-07 | "본선" 머리가 위아래 32로 떠 있다. 조 순위 행과 조 경기 행이 같은 64 행으로 이어져 구분이 없다. 데스크톱에서 이름(140)과 "본선 진출"(1251)이 1100 떨어짐 | | `brackets.css:27`, `BracketsPage.jsx:1914,1554-1557` | 중간 |
-| C-08 | 휴대폰 목록 보기에서 우승 패널이 맨 아래로 간다 (트리에서는 y 268, 목록에서는 y 1322). 데스크톱 목록 보기는 우승이 20/28로 작아짐 | | `brackets.css:31,43` (`:has(.bk-champ-node)`) | 중간 |
-| C-09 | 더블 엘리미네이션: 열 폭이 소수 (378.67, 173.33)라 카드 가장자리가 반 픽셀. 같은 카드가 379와 173 두 폭, 세로 간격 20과 12. 그랜드 파이널과 우승이 "패자조" 머리 밑 | | `brackets.css:92,95-96,153-157`, `BracketsPage.jsx:1450-1456` | 중간 |
-| C-12 | 수정·삭제의 무게가 글 종류마다 다르다 | 자유 글: 12pt 글자 키. 샘플·파티 글: 52x175 키 2x2 격자 | `BoardPage.jsx:478,270` | 중간 |
-| C-15 | 게시판 행의 글쓴이와 날짜가 간격 8로만 떨어짐 (공지·대진표는 쉼표) | | `posts.css:11` | 낮음 |
-
-문제 없음: QR(데스크톱), 새 사설 대진표 빈·오류, 글쓰기 빈·오류, 신고 시트, 샘플·파티 목록, 경기 시트의 두 편 행.
-
-## 5. 팀 빌더, 계산기
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| D-03 | **데스크톱에서도 후보 목록이 패널의 절반 이하** `BLD-04/1280x800-dark-team.png` | 1280x800: 패널 704 중 목록 326 (2.6행). 행 124 | `team-builder.css:47-49,144-155` | 높음 |
-| D-05 | **기술 칸의 회색 줄이 이름과 같은 15/600으로 서고 휴대폰에서 잘린다** `BLD-08/390x844-dark-moves.png` | `t12 reg dim` 인데 계산값 15/20/600 nowrap | `board.css:158` 이 덮어씀, `TeamBuilderPage.jsx:1686` | 높음 |
-| D-06 | **도감 종족값 범위가 데스크톱에서 두 줄** ("183 ~ / 215") `CALC-06/1440x900-dark-mon.png` | 칸 64, 데스크톱 15px에서 64x40 | `calculator.css:121` | 높음 |
-| D-09 | 저장 독이 편집기(위 52)보다 규정 검사(아래 20)에 가깝다 | 기술 칸 끝 1306, 독 1358, 규정 검사 1430 | `board.css:182` + `.tb-main-column` gap | 중간 |
-| D-10 | 규정 검사 패널의 왼쪽 선이 셋 (172, 168, 140) | | `team-builder.css:8,15` | 중간 |
-| D-11 | 능력 포인트 숫자 칸과 팀 이름 칸: 밑줄과 전역 테두리가 함께 켜져 초점 표시가 둘 | | `builder.css:89,104`, `tokens.css:175` | 중간 |
-| D-12 | 계산기 세부 설정의 포켓몬이 패널도 바닥도 없이 떠 있다 (법: 포켓몬은 늘 패널 안, 발은 바닥에) | 64x64 맨 그림 | `CalculatorPage.jsx:232`, `calculator.css:72` | 중간 |
-| D-13 | 계산기 능력치 슬라이더가 390에서 134 (360은 104) | 0~32가 한 칸 4.2px. H 행은 랭크 칸 104가 빔 | `calculator.css:158` | 중간 |
-| D-14 | 계산기 기술 칸: 채운 칸과 빈 칸의 라벨이 2 어긋남. 390에서 이름이 네 글자에서 잘림 ("플레어드…") | 타입 태그 24, 빈 칸 20 | `team-builder.css:107`, `components.css:284,288` | 중간 |
-| D-15 | 대결 칸: 한쪽만 고르면 두 칸의 이름 줄이 10 어긋남. "서로 바꾸기"가 혼자 섬 | 이름 430 / 440 | `calculator.css:29`, `CalculatorPage.jsx:349-352` | 중간 |
-| D-16 | 계산기 데스크톱이 휴대폰 배치를 늘린 곳: 스피드 줄의 이름(260)과 종족값(1234) 사이 960, 도감 기술 표의 "기술"(120)과 "타입"(514) 사이 394 | | `calculator.css:23-25,91,99,133` | 중간 |
-| D-17 | 공식 제출 패널: 제출할 수 없는 대회인데 그 사실이 맨 아래(390은 독 아래로 가려짐). 잠긴 드롭다운에 펼침 화살표 | | `TeamBuilderPage.jsx:364-392,1452,1456` | 중간 |
-| D-18 | "최종" 열의 왼쪽이 들쭉날쭉 ("최종 185" x 1264, "최종 90" x 1274), 같은 낱말 여섯 번 | | `builder.css:90`, `TeamBuilderPage.jsx:1659` | 중간 |
-| D-19 | 빈 칸의 +가 눌리지 않는다 | | `TeamBuilderPage.jsx:188,1513` | 중간 |
-| D-22 | 내 팀 시트: 방금 저장했는데 키가 "변경사항 저장". 버튼 두 줄 사이 8 (패널 사이는 2) | | `TeamBuilderPage.jsx:1771`, `builder.css:99` | 낮음 |
-| D-23 | 규칙 변경 확인: 빠질 포켓몬이 브라우저 기본 점 목록 (왼쪽 여백 52) | | `team-builder.css:135` | 낮음 |
-| D-25 | 1100~1199: 후보 행의 능력치 숫자가 붙는다 ("125 115 80", 사이 3) | | `team-builder.css:151` | 낮음 |
-| D-26 | 타입 상성의 "특성 반영"이 제목에서 1085 떨어져 있다 | | `TeamBuilderPage.jsx:250` | 낮음 |
-
-문제 없음: 단계 탭, 검색 빈, 타입 상성(휴대폰), 되돌리기 토스트, 가져오기·내보내기 시트, 도구 시트, 후보 행 hover와 focus, 계산기 배틀 조건, 포켓몬 시트.
-
-## 6. 배틀, 도전의 탑
-
-배틀 화면은 DESIGN.md "Battle"의 자기 기준(Judging the play screen)으로 봤다.
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| E-01 | **라이트 테마에서 승자 띠의 글자가 보이지 않는다** (확인: 명시도 0,2,1이 0,2,0을 이김) `BTL-21/end-390x844-light.png` | 배경 rgb(232,236,242) 위에 글자 rgb(255,255,255) | `battle.css:379` 가 `:589` 를 이김 | 높음 |
-| E-04 | **대회 진행 중 띠가 있으면 데스크톱 배틀이 항상 88 스크롤된다** (확인: 띠 숨김이 휴대폰 블록에만 있음, `battle.css:120`) | 문서 높이 1200x800 → 888, 1440x900 → 988. 1200x800에서 벤치가 창 밖 40 | `battle.css:166,173-181` | 높음 |
-| E-05 | 데스크톱에서 연출·소리·기권이 창 아래로 밀린다 | 메뉴 y 840~1088 (창 900). 선출 화면에서는 y 300~548 | `BattlePage.jsx:1765-1766`, `battle.css:179-183` | 중간 |
-| E-06 | 로비 → 선출 전환이 한 프레임에 잘리고 검은 상자가 남는다 (CPU 4배 감속 녹화) `BTL-M/lobby-to-pick-390-cpu4-sheet.png` | 1501ms에 제목·탭·띠가 한 프레임에 사라짐. 251ms, 400ms 무프레임 구간 | `BattlePage.jsx:1064-1090` | 중간 |
-| E-07 | 첫 턴 안내 토스트가 내 띠와 메시지 창을 덮는다 (첫 턴 내내) | 390: 토스트 (64,534) 262x52, 내 띠 542~586 | `battle.css:943`, `BattlePage.jsx:1749` | 중간 |
-| E-08 | 데스크톱 더블에서 내 플레이트가 내 포켓몬의 발을 가린다 | 겹침 149x60, 상자의 25% | `battle.css:450-459` | 중간 |
-| E-09 | 375x667에서 선출 카드 셋째 줄이 독에 17 가린다 | 카드 106 (390은 94), 문서 720 | `battle.css:839-841` | 중간 |
-| E-11 | 끝난 뒤 데스크톱의 다시하기·나가기가 84 높이 (확인: `.bt-end-row` min-height 84, 키 100%) | 다시하기 692x84, 나가기 74x84. 사이트 키는 52 | `battle.css:245-250` | 중간 |
-| E-10 | 390x480: 플레이트가 포켓몬을 덮고 메시지 창이 덱에 묻힌다 | | `battle.css:888` | 낮음 |
-| E-12 | 끝난 뒤 휴대폰 덱 위쪽 140이 비어 있다 | 덱 586~844, 내용 726부터 | `BattlePage.jsx:1725` | 낮음 |
-| E-14 | 잠긴 키에서 라이트 테마의 효과 칩만 꺼지지 않는다 (화면 확인, 수치 없음) | | `battle.css:612` 부근 | 낮음 |
-| E-15 | 로비 휴대폰: 코트 197, 그 아래 107 빈 바탕 | | `battle.css:891` | 낮음 |
-| E-17 | 머리의 두 자리 카운터(턴 수)에 화면상 라벨이 없다. 시계와 같은 모양 | | `BattlePage.jsx:1636` | 낮음 |
-
-문제 없음: 내 파티·상대 파티 시트, 길게 누르기 카드, 강제 교체, 리플레이 바, 빈 기록, 탑 장면 정지 화면.
-
-## 7. 관리자
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| G-01 | **휴대폰에서 대회 진행이 편집, 최근 변경 아래로 밀린다** (확인: 실데이터 샷에서 3264 높이 중 약 1900 지점) `ADM-04/390x844-dark.png` | 순서: 할 일 → 편집 7행 → 최근 변경 10행 → 대회 진행 | `admin.css:154-156` (편집이 마지막 블록이던 때의 `:last-child` 규칙. CSS 주석은 "할 일, 대회 진행, 편집" 순) | 높음 |
-| G-03 | **대진표 맨 아래 운영 줄이 흩어져 있다** `ADM-BRK-03/1440x900-dark.png` | "기록 반영됨" x 120 y 1120, "칭호 다시 판정" x 381 y 1141, "반영 취소" x 995 y 1120 (샷에서 읽음) | `BracketsPage.jsx:1894`, `brackets.css:60-61` | 높음 |
-| G-04 | **신청자 시트 휴대폰: 신청 시각과 "미제출"이 겹친다** (확인: 샷에서 "11.17 화 23미제출") `ADM-NEWS-02/390x844-dark.png` | 7행 모두 | `pages.css:53-58`, `NewsPage.jsx:578-585` | 높음 |
-| G-09 | 질문 카드 안 왼쪽 선이 다섯 (472, 484, 492, 500, 512) | | `admin.css:53-66` | 중간 |
-| G-11 | 회차 수정: 468 높이 안쪽 스크롤에 12,740. 칸에 라벨이 없어 값이 든 뒤 우승/준우승/4강을 알 수 없음. 390에서 날짜 칸 81이라 "2023.05" 끝이 잘림 | | `admin.css:94,97-101`, `AdminEditors.jsx:377-407` | 중간 |
-| G-12 | 휴대폰에서 도움말(15/24)이 라벨(12/16)보다 크다. 같은 시트에 도움말이 두 모양 | | `components.css:96`, `admin.css:79` | 중간 |
-| G-13 | 대회 진행 패널: 접수 단계에 주 키가 없고 대회 취소가 가장 넓은 키 | | `AdminPage.jsx:113-121`, `admin.css:144-148` | 중간 |
-| G-14 | 검증 실패를 칸이 아니라 알림 창으로 알린다 (법: 폼은 빠진 것을 그 칸 아래에 말한다). 해당 칸은 스크롤 밖 | | `AdminEditors.jsx:317,69` | 중간 |
-| G-07 | 랭킹 탭 운영 키 두 줄 사이에 이음매가 없다 (세로 0, 가로 2) | | `RecordsPage.jsx:1136,1158`, `records-board.css:23,69-71` | 중간 |
-| G-15 | 빈 상태 판(44)이 같은 목록의 행(64)보다 낮다 | | `admin.css:149` | 낮음 |
-| G-17 | 시트 위 토스트와 고정 키 사이 7 | 토스트 아래 816, 키 위 823 | 토스트 규칙 | 낮음 |
-| G-18 | 성적 수정 표의 제목 "트레이너"(452)와 입력 글자(464)가 12 어긋남 | | `admin.css:91-93` | 낮음 |
-
-문제 없음: 로그인 시트, 로그인·저장 토스트, 칭호·챔피언 수정 시트, 공지 옆 기둥의 응답 보기·수정, 시즌 추가 prompt.
-
-## 8. 모션과 상호작용
-
-개발 서버(압축 안 된 번들)에서 쟀다. 길이와 곡선은 `document.getAnimations()` 와 프레임마다 잰 사각형, 화면 녹화에서 읽었다. "첫 프레임까지 걸린 시간"은 운영 빌드보다 느리게 나온다.
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
-|---|---|---|---|---|
-| F-01 | **켜진(반전) 컨트롤의 초점 테두리가 보이지 않는다** (K-10과 같은 뿌리, 확인: 예외가 두 곳에만 있음) `BOARD-01/f-focus-main-1440-dark.png` | 테두리 `--lit` 2px, 바탕도 `--lit`: 대비 1.0. 주 행동 키 전부, 세그먼트의 고른 칸, 건너뛰기 링크, 고른 칩, 1위 행 | `tokens.css:175`. 예외는 `board.css:145,177` 뿐 | 높음 |
-| F-02 | **휴대폰 속도에서 무거운 시트가 올라오는 모습 없이 거의 다 올라온 채 나타난다** `MOT-08/f-sheet-open-390-cpu4.png` | CPU 4배 감속: 누른 뒤 316ms 무프레임, 첫 프레임에 시트 윗변이 이미 y 130 (출발 864, 끝 52). 가벼운 시트(글쓰기)는 정상 | `Modal.jsx:118-125` (내용이 처음 그려지는 커밋에서 스프링 시작) | 높음 (운영 빌드에서 다시 재야 함) |
-| F-03 | **첫 방문 홈: 다른 내용이 먼저 켜졌다가 바뀐다** `MOT-01/f-first-open-390-cpu4.png` | "다음 대회, 꺼진 88, 공지 보기"가 약 700ms 켜졌다가 "지난 대회, 대진표 보기"로 바뀌며 순위 구역이 54 내려감 (layout-shift 0.0204). 키의 낱말과 가는 곳이 바뀜 | `HomePage.jsx:206-213,221-` | 높음 (첫 방문만) |
-| F-04 | 탭과 칩을 바꾸면 바뀌지 않은 검색 칸과 주 키까지 다시 12 올라온다 | 칩 "더블" → `.search-in`, `.btn--main` 이 translateY 12 → 0, 420ms | `motion.js:154-157` (`lightAfter` 가 뒤의 모든 형제를 켬), `Board.jsx:16,37` | 중간 |
-| F-06 | 데스크톱 대화상자: 폼 오류가 뜨면 창 전체가 한 프레임에 28 올라가고 56 커진다 | `.sheet` y 54 → 26, 높이 792 → 848. 오류 문장만 420으로 오르고 나머지는 순간 이동 | `components.css` 860 이상 `.sheet { top: 50%; translate: -50% -50% }` | 중간 |
-| F-07 | 접힘은 열릴 때만 움직이고 닫힐 때는 한 프레임에 사라진다 (법: 들어옴이 있으면 나감이 있다) | 닫기: 셰브런만 420, 내용(390에서 376)은 그 프레임에 없어짐 (layout-shift 0.083) | `RecordsPage.jsx:838`, `NewsPage.jsx:309`, `BracketsPage.jsx:1510` | 중간 |
-| F-08 | 포인터에 답하지 않는 것들 (확인: `--btn-bg-hover: var(--lit)` 가 배경과 같음) | 주 행동 키(화살표 없는 것: 글쓰기, 등록, 대진표 만들기 등) 변화 없음 / 상단 바 로고, 내 기록, 진행 중, 테마 키 규칙 없음 / 홀로 선 드롭다운 버튼 / 페이지의 검색 칸 (시트 안의 같은 칸은 있음) / 푸터 관리자 로그인 (이미 `--lit`) | `board.css:103`, `shell.css:24,28,34,41,126`, `components.css:104-111` | 중간 |
-| F-09 | 누름이 한 프레임에 튀는 낱말 키, 바탕이 한 프레임에 뒤집히는 세그먼트 (확인) | `.sh-link`, `.site-foot-login`: 20ms에 이미 .976 (전환 없음). `.seg-track > button` 은 `background-color` 전환이 빠짐. 선택 라벨은 누름 없음 | `board.css:328` 이 `tokens.css:228` 의 scale 전환을 덮음, `components.css:54` | 낮음 |
-| F-10 | 페이지를 떠날 때 어두워짐이 160 ease-out (법과 `motion.js` 의 `dimAway` 는 260 ease-in) (확인) | | `shell.css:102` | 낮음 |
-| F-05 | 탭 내용이 두 겹으로 켜진다 (`.swap` 페이드 420 위에 패널마다 420) | 반쯤 켜지는 시점이 페이지 이동보다 늦음 (약 75ms → 130ms) | `tokens.css:241`, `RecordsPage.jsx:248`, `TitlesPage.jsx:123` | 낮음 |
-| F-11 | 페이저를 누르면 페이저가 손 밑에서 132 올라간다 (다음 쪽이 짧을 때) | layout-shift 0.092 (390) | `BoardPage.jsx`, `Pager.jsx:9` | 낮음 |
-| F-12 | DESIGN.md의 표와 실제가 다르다 (글의 문제) | light "420 in all" 인데 마지막 패널은 약 680에 끝남. 휴대폰 시트 스프링 전체 658 | `DESIGN.md:476,488` | 낮음 |
-| F-13 | 44 미만 터치 대상: 대회 탭 회차 안의 이름 580개가 42x44 | 가로 2 부족 | `records.css:9` (`inset: -12px -4px`) | 낮음 |
-
-**법대로 측정된 것 (문제 없음):** 뒤로 가기, 공지·게시글·대진표 들어가기와 나오기(패널 420, 간격 0~260, ease-out), 탭 밑줄(420 ease-out), 늦은 그림(tone 160, 묶음), 시트 닫기(260 ease-in), 데스크톱 대화상자(열기 420, 닫기 160 ease-in), 드롭다운(160), 토스트(들어옴 420, 나감 260 ease-in), 테마(.618 → 0, 260), busy 칸(840), 세그먼트 값(바뀐 칸만 160), 페이지 이동 전체의 layout-shift 0. **줄인 움직임:** transform 애니메이션 0개, 색과 배경 160, 닫힘 opacity 160~260만 남는다(법 "only tone remains"와 맞음).
-
-## 9. 검수 중 나온 기능 결함 (시각 수정 계획에 넣지 않음)
-
-| ID | 결함 | 근거 | 위치 |
+| Where | Measurement (1440) | Cause | Shot |
 |---|---|---|---|
-| BUG-1 | 계산기 결과판에 "난수 5타 (NaN%)" (확인: `ko.chance` 가 undefined일 때 그대로 계산) | `CALC-03/1440x900-dark-both-full.png` | `src/services/calculatorCore.js:171` |
-| BUG-2 | 컴퓨터 배틀(무작위 파티)에서 내 포켓몬 정보가 비어 나온다: 내 띠의 그림 0장(14회 중 12회), 정보 시트의 기술이 빈 칸이고 특성이 "A 또는 B 또는 C", 도구 "모름", 결과 띠 "나: 0장". 랩의 정해진 팀은 정상 | `BTL-12/moves-390x844-dark.png`, `BTL-16/moninfo-390x844-dark.png` | `Stage.jsx:574-576,856-858`, `BattlePage.jsx:1654` (원인 미추적) |
-| BUG-3 | 대회 당일(11-22) 상단 바와 LiveStrip은 "39회 파이컵 리전 더블배틀 진행 중"인데 대진표 목록 리드는 같은 대회를 "우승 김채운"으로 끝난 것처럼 램프 없이 보였다. 데이터 상태일 수 있다 | `BRK-01/1440x900-dark.png` | 확인 필요 |
-| BUG-4 | 한 번, 싱글 12명 대진표 주소를 390 다크로 처음 열었을 때 39회 대진표가 떴다. 재현 못 함 | `BRK-09/390x844-dark.png` | 확인 필요 |
+| Records trainers tab: search, sort chips, season dropdown stacked in three rows (verified) | Search 1200x52, gap 12, chips 178x32, gap 2, dropdown 1200x52 ("모든 시즌" text 50, arrow 1090 away) | `RecordsPage.jsx:343-347`, `records-board.css:76-77`, `components.css:103` | `REC-02/1440x900-dark.png` |
+| Rankings tab season dropdown and menu | Button 1200x52 (text 68), menu 1200x356, checkmark 1090 from text | `components.css:103-124` | `REC-14-dd/1440x900-dark.png` |
+| Private bracket tool buttons | Result entry, share link, and two image buttons each 599x52, edit 1200x52 (official brackets put the same buttons on one 44px row right of the title, width 62 to 113) | `brackets.css:24-26`, `BracketsPage.jsx:2694-2701` | `_extra-c/pb-1440x900.png` |
+| Admin entry buttons: add title, add past champion, edit scores, edit round, delete bracket | Each 1200x52. Rankings tab stacks add season (599) + add cumulative tab (599) + edit scores (1200) into a 1200x104 block. Meanwhile write notice and new bracket are 50x20 underlined links | `TitlesPage.jsx:124`, `ChampionsPage.jsx:106`, `RecordsPage.jsx:896,1136-1139,1158,1174`, `BracketsPage.jsx:3074` | `ADM-REC-03-offline/rank-1440x900-dark.png`, `ADM-TTL-01-offline/page-1440x900-dark.png` |
+| Bottom sheet buttons (share link on trainer and Pokemon sheets) | 1160x52 | `RecordsPage.jsx:262,1094` | `REC-05/1440x900-dark-sheet.png` |
+| Team builder two rule dropdowns | 599 + 599 (misaligned with the 559/611 column split below) | `builder.css:149` | `BLD-07/1440x900-dark-team-full.png` |
+| Bracket wizard step 1 | Both dropdowns 1200, Cancel and Next in right 439 column, 760 away from inputs (read from shot) | `BracketsPage.jsx:632-872` | `ADM-BRK-02/1440x900-dark.png` |
 
-참고(결함은 아님): 기록의 트레이너 행, 게시판의 샘플·파티 카드, 대진표 경기 카드는 `<button>` 이라 주소가 없다. CLAUDE.md의 "문은 주소를 가진 링크" 규칙(`viewHref`)과 다르다. 컴퓨터 배틀은 끝나면 `battle` 함수에 `action: "record"` 를 보낸다(검수에서는 그 요청을 막고 진행했다).
+### K-02 Reading prose wider than the 709 column (high)
+DESIGN.md "Made by people" caps reading prose at 709 (about 47 characters per line).
 
-## 10. 캡처하지 못한 상태
+| Where | Measurement | Cause |
+|---|---|---|
+| Free board post body and comments | `.prose` 1200 (about 95 characters per line), YouTube 1200x675, comment form nickname and password 599 each, submit button 1089 from label | `BoardPage.jsx:265-276`, `posts.css:57,63` (709 only applies to `.bd-art.many`) |
+| Rankings tab footnote | Ink width 1032, about 80 characters per line | `records-board.css:24` |
 
-실제 화면으로 보지 못해 판정하지 않은 것들이다. 수정이 끝난 뒤에도 남는 사각이다.
+Shots: `BOARD-03/1440x900-dark.png`, `REC-14/1440x900-dark.png`
 
-- **쓰기가 필요한 상태:** 신청 제출 중·실패·접수 완료, 게시글 등록, 보내는 중인 키(busy), 실패 토스트의 `!`, 공식 제출 패널의 신청자 확인과 제출.
-- **로그인 상태별 화면:** 내 기록 찾기의 확인 중·승인·대기·거절, 더보기의 계정 상태들, 트레이너 시트의 "내 전적". 관리자 세션으로는 보이지 않는다.
-- **도전의 탑 진행 전체:** 파티 고르기, 문, 쉬는 화면, 교환, 패배, 탑 장면 전환. 시작이 서버에 쓰기라 하지 않았다.
-- **실시간 2인 상태:** 방 참가, 상대 기다림, 공식 경기 자리, 중계 화면, 다시하기 제안.
-- **관리자 쓰기 화면:** 대진표 마법사 2~3단계, 결과 입력, 경기 일정, 기록 반영 시트, 연결 요청, 트레이너 운영. 오프라인 서버에는 정규화 DB가 없고, 운영 서버의 샷(ADM-BRK-04, ADM-BRK-08, ADM-REC-02)은 시트가 열리지 않은 채 찍혔다.
-- **데이터가 없어 못 본 것:** 대진표의 파티 제출 현황, 경기 카드의 라이브·대기·기권·불참, 32강과 3위 결정전, 신청서의 운영진 질문 다섯 종류, 홈의 카운트다운·신청 접수 중·파티 제출 카운터(검수일이 대회 당일이라 당일 상태만 떴다).
-- **로딩, 오류, 빈 상태 대부분:** 응답 가로채기를 만들지 않았다. 코드에서 문구와 위치만 확인했다.
-- **데이터 극단(EXT-01~05):** 아주 긴 이름과 수백 건 목록은 만들지 않았다. 실제 데이터에서 잘린 것은 360의 "메가한카리아스Z", 860의 "메가메타그로스", 홈 360의 "클래식 시즌…".
-- **실제 기기와 125% 화면(dpr 1.25):** 모든 측정이 dpr 1의 데스크톱 Chrome이다. 얇은 선, 시트 끌어내리기, 실제 휴대폰의 프레임은 보지 못했다.
-- **라이트 테마:** 정지 화면은 전부 찍었지만 낱낱이 본 것은 홈, 신청서, 시트, 대진표, 팀 빌더, 배틀 결과다. 모션은 다크만 녹화했다.
-- **1280, 1920:** 찍은 샷의 측정(넘침, 잘림)만 확인했고 화면을 낱낱이 보지는 못했다.
+### K-03 Search input jumps and shrinks while typing (high, verified)
+- The result count ("19건", "0건") sits outside the right edge of the input, changing input width on every digit shift from 1200 to 1157 to 1167 (at 390: 350 to 321). `ListSearch.jsx:13`, `board.css:209-215`.
+- On Notices, typing a query hides the "다가오는 대회" section, jumping the active input up by 124 (at 1440: top 344 to 220; at 390: 352 to 212). `NewsPage.jsx:269,279`.
+- On private brackets at 390, the primary button squeezes the search input down to 143 (113 at 360), clipping placeholder text and leaving roughly 60px once a query is entered. `posts.css:110-111`, `BracketsPage.jsx:2726`.
+- Shots: `REC-02/1440x900-dark-search.png`, `NEWS-02/1440x900-dark-none.png`, `BRK-13-noresult/390x844-dark.png`
 
-## 11. 계정을 연동했을 때만 보이는 화면 (2026-11-23 추가)
+### K-04 Inconsistent gap below section headings (medium)
+The spec calls for 12 (`--s3`). Actual values vary across five sizes:
 
-첫 검수는 관리자 로그인만 받았고 Google 계정 연동은 하지 않았다. 사용자가 직접 로그인한 창(운영 사이트, 읽기가 아닌 요청은 차단)으로 12개 화면을 390과 1440, 두 테마로 찍어 봤다. 샷은 `ACCT-*/`. 창이 보이는 Chrome으로 찍었다.
+| Gap | Where | Cause |
+|---|---|---|
+| 2 | Bracket group heading ("1조") to first row | `BracketsPage.jsx:1552-1553` (bare h2 inside stack) |
+| 12 | Notices "다가오는 대회" and most sections | `board.css:11` |
+| 14 | Bracket list view round headings, board "댓글 N", records tournaments season headers | `.sh` 12 + stack seam 2. `BracketsPage.jsx:1324`, `posts.css:77`, `records-board.css:80` |
+| 24 | Admin section headings | `.sh` 12 + `.ad-block` gap 12. `admin.css:139` |
+| 34 | Between season chapters in records tournaments tab (spec is 32) | `records-board.css:80` |
 
-| ID | 발견 | 측정 | 원인 | 심각도 |
+### K-05 Inconsistent spacing below h1 and tab bars (medium)
+- Distance from h1 to the next element at 1440 is 20 on Notices, Alerts, and About, versus 32 on More and Records. `news.css:9`, `more.css:27`, `hall.css:80`, `more.css:6`, `.rc-tabs`.
+- Distance from tab bar to content is 12 on Records versus 20 on Titles. `records-board.css:10`, `titles.css:7`.
+- Back links sit at different top edges on identical sub-views: 148 on notice posts (side column is 160) versus 160 on the registration form. On mobile, the 44px back button box overlaps LiveStrip by 6. `news.css:18`, with the same rule in `brackets.css:15` and `posts.css:40`. Verified in 1440 shots where the back link sits 12 above the side column.
+
+### K-06 New-post lamp and row-end lamp placement (medium, verified)
+- Three different orders appear: lead panels put the lamp before the text (gap 8), rows put the lamp after the text (gap 22), and More "새 알림" puts the lamp before the text. `NoticeRows.jsx:13`, `Board.jsx:101-102,116`, `more.css:10`.
+- On desktop, the row-end lamp has 12 right padding (lamp ends at 1308), while every other element on the same screen uses 20 (1300). Home uses 22. `board.css:30`, `home.css:74`.
+- Shots: `HOME/1440x900-dark.png`, `NEWS-01/1440x900-dark.png`
+
+### K-07 Two font weights for gray subtitle lines (medium)
+Lead panels render gray subtitle lines at weight 400 (`.reg`), while rows directly beneath them render at 600 across Notices, Bracket lists, Alerts, and More. Hierarchy 5 specifies 600 for labels and 400 for gray lines. `Board.jsx:99` (Row line omits `reg`), `Board.jsx:119`.
+
+### K-08 Shared confirmation dialog and sheet components (medium)
+- The two dialog buttons do not keep the 1 : 1.618 ratio: 158 : 230 (1.46) at 390 and 229 : 345 (1.51) at 1440, because `flex-grow` applies only to space left after padding. `components.css:223-225`.
+- The notification enable dialog stacks both buttons vertically (two 536x52 buttons, 20 apart). `PushControl.jsx:57-60`, `board.css:275`.
+- Desktop dialogs have a 20px empty strip at the top where `.grip` reserves space, leaving 28 above the title, 20 on the sides, and 32 below. `components.css:189,235,237`.
+- The close `×` sits 4 lower than the title (title vertical center 68 vs `×` center 72; 94 vs 98 at 390). `components.css:208`.
+- Dangerous confirmations show "✓ 삭제" just like save buttons. `danger` is passed in but never used in rendering, and alert dialogs show "✓ 닫기". Only the battle menu forfeit button uses an untokenized `#4A1820`. `SiteDialog.jsx:23-24,66-71`, `battle.css:348`. Moved to `questions.md` (Q-01) because DESIGN.md Hierarchy defines dangerous confirmations as primary actions.
+- Bottom sheet actions vary by sheet: the party sheet uses a full-bleed 1200x52 dock, the champion sheet uses an inset 1160x52 button, trainer and Pokemon sheets put 20 above share link, and the title sheet puts 32 (width 536). `RecordsPage.jsx:136,262,1094`, `ChampionSheet.jsx:33`, `hall.css:43-44`, `TitlesPage.jsx:76`, `titles.css:38`.
+- Shots: `BRK-09/1440x900-dark.png`, `ALERT-04/1440x900-light.png`, `ADM-09-offline/delete-confirm-1440x900-dark.png`, `REC-13/1440x900-dark.png`
+
+### K-09 Floating surfaces lack visible edges (medium)
+- The "더보기" popover (shown only at 860 to 1099) has item color `rgb(18,41,79)` over panel `rgb(14,36,73)` with no border or scrim, blending into LiveStrip in light theme. Item padding is 12 instead of desktop `--pad` 20. `components.css:139,149`.
+- Dropdown menus share `rgb(14,36,73)` with underlying rows, and selected value (x 140) is misaligned by 8 from menu items (x 132). `components.css:116-124`.
+- Shots: `SHELL-04/1024x768-light.png`, `REC-14-dd/1440x900-dark.png`
+
+### K-10 Focus ring invisible on inverted panels (medium)
+A 2px white outline sits on a white inverted background. Measured on the top-1 trainer panel: `outline: 2px solid rgb(255,255,255)` over `rgb(255,255,255)`. Affects every inverted interactive surface. `tokens.css:175`.
+
+### K-11 Secondary buttons inside panels match the panel color (medium)
+On the registration form, the "구글 로그인" button has background `rgb(14,36,73)` matching its row, making a 138x52 button look like floating text. Other files (`bracket.css:74`, `team-builder.css:26`, `components.css:198`) override `--btn-bg: var(--panel-2)`. `NewsPage.jsx:487`. The same issue hits inputs inside the collapsed link section of the notice sheet (both `rgb(18,41,79)`, `.fold` missing from `admin.css:123`), multiple-choice option dots `.fb-dot` (same color as card, `admin.css:61-64,124`), and hovered top-3 record panels where inner cells disappear into the panel (`records-board.css:37,40`).
+
+### K-12 Three different treatments for short last grid rows (medium)
+- Left open: past champions wall (5 champions in 3 columns at 1440 leaves a 399x192 gap on row 2; 2 columns at 768 does the same). `hall.css:73,76`.
+- Padded with empty panels: medal boards (7 partner + 5 empty, 3 other + 3 empty, 8 event + 4 empty). `TitleFaces.jsx:69,84`, `TitlesPage.jsx:25`.
+- Unfilled cells: 7 alert categories in 2 columns (219x64 empty cell), 18 monotype types in 4 columns on mobile (2 cells on last row), Pokemon sheet items 3 / abilities 2 / natures 3. `board.css:291`, `builder.css:44`.
+- The 404 page uses 1 + 2 (439 / 219 / 219) for its three links. `board.css:316-317`.
+
+### K-13 Empty elements double spacing (medium)
+- Team builder has a 40px gap between the rules row and "포켓몬 선택" because `.tb-rules` stays rendered with all hidden children, applying 20 twice. `builder.css:150-151`.
+- Team builder editor has 44 between ability/item/nature and stat points, and 32 between stat points and moves due to an empty `<p class="tb-field-meta">`. `TeamBuilderPage.jsx:1644`.
+- Official submission panel puts 32 between the name field and error line versus 20 between other blocks. `team-builder.css:14,30`.
+- Notice sheet tournament settings block has 20 above and 40 below. `AdminEditors.jsx:216`.
+- Points sheet puts 32 between fields (notice sheet uses 20) and 24 from title to first label. `admin.css:141`.
+- Shots: `BLD-07/1440x900-dark-team-full.png`, `ADM-06-offline/points-1440x900-dark.png`
+
+### K-14 Unhandled viewport width ranges (high, verified)
+- At 1100 to 1150, the top bar breaks. The moment all 12 tabs appear, "명예의 전당", "팀 빌더", and "진행 중" wrap to two lines and the account button truncates to "내 …". This appears on tournament days when both the live lamp and account button are present, and clears at 1160. `Navigation.jsx:14` (`WIDE = 1100`). Shot: `SHELL-01/1100x900-dark-topbar.png`
+- At 860 to 1099, the team builder candidate list is trapped inside a 198px inner scroll box (124px rows, showing 1.6 rows). `team-builder.css:138-141`. Shot: `BLD-04/1099x900-dark.png`
+- At 860 to 1199, battle does not fit in one viewport. At 860x900 the bench clips by 4 and the header drops below the deck (y 936); at 1199x800 all four move buttons sit off-screen (y 851 to 935) with document height 2467. Two-column layout only starts at 1200. `battle.css:157-182`. Shot: `BTL-12/moves-1199x800-dark.png`
+
+### K-15 Touch and click targets under 44px (medium)
+- Mobile stat point sliders have 32px rows with 0 gap between the six rows, while the same control in the calculator is 44. `builder.css:85`.
+- Desktop comment actions (reply, edit, delete, report) are 30.7x44 (`posts.css:81`), and tab bar buttons are 22.9 to 34.4 wide (`board.css:243`).
+- Desktop sound sheet switches are 52x32, and section link `.sh-link` "열기" is 23x20.
+- Desktop admin bar buttons are 40 and question tools are 32.
+- Full motion and interaction target list is in section 8.
+
+### K-16 Repeated copy (low to medium)
+Empty notice search says "0건" + "맞는 공지가 없습니다." + "'없는말'에 맞는 공지를 찾지 못했습니다." (`NewsPage.jsx:280-283`). Unclaimed title sheets say "주인 0명" + "아직 주인이 없습니다." (`TitlesPage.jsx:67-74`). Champion sheets say "현 챔피언" + "6대 챔피언". Team builder says "임시저장됨" + "마지막 임시저장 오후 11:21" (`TeamBuilderPage.jsx:1589,1599`). Move sheets show "위력 70" alongside "70" on the right. Room list shows three 0 counters plus "기다리는 방이 없습니다.". Tournament-day notice posts show "진행 중" three times above the fold. Opponent sheet repeats "상대" as both title and label, and the gate sheet uses "구글 로그인" for both title and button.
+
+### K-17 Empty search results look different across pages (medium)
+Board shows a two-line text panel. Private brackets and Notices put a two-digit segment on the left, but value 0 has no lit strokes and reads as an unlit "88". Notices also styles "최근 공지" below it as a 12px label while "다가오는 대회" on the same page is an h2 at 20. `BoardPage.jsx:294,508`, `BracketsPage.jsx:2729`, `NewsPage.jsx:280-283`.
+
+---
+
+## 2. Shell, home, about, notices, more, alerts
+
+| ID | Finding | Measurement | Cause | Severity |
 |---|---|---|---|---|
-| H-01 | **로그아웃이 계정 묶음에서 가장 큰 키이고, 그 아래 두 링크가 가운데 정렬로 쌓인다** `ACCT-more/1440x900-dark.png`, `ACCT-records-me/1440x900-dark.png` | 로그아웃: 기록 화면 1156x52, 더보기 709x52, 내 시트 1145x52. "기록 연결 해제", "계정 삭제"는 가운데 정렬 두 줄 | `AccountKeys.jsx:16-19` | 높음 |
-| H-02 | **내 시트에서 카운터 바로 아래가 연결 상태 띠와 로그아웃이다** `ACCT-my-sheet/1440x900-light.png` | 반전 띠 "내 기록으로 연결되었습니다." 1145x44, 로그아웃 1145x52, 그다음이 "내 전적" | `RecordsPage.jsx` `TrainerLink lead` | 높음 |
-| H-03 | "내 전적": 설명이 패널로 서고, "자주 만난 상대"가 행마다 반복되고, 라벨과 단위가 같은 말 | 설명 패널 64 높이. 세 행에 "자주 만난 상대" 세 번. "승 3승", "패 2패" | `RecordsPage.jsx:398,404` | 중간 |
-| H-04 | 더보기에 "알림"이 두 번 (내 계정 묶음과 함께하기 묶음) `ACCT-more/1440x900-dark.png` | | `MorePage.jsx` | 중간 |
-| H-05 | **시트 안 스크롤바가 화살표 단추 달린 운영체제 스크롤바다** `ACCT-my-sheet/1440x900-light.png` | 상속된 `scrollbar-color` 때문에 Chrome이 8px 규칙을 무시. 창 없는 캡처에서는 보이지 않아 첫 검수가 놓쳤다. 휴대폰 폭 에뮬레이션에서도 보인다 | `tokens.css:140,185-187` | 중간 |
-| H-06 | 내 행의 "나" 태그가 표식 열을 43 민다 (B-03을 실제 화면으로 확인) | 이제빈 행 344, 다른 행 301 | `records-board.css:57` | 중간 |
-| H-07 | 더보기 오른쪽 단의 관리자 로그인이 로그인 상태에서도 중간에 뜬다 (A-04 확인) | y 1160, 왼쪽 단 끝 1436 | `more.css:18` | 높음 |
+| A-02 | Home clock overflows the viewport at 360 (verified: "시작" clips in shot, date and deadline touch the right edge). `HOME/360x800-dark.png` | `.ho-board.today` 335 (clock 292 + 12 + "시작" 31) inside 296 panel, right edge 366.6. At 390 right margin is 3 (spec is 12) | `home.css:15-16` (grid without column tracks) | High |
+| A-04 | More at 1440: admin login floats in the middle of the right column (verified: children at 168 to 244 and 714 to 766, 470 gap between). `MORE-01/1440x900-dark.png` | Left column ends at 1054, right column at 830 | `more.css:18` (`span 3`, left has four groups) | High |
+| A-05 | Champion sheet at 1440: inverted 1160x156 panel holds content only in the left 195. `HOME-15/1440x900-dark.png` | Right 945 is blank white (spec caps inkless panel band at 40) | `hall.css:46`, `ChampionSheet.jsx:23-28` | High |
+| A-10 | Notice post side column: four 52px buttons of equal weight under the primary button (edit registration, submit party, calendar, share link). On mobile they sit after the 2390px body | Each 439x52, 2 apart. In the list view "캘린더에 추가" is a 72x20 underlined link | `news.css:22,33,67`, `NewsPage.jsx:221-233` | Medium |
+| A-12 | Same fact rows styled differently on home versus notices | Home: right-aligned 700 values, `--panel-2`, padding `0 20`. Notices: 72 label column, left-aligned 600 values, `--panel`, padding `12 20` | `home.css:21-23`, `board.css:218` | Medium |
+| A-13 | Home hero at 1440: 72 empty band below title (verified) | "개인전" bottom 232, clock top 304. Same date and time repeated three times | `home.css:64` (`align-items: end`) | Medium |
+| A-16 | Edit registration: error message sits 36 below input. `NEWS-14-errors/1440x900-dark.png` | Name field error is 8 below; password error is pushed below the hint to 36 | `NewsPage.jsx:465-466` | Medium |
+| A-20 | About: 56 empty band under lead panel, numbered "2" and "3" with no "1", two column bottoms off by 122, split differs from home (740+2+458 vs 759+2+439) | | `hall.css:81,109,113`, `AboutPage.jsx:56-59`, `home.css:62` | Medium |
+| A-21 | About mobile: season flow wraps 2x2 without an arrow on the third cell, reading as two pairs. Inverted 52px strip looks like a primary button but is not clickable | | `hall.css:94-97` | Medium |
+| A-22 | Mobile top bar: "내 기록" at 15/600 beside "진행 중" at 12/700 | | `shell.css:34`, `SiteHeader.jsx:93` | Low |
+| A-23 | Mobile footer: disclaimer text at 15/24 is larger than copyright line at 12/16 | | `shell.css:127,132` | Low |
+| A-25 | Home 360: past champions wall truncates season name to "클래식 시즌…", hiding the number | 4 of 5 cells | `home.css` `.ho-line` | Low |
+| A-26 | Notice list at 1440: over 1000px empty on the right of rows (spec has lists span 1200) | | Preference (Q-08) | Low |
+| A-28 | Privacy: wrapped second lines of numbered lists return under the number (x 120) | | `Prose` list | Low |
 
-문제 없음: 상단 바의 계정 이름, 홈(지난 대회 패널), 알림 목록, 게시판 글쓰기의 "계정 이름으로 쓰기" 줄.
+No issues found: mobile tab bar, top bar at 860/1099/1280/1920, registration form validation errors (8 below input, 20 to next field), privacy two-column top alignment.
 
-판정하지 못한 것: 배틀 기록 탭과 도전의 탑 탭(캡처에서 `battle` 함수 요청이 막혀 제대로 뜨지 않음), 홈의 "내 다음 경기"와 체크인(대회 당일이 아님), 대진표의 "내 경기로"와 결과 보고(진행 중인 경기 없음), 연결 대기·거절 상태(계정 하나로는 승인 상태만 보임).
+## 3. Records, titles, hall of fame
 
-## 12. 테스트 환경으로 본 상태 (2026-11-23 추가)
-
-첫 검수가 못 본 상태를 테스트 환경을 만들어 봤다. 수정 전 코드(커밋 1be7a96)를 별도 폴더에 꺼내 개발 서버를 띄우고, 운영 서버로 가는 요청은 읽기만 통과시키고 나머지는 가짜 응답으로 대신했다. 계정과 관리자 상태는 가짜 세션으로 만들었다. 운영 데이터는 바뀌지 않았다. 줄 번호는 수정 전 커밋 기준이다.
-
-### 12-1. 계정 상태, 로딩·오류·빈 상태, 데이터 극단 (R-)
-
-환경: `scratchpad/r/` 의 `lib.cjs`(요청 가드, 가짜 세션, 응답 패치·지연·실패), `account.cjs`, `states.cjs`, `shell.cjs`, `shell08.cjs`, `extremes.cjs`, `manyhome.cjs`, `headed.cjs`. 5193 서버 필요. 실행 예: `node states.cjs 390 844 dark`, `node account.cjs none pending rejected approved checking long`, `node extremes.cjs long 390 844 dark`.
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
+| ID | Finding | Measurement | Cause | Severity |
 |---|---|---|---|---|
-| R-01 | **홈: 읽기가 모두 실패하면 옛 내장 데이터가 사실처럼 뜨고 오류 표시가 없다** (확인: 샷에 "현 챔피언 5대 정두호", "YPL 시즌 2 순위". 실제는 6대 김현민, 시즌 3) `U-LOAD-home/fail-390x844-dark.png` | `.error-note` 0개. 같은 조건에서 기록과 명예의 전당은 오류를 알린다 | `HomePage.jsx:297` (`factsFailed` 일 때만 ErrorNote. site_data 실패는 조건 밖) | 높음 |
-| R-02 | **공지와 알림: 읽기 실패가 "없음"으로 읽힌다** `U-LOAD-news/fail-390x844-dark.png` | 500 응답에 "등록된 공지가 없습니다.", "최근 7일의 알림이 없습니다." 게시판·대진표·계산기는 ErrorNote | `NewsPage.jsx:285`, `AlertsPage.jsx:47` | 높음 |
-| R-03 | **대진표: 오류 안내와 "아직 만들어진 대진표가 없습니다."가 함께 선다** (확인: 빈 상태 조건에 오류 여부가 없음) `U-LOAD-bracket/fail-1440x900-dark.png` | 오류 판 1200x124 아래 빈 상태 판 1200x60 | `BracketsPage.jsx:3038,3043` | 높음 |
-| R-04 | **홈 역대 챔피언 줄: 챔피언이 많으면 칸이 64 폭으로 굳어 읽을 수 없다** (20명일 때) `EXT-many-home/hall-1440x900-dark.png` | 19칸 각 64x252. "19대"는 폭 24에 내용 40이라 "1…". 1440에서도 내용 1252로 넘치는데 스크롤바는 숨김 | `home.css:49-50` | 높음 (지금 5명. 늘어날수록 드러남) |
-| R-05 | **명예의 전당 현 챔피언 이름: 띄어쓰기 없는 영문 24자가 화면 밖으로** `EXT-long-champions/390x844-dark.png` | 폭 394, 390에서 36, 360에서 66 잘림. 줄바꿈도 말줄임도 없음 | `hall.css:20` | 높음 (극단) |
-| R-06 | **홈 로딩: 꺼진 판이어야 할 자리에 켜진 것이 둘, 도착하면 아래가 54 밀린다** (F-03과 같은 뿌리, 수치 확인) `U-LOAD-home/hold1500q-390x844-dark.png` | 순위 뼈대 첫 줄이 반전(흰 350x84)으로 켜짐. "다음 대회, 공지 보기" → "지난 대회, 대진표 보기"로 바뀌며 54 내려감 (layout-shift 0.072) | `StandTable.jsx:27` (`inv ls-row ls-first` 뼈대), `HomePage.jsx:205-246` | 높음 |
-| R-07 | ErrorNote의 다시 시도 키가 1160 폭 글자 띠이고, h1에 간격 0으로 붙는다 `SHELL-09/1440x900-light.png` | "새로고침" 1160x52 (390은 326x52). h1 아래 끝 136, 판 위 136 | `board.css:295-296` (`.error-note { display: grid }`), `LazyContent.jsx:117-139` | 중간 |
-| R-08 | 내 기록 찾기: 계정 답이 오면 트레이너 목록이 46~100 내려간다 | "72명 전체 보기" y: 확인 중 1972, 대기 2018, 승인 2072 (390) | `RecordsPage.jsx:672-682`, `AccountKeys.jsx:16-19` | 중간 |
-| R-09 | 더보기 내 계정: 줄이 늦게 오거나 실패하면 행 높이가 섞인다 | 한 묶음에 64, 64, 52, 52, 64, 64. 읽기가 끝나면 아래가 최대 48 밀림. 실패하면 줄이 끝내 빈다 | `MorePage.jsx:65-68` | 중간 |
-| R-10 | 상단 바(390): 긴 이름이면 계정 키가 워드마크에 2까지 붙는다 | 계정 키 x 110~312 (폭 202), 워드마크 끝 108 | `shell.css:34-37` | 중간 |
-| R-11 | 도전의 탑 문 시트: 제목과 유일한 키가 같은 말 ("트레이너 이름 정하기"). 거절 상태도 같은 시트라 거절됐다는 말이 없다 | | `Streak.jsx:501-506` | 중간 |
-| R-12 | 안쪽 스크롤러가 15 폭 운영체제 스크롤바 (H-05 확인, 팀 빌더 후보 목록도 같음) `U-HEADED-sheet/390x844-dark.png` | `offsetWidth - clientWidth`: `.modal` 15, `.tb-pokemon-list` 15 | `tokens.css:140` | 중간 |
-| R-13 | 팀 빌더: 데이터 상태 줄이 사라지며 검색과 격자가 52 올라간다. 문구에 "…" | `.tb-search-row` 357 → 305 (layout-shift 0.035) | `TeamBuilderPage.jsx:1436,1519-1564` | 중간 |
-| R-14 | 계정 링크 키가 1440에서 높이 20 (H-01과 같은 자리) | "기록 연결 해제" 1200x20, 두 줄 간격 2 | `AccountKeys.jsx:17-19` | 낮음 |
-| R-15 | 거절 상태에서 "기록 연결 해제"가 보인다 (풀 연결이 없다) | | `RecordsPage.jsx:681`, `MorePage.jsx:70` | 낮음 |
-| R-16 | 알림(390): 로딩 뒤 "이 기기 알림"이 32 올라간다 | y 180 → 148 | `AlertsPage.jsx:47` 근처 | 낮음 |
-| R-17 | 화면 이동 중 busy 칸이 어두워진 내용 위에 겹쳐 꺼진 "8"로 읽힌다 `SHELL-08/t1000-390x844-dark.png` | | `shell.css:102-103` | 낮음 |
-| R-18 | 페이지 로딩이 "꺼진 판"이 아니라 빈 화면에 칸 하나다 (위쪽 요소는 움직이지 않음, layout-shift 0) | 기록: 문서 높이 1152 → 1926 | `App.jsx:309-310`, 각 페이지의 `<Loader />` | 낮음 |
-| R-19 | 홈 빈 상태: 아무것도 없는데 흰 주 키 "공지 보기"가 선다 (공지 0건) | 719x52 | `HomePage.jsx:213` | 낮음 |
+| B-02 | Rank numbers are not right-aligned by digit | "4" ink 140 to 149.6, "10" 140 to 159.2 (left-aligned) | `records-board.css:48` | Medium |
+| B-03 | League tag width shifts the following column | Badge column left edge: master rows 312.5, rookie rows 301.1 (breaks between ranks 29 and 30) | `records-board.css:57` (`auto 1fr`) | Medium |
+| B-04 | Only the first of the top 3 panels has different counter alignment | First: transparent cell, label x 140 aligned with name. Second and third: `--panel-2` cell, label 688.9 (12 inside name at 676.9) | `records-board.css:37,40` | Medium |
+| B-06 | Tournaments tab is 15,568px tall at 1440. All 62 tournaments render as 1200-wide cards, with a single 45px name on a 1160x44 placement strip and toggle label 1040 away from its arrow. `REC-09/1440x900-dark.png` | 14,456px at 390 | `records-board.css:85-106`, `RecordsPage.jsx:831-852` | High |
+| B-06b | Expanded official party rows match the card background (verified: dead selector mismatch) | Row `rgb(14,36,73)` = card; 2px seams disappear | `records-board.css:108` (targets `.records-round-detail .row`, actual class is `.rc-party-row`) | Medium |
+| B-08 | Mixed ranking row heights | 84 / 64 / 52 / 52 / 52 / 64 / 64 / 52 / 52 (four tied "공동 6위" rows are 64, 64, 52, 52) | `board.css:37-39` | Low |
+| B-12 | Hall of fame crown: 120 empty above the six Pokemon at 1440, and at 390 the current champion's six (55.3) match the past wall size (54.3) | | `hall.css:22-24,70-72` | Medium |
+| B-14 | Titles tab bar: at 360 the last two tabs disappear with no visual cue | "파트너" ends cleanly at 310.8 to 344.9 with the next tab off-screen; 390 shows only a 13px sliver | `board.css:239` (gap 32) | Medium |
+| B-16 | Grounded Pokemon name bands use two alignments (`.rc-band` left, `.hof-band` center) | | `records-board.css:115`, `hall.css:25` | Low |
+| B-17 | Pokemon sheet: 162 empty in left stage column; "많이 등록한 트레이너" bars span one 1160 column (600 between name and bar); "10개 전체 보기" is a 1160 button just to reveal 2 more rows after 8 | | `records-board.css:165-185`, `RecordsPage.jsx:1067-1080` | Medium |
+| B-18c | Trainer sheet "최근 대회" mixes date formats | "11월 7일 (토)", "2026년 8월", "5월 2일 (토)", "2025년 10월" | `services/dateFormat.js:22-25` | Medium |
+| B-18d | Result tag right edges misaligned: inverted "우승" at 1280, dim "4강" at 1272 | | `records-board.css:138` | Low |
+| B-18e | "내 기록 연결" (Google login row) sits between recent tournaments and used parties on every trainer sheet | | `RecordsPage.jsx:531` | Medium |
+| B-18f | At 390, 8 season chips in the sheet wrap to two rows with a 2px row gap, overlapping touch targets | | `components.css:226`, `board.css:261-263` | Low |
+| B-19a | Title sheet says "초대 챔피언", while other screens say "1대 챔피언" for the same person | | `TitlesPage.jsx:63` | Medium |
+| B-20 | Regional elite medals are half the size of other boards on mobile (52.4 vs 99.3) | | `TitlesPage.jsx:25` | Low |
+| B-21 | Tied rank formatting differs: Pokemon tab uses "2, 2, 4", Rankings tab uses "공동 3위" | | `RecordsPage.jsx:940` | Low |
 
-문제 없음: 500 화면, "공지를 찾을 수 없습니다.", 기록 행과 시트 머리의 긴 이름(말줄임), 공지 리드와 행의 긴 제목, 홈 지난 대회의 긴 이름(두 줄 뒤 말줄임), 대진표 머리의 긴 이름(세 줄 줄바꿈), "1,200점", 상단 바 계정 키(네 상태), 게시판 글쓰기 시트, 창 있는 Chrome의 초점 테두리와 드롭다운 메뉴.
+No issues found: find my record (logged out), mobile party sheet, empty search copy placement, pager, light-theme sheet edges.
 
-끝내 못 본 것: "{name} 이름으로 시작" 행, 신청 폼의 계정 줄과 같은 이름 확인, 팀 빌더의 "계정에 올리기", 배틀 기록 탭과 도전의 탑 순위(응답 모양을 맞추지 못함), 트레이너 시트의 구성 로딩·오류, 트레이너 150명, 대진표 카드의 긴 이름과 10:9 점수, 로딩·오류·빈 상태의 라이트 테마와 1920.
+## 4. Brackets, board
 
-### 12-2. 운영진 쓰기 화면과 대회 당일 상태 (Q-)
-
-환경: `scratchpad/q/` 의 `lib.cjs`(가짜 관리자 로그인, GET은 통과시키고 JSON을 고침, 나머지는 가짜 응답), `live.cjs`(38회 마스터 리그를 "오늘 진행 중"으로 바꾸는 고정 자료: 미결 경기, 불참, 기권, 실격, 시간 초과, 점수, 테이블, 사이트 배틀, 선수 보고, 연결된 선수), `flow.cjs`(한 흐름을 걷는 스크립트), `login.cjs`, `dump.cjs`. 실행 예(그 폴더에서 `export MSYS_NO_PATHCONV=1`): `node flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided`. 1440 다크를 중심으로 봤다. 390은 홈, 대진표, 결과 입력, 운영, 로그인만, 라이트는 홈 두 장만 봤다.
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
+| ID | Finding | Measurement | Cause | Severity |
 |---|---|---|---|---|
-| Q-01 | **결과 입력: 이름과 점수가 1000 떨어지고, 드문 처리 셋이 가장 넓은 키로 쌓인다** (확인: 샷) `ADM-BRK-04/1440x900-dark-decided.png` | 선수 행 1200x84, 이름 x 172, 점수 스텝퍼 x 1183~1312. "불참 처리 / 기권 처리 / 실격 처리" 각 1200x52. "다음 경기 M6" 1200x52. 1920에서도 같음 | `bracket.css:206,215-216,221`, `BracketsPage.jsx:1261-1263` | 높음 |
-| Q-05 | **운영 화면 휴대폰: 대회 진행이 최근 변경 20줄 아래** (G-01을 자료가 찬 상태로 확인) `ADM-07/390x844-dark-rows.png` | 대회 진행 첫 패널 y 3864, "결과 입력" 키 y 4442 | `admin.css:154-156` | 높음 |
-| Q-02 | 대진표 삭제가 화면에서 가장 넓은 키 | "삭제" 1200x52. 트리의 가장 넓은 열은 379 | `BracketsPage.jsx:3074`, `brackets.css:24-26` | 중간 |
-| Q-03 | "테이블 미정"이 끝난 경기에도 전부 붙는다 `BRK-07/390x844-dark-live.png` | 경기 14개 중 12개 카드에 띠. 그중 9개는 승자가 있고 2개는 부전승 | `BracketsPage.jsx:1383` (`stripOf`) | 중간 |
-| Q-04 | 부전승으로 올라간 승자 이름이 흰 행 위에서 회색 | `.mb-row.inv` 배경 rgb(255,255,255), `.mb-name` rgb(129,150,185) (대비 약 3:1). 다른 승자 행은 rgb(8,28,61) | 줄 미확정. `BracketsPage.jsx:973-978` 의 부전승 쪽 색 경로 | 중간 |
-| Q-06 | 대회 진행 패널: 드문 "대회 취소"가 가장 넓은 키 (G-13 확인) `ADM-08/1440x900-dark-step1.png` | 지금 마감 167x52, 신청 현황 270x52, 대회 취소 439x52 | `AdminPage.jsx:119`, `admin.css:145` | 중간 |
-| Q-07 | 신고: "신고 지우기"가 행 사이에 가운데 정렬 글로 끼어 있다 | 행, 글, 행, 글이 한 stack의 솔기로 이어짐 | `CommunityReports.jsx:37-42` | 중간 |
-| Q-08 | 대진표 마법사 2, 3단계: 도구 키가 1200을 나눠 가진다 `ADM-BRK-02/1440x900-dark-step2.png` | 전체 선택 / 전체 해제 / 참가자 추가 각 399x52. 다시 추첨 / 랭킹 시드 각 599x52. 참가자 행에서 이름 x 204, "미제출" x 1266 | `bracket.css:100,185-187`, `BracketsPage.jsx:755-770,873-874` | 중간 |
-| Q-10 | 트레이너 시트 운영: 세 글자 이름 칸과 키가 모두 1160, 저장 키가 자기 칸보다 다음 칸에 가깝다 | 이름 칸 1160x52, 32 아래 "이름 저장" 1160x52, 21 아래 다음 라벨 | `RecordsPage.jsx:438-446`, `admin.css:139` | 중간 |
-| Q-11 | 대회 당일 홈 1440: 챔피언 패널이 950까지 늘어난다 (내 다음 경기와 지금 경기가 함께일 때) `HOME-08/1440x900-light-mynext.png` | 왼쪽 759x950, 오른쪽 439x950. 글과 포켓몬 사이 빈 면 약 450. 평소는 364 | `home.css:62` (`align-items: stretch`) | 중간 |
-| Q-13 | 대회 당일 홈: 패자조 경기 카드 아래 진행 줄이 "승자조 3라운드 진행" (표시 오류) | | `HomePage.jsx:159,287` | 중간 (기능 결함 쪽) |
-| Q-09 | 연결 요청: 세 글자 키가 354 폭 | 거절 234x52, 승인 354x52 | `records-board.css:134-136` | 낮음 |
-| Q-12 | 대회 당일 홈: 주 키 "내 경기 보기"와 바로 아래 "내 다음 경기" 카드가 같은 곳으로 간다 | | `HomePage.jsx:207,260-270` | 낮음 |
-| Q-14 | 진행 중 대진표 휴대폰: "내 경기로"가 공유 키 아래 같은 무게 | 링크 공유 174x52, QR 174x52, 32 아래 내 경기로 350x52. 셋 다 second | `BracketsPage.jsx:1897,3070` | 낮음 |
-| Q-15 | 경기 일정 시트: 두 열이 승자조와 패자조를 한 줄에 섞는다. 라운드 제목을 눌러야 열리는데 표시가 없다 | 둘째 줄 "승자조 3라운드 시작 \| 패자조 1라운드 시작" | 줄 미확인 | 낮음 |
+| C-01 | Single-round final tree clips the champion panel top and bottom and overlaps the "우승" column header. `BRK-02/1440x900-dark.png` | `.bk-scroll` 804 to 930 (126), `.bk-champ-pos` 783 to 963 (180); clipped 21 at top and 33 at bottom | `brackets.css:36-37,66` | High |
+| C-02 | 5-column tree (9 to 16 players) overflows 1200 by 8 (verified: clientWidth 1200, scrollWidth 1208, champion column 1112 to 1328) | 216x5 + 32x4 = 1208. At 768 triggers a 28px scroll | `brackets.css:89,92` (`flex: 1 0`) | High |
+| C-05 | Mobile comment header date wraps to two lines, giving comments uneven heights. `BOARD-03/390x844-dark.png` | Panel 68 when name is 18 wide, 84 when name is 36 wide. Three buttons (148 + 16) take half the 326 row | `posts.css:79-82`, `BoardPage.jsx:206-208,270` | High |
+| C-07 | "본선" header floats with 32 top and bottom margin. Group standings and group matches both use 64px rows with no visual separation. On desktop, name (140) and "본선 진출" (1251) are 1100 apart | | `brackets.css:27`, `BracketsPage.jsx:1914,1554-1557` | Medium |
+| C-08 | Mobile list view pushes the winner panel to the bottom (y 268 in tree vs y 1322 in list). Desktop list view shrinks the winner heading to 20/28 | | `brackets.css:31,43` (`:has(.bk-champ-node)`) | Medium |
+| C-09 | Double elimination has fractional column widths (378.67, 173.33), causing half-pixel edges, two card widths (379 and 173), two vertical gaps (20 and 12), and Grand Final plus Champion tucked under the "패자조" heading | | `brackets.css:92,95-96,153-157`, `BracketsPage.jsx:1450-1456` | Medium |
+| C-12 | Edit and delete weight differs by post type | Free board: 12pt text buttons. Sample and party posts: 52x175 buttons in a 2x2 grid | `BoardPage.jsx:478,270` | Medium |
+| C-15 | Board rows separate author and date with only an 8px gap (notices and brackets use a comma) | | `posts.css:11` | Low |
 
-문제 없음: 로그인 오류 2종, 만료 토스트, 기록에 반영 시트, 승자 바꾸기 확인 창, 삭제 이름 입력 창, 홈 카운트다운(두 자리, 세 자리), 신청 접수 중, 시계, 파티 제출 카운터, 경기 카드의 라이브 램프·대기·불참·기권·실격·시간 초과·점수·"나" 태그, 사이트 배틀 진행 중 시트, 결과 보고 시트. 본 화면 전부 가로 넘침 없음.
+No issues found: desktop QR sheet, new private bracket empty and error states, new post empty and error states, report sheet, sample and party list, match sheet side rows.
 
-끝내 못 본 것: 추첨 애니메이션과 생성 직후 화면, 32강과 3위 결정전, 팀 경기 시트, 부전승과 배틀 무효, 자리 교체, 조별 조작, 선발전 현황, 반영 전 확인과 칭호 획득, 합치기 미리보기, 편집 시트 지연 로딩, 체크인 전과 완료, 파티 제출 현황 펼침, 관리자 화면의 라이트 테마와 360, 1280.
+## 5. Team builder, calculator
 
-### 12-3. 도전의 탑 진행과 2인 배틀 (P-)
-
-환경: `scripts/visual-audit-env/streak/` 와 `standin/` (README). 높음 셋은 원인 코드를 수정 전 커밋에서 대조했다.
-
-| ID | 발견 | 측정 | 원인 | 심각도 |
+| ID | Finding | Measurement | Cause | Severity |
 |---|---|---|---|---|
-| P-01 | **배틀 화면이 늘 창보다 24 길어 스크롤된다. 쉬는 화면에서 머리가 24 잘린다** `U-TWR-trans/break-header-cut-390.png` | 문서 높이 390x844에서 868, 1440x900에서 924. 기호를 미리 그리는 span 둘(`position: absolute`, top·left 없음)이 body 끝에 놓임 | `BattlePage.jsx:109-114` | 높음 |
-| P-02 | **탑에서 게임으로 들어갈 때 선출 카드가 어둠보다 먼저 켜졌다가 덮이고 다시 켜진다** `U-TWR-trans/enter-key-frames-390-cpu4.png` | 2965ms 카드 여섯이 밝기 1, 3132ms 어둠이 덮음, 3500ms까지 다시 켜짐. 다음 판도 같음 | `BattlePage.jsx:1080-1081` (`.bt-card` 가 아직 없으면 `light(main)` 만 하고 return, 늦게 온 카드를 잡는 `look()` 이 돌지 않음) | 높음 |
-| P-03 | 판과 판 사이에 사이트의 위 막대와 탭 막대가 다시 나타났다 사라진다 | CPU 4배에서 254ms, 실제 약 65ms | `BattlePage.jsx:1538-1542` (Arena 언마운트 때 `page--battle` 해제) | 중간 |
-| P-04 | 코드 방 대기(폰): 기다린 시간과 대기 취소가 독 밑 | 카운터 671~803, 독 696~780. 대기 취소 823~875(창 밖) | `BattlePage.jsx:833-845`, `battle.css:21,30` | 중간 |
-| P-05 | 탑 파티 고르기(폰): 후보 카드의 능력치 아래 32가 독에 가린다 | `.streak-pick-stats` 614~728, 독 696부터 | `tower-play.css:129-162` | 중간 |
-| P-06 | 데스크톱 머리 "도전의 탑 2층 두…" 말줄임 | scrollWidth 133, clientWidth 103 | `BattlePage.jsx:1631` | 낮음 |
-| P-07 | 쉬는 화면 교환 → 문에서 250ms 무프레임(CPU 4배) | | 추정 `Streak.jsx:768-772` | 낮음 |
-| P-08 | 중계 탭(폰) 형식 칩이 창 밖 60 | | `battle.css:41,70` | 낮음 |
+| D-03 | Desktop candidate list takes less than half the panel height. `BLD-04/1280x800-dark-team.png` | At 1280x800, list is 326 inside a 704 panel (2.6 rows at 124 height) | `team-builder.css:47-49,144-155` | High |
+| D-05 | Move slot gray subtitle renders at 15/600 like the title and clips on mobile. `BLD-08/390x844-dark-moves.png` | Markup has `t12 reg dim`, computed style is 15/20/600 nowrap | Overridden by `board.css:158`, `TeamBuilderPage.jsx:1686` | High |
+| D-06 | Pokedex base stat range wraps to two lines on desktop ("183 ~ / 215"). `CALC-06/1440x900-dark-mon.png` | Cell width 64 becomes 64x40 at desktop 15px | `calculator.css:121` | High |
+| D-09 | Save dock sits closer to rule check (20 below) than to the editor (52 above) | Move slots end 1306, dock 1358, rule check 1430 | `board.css:182` + `.tb-main-column` gap | Medium |
+| D-10 | Rule check panel has three different left edges (172, 168, 140) | | `team-builder.css:8,15` | Medium |
+| D-11 | Stat point number inputs and team name input show both an underline and the global focus ring | | `builder.css:89,104`, `tokens.css:175` | Medium |
+| D-12 | Calculator detail settings float the Pokemon sprite with no panel or floor (spec requires every Pokemon inside a panel with feet grounded) | Bare 64x64 image | `CalculatorPage.jsx:232`, `calculator.css:72` | Medium |
+| D-13 | Calculator stat slider is only 134 wide at 390 (104 at 360) | 0 to 32 steps are 4.2px each; HP row leaves a 104 empty rank column | `calculator.css:158` | Medium |
+| D-14 | Calculator move slots: filled and empty labels misalign by 2, and names truncate at four characters at 390 ("플레어드…") | Type tag height 24 vs empty slot 20 | `team-builder.css:107`, `components.css:284,288` | Medium |
+| D-15 | Matchup slots: picking only one side misaligns the two name lines by 10, and "서로 바꾸기" sits isolated | Names at 430 vs 440 | `calculator.css:29`, `CalculatorPage.jsx:349-352` | Medium |
+| D-16 | Desktop calculator stretches mobile rows: 960 blank gap between name (260) and base stat (1234) in speed rows, 394 between "기술" (120) and "타입" (514) in Pokedex move table | | `calculator.css:23-25,91,99,133` | Medium |
+| D-17 | Official submission panel puts the "cannot submit" notice at the very bottom (hidden under the dock at 390), and locked dropdowns still show a chevron | | `TeamBuilderPage.jsx:364-392,1452,1456` | Medium |
+| D-18 | "최종" column left edge is ragged ("최종 185" at x 1264, "최종 90" at x 1274) and repeats the word six times | | `builder.css:90`, `TeamBuilderPage.jsx:1659` | Medium |
+| D-19 | Plus icon in empty team slots does nothing when clicked | | `TeamBuilderPage.jsx:188,1513` | Medium |
+| D-22 | My teams sheet still labels the button "변경사항 저장" right after saving, and uses an 8px gap between button rows (panels use 2) | | `TeamBuilderPage.jsx:1771`, `builder.css:99` | Low |
+| D-23 | Rule-change confirmation renders removed Pokemon as a default browser bullet list (52 left padding) | | `team-builder.css:135` | Low |
+| D-25 | At 1100 to 1199, candidate row stat numbers crowd together ("125 115 80", gap 3) | | `team-builder.css:151` | Low |
+| D-26 | Type chart "특성 반영" sits 1085 away from the section heading | | `TeamBuilderPage.jsx:250` | Low |
 
-문제 없음: 탑 보드, 문 넷, 쉬는 화면(승리·교환·승급 교환), 패배와 도전 끝, 방 목록, 참가(공개·코드·틀린 코드), 끝 화면과 다시하기, 관전, 기록 탭.
-끝내 못 본 것: 수문장 뒤 층이 오르는 장면, 공식 경기 2인 대기, 실제 폰과 서버 지연.
+No issues found: step tabs, empty search, mobile type chart, undo toast, import/export sheet, item sheet, candidate row hover and focus, calculator battle conditions, Pokemon picker sheet.
+
+## 6. Battle, `도전의 탑`
+
+Battle screens were evaluated against their own rubric in DESIGN.md "Battle" (Judging the play screen).
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| E-01 | Winner strip text is invisible in light theme (verified: specificity 0,2,1 beats 0,2,0). `BTL-21/end-390x844-light.png` | White text `rgb(255,255,255)` on light background `rgb(232,236,242)` | `battle.css:379` overrides `:589` | High |
+| E-04 | Desktop battle always scrolls by 88 when the tournament live strip is active (verified: strip hide rule only exists in the mobile media query, `battle.css:120`) | Document height 888 at 1200x800, 988 at 1440x900; bench pushed 40 off-screen at 1200x800 | `battle.css:166,173-181` | High |
+| E-05 | Desktop animation, sound, and forfeit menu sits below the fold | Menu at y 840 to 1088 in a 900px viewport (y 300 to 548 during team preview) | `BattlePage.jsx:1765-1766`, `battle.css:179-183` | Medium |
+| E-06 | Lobby to team preview hard-cuts in one frame and leaves a black box (4x CPU slowdown recording). `BTL-M/lobby-to-pick-390-cpu4-sheet.png` | Title, tabs, and strip vanish in one frame at 1501ms; 251ms and 400ms frame gaps | `BattlePage.jsx:1064-1090` | Medium |
+| E-07 | First-turn tip toast covers my status strip and message box for the entire first turn | At 390: toast (64, 534) 262x52 over my strip 542 to 586 | `battle.css:943`, `BattlePage.jsx:1749` | Medium |
+| E-08 | Desktop doubles plates overlap my Pokemon's feet | Overlap 149x60, 25% of sprite box | `battle.css:450-459` | Medium |
+| E-09 | At 375x667, the third row of team preview cards is clipped 17px by the dock | Card height 106 (94 at 390), document height 720 | `battle.css:839-841` | Medium |
+| E-11 | Post-battle rematch and leave buttons are 84px tall on desktop (verified: `.bt-end-row` min-height 84, button 100%) | Rematch 692x84, leave 74x84; site buttons are 52 | `battle.css:245-250` | Medium |
+| E-10 | At 390x480, plates overlap Pokemon and the message box sinks under the deck | | `battle.css:888` | Low |
+| E-12 | Post-battle mobile deck has 140px of empty space at the top | Deck 586 to 844, content starts at 726 | `BattlePage.jsx:1725` | Low |
+| E-14 | Locked move buttons in light theme leave effectiveness chips fully lit (visual check, unmeasured) | | Near `battle.css:612` | Low |
+| E-15 | Mobile lobby: 197px court followed by 107px empty background | | `battle.css:891` | Low |
+| E-17 | Header two-digit turn counter has no visible label and looks identical to the clock | | `BattlePage.jsx:1636` | Low |
+
+No issues found: my party and opponent party sheets, long-press move card, forced switch, replay bar, empty history, static tower scene.
+
+## 7. Admin
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| G-01 | Mobile pushes tournament progress below edit links and recent changes (verified: sits around y 1900 of 3264 in real-data shot). `ADM-04/390x844-dark.png` | Order: to-do, 7 edit rows, 10 recent changes, tournament progress | `admin.css:154-156` (`:last-child` leftover from when edit was last; CSS comment expects to-do, tournament progress, edit) | High |
+| G-03 | Bracket bottom admin row is scattered. `ADM-BRK-03/1440x900-dark.png` | "기록 반영됨" x 120 y 1120, "칭호 다시 판정" x 381 y 1141, "반영 취소" x 995 y 1120 (read from shot) | `BracketsPage.jsx:1894`, `brackets.css:60-61` | High |
+| G-04 | Mobile applicants sheet: submission time overlaps "미제출" (verified: reads "11.17 화 23미제출" in shot). `ADM-NEWS-02/390x844-dark.png` | All 7 rows | `pages.css:53-58`, `NewsPage.jsx:578-585` | High |
+| G-09 | Question card has five different left edges inside (472, 484, 492, 500, 512) | | `admin.css:53-66` | Medium |
+| G-11 | Round edit sheet traps 12,740px inside a 468px inner scroll; inputs lack labels for winner, runner-up, and top 4; at 390 the 81px date input clips "2023.05" | | `admin.css:94,97-101`, `AdminEditors.jsx:377-407` | Medium |
+| G-12 | Mobile help text (15/24) is larger than its field label (12/16), and one sheet mixes two help text styles | | `components.css:96`, `admin.css:79` | Medium |
+| G-13 | Tournament progress panel has no primary button during registration, making "대회 취소" the widest button | | `AdminPage.jsx:113-121`, `admin.css:144-148` | Medium |
+| G-14 | Validation failures pop up an alert dialog instead of inline field errors (spec requires errors under the field), and the offending field stays scrolled out of view | | `AdminEditors.jsx:317,69` | Medium |
+| G-07 | Rankings tab admin button rows lack a vertical seam (0 vertical, 2 horizontal) | | `RecordsPage.jsx:1136,1158`, `records-board.css:23,69-71` | Medium |
+| G-15 | Empty state panel (44) is shorter than rows in the same list (64) | | `admin.css:149` | Low |
+| G-17 | Toast above sheet sits 7 away from the fixed button | Toast bottom 816, button top 823 | Toast rules | Low |
+| G-18 | Score edit table heading "트레이너" (452) is offset 12 from input text (464) | | `admin.css:91-93` | Low |
+
+No issues found: login sheet, login and save toasts, title and champion edit sheets, notice side column response count and edit links, add season prompt.
+
+## 8. Motion and interaction
+
+Measured on the dev server (unminified bundle). Durations and curves were read from `document.getAnimations()`, per-frame bounding boxes, and screen recordings. Time-to-first-frame values run slower than a production build.
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| F-01 | Focus ring is invisible on lit (inverted) controls (same root as K-10; verified only two exceptions exist). `BOARD-01/f-focus-main-1440-dark.png` | 2px `--lit` outline on `--lit` background (contrast 1.0): all primary buttons, selected segment options, skip link, active chips, 1st-place row | `tokens.css:175`; only exceptions are `board.css:145,177` | High |
+| F-02 | At mobile CPU speed, heavy sheets appear nearly open without showing the slide-up. `MOT-08/f-sheet-open-390-cpu4.png` | At 4x CPU slowdown: 316ms blank frame gap after click, first painted frame already at y 130 (start 864, end 52). Lightweight sheets (new post) animate cleanly | `Modal.jsx:118-125` (spring starts on the same commit as initial content render) | High (re-measure on production build) |
+| F-03 | First-visit home lights up one state then swaps to another. `MOT-01/f-first-open-390-cpu4.png` | "다음 대회", unlit 88, and "공지 보기" stay lit for about 700ms before swapping to "지난 대회" and "대진표 보기", pushing standings down 54 (layout-shift 0.0204) and changing button label and destination | `HomePage.jsx:206-213,221-` | High (first visit only) |
+| F-04 | Switching tabs or chips re-animates unchanged search inputs and primary buttons up by 12 | Clicking "더블" chip runs translateY 12 to 0 over 420ms on `.search-in` and `.btn--main` | `motion.js:154-157` (`lightAfter` lights all following siblings), `Board.jsx:16,37` | Medium |
+| F-06 | Desktop dialog jumps 28 up and grows 56 in a single frame when a form error appears | `.sheet` y 54 to 26, height 792 to 848; only the error text animates over 420 while the rest teleports | `components.css` at 860+ `.sheet { top: 50%; translate: -50% -50% }` | Medium |
+| F-07 | Disclosures animate open but vanish in one frame on close (spec: every entrance has an exit) | Closing rotates only the chevron over 420 while 376px of content disappears immediately at 390 (layout-shift 0.083) | `RecordsPage.jsx:838`, `NewsPage.jsx:309`, `BracketsPage.jsx:1510` | Medium |
+| F-08 | Controls that do not respond to pointer hover (verified: `--btn-bg-hover: var(--lit)` equals the background) | Arrowless primary buttons (write post, submit, create bracket), top bar logo, "내 기록", "진행 중", and theme button (no hover rules), standalone dropdown buttons, page search inputs (same input inside sheets responds), footer admin login (already `--lit`) | `board.css:103`, `shell.css:24,28,34,41,126`, `components.css:104-111` | Medium |
+| F-09 | Text buttons snap on press and segments flip background in one frame (verified) | `.sh-link` and `.site-foot-login` hit .976 at 20ms with no transition; `.seg-track > button` lacks a `background-color` transition; selection labels have no press feedback | `board.css:328` overrides `tokens.css:228` scale transition, `components.css:54` | Low |
+| F-10 | Page leave dim uses 160 ease-out instead of 260 ease-in defined in spec and `motion.js` `dimAway` (verified) | | `shell.css:102` | Low |
+| F-05 | Tab content double-fades (`.swap` 420 fade stacked on 420 per-panel light-up) | Half-lit point arrives later than page navigation (roughly 130ms vs 75ms) | `tokens.css:241`, `RecordsPage.jsx:248`, `TitlesPage.jsx:123` | Low |
+| F-11 | Pager jumps 132 up under the finger when the next page is shorter | layout-shift 0.092 (390) | `BoardPage.jsx`, `Pager.jsx:9` | Low |
+| F-12 | DESIGN.md timing table disagrees with actual timing (doc mismatch) | Spec says light finishes in "420 in all", but the last panel finishes around 680; mobile sheet spring runs 658 total | `DESIGN.md:476,488` | Low |
+| F-13 | Sub-44 touch targets: 580 player names inside tournament tab rounds measure 42x44 | 2px short horizontally | `records.css:9` (`inset: -12px -4px`) | Low |
+
+Verified against spec (no issues): back navigation, entering and exiting notices, board posts, and brackets (420 panels, 0 to 260 stagger, ease-out), tab underline (420 ease-out), late images (160 tone batch), sheet close (260 ease-in), desktop dialog (420 open, 160 ease-in close), dropdowns (160), toasts (420 in, 260 ease-in out), theme switch (.618 to 0 over 260), busy cell (840), segment value updates (160 on changed cell only), and 0 layout-shift across full page transitions. Under reduced motion, 0 transform animations run, leaving only 160 color/background transitions and 160 to 260 close opacity fades ("only tone remains").
+
+## 9. Functional bugs found during audit (excluded from visual fix plan)
+
+| ID | Bug | Evidence | Location |
+|---|---|---|---|
+| BUG-1 | Calculator result board prints "난수 5타 (NaN%)" (verified: computed directly when `ko.chance` is undefined) | `CALC-03/1440x900-dark-both-full.png` | `src/services/calculatorCore.js:171` |
+| BUG-2 | CPU battles with a random party show blank player Pokemon info: 0 sprites in my strip (12 of 14 runs), blank moves in info sheet, ability "A 또는 B 또는 C", item "모름", result strip "나: 0장". Fixed lab teams work normally | `BTL-12/moves-390x844-dark.png`, `BTL-16/moninfo-390x844-dark.png` | `Stage.jsx:574-576,856-858`, `BattlePage.jsx:1654` (root cause untraced) |
+| BUG-3 | On tournament day (11-22), top bar and LiveStrip showed "39회 파이컵 리전 더블배틀 진행 중", while the bracket list lead showed the same tournament as finished ("우승 김채운") with no live lamp. May be a data state | `BRK-01/1440x900-dark.png` | Needs check |
+| BUG-4 | Once, opening a 12-player single-elimination bracket URL in 390 dark loaded the 39th tournament bracket instead. Not reproduced | `BRK-09/390x844-dark.png` | Needs check |
+
+Note (not a bug): trainer rows in Records, sample and party cards on Board, and match cards in Brackets are `<button>` elements without URLs, differing from CLAUDE.md's "doors are links with URLs" (`viewHref`) rule. Finished CPU battles send `action: "record"` to the `battle` function (blocked during this audit).
+
+## 10. Uncaptured states
+
+States not seen on a live screen and left unjudged. These remain blind spots even after fixes.
+
+- Write-dependent states: registration submitting, failure, and confirmation; board post creation; busy buttons; error toast `!` cell; official submission applicant check and submit.
+- Account-gated screens: find my record checking, approved, pending, and rejected states; More account states; trainer sheet "내 전적". Not visible under an admin session.
+- Full `도전의 탑` progression: party draft, doors, break screen, swaps, defeat, and tower scene transitions. Skipped because starting a run writes to the server.
+- Real-time two-player states: joining rooms, waiting for opponent, official match seats, live spectator screens, and rematch offers.
+- Admin write screens: bracket wizard steps 2 and 3, result entry, match schedule, record sync sheet, link requests, and trainer management. The offline server lacks the normalized DB, and production shots (ADM-BRK-04, ADM-BRK-08, ADM-REC-02) captured before the sheet opened.
+- States absent from current data: bracket party submission status, match card live, waiting, forfeit, and no-show badges, 32-player and 3rd-place brackets, five admin question types on registration forms, and home countdown, registration-open, and party-submission counters (audit day was a tournament day, so only tournament-day state appeared).
+- Most loading, error, and empty states: response interception was not built in this pass; only copy and layout were checked in code.
+- Data extremes (EXT-01 to 05): synthetic long names and hundred-item lists were not generated. Real data clipped "메가한카리아스Z" at 360, "메가메타그로스" at 860, and "클래식 시즌…" on home at 360.
+- Real devices and 125% scaling (dpr 1.25): all measurements used desktop Chrome at dpr 1, leaving hairlines, sheet drag gestures, and real mobile frame rates unchecked.
+- Light theme: all static screens were captured, though detailed review covered home, registration form, sheets, brackets, team builder, and battle results. Motion was recorded in dark theme only.
+- 1280 and 1920: verified automated overflow and clipping metrics only without inspecting every screenshot by eye.
+
+## 11. Screens visible only with a linked account (added 2026-11-23)
+
+The initial pass used only admin login without Google account linking. Using a headed Chrome window where the user logged into production (blocking non-read requests), we captured 12 screens at 390 and 1440 in both themes under `ACCT-*/`.
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| H-01 | Logout is the largest button in the account block, with two centered links stacked underneath. `ACCT-more/1440x900-dark.png`, `ACCT-records-me/1440x900-dark.png` | Logout: 1156x52 on Records, 709x52 on More, 1145x52 on my sheet. "기록 연결 해제" and "계정 삭제" stack centered on two rows | `AccountKeys.jsx:16-19` | High |
+| H-02 | On my trainer sheet, the link-status strip and logout button sit right below the counters. `ACCT-my-sheet/1440x900-light.png` | Inverted strip "내 기록으로 연결되었습니다." 1145x44, logout 1145x52, followed by "내 전적" | `RecordsPage.jsx` `TrainerLink lead` | High |
+| H-03 | "내 전적" wraps its description in a panel, repeats "자주 만난 상대" on every row, and duplicates labels and units | Description panel 64 tall; "자주 만난 상대" repeated on all three rows; "승 3승", "패 2패" | `RecordsPage.jsx:398,404` | Medium |
+| H-04 | More lists "알림" twice (under "내 계정" and "함께하기"). `ACCT-more/1440x900-dark.png` | | `MorePage.jsx` | Medium |
+| H-05 | Sheet scrollbars render as native OS scrollbars with arrow buttons. `ACCT-my-sheet/1440x900-light.png` | Inherited `scrollbar-color` causes Chrome to ignore the 8px rule. Invisible in headless captures, so missed in pass 1; also visible in mobile width emulation | `tokens.css:140,185-187` | Medium |
+| H-06 | "나" badge on my row shifts the icon column by 43 (confirms B-03 on live data) | 이제빈 row at 344 vs other rows at 301 | `records-board.css:57` | Medium |
+| H-07 | More right-column admin login still floats mid-column when logged in (confirms A-04) | y 1160 vs left column bottom 1436 | `more.css:18` | High |
+
+No issues found: top bar account name, home (past tournament panel), alerts list, board new-post "계정 이름으로 쓰기" row.
+
+Not evaluated: battle history and `도전의 탑` tabs (blocked `battle` function calls prevented loading), home "내 다음 경기" and check-in (not tournament day), bracket "내 경기로" and result reporting (no live match), pending and rejected link states (one real account only shows approved).
+
+## 12. States tested in simulated environments (added 2026-11-23)
+
+Built test harnesses to cover the blind spots from pass 1. Checked out the pre-fix code (commit `1be7a96`) into a separate folder, ran a dev server passing only read requests to production while mocking all other responses, and injected fake account and admin sessions. Production data stayed untouched. Line numbers match the pre-fix commit.
+
+### 12-1. Account states, loading, error, empty states, and data extremes (R-)
+
+Environment: `scratchpad/r/` scripts `lib.cjs` (request guard, fake session, response patching, delay, failure), `account.cjs`, `states.cjs`, `shell.cjs`, `shell08.cjs`, `extremes.cjs`, `manyhome.cjs`, `headed.cjs` against server 5193. Example runs: `node states.cjs 390 844 dark`, `node account.cjs none pending rejected approved checking long`, `node extremes.cjs long 390 844 dark`.
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| R-01 | Home: when all reads fail, stale bundled fallback data renders as real data with no error notice (verified: shot displays "현 챔피언 5대 정두호" and "YPL 시즌 2 순위", while live data is 6대 김현민 and Season 3). `U-LOAD-home/fail-390x844-dark.png` | 0 `.error-note` elements; Records and Hall of fame show errors under the same failure | `HomePage.jsx:297` (only checks `factsFailed`, ignoring `site_data` failure) | High |
+| R-02 | Notices and Alerts: read failures look like empty states. `U-LOAD-news/fail-390x844-dark.png` | 500 response shows "등록된 공지가 없습니다." and "최근 7일의 알림이 없습니다.", whereas Board, Brackets, and Calculator show ErrorNote | `NewsPage.jsx:285`, `AlertsPage.jsx:47` | High |
+| R-03 | Brackets: error banner and "아직 만들어진 대진표가 없습니다." appear together (verified: empty-state condition does not check error state). `U-LOAD-bracket/fail-1440x900-dark.png` | 1200x124 error panel stacked over 1200x60 empty panel | `BracketsPage.jsx:3038,3043` | High |
+| R-04 | Home past champions strip: with many champions, cells collapse to 64 width and become unreadable (tested with 20). `EXT-many-home/hall-1440x900-dark.png` | 19 cells at 64x252; "19대" overflows 24 width (content 40) to "1…"; overflows 1440 at 1252 with hidden scrollbar | `home.css:49-50` | High (5 champions today; worsens over time) |
+| R-05 | Hall of fame current champion name: 24-character unspaced Latin name overflows the screen. `EXT-long-champions/390x844-dark.png` | Width 394, clipped 36 at 390 and 66 at 360 with no wrap or ellipsis | `hall.css:20` | High (extreme) |
+| R-06 | Home loading: two lit elements appear where unlit placeholders belong, and content shifts 54 down on arrival (same root as F-03, quantified). `U-LOAD-home/hold1500q-390x844-dark.png` | Standings skeleton first row renders inverted white (350x84); "다음 대회, 공지 보기" swaps to "지난 대회, 대진표 보기" and drops 54 (layout-shift 0.072) | `StandTable.jsx:27` (`inv ls-row ls-first` skeleton), `HomePage.jsx:205-246` | High |
+| R-07 | ErrorNote retry button is a 1160-wide text strip touching h1 with 0 gap. `SHELL-09/1440x900-light.png` | "새로고침" 1160x52 (326x52 at 390); h1 bottom 136, panel top 136 | `board.css:295-296` (`.error-note { display: grid }`), `LazyContent.jsx:117-139` | Medium |
+| R-08 | Find my record: trainer list shifts 46 to 100 down once account status resolves | "72명 전체 보기" y at 390: checking 1972, pending 2018, approved 2072 | `RecordsPage.jsx:672-682`, `AccountKeys.jsx:16-19` | Medium |
+| R-09 | More my account: slow or failed responses mix row heights | Single group shows 64, 64, 52, 52, 64, 64; resolving shifts below by up to 48; failure leaves row permanently blank | `MorePage.jsx:65-68` | Medium |
+| R-10 | Top bar at 390: a long name pushes the account button within 2 of the wordmark | Account button x 110 to 312 (width 202), wordmark ends at 108 | `shell.css:34-37` | Medium |
+| R-11 | `도전의 탑` gate sheet repeats "트레이너 이름 정하기" as both title and sole button, and shows the same sheet for rejected accounts without saying they were rejected | | `Streak.jsx:501-506` | Medium |
+| R-12 | Inner scrollers show 15px native OS scrollbars (confirms H-05 and hits team builder candidate list too). `U-HEADED-sheet/390x844-dark.png` | `offsetWidth - clientWidth`: `.modal` 15, `.tb-pokemon-list` 15 | `tokens.css:140` | Medium |
+| R-13 | Team builder: removing the data status row jumps search and grid up by 52, and its text contains "…" | `.tb-search-row` 357 to 305 (layout-shift 0.035) | `TeamBuilderPage.jsx:1436,1519-1564` | Medium |
+| R-14 | Account link buttons are 20px tall at 1440 (same spot as H-01) | "기록 연결 해제" 1200x20, 2px gap between rows | `AccountKeys.jsx:17-19` | Low |
+| R-15 | Rejected account state still shows "기록 연결 해제" even though nothing is linked | | `RecordsPage.jsx:681`, `MorePage.jsx:70` | Low |
+| R-16 | Alerts at 390: "이 기기 알림" jumps 32 up after loading finishes | y 180 to 148 | Near `AlertsPage.jsx:47` | Low |
+| R-17 | Busy cell during page transition overlaps dimmed content and reads like an unlit "8". `SHELL-08/t1000-390x844-dark.png` | | `shell.css:102-103` | Low |
+| R-18 | Page loading renders one spinner cell on a blank page instead of an unlit panel (elements above do not move, layout-shift 0) | Records document height 1152 to 1926 | `App.jsx:309-310`, page `<Loader />` | Low |
+| R-19 | Home empty state still displays a white primary "공지 보기" button when there are 0 notices | 719x52 | `HomePage.jsx:213` | Low |
+
+No issues found: 500 screen, "공지를 찾을 수 없습니다.", long names in record rows and sheet headers (ellipsized), long notice lead and row titles, long past-tournament names on home (two lines then ellipsis), long bracket header titles (wraps to three lines), "1,200점", top bar account button (four states), board new-post sheet, focus rings and dropdown menus in headed Chrome.
+
+Still uncaptured: "{name} 이름으로 시작" row, registration form account row and duplicate-name check, team builder "계정에 올리기", battle history tab and `도전의 탑` rankings (mock payload shape did not match), trainer sheet build loading and error, 150 trainers, long names and 10:9 scores on bracket cards, light theme and 1920 for loading, error, and empty states.
+
+### 12-2. Admin write screens and tournament-day states (Q-)
+
+Environment: `scratchpad/q/` scripts `lib.cjs` (fake admin login, passes GET and patches JSON, mocks writes), `live.cjs` (fixture turning the 38th Master League into a live tournament day with undecided matches, no-show, forfeit, DQ, timeout, scores, tables, site battles, player reports, and linked player), `flow.cjs` (step runner), `login.cjs`, `dump.cjs`. Example run (with `export MSYS_NO_PATHCONV=1`): `node flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided`. Focused on 1440 dark; checked 390 on home, brackets, result entry, admin, and login, and light theme on two home shots.
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| Q-01 | Result entry: player name and score sit 1000 apart, and three rare outcomes stack as the widest buttons (verified in shot). `ADM-BRK-04/1440x900-dark-decided.png` | Player row 1200x84, name x 172, score stepper x 1183 to 1312; "불참 처리 / 기권 처리 / 실격 처리" each 1200x52; "다음 경기 M6" 1200x52; identical at 1920 | `bracket.css:206,215-216,221`, `BracketsPage.jsx:1261-1263` | High |
+| Q-05 | Mobile admin page: tournament progress sits below 20 recent-change rows (confirms G-01 with populated data). `ADM-07/390x844-dark-rows.png` | First tournament progress panel at y 3864, "결과 입력" button at y 4442 | `admin.css:154-156` | High |
+| Q-02 | Delete bracket is the widest button on the screen | "삭제" 1200x52 while the widest tree column is 379 | `BracketsPage.jsx:3074`, `brackets.css:24-26` | Medium |
+| Q-03 | "테이블 미정" appears on finished matches too. `BRK-07/390x844-dark-live.png` | 12 of 14 match cards show the strip, including 9 decided matches and 2 byes | `BracketsPage.jsx:1383` (`stripOf`) | Medium |
+| Q-04 | Bye winner's name renders gray on a white row | `.mb-row.inv` background `rgb(255,255,255)`, `.mb-name` `rgb(129,150,185)` (contrast around 3:1; normal winner rows use `rgb(8,28,61)`) | Exact line unverified; bye color path in `BracketsPage.jsx:973-978` | Medium |
+| Q-06 | Tournament progress panel: rare "대회 취소" is the widest button (confirms G-13). `ADM-08/1440x900-dark-step1.png` | "지금 마감" 167x52, "신청 현황" 270x52, "대회 취소" 439x52 | `AdminPage.jsx:119`, `admin.css:145` | Medium |
+| Q-07 | Reports: "신고 지우기" sits as centered text wedged between rows | Row, text, row, text joined by one stack seam | `CommunityReports.jsx:37-42` | Medium |
+| Q-08 | Bracket wizard steps 2 and 3 split 1200 across tool buttons. `ADM-BRK-02/1440x900-dark-step2.png` | Select all / clear all / add participant each 399x52; redraw / ranking seed each 599x52; participant row has name at x 204 and "미제출" at x 1266 | `bracket.css:100,185-187`, `BracketsPage.jsx:755-770,873-874` | Medium |
+| Q-10 | Trainer sheet admin tools: a three-character name input and save button both span 1160, and the save button sits closer to the next section than its own input | Name input 1160x52, 32 down to "이름 저장" 1160x52, 21 down to next label | `RecordsPage.jsx:438-446`, `admin.css:139` | Medium |
+| Q-11 | Tournament-day home at 1440: champion panel stretches to 950 when "내 다음 경기" and live matches appear together. `HOME-08/1440x900-light-mynext.png` | Left 759x950, right 439x950; roughly 450 blank between text and Pokemon (normally 364) | `home.css:62` (`align-items: stretch`) | Medium |
+| Q-13 | Tournament-day home: progress line under a losers-bracket match card says "승자조 3라운드 진행" (wrong label) | | `HomePage.jsx:159,287` | Medium (functional bug) |
+| Q-09 | Link requests: three-character buttons span 354 | "거절" 234x52, "승인" 354x52 | `records-board.css:134-136` | Low |
+| Q-12 | Tournament-day home: primary button "내 경기 보기" and the "내 다음 경기" card right below lead to the same destination | | `HomePage.jsx:207,260-270` | Low |
+| Q-14 | Mobile live bracket: "내 경기로" has the same weight below share buttons | Share link 174x52, QR 174x52, 32 down to "내 경기로" 350x52; all three are secondary | `BracketsPage.jsx:1897,3070` | Low |
+| Q-15 | Match schedule sheet mixes winners and losers rounds on one line, and round headers expand on click with no affordance | Row 2 reads "승자조 3라운드 시작 \| 패자조 1라운드 시작" | Exact line unverified | Low |
+
+No issues found: both login errors, expired toast, sync-to-records sheet, change-winner dialog, delete-by-name prompt, home countdown (two and three digits), registration-open state, clock, party submission counter, match card live lamp, waiting, no-show, forfeit, DQ, timeout, score, and "나" badge, live site battle sheet, result report sheet. Zero horizontal overflow on all inspected screens.
+
+Still uncaptured: draw animation and post-creation screen, 32-player and 3rd-place brackets, team match sheet, bye and void battle, slot swap, group controls, qualifier status, pre-sync confirmation and title awarded, merge preview, edit sheet lazy load, before and after check-in, expanded party submission status, admin light theme, and admin at 360 and 1280.
+
+### 12-3. `도전의 탑` progression and two-player battles (P-)
+
+Environment: `scripts/visual-audit-env/streak/` and `standin/` (see README). All three high-severity items were cross-checked against pre-fix code.
+
+| ID | Finding | Measurement | Cause | Severity |
+|---|---|---|---|---|
+| P-01 | Battle screen is always 24px taller than the viewport and scrolls; break screen clips 24 off the header. `U-TWR-trans/break-header-cut-390.png` | Document height 868 at 390x844 and 924 at 1440x900; two symbol-preload spans (`position: absolute` without top or left) land at the end of body | `BattlePage.jsx:109-114` | High |
+| P-02 | Entering a match from the tower flashes team preview cards lit before the dark overlay covers them and lights them again. `U-TWR-trans/enter-key-frames-390-cpu4.png` | Six cards hit opacity 1 at 2965ms, dark veil covers at 3132ms, then re-light until 3500ms; repeats on the next match | `BattlePage.jsx:1080-1081` (when `.bt-card` is missing, calls `light(main)` and returns early, skipping `look()` for late cards) | High |
+| P-03 | Site top bar and tab bar briefly flash back between tower matches | 254ms at 4x CPU slowdown (about 65ms real time) | `BattlePage.jsx:1538-1542` (unmounting Arena removes `page--battle`) | Medium |
+| P-04 | Mobile code-room wait screen: wait timer and cancel button sit under the dock | Counter 671 to 803, dock 696 to 780, cancel wait 823 to 875 (off-screen) | `BattlePage.jsx:833-845`, `battle.css:21,30` | Medium |
+| P-05 | Mobile tower party draft: bottom 32px of candidate card stats is hidden behind the dock | `.streak-pick-stats` 614 to 728, dock starts at 696 | `tower-play.css:129-162` | Medium |
+| P-06 | Desktop header truncates "도전의 탑 2층 두…" | scrollWidth 133, clientWidth 103 | `BattlePage.jsx:1631` | Low |
+| P-07 | Break screen transition from swap to doors has a 250ms blank frame gap (4x CPU) | | Suspected `Streak.jsx:768-772` | Low |
+| P-08 | Mobile live tab format chips extend 60 past the viewport | | `battle.css:41,70` | Low |
+
+No issues found: tower board, four doors, break screen (win, swap, promotion swap), defeat and run end, room list, join (public, code, wrong code), end screen and rematch, spectating, history tab.
+Still uncaptured: floor climb scene after gatekeeper, official two-player match wait, real phone and server latency.

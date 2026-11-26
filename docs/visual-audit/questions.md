@@ -1,162 +1,163 @@
-# 사용자에게 묻는 것
+# Questions for the user
 
-**2026-11-23 확정.** 사용자가 이 목록을 항목별로 고르지 않고 "권한 쪽으로 전부" 맡겼다("너의 추천안대로 해줘. 내 판단이 들어가면 오히려 왜곡될 것 같아"). 확정한 내용은 `plan.md` 5장(T-59~T-102)에 작업으로 들어가 있고, 이 문서는 그때 어떤 선택지가 있었는지의 기록이다. 아래 표가 항목별 확정이다.
+Confirmed 2026-11-23. Rather than picking each item individually, the user delegated the entire list to the recommended options ("너의 추천안대로 해줘. 내 판단이 들어가면 오히려 왜곡될 것 같아"). The confirmed choices are tracked as tasks in `plan.md` section 5 (T-59 to T-102). This document preserves the options that were on the table and records each final choice below.
 
-| 질문 | 확정 | 계획 작업 |
+| Question | Decision | Plan tasks |
 |---|---|---|
-| Q-01 위험한 확인 키 | (a) 체크를 빼고 초점은 취소에 | T-66, T-59 |
-| Q-02 도움말 크기 | (a) 12단으로 | T-80 |
-| Q-03 1200으로 늘어난 조작 | (a) 내용만큼의 폭으로 | T-60~T-64 |
-| Q-04 제목 아래 간격 | (a) h1 아래 32, 탭 아래 20, 뒤로 링크는 옆 단의 선 | T-79 |
-| Q-05 짧은 마지막 줄 | (b) 열 수를 내용에 맞춤 (법 26번이 빈 칸을 이미 금함) | T-71 |
-| Q-06 시트 맨 아래 행동 | (a) 주 행동은 붙박이 면, 링크 공유는 낱말 폭 | T-63 |
-| Q-07 홈 시계 360 | (a) "시작"을 라벨 줄로 | T-74 |
-| Q-08 홈 히어로, 공지 검색 | 히어로 (a), 공지 검색은 (b) 다가오는 대회 위로 | T-74, T-77 |
-| Q-09 공지 글 보조 키 | (a) 신청 키는 52, 쓰임새 키는 44 한 줄 | T-67 |
-| Q-10 휴대폰 댓글 머리 | (a) 짧은 날짜 | T-78 |
-| Q-11 검색 결과 없음 | (a) 글 한 줄 패널로 통일 | T-76 |
-| Q-12 대진표 | 각각 (a), 패자조 선은 (b) 그리지 않음 | T-75 |
-| Q-13 샘플·파티 글 수정·삭제 | (a) 글자 키로 | T-68 |
-| Q-14 기록 | 태그 (a) 그대로, 카운터 (a), 대회 탭 (a) 20개 뒤 전체 보기, 왕관 (a), 내 기록 연결 (a), 챔피언 시트 (a), 날짜 (a) | T-70, T-72, T-81~T-85 |
-| Q-15 팀 빌더, 계산기 | 860~1099 (a), 행 (a) 64 한 줄, 슬라이더 (a), 계산기 (a), 제출 패널 (a), + (b) 뺀다, 규정 (a) | T-64, T-65, T-86~T-91 |
-| Q-16 관리자 | 운영 줄 (a), 대회 진행 (a), 회차 수정과 검증 알림은 이번에 넣지 않음, 신청자 시트 (b) | T-69 |
-| Q-17 상단 바 호버 | (b) 그대로 | T-97 |
-| Q-18 구조를 바꾸는 모션 | 시트 (b) 먼저 잰다, 홈 (a), 탭 (a), 대화상자 (a), 접힘 (a), 페이저 (b) 그대로 | T-92~T-98 |
-| Q-19 860~1199 배틀 | (a) 두 단을 860부터 | T-99 |
-| Q-20 배틀의 나머지 | 메뉴 (a), 토스트 (a), 더블 플레이트 (a), 선출 카드 (a), 나머지 넷은 (b) 그대로 | T-100, T-101 |
-| Q-21 기능 결함 | BUG-1만 넣음. BUG-2는 따로 디버깅 | T-102 |
+| Q-01 Dangerous confirmation buttons | (a) Drop the checkmark icon and focus Cancel | T-66, T-59 |
+| Q-02 Help text size | (a) Move to the 12px scale | T-80 |
+| Q-03 Controls stretched to 1200 | (a) Size controls to their content | T-60 to T-64 |
+| Q-04 Spacing below page titles | (a) 32 below h1, 20 below tabs, align back link to side column top | T-79 |
+| Q-05 Short last grid rows | (b) Match column count to item count (Law 26 already forbids empty cells) | T-71 |
+| Q-06 Bottom sheet actions | (a) Primary action as docked full-bleed bar, share link sized to label | T-63 |
+| Q-07 Home clock at 360 | (a) Move "시작" to the label row | T-74 |
+| Q-08 Home hero, notice search | Hero (a), notice search (b) above upcoming tournament | T-74, T-77 |
+| Q-09 Notice post secondary buttons | (a) Registration buttons at 52, utility buttons on one 44 row | T-67 |
+| Q-10 Mobile comment header | (a) Short date format | T-78 |
+| Q-11 Empty search result layout | (a) Standardize on a single-line text panel | T-76 |
+| Q-12 Brackets | Each (a), losers bracket connectors (b) do not draw | T-75 |
+| Q-13 Sample and party edit and delete | (a) Text buttons | T-68 |
+| Q-14 Records | Tags (a) keep as-is, counters (a), tournaments tab (a) 20 then show all, crown (a), link my record (a), champion sheet (a), dates (a) | T-70, T-72, T-81 to T-85 |
+| Q-15 Team builder, calculator | 860 to 1099 (a), rows (a) 64 single line, sliders (a), calculator (a), submission panel (a), plus icon (b) remove, rules (a) | T-64, T-65, T-86 to T-91 |
+| Q-16 Admin | Admin row (a), tournament progress (a), skip round editor and validation alerts this pass, applicants sheet (b) | T-69 |
+| Q-17 Top bar hover | (b) Keep as-is | T-97 |
+| Q-18 Structural motion changes | Sheet (b) measure first, home (a), tabs (a), dialog (a), disclosure (a), pager (b) keep as-is | T-92 to T-98 |
+| Q-19 Battle at 860 to 1199 | (a) Start two-column layout at 860 | T-99 |
+| Q-20 Remaining battle items | Menu (a), toast (a), doubles plates (a), team preview cards (a), remaining four (b) keep as-is | T-100, T-101 |
+| Q-21 Functional bugs | Include BUG-1 only; debug BUG-2 separately | T-102 |
 
-권한 쪽과 다르게 정한 곳이 둘 있다. Q-08의 공지 검색은 (a) "h1 줄 오른쪽 439"가 아니라 (b)로 했다: 검색을 439로 줄이면 휴대폰과 데스크톱의 구조가 갈리고, 칸이 뛰는 문제는 (b)만으로 풀린다. Q-16의 회차 수정 시트와 검증 알림은 넣지 않았다: 운영자만 쓰는 편집기의 구조를 바꾸는 일이고 실제 화면(운영 데이터)으로 검증하지 못했다.
+Two decisions differ from the initial recommendations. For Q-08 notice search, we chose (b) instead of (a) "439 on the right of the h1 row", because shrinking search to 439 splits mobile and desktop structure while (b) alone fixes the jumping input. For Q-16, we left out the round edit sheet and validation alerts because they restructure an admin-only editor that was not verified against live production data.
 
 ---
 
-아래는 원래의 질문이다. 발견 ID는 `report.md` 의 것이고, 각 항목의 첫 선택지가 처음에 권한 쪽이다.
+Below are the original questions. Finding IDs refer to `report.md`, and option (a) was the initial recommendation for each item.
 
-## A. 공통 부품
+## A. Shared components
 
-**Q-01 위험한 확인 창의 키** (K-08, 높음)
-삭제, 대회 취소, 기권, 반영 취소의 확인 키가 저장과 똑같은 "✓ 삭제"(반전 주 키 + 체크)다. DESIGN.md Hierarchy는 "위험한 확인도 주 행동이고, 그 문장이 무엇을 없애는지 말한다"고 적는다.
-- (a) 반전 주 키는 두고 체크 아이콘만 뺀다. 알림 창의 "✓ 닫기"도 아이콘을 뺀다. 초점은 취소에 둔다.
-- (b) 지금대로 둔다 (법 그대로).
-- (c) 위험 키에 따로 톤을 둔다 (배틀 메뉴의 기권 키 `#4A1820` 을 토큰으로 올려 확인 창에도 쓴다). 새 색 토큰이 필요하다.
+### Q-01 Dangerous confirmation buttons (K-08, high)
+Confirmation buttons for delete, cancel tournament, forfeit, and undo sync look identical to save ("✓ 삭제", inverted primary button with a checkmark). DESIGN.md Hierarchy states that dangerous confirmations are still primary actions and the copy explains what gets removed.
+- (a) Keep the inverted primary button but remove the checkmark icon. Also drop the icon from alert "✓ 닫기", and place initial focus on Cancel.
+- (b) Keep as-is (strictly following the current rule).
+- (c) Give dangerous buttons a dedicated tone by promoting the battle menu's forfeit color (`#4A1820`) to a token for dialogs. Requires a new color token.
 
-**Q-02 도움말 문장의 크기** (G-12, 중간)
-`.hint` 가 15/24라 휴대폰에서 자기 칸의 라벨(12/16)보다 크다. Hierarchy 표는 힌트를 12/16 단에 둔다. 같은 시트 안의 다른 도움말(`fb-note`)은 12다.
-- (a) 모든 `.hint` 를 12/16(데스크톱 15/20) dim 400으로. 사이트 전체의 도움말이 휴대폰에서 작아진다.
-- (b) 지금대로 (읽는 글 15/24로 본다).
+### Q-02 Help text size (G-12, medium)
+`.hint` is 15/24, making it larger than its own field label (12/16) on mobile. The Hierarchy table puts hints at 12/16, and other help text in the same sheet (`fb-note`) is 12.
+- (a) Set all `.hint` text to 12/16 (15/20 on desktop), dim 400. Help text becomes smaller on mobile across the site.
+- (b) Keep as-is (treat it as reading prose at 15/24).
 
-**Q-03 데스크톱에서 1200으로 늘어난 조작들** (K-01, 높음)
-기록의 검색·칩·시즌 드롭다운 세 줄, 사설 대진표 도구 키, 운영 진입 키, 시트 맨 아래 키.
-- (a) 860 이상에서: 검색(남는 폭) | 칩 | 시즌 드롭다운(220)을 한 줄로. 사설 대진표 도구는 공식 대진표처럼 제목 오른쪽 한 줄(높이 44). 운영 진입 키는 모두 제목 줄 오른쪽 밑줄 링크(공지 작성 방식). 시트 맨 아래 키는 오른쪽 끝 439 폭.
-- (b) 칩과 드롭다운만 한 줄로, 검색은 위에 전폭. 나머지는 (a)와 같다.
-- (c) 지금대로.
+### Q-03 Controls stretched to 1200 on desktop (K-01, high)
+Affects the three rows of search, chips, and season dropdown in Records, private bracket tool buttons, admin entry buttons, and bottom sheet buttons.
+- (a) At 860 and above, place search (remaining width), chips, and season dropdown (220) on one row. Place private bracket tools on a single 44px row right of the title like official brackets. Turn all admin entry buttons into underlined links right of the title row (matching "공지 작성"). Align bottom sheet buttons to the right at 439 width.
+- (b) Put only chips and dropdown on one row, keeping search full-width above them, with all other items same as (a).
+- (c) Keep as-is.
 
-**Q-04 페이지 제목 아래 간격** (K-05, 중간)
-h1 아래가 공지·알림·소개 20, 더보기·기록 32. 탭 줄 아래가 기록 12, 칭호 20. 뒤로 링크의 윗선이 공지 글 148, 신청서 160.
-- (a) h1 아래 32, 탭 줄 아래 20, 뒤로 링크는 신청서 쪽(160, 옆 단과 같은 선)으로 통일.
-- (b) h1 아래 20, 탭 줄 아래 12, 뒤로 링크는 (a)와 같다.
+### Q-04 Spacing below page titles (K-05, medium)
+Space below h1 is 20 on Notices, Alerts, and About, and 32 on More and Records. Space below tab bars is 12 on Records and 20 on Titles. The back link sits at y 148 on notice posts and 160 on the registration form.
+- (a) Standardize on 32 below h1, 20 below tabs, and align the back link to 160 (matching the side column top).
+- (b) Standardize on 20 below h1, 12 below tabs, and align the back link as in (a).
 
-**Q-05 격자의 짧은 마지막 줄** (K-12, 중간)
-- (a) 메달 판의 방식(빈 패널로 메워 직사각형)을 역대 챔피언 벽에도 쓴다.
-- (b) 역대 챔피언 벽을 1440에서 5열 한 줄로, 메달 판은 열 수를 메달 수에 맞춘다(파트너 7열, 기타 3열).
-- (c) 지금대로.
+### Q-05 Short last grid rows (K-12, medium)
+- (a) Apply the medal board pattern (padding with empty panels to form a rectangle) to the past champions wall too.
+- (b) Lay out the past champions wall as one 5-column row at 1440, and match medal board column counts to the medal count (7 columns for partner, 3 for other).
+- (c) Keep as-is.
 
-**Q-06 시트 맨 아래 행동의 통일** (K-08, 중간)
-파티 시트는 가장자리까지 붙박이 키, 챔피언 시트는 안쪽 키, 나머지는 링크 공유 한 줄.
-- (a) "○○ 기록 보기" 같은 주 행동은 모두 붙박이 `.modal-actions` 로, 링크 공유는 그 위 한 줄.
-- (b) 지금대로.
+### Q-06 Bottom sheet actions (K-08, medium)
+The party sheet uses a full-bleed docked button, the champion sheet uses an inset button, and other sheets use a share-link row.
+- (a) Place primary actions like "○○ 기록 보기" in a docked `.modal-actions` bar, with share link on a row above it.
+- (b) Keep as-is.
 
-## B. 화면별
+## B. Page-specific issues
 
-**Q-07 홈 시계가 360에서 넘치는 것** (A-02, 높음)
-- (a) 389 이하에서 "시작"을 시계 위 라벨 줄("오늘 대회 진행 중" 옆)로 옮긴다. 시계는 84 그대로 (292 폭이 296 안에 든다).
-- (b) 시계 SVG를 패널 폭에 맞춰 줄인다 (84보다 작아져 세그먼트 높이 계열을 벗어난다).
+### Q-07 Home clock overflow at 360 (A-02, high)
+- (a) At 389 and below, move "시작" up to the label row next to "오늘 대회 진행 중". Keep the clock at 84 so its 292 width fits inside 296.
+- (b) Scale the clock SVG down to fit the panel width (drops below 84 and breaks the segment height scale).
 
-**Q-08 홈 히어로 1440의 빈 띠와 날짜 세 번** (A-13, 중간) / **공지 목록 1440의 빈 오른쪽** (A-26, 낮음)
-- 히어로: (a) 대회 당일에는 일시 행을 빼고 시계를 스펙 행과 위 정렬. (b) 지금대로.
-- 공지 목록: (a) 검색을 h1 줄 오른쪽 439에 둔다 (K-03의 "칸이 뛰는" 문제도 함께 풀린다). (b) 검색을 "다가오는 대회" 위로만 옮긴다. (c) 지금대로.
+### Q-08 Home hero empty band and repeated date at 1440 (A-13, medium), notice list empty right side at 1440 (A-26, low)
+- Hero: (a) Hide the date row on tournament day and top-align the clock with the spec rows. (b) Keep as-is.
+- Notice list: (a) Place search at 439 width on the right of the h1 row (also resolves K-03 jumping input). (b) Move search above "다가오는 대회". (c) Keep as-is.
 
-**Q-09 공지 글의 보조 키 넷** (A-10, 중간)
-- (a) 신청 수정과 파티 제출만 52 키로 두고 캘린더에 추가와 링크 공유는 한 줄의 44 키 둘. 휴대폰에서는 이 묶음을 본문 앞(스펙 행 바로 아래)으로 올린다.
-- (b) 캘린더와 링크 공유를 밑줄 링크로. 휴대폰 순서는 (a)와 같다.
-- (c) 지금대로.
+### Q-09 Four secondary buttons on notice posts (A-10, medium)
+- (a) Keep only edit registration and party submission as 52 buttons, and put add-to-calendar and share link on one row of two 44 buttons. On mobile, move this group above the body right below the spec rows.
+- (b) Turn add-to-calendar and share link into underlined links, with the same mobile placement as (a).
+- (c) Keep as-is.
 
-**Q-10 휴대폰 댓글 머리** (C-05, 높음)
-- (a) 날짜를 짧은 형식("11.19 오후 3:12")으로 하고 줄바꿈을 막는다.
-- (b) 답글·수정·삭제 키를 본문 아래 줄로 내린다.
+### Q-10 Mobile comment header (C-05, high)
+- (a) Use a shorter date format ("11.19 오후 3:12") and prevent line wrapping.
+- (b) Move reply, edit, and delete buttons to a row below the comment body.
 
-**Q-11 검색 결과 없음의 모양** (K-17, 중간)
-- (a) 모든 화면에서 글 한 줄 패널로 통일 (세그먼트 "0건"을 뺀다. 건수는 검색 칸 안에 이미 있다).
-- (b) 모든 화면에 세그먼트를 두되 0이 켜져 보이게 한다.
+### Q-11 Empty search result layout (K-17, medium)
+- (a) Standardize on a single-line text panel across all screens, dropping the "0건" segment (the count is already inside the search box).
+- (b) Show a segment on every screen, but light up the 0 digit.
 
-**Q-12 대진표** (C-03, C-07, C-08, C-09)
-- 조별 리그: 조 순위 행과 조 경기 행 사이를 (a) 12로 띄우고 "본선" 머리 아래를 12로 / (b) 지금대로. 데스크톱에서 조 묶음을 (a) 709 열로 / (b) 2열로 / (c) 1200 그대로.
-- 휴대폰 목록 보기의 우승 패널: (a) 트리 보기처럼 맨 위로 / (b) 지금대로 맨 아래.
-- 더블 엘리미네이션: 그랜드 파이널과 우승을 (a) "패자조" 묶음 밖 별도 줄로, 열 폭은 정수로 / (b) 지금대로. 패자조에도 선을 (a) 그린다 / (b) 그리지 않는다.
+### Q-12 Brackets (C-03, C-07, C-08, C-09)
+- Group stage: (a) Add a 12 gap between group standings and match rows and 12 below the "본선" header; (b) keep as-is. On desktop, set group blocks to (a) a 709 column, (b) 2 columns, or (c) keep 1200.
+- Mobile list view winner panel: (a) Move to the top like tree view; (b) keep at the bottom.
+- Double elimination: (a) Move Grand Final and Champion outside the "패자조" group onto a separate row and use integer column widths; (b) keep as-is. For losers bracket connectors: (a) draw them; (b) do not draw them.
 
-**Q-13 게시판 샘플·파티 글의 수정과 삭제** (C-12, 중간)
-- (a) 자유 글처럼 메타 줄의 글자 키로 옮기고 큰 키 격자에는 이미지 저장, 링크 공유만.
-- (b) 지금대로.
+### Q-13 Edit and delete on sample and party posts (C-12, medium)
+- (a) Move them to text buttons in the meta row like free board posts, leaving only save image and share link in the large button grid.
+- (b) Keep as-is.
 
-**Q-14 기록** (B-03, B-04, B-06, B-12, B-18e)
-- 모든 행의 리그 태그: (a) 그대로 / (b) 루키만 표시 / (c) 리그를 칩 필터로 올리고 행에서는 뺀다.
-- 상위 3 패널의 카운터: (a) 세 패널 모두 칸 배경 없이 이름과 같은 왼쪽 선 / (b) 첫째에도 칸을 준다.
-- 대회 탭(1440에서 15,568px): (a) 최근 20개 뒤 "전체 보기" (트레이너 탭 방식) / (b) 지난 시즌 장을 접어 둔다 / (c) 860 이상에서 카드 2열 / (d) 지금대로.
-- 명예의 전당 왕관의 여섯: (a) 휴대폰 이름 띠를 32로 낮춰 그림을 키우고 1440은 열 높이에 맞춘다 / (b) 지금대로.
-- 트레이너 시트의 "내 기록 연결" 행: (a) 맨 아래 링크 공유 위로 / (b) 지금대로 (최근 대회와 사용한 파티 사이).
-- 챔피언 시트 1440의 빈 반전 패널(A-05): (a) 세트가 없는 우승은 576 폭 시트로 / (b) 인장 439 옆에 여섯 709를 나란히 / (c) 지금대로.
-- 최근 대회 날짜 표기 섞임(B-18c): (a) 한 목록에 해가 둘 이상이면 모든 줄에 연도 / (b) 지금대로. 날짜 서식 함수(`src/services/dateFormat.js`)를 고쳐야 한다.
+### Q-14 Records (B-03, B-04, B-06, B-12, B-18e)
+- League tags on every row: (a) keep as-is; (b) show only rookie; (c) move league to a chip filter and drop row tags.
+- Top 3 panel counters: (a) remove cell background on all three panels and align left with the name; (b) give the first panel a cell background too.
+- Tournaments tab (15,568px tall at 1440): (a) show the latest 20 then "전체 보기" (matching the trainers tab); (b) collapse past season chapters; (c) use a 2-column card grid at 860+; (d) keep as-is.
+- Hall of fame crown team of six: (a) lower the mobile name band to 32 so sprites grow, and match column height at 1440; (b) keep as-is.
+- Trainer sheet "내 기록 연결" row: (a) move to the bottom above share link; (b) keep between recent tournaments and used parties.
+- Champion sheet empty inverted panel at 1440 (A-05): (a) use a 576-wide sheet when there are no sets; (b) place the 439 seal beside the 709 team of six; (c) keep as-is.
+- Mixed date formats in recent tournaments (B-18c): (a) include the year on every row whenever a list spans multiple years; (b) keep as-is. Requires editing `src/services/dateFormat.js`.
 
-**Q-15 팀 빌더와 계산기** (D-02, D-03, D-13, D-16, D-17, D-19)
-- 860~1099의 후보 목록(198px 스크롤): (a) 휴대폰처럼 페이지와 함께 스크롤 / (b) 1100의 두 단을 860부터.
-- 데스크톱 후보 행(124 높이, 2.6행만 보임): (a) 행을 64 한 줄로 / (b) 타입 격자를 두 줄로 / (c) 둘 다 / (d) 지금대로.
-- 계산기 휴대폰 능력치 슬라이더(134px): (a) 랭크를 막대 아래 둘째 줄로 / (b) 랭크 열을 84로 줄인다.
-- 계산기 데스크톱(스피드 줄 960 빈칸, 도감 표): (a) 스피드와 도감을 709 + 439 두 단으로 / (b) 지금대로.
-- 공식 제출 패널이 막혔을 때: (a) 사유를 제목 바로 아래에 두고 단계와 이름 칸은 그리지 않는다 / (b) 지금대로.
-- 빈 칸의 +: (a) 누르면 후보 고르기로 가는 버튼으로 / (b) +를 뺀다 / (c) 지금대로.
-- 규정 드롭다운 둘을 439 | 709 선에 맞추는 것(D-07): (a) 맞춘다 / (b) 지금대로 599 | 599.
+### Q-15 Team builder and calculator (D-02, D-03, D-13, D-16, D-17, D-19)
+- Candidate list at 860 to 1099 (198px inner scroll): (a) scroll with the page like mobile; (b) start the 1100 two-column layout at 860.
+- Desktop candidate rows (124 tall, only 2.6 rows visible): (a) make rows a single 64 line; (b) wrap the type grid to two lines; (c) both; (d) keep as-is.
+- Calculator mobile stat sliders (134px): (a) move rank controls to a second row below the bar; (b) narrow the rank column to 84.
+- Calculator desktop (960 blank gap in speed row, Pokedex table): (a) use a 709 + 439 two-column layout for speed and Pokedex; (b) keep as-is.
+- Blocked official submission panel: (a) put the reason directly under the heading and omit the steps and name field; (b) keep as-is.
+- Plus icon in empty team slots: (a) make it a button that jumps to candidate selection; (b) remove the plus icon; (c) keep as-is.
+- Aligning the two rule dropdowns to the 439 and 709 columns (D-07): (a) align them; (b) keep 599 and 599.
 
-**Q-16 관리자** (G-03, G-06, G-11, G-13, G-14)
-- 대진표 맨 아래 운영 줄: (a) 왼쪽 상태("기록 반영됨"), 오른쪽 끝에 링크 둘("칭호 다시 판정", "반영 취소")을 한 줄 기준선에, 삭제는 오른쪽 439 폭 / (b) 지금대로.
-- 대회 진행 패널: (a) 대회 취소를 패널 오른쪽 아래의 밑줄 링크로, 접수 단계의 주 키는 신청 현황 / (b) 지금대로.
-- 회차 수정 시트: (a) 안쪽 스크롤을 없애고 시트 자체를 스크롤, 칸에 우승·준우승·4강 라벨 / (b) 지금대로.
-- 검증 실패 알림(시각 빠짐, 이름 빔): (a) 알림 창 대신 그 칸 아래 오류 + 그 칸으로 스크롤 (법: 폼은 빠진 것을 그 칸 아래에 말한다) / (b) 지금대로. 코드 변경이 있다.
-- 신청자 시트 휴대폰(G-04)은 계획 T-19로 겹침만 풀었다. 비밀번호 초기화를 둘째 줄로 내릴지: (a) 내린다 / (b) T-19로 충분.
+### Q-16 Admin (G-03, G-06, G-11, G-13, G-14)
+- Bracket bottom admin row: (a) keep status ("기록 반영됨") on the left, align the two links ("칭호 다시 판정", "반영 취소") on the right baseline, and size delete to 439 on the right; (b) keep as-is.
+- Tournament progress panel: (a) turn "대회 취소" into an underlined link at bottom-right, and make "신청 현황" the primary button during registration; (b) keep as-is.
+- Round edit sheet: (a) remove inner scroll so the sheet itself scrolls, and add labels for winner, runner-up, and top 4; (b) keep as-is.
+- Validation alerts (missing time, empty name): (a) show the error below the field and scroll to it instead of an alert dialog (following the rule that forms report missing values under the field); (b) keep as-is. Requires code changes.
+- Applicants sheet on mobile (G-04) already has overlap fixed in T-19. On whether to drop password reset to a second line: (a) move it down; (b) T-19 is enough.
 
-## C. 모션
+## C. Motion
 
-**Q-17 상단 바의 호버** (F-08)
-로고, 내 기록, 진행 중, 테마 키가 포인터에 답하지 않는다. 지금은 모두 `--lit` 이다.
-- (a) 평소 `--dim`, 호버에서 `--lit` (닫기 ×와 같은 방식). 상단 바가 평소 한 단계 어두워진다.
-- (b) 지금대로.
+### Q-17 Top bar hover (F-08)
+Logo, "내 기록", "진행 중", and the theme button do not react to pointer hover because all four are already `--lit`.
+- (a) Default to `--dim` and shift to `--lit` on hover (matching the close `×` button). The top bar becomes one step dimmer at rest.
+- (b) Keep as-is.
 
-**Q-18 구조를 바꾸는 모션 다섯** (F-02, F-03, F-04, F-06, F-07)
-- 무거운 시트가 올라오는 모습이 안 보임: (a) 시트의 첫 그림이 끝난 다음 프레임에 올라오기 시작 (`Modal.jsx`) / (b) 운영 빌드와 실제 휴대폰에서 먼저 다시 잰 뒤 정한다.
-- 첫 방문 홈에서 내용이 바뀜: (a) 읽는 동안에는 지난 대회 패널 크기의 꺼진 판만 두고 키는 켜지 않는다 / (b) 지금대로.
-- 탭과 칩을 바꿀 때 검색 칸과 주 키까지 다시 켜짐: (a) 바뀐 목록만 켠다 / (b) 지금대로.
-- 폼 오류로 데스크톱 대화상자가 뜀: (a) 대화상자를 위에서 잡아 아래로만 자라게 / (b) 지금대로 (가운데 정렬).
-- 접힘의 닫힘: (a) 닫힐 때 행을 160으로 끄고 떼어낸다 / (b) 지금대로 (한 프레임에 닫힘).
-- 페이저가 손 밑에서 달아남(F-11): (a) 목록에 한 쪽 분량의 최소 높이 / (b) 지금대로.
+### Q-18 Structural motion changes (F-02, F-03, F-04, F-06, F-07)
+- Heavy sheets appearing already raised: (a) start the spring on the frame after the sheet's first paint (`Modal.jsx`); (b) re-measure on a production build and a real phone before deciding.
+- First-visit home content swap: (a) show an unlit placeholder sized to the past-tournament panel while loading and keep the button unlit; (b) keep as-is.
+- Tab and chip switches re-lighting search and primary buttons: (a) light only the changed list; (b) keep as-is.
+- Desktop dialog jumping on form errors: (a) anchor the dialog from the top so it grows downward only; (b) keep centered.
+- Disclosure collapse: (a) fade rows out over 160 before unmounting; (b) keep single-frame collapse.
+- Pager shifting under the user's finger (F-11): (a) give lists a one-page minimum height; (b) keep as-is.
 
-## D. 배틀
+## D. Battle
 
-**Q-19 860~1199 폭의 배틀** (E-02, 높음)
-두 단 배치가 1200부터라, 아이패드 가로와 작은 노트북에서 기술 키가 창 밖으로 나가고 머리가 덱 아래로 간다. DESIGN.md는 "860부터 무대가 왼쪽, 400 기둥이 오른쪽"이라고 적는다.
-- (a) 두 단을 860부터 적용한다 (`battle.css` 의 1200 블록과 `BattlePage.jsx` 의 `WIDE` 를 함께 바꾼다). 범위가 크니 docs/BATTLE_FRAMES.md 기준으로 다시 잰다.
-- (b) 한 단을 두되 무대 높이에 상한을 주고 머리를 무대 위로 올린다.
+### Q-19 Battle layout at 860 to 1199 (E-02, high)
+Because two-column layout starts at 1200, landscape iPads and small laptops push move buttons off-screen and drop the header below the deck. DESIGN.md specifies the stage on the left and a 400 column on the right starting at 860.
+- (a) Start the two-column layout at 860 (update both the 1200 block in `battle.css` and `WIDE` in `BattlePage.jsx`). Re-measure against `docs/BATTLE_FRAMES.md` because the scope is wide.
+- (b) Keep one column, cap the stage height, and move the header above the stage.
 
-**Q-20 배틀 화면의 나머지** (E-05, E-07, E-08, E-09, E-10, E-12, E-15, E-17)
-- 데스크톱에서 연출·소리·기권이 창 아래로 밀림: (a) 메뉴를 머리 바로 아래로, 파티를 그 밑에 / (b) 상대 파티의 아직 안 나온 줄을 접는다 / (c) 지금대로.
-- 첫 턴 안내 토스트가 내 띠를 덮음: (a) 4초 뒤 꺼진다 / (b) 덱 안 기술 키 위 한 줄로 / (c) 지금대로.
-- 데스크톱 더블에서 플레이트가 포켓몬 발을 가림: (a) 휴대폰처럼 오른쪽에 세로로 쌓는다 / (b) 지금대로.
-- 375x667에서 선출 카드가 독에 가림: (a) 379 이하에서 카드 세로 여백을 12 → 8 / (b) 도구 줄과 타입 줄을 합친다.
-- 끝난 뒤 휴대폰 덱 위 140 빈칸, 로비 코트 아래 107 빈칸, 턴 수 카운터의 라벨, 방 목록의 0 카운터 셋: 각각 (a) 고친다 / (b) 지금대로.
-- 로비 → 선출 전환이 한 프레임에 잘림(E-06): docs/BATTLE_TRANSITIONS.md 기준으로 다시 재서 따로 다룰지.
+### Q-20 Remaining battle items (E-05, E-07, E-08, E-09, E-10, E-12, E-15, E-17)
+- Desktop animation, sound, and forfeit pushed below the fold: (a) move the menu directly under the header with parties below it; (b) collapse unrevealed opponent party rows; (c) keep as-is.
+- First-turn tip toast covering my status strip: (a) auto-dismiss after 4 seconds; (b) move to a single line above the move buttons inside the deck; (c) keep as-is.
+- Desktop doubles plates covering Pokemon feet: (a) stack vertically on the right like mobile; (b) keep as-is.
+- Team preview cards clipped by dock at 375x667: (a) tighten card vertical padding from 12 to 8 at 379 and below; (b) merge the item and type rows.
+- Post-battle 140 gap above mobile deck, 107 gap under lobby court, missing label on turn counter, three zero counters in room list: (a) fix each; (b) keep as-is.
+- Lobby to team preview hard cut in one frame (E-06): decide whether to re-measure against `docs/BATTLE_TRANSITIONS.md` and handle separately.
 
-## E. 기능 결함 (report.md 9장)
+## E. Functional bugs (report.md section 9)
 
-**Q-21** BUG-1(계산기 NaN%)과 BUG-2(컴퓨터 배틀 무작위 파티의 빈 정보)를 이번 수정에 함께 넣을지. 둘 다 화면에 보이는 결함이지만 서비스 코드를 고쳐야 한다. BUG-3과 BUG-4는 데이터와 재현을 먼저 확인해야 한다.
+### Q-21 Scope of functional bug fixes
+Decide whether to include BUG-1 (calculator `NaN%`) and BUG-2 (missing Pokemon info in CPU random-party battles) in this pass. Both are visible defects, though fixing them touches service code. BUG-3 and BUG-4 need data and reproduction checks first.
 
-## F. 기준 값 자체
+## F. Base tokens and breakpoints
 
-기준 값(간격·글자·전환 토큰)을 바꿔야 한다고 본 것은 없다. 다만 분기점 둘은 값이 바뀐다: 상단 바 전체 탭 1100 → 1200 (계획 T-12, 이미 쓰는 분기점으로 옮김), 배틀 두 단 1200 → 860 (Q-19, 답을 기다림). 배틀에만 쓰는 600/601 분기점은 사이트의 640과 다르지만 리플레이 바 한 곳뿐이라 그대로 두었다.
+No spacing, typography, or transition tokens need to change. Two breakpoints change: the top bar full-tabs threshold moves from 1100 to 1200 (plan T-12, aligning with an existing breakpoint), and battle two-column layout moves from 1200 to 860 (Q-19, awaiting decision). The battle-only 600/601 breakpoint differs from the site's 640, but it applies only to the replay bar and stays as-is.

@@ -1,94 +1,100 @@
-# 샘플 세트
+# Sample sets
 
-`src/data/random-sets.json`의 포켓몬별 샘플 세트는 랜덤 파티의 재료이고, 배틀 컴퓨터가 상대 세트를 추측하는 근거이며, 도전의 탑이 상대를 짜는 재료입니다. 이 문서는 현행 규정 M-C의 세트가 어떻게 만들어지는지, 무엇을 재 보고 정했는지 적습니다.
+Per-species sample sets in `src/data/random-sets.json` supply random parties, inform the battle computer's opponent set inference, and feed `도전의 탑` opponent builders. This document explains how the current Regulation M-C sets are built and what measurements shaped them.
 
-## 1. 만드는 순서
+## 1. Build pipeline
 
-| 단계 | 명령 | 결과 |
+| Step | Command | Output |
 |---|---|---|
-| 래더 세트 | `STATS_CACHE=<dir> node scripts/build-random-sets.mjs` | `src/data/random-sets.ladder.json`. 스모곤 사용률 통계(레이팅 1760 이상 우선)로 만든 랭커 세트. 원본으로 보존한다 |
-| 노력치 재배분 | `STATS_CACHE=<dir> node scripts/tune-sets.mjs` | `src/data/random-sets.json`의 M-C 싱글과 더블. 이전 규정 M-B는 래더 그대로 |
-| 정리 | `node scripts/curate-sets.mjs` | 같은 파일의 M-C를 한 빌드 한 도구로 줄인다(5장). 결과에 다시 돌려도 바뀌지 않는다 |
-| 설명 | `node scripts/render-sample-sets.mjs` | `docs/sample-sets/m-c-singles.md`, `m-c-doubles.md` |
-| 확인 | `node scripts/sets-benchmark.mjs --kind singles --games 400` | 같은 포켓몬으로 새 세트와 원본 세트를 맞붙인 승률 |
+| Ladder sets | `STATS_CACHE=<dir> node scripts/build-random-sets.mjs` | `src/data/random-sets.ladder.json`. Ranker sets built from Smogon usage stats (prioritizing 1760+ rating), preserved as the raw baseline |
+| Stat point tuning | `STATS_CACHE=<dir> node scripts/tune-sets.mjs` | Regulation M-C singles and doubles in `src/data/random-sets.json`. Prior Regulation M-B stays unchanged from ladder |
+| Curation | `node scripts/curate-sets.mjs` | Reduces M-C in the same file to one build and one item per set (section 5). Idempotent on re-runs |
+| Docs render | `node scripts/render-sample-sets.mjs` | `docs/sample-sets/m-c-singles.md` and `m-c-doubles.md` |
+| Benchmark | `node scripts/sets-benchmark.mjs --kind singles --games 400` | Win rate of tuned sets against raw ladder sets on identical species |
 
-`STATS_CACHE`에는 2026-10 chaos 통계 `gen9championsbssregmc`와 `gen9championsvgc2026regmc`의 `-1760`, `-0` 파일 네 개가 있어야 합니다. 주간 학습(`scripts/learn-cpu-sets.mjs`)은 이 결과 위에 가중치만 섞습니다.
+`STATS_CACHE` must contain the four 2026-10 chaos stat files: `-1760` and `-0` for both `gen9championsbssregmc` and `gen9championsvgc2026regmc`. Weekly learning (`scripts/learn-cpu-sets.mjs`) blends weights on top of this output.
 
-## 2. 무엇을 바꾸고 무엇을 두나
+## 2. Tuning rules
 
-기술, 도구, 특성, 성격, 스피드 투자는 랭커 세트 그대로 둡니다. 나머지 능력 포인트(한 능력치 최대 32, 합계 66, 레벨 50에서 1포인트가 실수치 1)만 목표에 맞춰 다시 씁니다. 기준은 레이팅 1760 이상에서 가장 많이 쓰인 20종이고, 각각 래더에서 가장 많이 쓰는 세트로 둡니다. 피해는 `@smogon/calc`의 포켓몬 챔피언스 공식으로 계산합니다.
+Moves, items, abilities, natures, and Speed investment remain exactly as chosen by ladder rankers. Only the remaining stat points (up to 32 per stat, 66 total, where 1 point equals 1 stat point at level 50) are redistributed against target benchmarks. Targets are the top 20 most-used species at 1760+ rating, each using its most common ladder set. Damage is calculated with `@smogon/calc` using the `포켓몬 챔피언스` formula.
 
-- 공격: 랭커보다 늘리지 않습니다. 랭커의 투자로 낼 수 있는 확정 타수를 20종 모두에게 지키는 최소값까지만 줄입니다. 확정 타수는 최저 난수와 최고 난수, 만피와 4분의 1을 깎인 상태에서 각각 셉니다.
-- 내구: 남는 포인트는 HP 또는 랭커가 이미 투자한 방어 쪽(둘 다 없으면 둘 다)에 1포인트씩 넣습니다. 20종의 가장 센 공격을 버티는 타수가 사용률 가중으로 가장 많이 늘어나는 곳에 넣습니다.
-- 바디프레스처럼 방어로 공격하는 세트는 방어도 스피드처럼 그대로 둡니다.
-- 새 배분이 사용률 가중으로 얻는 확정 타수보다 잃는 확정 타수가 많으면 버리고 랭커 배분을 둡니다.
+- Offense: never increased above ladder investment. Reduced only to the minimum that preserves every guaranteed KO threshold achievable with the ladder spread against all 20 targets, checked at both min and max rolls and at full HP and 75% HP.
+- Bulk: leftover points go one point at a time into HP or whichever defensive stat the ladder spread already invests in (or both if neither has investment), choosing the stat that adds the highest usage-weighted survival thresholds against the top 20's strongest attacks.
+- Sets that attack with Defense, such as 바디프레스, keep Defense locked alongside Speed.
+- If a new spread loses more usage-weighted KO/survival thresholds than it gains, it is discarded in favor of the ladder spread.
 
-## 3. 측정
+## 3. Benchmarks
 
-같은 여섯 종을 한쪽은 새 세트, 한쪽은 원본 세트로 두고 컴퓨터(300 ms)끼리 맞붙인 뒤 세트를 바꿔 한 번 더 둡니다. 컴퓨터가 추측에 쓰는 세트는 `random-sets.json`의 것이라, 그 세트를 든 쪽은 상대에게 정확히 읽힙니다. 이 효과는 약 12점으로 컸습니다(아래 첫 두 줄). 그래서 결과는 읽히는 쪽, 즉 새 세트에 불리한 조건에서 잽니다.
+Two CPU instances (300 ms per turn) play identical six-species teams, one with tuned sets and one with raw ladder sets, then swap sides and play again. Because the CPU uses `random-sets.json` for opponent inference, whichever side holds those sets gets read accurately by the opponent. That information penalty measured roughly 12 percentage points (first two rows below), so benchmarks are evaluated from the disadvantaged side (when the tuned set is the one being read).
 
-| 날짜 | 바꾼 것 | 결과 | 결정 |
+| Date | Change | Result | Decision |
 |---|---|---|---|
-| 2026-11-12 | 전면 재설계: 1:1 대결 모형(상위 40종, 만피, 절반, 교체로 들어온 상황)으로 기술, 도구, 특성, 성격, 노력치를 모두 새로 고름. 랭커 절반 이상이 쓰는 보조기는 고정 | 싱글 400판, 새 세트가 읽힐 때 34.5% ± 4.6, 원본이 읽힐 때 46.3% ± 4.7 | 버림. 모형이 스피드(평균 투자 18.2에서 12.7)와 변화기(세트당 0.57개에서 0.37개)의 값을 낮게 봤다. 1:1 모형은 교체, 선출, 순서의 가치를 담지 못한다 |
-| 2026-11-12 | 노력치만 재배분, 공격 상한 없음 | 싱글 400판 50.0% ± 4.4(재배분 세트가 읽힐 때) | 고침. 하마돈과 아머까오 같은 받이 세트가 공격 32로 바뀌어 랭커의 역할을 지웠다 |
-| 2026-11-12 | 노력치만 재배분, 공격은 줄이기만, 내구는 랭커가 쓴 쪽으로, 잃는 쪽이면 원본 | 싱글 400판 54.3% ± 4.4(재배분 세트가 읽힐 때) | 남김. 바디프레스 세트의 방어를 고정한 최종판은 아래 줄 |
-| 2026-11-12 | 위 + 바디프레스 세트의 방어 고정(최종) | 재배분 세트가 읽힐 때 싱글 400판 50.7% ± 4.5, 더블 400판 47.0% ± 4.4 | 남김. 어느 쪽도 원본과 차이가 드러나지 않았다(더블은 읽히는 불리를 안고 47%). 실력이 오른 것이 아니라, 같은 세기에 모든 포인트의 근거가 생긴 것이다 |
+| 2026-11-12 | Full redesign: picked moves, items, abilities, natures, and stat points from a 1v1 matchup model (top 40 species at full HP, half HP, and switch-in), locking status moves used by 50%+ of rankers | Singles 400 games: 34.5% ± 4.6 when new sets are read, 46.3% ± 4.7 when ladder sets are read | Rejected. The model undervalued Speed (average investment dropped from 18.2 to 12.7) and status moves (0.57 to 0.37 per set). A 1v1 model cannot capture switching, team preview, or turn order |
+| 2026-11-12 | Stat point redistribution only, no offensive cap | Singles 400 games: 50.0% ± 4.4 (tuned sets read) | Revised. Defensive sets like 하마돈 and 아머까오 shifted to 32 Attack, erasing their ladder roles |
+| 2026-11-12 | Stat point redistribution only, offense reduced only, bulk restricted to ladder defensive stats, revert on net loss | Singles 400 games: 54.3% ± 4.4 (tuned sets read) | Kept. Final version locking Defense on 바디프레스 sets is below |
+| 2026-11-12 | Same as above plus Defense lock on 바디프레스 sets (final) | Tuned sets read: Singles 400 games 50.7% ± 4.5, Doubles 400 games 47.0% ± 4.4 | Kept. Neither format shows a meaningful gap against raw sets (Doubles sits at 47% under the information penalty). Strength stays equal, while every stat point now has a documented reason |
 
-## 4. 한계
+## 4. Limitations
 
-- 노력치 근거는 20종에 대한 계산입니다. 급소, 추가효과, 날씨와 필드, 능력 변화, 2:2의 협공은 계산에 들어 있지 않습니다.
-- 기술, 도구, 성격, 스피드는 랭커의 선택을 근거로 그대로 둡니다. 이것들을 더 낫게 고르려면 실전 대국으로 후보를 고르는 방식이 필요합니다(3장 첫 줄의 실패).
-- 랭커 사용률 1% 미만이거나 1760 이상 표본이 없는 종은 표본이 적어, 각 종 설명의 "추가 검증 필요"에 적었습니다.
-- 도전의 탑의 세기 표(`src/data/species-power.json`, `tower-tiers.json`)는 2026-11-19에 정리된 지금의 세트로 다시 쟀습니다. 이제 종이 아니라 샘플 세트마다 몫과 급이 있습니다(BATTLE_STREAK.md 19장). 세트를 바꾸면 다시 잽니다.
+- Stat tuning checks only the top 20 species and excludes critical hits, secondary effects, weather, terrain, stat stages, and 2v2 double-targeting.
+- Moves, items, natures, and Speed rely directly on ladder choices. Improving those selections requires evaluating candidates in full simulated games (as shown by the failed 1v1 experiment in section 3).
+- Species with under 1% ladder usage or no 1760+ sample have small sample sizes and are flagged under `"추가 검증 필요"` in their species descriptions.
+- `도전의 탑` power ratings (`src/data/species-power.json`, `tower-tiers.json`) were re-measured on 2026-11-19 using the curated sets. Win shares and tiers now belong to individual sample sets rather than species (`BATTLE_STREAK.md` chapter 19) and must be re-measured whenever sets change.
 
-## 5. 정리: 한 빌드에 도구 하나 (2026-11-18)
+## 5. Curation
 
-### 문제
+On 2026-11-18, Regulation M-C sets were curated down to one build and one item per set.
 
-M-C 싱글은 269종 1329세트로 거의 모든 종이 세트 다섯 개였습니다. 그중 814세트는 같은 종의 앞 세트와 특성과 첫 도구가 같고 기술이 하나 이하로만 달랐습니다(한카리아스는 기술 하나씩 다른 메가 Z 넷과 기합의띠 하나, 사용률 0.08%인 아보크도 기술 하나씩 다른 기합의띠와 먹다남은음식 다섯). 세트마다 종 전체의 도구 통계에서 온 예비 도구 목록(`items`)이 붙어 있어, 같은 도구 금지에 첫 도구가 막히면 다음 도구로 내려가 기술과 맞지 않는 세트(기합의띠 선봉이 먹다남은음식)가 생겼습니다. 운영자: "의미 없는 샘플이 너무 많아", "다양한 형태가 가능한 포켓몬(한카리아스 등)과 메가진화가 여러 개인 포켓몬만 복수의 샘플을 만들고, 상당히 마이너한 포켓몬은 샘플 하나에만 집중해도 좋아".
+### Problem
 
-### 규칙 (`scripts/curate-sets.mjs`)
+M-C singles held 1329 sets across 269 species, giving nearly every species five sets. Of those, 814 sets shared the same ability and first item as an earlier set of the same species and differed by at most one move (한카리아스 had four 메가 Z sets differing by one move plus one 기합의띠 set; 아보크 at 0.08% usage had five 기합의띠 and 먹다남은음식 sets differing by one move). Each set also carried a fallback `items` list pulled from species-wide item stats, so when item clause blocked the primary item, a set fell back to a mismatched item (such as a 기합의띠 lead getting 먹다남은음식). Owner feedback: "의미 없는 샘플이 너무 많아", "다양한 형태가 가능한 포켓몬(한카리아스 등)과 메가진화가 여러 개인 포켓몬만 복수의 샘플을 만들고, 상당히 마이너한 포켓몬은 샘플 하나에만 집중해도 좋아".
 
-1. 한 세트는 하나의 빌드이고 도구는 하나입니다(`items: [도구]`, 모양은 그대로). 도구는 그 세트의 첫 도구이되, 트릭과 변신 말고 변화기가 있으면 구애 도구가 아니고, 회복기가 있으면 기합의띠가 아닙니다(돌격조끼는 포켓몬 챔피언스에 없다: 엔진의 챔피언스 데이터가 "Past"로 둔다). 맞지 않으면 예비 목록에서 맞는 첫 도구를 고릅니다(싱글 7세트, 더블 1세트가 해당).
-2. 같은 종에서 특성, 도구의 종류, 기술 4개 중 3개 이상이 같은 세트는 한 빌드입니다. 가장 무거운 세트의 기술과 배분을 두고 가중치를 더합니다. 도구의 종류는 내구(먹다남은음식, 검은진흙, 울퉁불퉁멧, 조개껍질방울, 풍선, 나무열매), 화력(생명의구슬, 달인의띠, 타입 강화 도구, 주얼, 초점렌즈, 넓은렌즈 등), 그 밖은 도구 그 자체이고 메가스톤은 하나하나가 따로입니다.
-3. 메가스톤이 둘 이상인 종은 메가스톤마다 빌드 하나를 둡니다(리자몽 X와 Y, 루카리오 Z와 루카리오, 더블의 한카리아스, 라이츄).
-4. 주요 종(사용률 상위 80종)은 **역할**마다 빌드 하나를 넷까지 둡니다(같은 날 다시 고침, 사용자: "단순히 기술 몇개만 바뀌는 게 아니라 역할이 변하는 포켓몬들"). 역할은 메가스톤마다, 구애 도구마다, 그다음 기술로 랭크업, 함정(스텔스록 등), 트릭룸, 받이(회복기와 공격기 둘 이하), 지원(변화기 둘 이상), 공격입니다. 방어 계열은 세지 않습니다(더블의 거의 모든 세트가 든다). 역할마다 가장 무거운 빌드가 서고 그 역할의 무게를 모두 가지며, 역할의 무게가 10% 이상일 때만 남깁니다. 기술 몇 개나 도구 하나(기합의띠와 생명의구슬)만 다른 빌드는 같은 역할이라 하나입니다. 2번의 "한 빌드"도 역할이 같아야 합니다: 처음에는 누리레느의 명상형이 기술 셋을 나눈 앙코르형에 합쳐져 사라졌습니다. 다른 빌드 곁에 선 빌드는 무게가 10% 아래로 내려가지 않습니다(1%의 메가가 거의 뽑히지 않았다).
-5. 나머지 종은 가장 무거운 빌드 하나만 둡니다. 사용자가 지시한 빌드는 정리 뒤에 더합니다(`ADDED`): 메타몽 구애스카프(60%, 래더 원본에는 없고 기합의띠와 선제공격손톱뿐이었다), 망나뇽 용의춤 멀티스케일(20%), 한카리아스 일반 메가(싱글 20%). 다시 정리해도 두 번 더하지 않습니다.
-6. 가중치는 종마다 다시 1로 맞춥니다. M-B는 그대로입니다. 결과에 다시 돌려도 바뀌지 않습니다(테스트).
+### Rules
 
-문턱을 고른 근거: 상위 60종 아래에서는 2번 규칙을 지나 남는 빌드가 대부분 사용률 0.5% 미만 종의 것이고 표본이 적습니다(4장). 7%는 데이터의 틈입니다. 다른 빌드로 남을 후보의 몫은 9%(한카리아스 기합의띠 스텔스록), 8%(망나뇽 울퉁불퉁멧 신속) 다음이 5%(타부자고 구애스카프, 팬텀 기합의띠)로 떨어집니다. 운영자가 예로 든 한카리아스의 기합의띠 빌드를 남기는 가장 높은 문턱입니다.
+Implemented in `scripts/curate-sets.mjs`:
 
-### 결과
+1. One set represents one build with one item (`items: [item]`, preserving schema shape). The item is the set's primary item, except Choice items are disallowed if the set runs status moves other than 트릭 or 변신, and 기합의띠 is disallowed if the set runs recovery moves (돌격조끼 does not exist in `포켓몬 챔피언스` because the engine marks it `"Past"`). If invalid, the script picks the first valid item from the fallback list (affected 7 singles sets and 1 doubles set).
+2. Within a species, sets sharing the same ability, item category, and at least 3 of 4 moves merge into one build, keeping the heaviest set's moves and spread while summing weights. Item categories are bulk (먹다남은음식, 검은진흙, 울퉁불퉁멧, 조개껍질방울, 풍선, 나무열매), offense (생명의구슬, 달인의띠, type-boosting items, gems, 초점렌즈, 넓은렌즈, etc.), individual Mega Stones, and every other item as its own category.
+3. Species with two or more Mega Stones keep one build per Mega Stone (리자몽 X and Y, 루카리오 Z and 루카리오, doubles 한카리아스, 라이츄).
+4. Major species (top 80 by usage) keep up to four builds, one per distinct role (revised the same day after owner feedback: "단순히 기술 몇개만 바뀌는 게 아니라 역할이 변하는 포켓몬들"). Roles partition by Mega Stone, Choice item, and then by moveset: setup (랭크업), hazards (스텔스록, etc.), 트릭룸, wall (recovery plus at most 2 attacks), support (2+ status moves), and attacker. Protect-type moves are excluded from status counts since nearly all doubles sets run them. Each role keeps its heaviest build with the role's combined weight, retained only when the role holds at least 10% weight. Builds differing only by a few moves or one item (기합의띠 vs 생명의구슬) share a role and collapse into one. Rule 2 merges also require matching roles; previously, 누리레느's 명상 set had merged into an 앙코르 set sharing three moves and vanished. Any secondary build beside another build has a 10% weight floor (a 1% Mega set was almost never picked).
+5. All other species keep only their single heaviest build. Owner-requested builds are appended after curation (`ADDED`): 메타몽 구애스카프 (60%, absent from raw ladder stats which had only 기합의띠 and 선제공격손톱), 망나뇽 용의춤 멀티스케일 (20%), and 한카리아스 regular Mega (singles, 20%). Re-running curation does not duplicate them.
+6. Weights re-normalize to 1 per species. M-B stays untouched. Re-running on curated output produces no changes (verified by tests).
 
-| | 싱글 | 더블 |
+Threshold rationale: below the top 60 species, most builds surviving rule 2 belong to species under 0.5% usage with thin samples (section 4). At 7% there is a natural gap in the data: candidate secondary shares drop from 9% (한카리아스 기합의띠 스텔스록) and 8% (망나뇽 울퉁불퉁멧 신속) down to 5% (타부자고 구애스카프, 팬텀 기합의띠). That makes it the highest cutoff that retains the 기합의띠 한카리아스 build cited by the owner.
+
+### Results
+
+| Metric | Singles | Doubles |
 |---|---|---|
-| 종 | 269 | 269 |
-| 세트 | 1329 → 310 | 1326 → 296 |
-| 종당 세트 수 | 1개 232종, 2개 34종, 3개 2종, 4개 1종 | 1개 247종, 2개 18종, 3개 3종, 4개 1종 |
-| 메가 세트 | 72 | 74 |
-| 서로 다른 도구 | 108 | 106 |
-| 도구 상위 | 기합의띠 49(15.8%), 먹다남은음식 38(12.3%), 구애스카프 31(10.0%), 자뭉열매 25(8.1%), 생명의구슬 17(5.5%), 울퉁불퉁멧 15(4.8%) | 기합의띠 41(13.9%), 생명의구슬 40(13.5%), 먹다남은음식 31(10.5%), 구애스카프 23(7.8%), 자뭉열매 22(7.4%), 하양허브 7(2.4%) |
+| Species | 269 | 269 |
+| Sets | 1329 to 310 | 1326 to 296 |
+| Sets per species | 1: 232, 2: 34, 3: 2, 4: 1 | 1: 247, 2: 18, 3: 3, 4: 1 |
+| Mega sets | 72 | 74 |
+| Distinct items | 108 | 106 |
+| Top items | 기합의띠 49 (15.8%), 먹다남은음식 38 (12.3%), 구애스카프 31 (10.0%), 자뭉열매 25 (8.1%), 생명의구슬 17 (5.5%), 울퉁불퉁멧 15 (4.8%) | 기합의띠 41 (13.9%), 생명의구슬 40 (13.5%), 먹다남은음식 31 (10.5%), 구애스카프 23 (7.8%), 자뭉열매 22 (7.4%), 하양허브 7 (2.4%) |
 
-세트가 둘 이상 남은 종(싱글): 이상해꽃(이상해꽃나이트 75%, 생명의구슬 25%), 리자몽(리자몽나이트X 62%, 리자몽나이트Y 38%), 히스이 윈디(기합의띠 60%, 구애스카프 22%, 기합의띠 18%), 갸라도스(갸라도스나이트 83%, 울퉁불퉁멧 17%), 메타몽(구애스카프 60%, 기합의띠 40%), 잠만보(먹다남은음식 60%, 먹다남은음식 40%), 망나뇽(망나뇽나이트 80%, 리샘열매 20%), 가라르 야도킹(슈캐열매 80%, 슈캐열매 20%), 핫삼(울퉁불퉁멧 47%, 울퉁불퉁멧 37%, 핫삼나이트 15%), 마기라스(마기라스나이트 75%, 풍선 25%), 대짱이(대짱이나이트 77%, 자뭉열매 23%), 패리퍼(축축한바위 89%, 구애스카프 11%), 엠페르트(슈캐열매 82%, 슈캐열매 18%), 찌르호크(찌르호크나이트 70%, 구애스카프 30%), 한카리아스(한카리아스나이트Z 80%, 한카리아스나이트 20%), 루카리오(루카리오나이트Z 79%, 루카리오나이트 21%), 맘모꾸리(기합의띠 61%, 기합의띠 39%), 히트로토무(자뭉열매 57%, 자뭉열매 43%), 워시로토무(먹다남은음식 59%, 먹다남은음식 41%), 히스이 대검귀(리샘열매 62%, 리샘열매 38%), 몰드류(기합의띠 33%, 기합의띠 31%, 구애스카프 20%, 기합의띠 17%), 개굴닌자(기합의띠 64%, 개굴닌자나이트 36%), 누리레느(자뭉열매 60%, 자뭉열매 40%), 에이스번(생명의구슬 84%, 구애스카프 16%), 아머까오(울퉁불퉁멧 79%, 울퉁불퉁멧 21%), 스트린더(생명의구슬 80%, 생명의구슬 20%), 브리무음(자뭉열매 81%, 자뭉열매 19%), 에써르(그라운드코트 73%, 구애스카프 27%), 사마자르(기합의띠 62%, 구애스카프 38%), 대쓰여너(구애스카프 69%, 저주의부적 31%), 포푸니크(노말주얼 53%, 노말주얼 47%), 마스카나(구애스카프 64%, 기합의띠 36%), 올리르바(자뭉열매 62%, 빛의점토 38%), 스코빌런(먹다남은음식 78%, 스코빌런나이트 22%), 킬라플로르(킬라플로르나이트 68%, 기합의띠 32%), 드닐레이브(드닐레이브나이트 52%, 기합의띠 48%), 브리두라스(먹다남은음식 50%, 먹다남은음식 50%). 더블: 리자몽(리자몽나이트Y 90%, 리자몽나이트X 10%), 라이츄(라이츄나이트Y 78%, 라이츄나이트X 22%), 픽시(자뭉열매 73%, 픽시나이트 14%, 자뭉열매 13%), 나인테일(구애스카프 63%, 목탄 37%), 알로라 나인테일(녹지않는얼음 65%, 녹지않는얼음 35%), 메타몽(구애스카프 60%, 자뭉열매 40%), 잠만보(먹다남은음식 84%, 먹다남은음식 16%), 파비코리(파비코리나이트 64%, 하반열매 36%), 밀로틱(먹다남은음식 61%, 먹다남은음식 39%), 한카리아스(한카리아스나이트Z 37%, 구애스카프 36%, 생명의구슬 17%, 한카리아스나이트 10%), 루카리오(루카리오나이트Z 90%, 루카리오나이트 10%), 하마돈(먹다남은음식 71%, 먹다남은음식 17%, 먹다남은음식 12%), 엘레이드(하양허브 50%, 하양허브 50%), 불카모스(울퉁불퉁멧 59%, 울퉁불퉁멧 21%, 울퉁불퉁멧 20%), 파이어로(예리한부리 68%, 예리한부리 32%), 따라큐(생명의구슬 63%, 생명의구슬 37%), 짜랑고우거(생명의구슬 51%, 생명의구슬 49%), 에써르(울퉁불퉁멧 62%, 울퉁불퉁멧 38%), 대쓰여너(생명의구슬 74%, 구애스카프 26%), 파밀리쥐(광각렌즈 64%, 광각렌즈 36%), 킬라플로르(기합의띠 56%, 킬라플로르나이트 44%), 드닐레이브(드닐레이브나이트 78%, 생명의구슬 22%).
+Species keeping two or more sets (Singles): 이상해꽃(이상해꽃나이트 75%, 생명의구슬 25%), 리자몽(리자몽나이트X 62%, 리자몽나이트Y 38%), 히스이 윈디(기합의띠 60%, 구애스카프 22%, 기합의띠 18%), 갸라도스(갸라도스나이트 83%, 울퉁불퉁멧 17%), 메타몽(구애스카프 60%, 기합의띠 40%), 잠만보(먹다남은음식 60%, 먹다남은음식 40%), 망나뇽(망나뇽나이트 80%, 리샘열매 20%), 가라르 야도킹(슈캐열매 80%, 슈캐열매 20%), 핫삼(울퉁불퉁멧 47%, 울퉁불퉁멧 37%, 핫삼나이트 15%), 마기라스(마기라스나이트 75%, 풍선 25%), 대짱이(대짱이나이트 77%, 자뭉열매 23%), 패리퍼(축축한바위 89%, 구애스카프 11%), 엠페르트(슈캐열매 82%, 슈캐열매 18%), 찌르호크(찌르호크나이트 70%, 구애스카프 30%), 한카리아스(한카리아스나이트Z 80%, 한카리아스나이트 20%), 루카리오(루카리오나이트Z 79%, 루카리오나이트 21%), 맘모꾸리(기합의띠 61%, 기합의띠 39%), 히트로토무(자뭉열매 57%, 자뭉열매 43%), 워시로토무(먹다남은음식 59%, 먹다남은음식 41%), 히스이 대검귀(리샘열매 62%, 리샘열매 38%), 몰드류(기합의띠 33%, 기합의띠 31%, 구애스카프 20%, 기합의띠 17%), 개굴닌자(기합의띠 64%, 개굴닌자나이트 36%), 누리레느(자뭉열매 60%, 자뭉열매 40%), 에이스번(생명의구슬 84%, 구애스카프 16%), 아머까오(울퉁불퉁멧 79%, 울퉁불퉁멧 21%), 스트린더(생명의구슬 80%, 생명의구슬 20%), 브리무음(자뭉열매 81%, 자뭉열매 19%), 에써르(그라운드코트 73%, 구애스카프 27%), 사마자르(기합의띠 62%, 구애스카프 38%), 대쓰여너(구애스카프 69%, 저주의부적 31%), 포푸니크(노말주얼 53%, 노말주얼 47%), 마스카나(구애스카프 64%, 기합의띠 36%), 올리르바(자뭉열매 62%, 빛의점토 38%), 스코빌런(먹다남은음식 78%, 스코빌런나이트 22%), 킬라플로르(킬라플로르나이트 68%, 기합의띠 32%), 드닐레이브(드닐레이브나이트 52%, 기합의띠 48%), 브리두라스(먹다남은음식 50%, 먹다남은음식 50%).
 
-기합의띠는 6종 중 1종꼴입니다. 랜덤 파티와 도전의 탑의 같은 도구 금지에서 도구가 겹친 종은 이제 다른 도구로 내려가지 않고 그 자리를 다른 종에게 넘깁니다.
+Doubles: 리자몽(리자몽나이트Y 90%, 리자몽나이트X 10%), 라이츄(라이츄나이트Y 78%, 라이츄나이트X 22%), 픽시(자뭉열매 73%, 픽시나이트 14%, 자뭉열매 13%), 나인테일(구애스카프 63%, 목탄 37%), 알로라 나인테일(녹지않는얼음 65%, 녹지않는얼음 35%), 메타몽(구애스카프 60%, 자뭉열매 40%), 잠만보(먹다남은음식 84%, 먹다남은음식 16%), 파비코리(파비코리나이트 64%, 하반열매 36%), 밀로틱(먹다남은음식 61%, 먹다남은음식 39%), 한카리아스(한카리아스나이트Z 37%, 구애스카프 36%, 생명의구슬 17%, 한카리아스나이트 10%), 루카리오(루카리오나이트Z 90%, 루카리오나이트 10%), 하마돈(먹다남은음식 71%, 먹다남은음식 17%, 먹다남은음식 12%), 엘레이드(하양허브 50%, 하양허브 50%), 불카모스(울퉁불퉁멧 59%, 울퉁불퉁멧 21%, 울퉁불퉁멧 20%), 파이어로(예리한부리 68%, 예리한부리 32%), 따라큐(생명의구슬 63%, 생명의구슬 37%), 짜랑고우거(생명의구슬 51%, 생명의구슬 49%), 에써르(울퉁불퉁멧 62%, 울퉁불퉁멧 38%), 대쓰여너(생명의구슬 74%, 구애스카프 26%), 파밀리쥐(광각렌즈 64%, 광각렌즈 36%), 킬라플로르(기합의띠 56%, 킬라플로르나이트 44%), 드닐레이브(드닐레이브나이트 78%, 생명의구슬 22%).
 
-### 함께 바꾼 것
+기합의띠 appears on roughly 1 in 6 species. Under item clause in random parties and `도전의 탑`, a species with an already-taken item now yields its slot to another species instead of falling back to a different item.
 
-- `scripts/learn-cpu-sets.mjs`: 선수의 세트가 어느 빌드와 2번 규칙으로 같으면 그 빌드의 표가 됩니다. 빌드가 없는 세트도 서로 같은 것끼리 묶여 새 세트 하나로 들어갑니다(서로 다른 세 사람 이상, 종마다 둘까지). 그래서 주간 학습이 기술 하나씩 다른 세트를 다시 늘리지 않고, 새 세트는 언제나 도구 하나입니다.
-- `supabase/functions/battle/towerBuild.mjs`: 종마다 빌드가 하나가 되어 도전의 탑 상대의 좁은 요구를 채우는 종이 몇 안 되어 같은 종이 몰렸습니다. 12종 미만만 채우는 요구는 다음 요구로 넘깁니다(docs/BATTLE_STREAK.md 15.7).
-- 테스트: 종마다 세트 셋 이상(M-C는 하나 이상으로, M-B는 그대로), 주역할마다 50세트 이상(10으로), 이상해꽃의 구애스카프 읽기(세트가 메가 하나뿐이라 변형 후보가 없어 고릴타로 바꿈), 기억을 이어 받는 배틀의 씨앗(41에서 44로, 41에서는 지울 후보가 남지 않음), 학습 테스트의 한 사람 묶음(파티 풀의 종 수에 기대던 배치를 고침).
-- `docs/sample-sets/*.md`: 세트 수와 가장 많이 쓰이는 빌드의 도구를 고쳤습니다. 정리 뒤 가장 무거운 빌드가 정리 전 가장 많이 쓰인 세트와 다른 종(싱글 8, 더블 5)은 "추가 검증 필요"에 그 빌드를 적었습니다. 피해 계산은 다시 하지 않았습니다(`STATS_CACHE`가 필요합니다).
+### Related changes
 
-### 측정
+- `scripts/learn-cpu-sets.mjs`: a player's set matching an existing build under rule 2 votes for that build. Unmatched sets cluster together into a single new set (at least three distinct players, up to two per species), so weekly learning never recreates one-move variants and every new set keeps one item.
+- `supabase/functions/battle/towerBuild.mjs`: with one build per species, narrow `도전의 탑` opponent constraints matched too few species and repeated them. Any constraint matching fewer than 12 species now skips to the next constraint (`docs/BATTLE_STREAK.md` section 15.7).
+- Tests: lowered minimum sets per species from 3 to 1 for M-C (M-B unchanged), lowered minimum sets per primary role from 50 to 10, switched the 이상해꽃 구애스카프 inference test to 고릴타 (이상해꽃 now has only a Mega set with no variant candidate), changed the memory-persistence battle seed from 41 to 44 (seed 41 left no candidates to eliminate), and fixed single-player batching in the learning test that had depended on pool species count.
+- `docs/sample-sets/*.md`: updated set counts and primary build items. For species whose heaviest post-curation build differed from the heaviest pre-curation set (8 in singles, 5 in doubles), that build is noted under `"추가 검증 필요"`. Damage calcs were not re-run (requires `STATS_CACHE`).
 
-| 날짜 | 바꾼 것 | 결과 | 결정 |
+### Benchmarks
+
+| Date | Change | Result | Decision |
 |---|---|---|---|
-| 2026-11-18 | (역할 규칙 전의 280세트로 잼) 정리한 세트 대 정리 전 세트(노력치 재배분까지), 컴퓨터가 정리한 세트를 알 때 | 싱글 400판 50.2% ± 4.3 | 남김. 세기 차이가 드러나지 않았다. 정리한 세트는 상대에게 정확히 읽히는 불리를 안고 같은 세기다 |
-| 2026-11-18 | 같은 컴퓨터 코드(HEAD) 대 지금 폴더, 랜덤 파티가 정리한 세트에서 나옴 | 싱글 300판 50.3% ± 4.5, Elo +2 [-29, 34], 거절 0, 평균 1305 ms, 최대 3444 ms | 고르는 법은 그대로다. 정리한 데이터에서 거절 없이 끝까지 두는지를 본 것이다 |
+| 2026-11-18 | Curated sets (measured on the 280-set build before role rules) vs pre-curation tuned sets, with CPU knowing curated sets | Singles 400 games: 50.2% ± 4.3 | Kept. No strength drop even under the penalty of being read accurately |
+| 2026-11-18 | Same CPU code (HEAD) vs working tree, random parties drawn from curated sets | Singles 300 games: 50.3% ± 4.5, Elo +2 [-29, 34], 0 rejections, avg 1305 ms, max 3444 ms | Confirms the CPU completes games with zero rejections on curated data without changing decision logic |
 
-### 남은 것
+### Remaining work
 
-- 컴퓨터의 믿음이 종마다 거의 한 세트라, 선수가 샘플과 다른 세트를 들고 오면 처음에는 틀린 믿음으로 둡니다. 이 효과는 3장의 약 12점(믿음의 정확도)과 같은 종류이고, 이번 측정(양쪽 모두 샘플 세트)으로는 재지 못합니다. `--parties tuned`나 `players`로 재는 것이 다음입니다.
-- `species-power.json`과 `tower-tiers.json`은 2026-11-19에 지금의 세트로, 세트마다 다시 쟀습니다(BATTLE_STREAK.md 19장).
-- 배틀 함수도 `random-sets.json`을 읽으므로 반영하려면 `npm run build:battle` 후 함수를 배포합니다.
+- Because the CPU's belief pool holds almost one set per species, off-meta player sets initially trigger wrong assumptions. That mirrors the 12-point belief accuracy effect from section 3 and cannot be measured when both sides use sample sets; benchmarking with `--parties tuned` or `players` is the next step.
+- `species-power.json` and `tower-tiers.json` were re-measured per sample set on 2026-11-19 (`BATTLE_STREAK.md` chapter 19).
+- The `battle` Edge Function also reads `random-sets.json`, so run `npm run build:battle` and redeploy the function to apply changes.

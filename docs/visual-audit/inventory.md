@@ -1,335 +1,335 @@
-# 화면 상태 목록 (시각 검수 1단계)
+# Screen state inventory (visual audit stage 1)
 
-2026-11-22 작성. 코드에서 읽어낸, 사용자가 볼 수 있는 모든 화면 상태다. 각 항목의 ID(예: `HOME-03`)는 2단계 캡처 스크립트의 파일 이름과 보고서의 참조로 그대로 쓴다.
-경로는 `src/` 기준. **[쓰기]** 는 서버나 site_data를 바꾸는 동작으로, 누르기 직전 화면까지만 찍는다.
+Written 2026-11-22. Every user-visible screen state extracted from the codebase. Each item ID (such as `HOME-03`) is used as the filename in the stage 2 capture script and as the reference in the diagnostic report.
+Paths are relative to `src/`. Items marked `[write]` mutate server state or `site_data` and are captured only up to the state right before clicking.
 
-## 0. 캡처 조건
+## 0. Capture conditions
 
-### 뷰포트 (요청 + 코드의 실제 분기점)
+### Viewports (requested and code breakpoints)
 
-| 묶음 | 크기 | 이유 |
+| Group | Size | Reason |
 |---|---|---|
-| 모바일 | 360x800, 390x844, 430x932 | 요청 |
-| 분기 379/380 | 379x800, 380x800 | `battle.css:839` (max-width 379) |
-| 분기 600/601 | 600x900, 601x900 | `battle.css` 6곳 (max-width 600) |
-| 분기 639/640 | 639x900, 640x900 | 576 기둥 시작 (`tokens.css:128`), 14곳 |
-| 태블릿 | 768x1024 | 요청 (640~859 구간 안) |
-| 분기 859/860 | 859x900, 860x900 | 데스크톱 전환, 100곳 이상 (`tokens.css:129`) |
-| 분기 1099/1100 | 1099x900, 1100x900 | 전체 탭 노출 (`Navigation.jsx:14`), 빌더, 계산기 |
-| 분기 1199/1200 | 1199x900, 1200x900 | 배틀 옆 기둥 (`battle.css`, `BattlePage.jsx:51-53`) |
-| 데스크톱 | 1280x800, 1440x900, 1920x1080 | 요청 |
-| 높이 분기 | 390x480, 390x760 | `max-height: 480`, `min-height: 760` (859 이하) |
+| Mobile | 360x800, 390x844, 430x932 | Requested |
+| Breakpoint 379/380 | 379x800, 380x800 | `battle.css:839` (max-width 379) |
+| Breakpoint 600/601 | 600x900, 601x900 | 6 places in `battle.css` (max-width 600) |
+| Breakpoint 639/640 | 639x900, 640x900 | 576 column starts (`tokens.css:128`), 14 places |
+| Tablet | 768x1024 | Requested (within 640 to 859 range) |
+| Breakpoint 859/860 | 859x900, 860x900 | Desktop switch, 100+ places (`tokens.css:129`) |
+| Breakpoint 1099/1100 | 1099x900, 1100x900 | All tabs shown (`Navigation.jsx:14`), builder, calculator |
+| Breakpoint 1199/1200 | 1199x900, 1200x900 | Battle side column (`battle.css`, `BattlePage.jsx:51-53`) |
+| Desktop | 1280x800, 1440x900, 1920x1080 | Requested |
+| Height breakpoints | 390x480, 390x760 | `max-height: 480`, `min-height: 760` (at 859 and below) |
 
-- 테마: 다크(기본), 라이트. 고대비 두 가지(`data-contrast=more`)는 보조로 홈과 대표 화면 몇 개만 찍는다.
-- 모션 녹화: `scripts/record-transition.cjs` (Chrome 스크린캐스트, 프레임 시트), 배틀은 `scripts/measure-frames.cjs`. reduced-motion 비교도 한다.
-- 데이터 환경:
-  - 공개 화면: `ypl-dev-prod-data` (5183, 운영 데이터 읽기). 쓰기 동작은 누르지 않는다.
-  - 관리자 화면: 운영 데이터 위에서는 사용자가 직접 로그인한 세션을 저장해 쓴다. 쓰기 직전까지만 찍는다. 대안으로 `ypl-dev-offline` (5182, Supabase 없음, 아무 입력으로 로그인, 데이터는 localStorage) 에서는 쓰기를 실행해도 운영에 닿지 않는다.
-  - 극단 데이터(긴 이름, 0건, 수백 건): Playwright route 가로채기로 Supabase 응답을 바꿔 만든다. 실제 데이터는 건드리지 않는다.
-  - 배틀: 컴퓨터 대전은 오프라인으로 끝까지 돈다. 배틀 내부 상태는 `?view=lab` (개발 서버 전용)으로 강제한다. 실시간 2인 상태와 도전의 탑 진행 상태는 아래 "캡처 공백"을 본다.
+- Themes cover dark (default) and light. Both high-contrast modes (`data-contrast=more`) are captured as a secondary check on home and a few representative screens.
+- Motion recordings use `scripts/record-transition.cjs` (Chrome screencast, frame sheets) and `scripts/measure-frames.cjs` for battle, including reduced-motion comparisons.
+- Data environments follow four setups:
+  - Public screens run on `ypl-dev-prod-data` (5183, read-only production data) without triggering write actions.
+  - Admin screens on production data reuse a session where the user logged in manually and stop right before any write. Alternatively, `ypl-dev-offline` (5182, no Supabase, accepts any login input, stores data in localStorage) allows running writes without touching production.
+  - Extreme data (long names, 0 items, hundreds of items) is simulated by intercepting Supabase responses through Playwright routes without modifying real data.
+  - CPU battles run offline to completion. Internal battle states are forced with `?view=lab` (dev server only). Real-time two-player states and `도전의 탑` progression states are listed under "Capture gaps" below.
 
-## 1. 공통 셸 (모든 화면)
+## 1. Shared shell (all screens)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| SHELL-01 | 상단 바: 5탭(1100 미만) / 전체 탭(1100 이상), 진행 중 램프 켜짐·꺼짐, 테마 버튼(해/달) | `layout/SiteHeader.jsx:73-100`, `Navigation.jsx:14-18` |
-| SHELL-02 | 상단 바 계정 버튼: 숨김(계정 꺼짐) / "내 기록" / 연결된 이름(긴 이름 포함) | `SiteHeader.jsx:48-68` |
-| SHELL-03 | 휴대폰 탭 바(859 이하): 현재 탭, 더보기 안의 화면일 때 더보기 현재, 대진표 라이브 램프 | `Navigation.jsx:25-40` |
-| SHELL-04 | 더보기 메뉴: 데스크톱 팝오버 / 휴대폰 시트 | `common/Menu.jsx:45-62`, `App.jsx:296-301` |
-| SHELL-05 | 푸터: 비관리자(관리자 로그인 링크) / 관리자 | `layout/SiteFooter.jsx:12-42` |
-| SHELL-06 | 대회 당일 LiveStrip (홈과 대진표 제외 모든 화면) | `App.jsx:312`, `Board.jsx:126-133` |
-| SHELL-07 | 첫 로딩: `page--wait` + Loader | `App.jsx:309-310`, `shell.css:79` |
-| SHELL-08 | 화면 이동 중: 옛 화면 .382로 어두워짐, 260ms 넘으면 가운데 busy 칸 | `shell.css:102-103`, `App.jsx:331` |
-| SHELL-09 | 지연 로딩 화면: 로딩 / 실패("화면을 불러오지 못했습니다." + 새로고침) / 모달형 로딩·실패 | `common/LazyContent.jsx:117-139` |
-| SHELL-10 | 404 ("페이지를 찾을 수 없습니다.", 404 세그먼트 120) | `pages/StatusPage.jsx`, `main.jsx:97-98` |
-| SHELL-11 | 500 ("화면을 표시하지 못했습니다.", 새로고침) | `main.jsx:68-87` |
-| SHELL-12 | 토스트: 일반 / 실패(! 칸) / 행동 단어(되돌리기) / 여러 개 쌓임 / 관리자 독 위 / 페이지 독 위 | `common/Toaster.jsx`, `components.css:166-179` |
-| SHELL-13 | 확인 창(SiteDialog): alert / confirm / danger confirm / prompt / 비밀번호 prompt | `common/SiteDialog.jsx:29-78` |
-| SHELL-14 | 시트(휴대폰): 열림, 끌어내림 중, 닫힘. 640~859는 576 기둥 | `common/Modal.jsx:114-156`, `components.css:230` |
-| SHELL-15 | 대화상자(데스크톱): 기본 폭 / `.wide` | `components.css:231-236` |
-| SHELL-16 | 드롭다운: 데스크톱 메뉴 / 휴대폰 시트 / 빈 목록("항목 없음") / 비활성 항목 | `common/Dropdown.jsx` |
-| SHELL-17 | 고르기 시트(PickerSheet): 검색, 지움 키, 최근 고른 것, 그룹 머리, 커서, 선택, 비활성+이유, 빈 결과 | `common/PickerSheet.jsx:17-86` |
-| SHELL-18 | 빈 상태(Empty), 오류 문장(ErrorNote + 다시 시도), Loader 큰 것 / small | `common/Empty.jsx`, `ErrorNote.jsx`, `Loader.jsx` |
-| SHELL-19 | 건너뛰기 링크(키보드 포커스 시) | `App.jsx:305`, `shell.css:9-14` |
-| SHELL-20 | 상호작용 상태: hover(70개 블록), focus-visible 링, :active 누름 .976, disabled, aria-busy 키 | `tokens.css:175, 228-235` |
+| SHELL-01 | Top bar: 5 tabs (under 1100) / all tabs (1100 and above), live lamp on and off, theme button (sun/moon) | `layout/SiteHeader.jsx:73-100`, `Navigation.jsx:14-18` |
+| SHELL-02 | Top bar account button: hidden (accounts disabled) / "내 기록" / linked name (including long names) | `SiteHeader.jsx:48-68` |
+| SHELL-03 | Mobile tab bar (859 and below): active tab, "더보기" active when inside a nested view, bracket live lamp | `Navigation.jsx:25-40` |
+| SHELL-04 | "더보기" menu: desktop popover / mobile sheet | `common/Menu.jsx:45-62`, `App.jsx:296-301` |
+| SHELL-05 | Footer: non-admin (admin login link) / admin | `layout/SiteFooter.jsx:12-42` |
+| SHELL-06 | Tournament-day LiveStrip (all screens except home and brackets) | `App.jsx:312`, `Board.jsx:126-133` |
+| SHELL-07 | Initial load: `page--wait` + Loader | `App.jsx:309-310`, `shell.css:79` |
+| SHELL-08 | Page transition: previous screen dims to .382, centered busy cell appears after 260ms | `shell.css:102-103`, `App.jsx:331` |
+| SHELL-09 | Lazy-loaded screen: loading / failed ("화면을 불러오지 못했습니다." + reload) / modal loading and failure | `common/LazyContent.jsx:117-139` |
+| SHELL-10 | 404 ("페이지를 찾을 수 없습니다.", 404 segment at 120) | `pages/StatusPage.jsx`, `main.jsx:97-98` |
+| SHELL-11 | 500 ("화면을 표시하지 못했습니다.", reload) | `main.jsx:68-87` |
+| SHELL-12 | Toast: normal / error (`!` cell) / action word (undo) / multiple stacked / above admin dock / above page dock | `common/Toaster.jsx`, `components.css:166-179` |
+| SHELL-13 | Confirmation dialog (SiteDialog): alert / confirm / danger confirm / prompt / password prompt | `common/SiteDialog.jsx:29-78` |
+| SHELL-14 | Mobile sheet: open, dragging down, closed. 640 to 859 uses a 576 column | `common/Modal.jsx:114-156`, `components.css:230` |
+| SHELL-15 | Desktop dialog: default width / `.wide` | `components.css:231-236` |
+| SHELL-16 | Dropdown: desktop menu / mobile sheet / empty list ("항목 없음") / disabled item | `common/Dropdown.jsx` |
+| SHELL-17 | PickerSheet: search, clear key, recent picks, group header, cursor, selected, disabled with reason, empty result | `common/PickerSheet.jsx:17-86` |
+| SHELL-18 | Empty state (Empty), error message (ErrorNote + retry), Loader large / small | `common/Empty.jsx`, `ErrorNote.jsx`, `Loader.jsx` |
+| SHELL-19 | Skip link (on keyboard focus) | `App.jsx:305`, `shell.css:9-14` |
+| SHELL-20 | Interactive states: hover (70 blocks), focus-visible ring, `:active` press .976, disabled, `aria-busy` button | `tokens.css:175, 228-235` |
 
-### 공통 모션
+### Shared motion
 
-| ID | 전환 | 값 | 위치 |
+| ID | Transition | Values | Location |
 |---|---|---|---|
-| MOT-01 | 첫 진입 점등: 패널 38 간격, 세그먼트 62 간격, 12 올라오며 420 | EASE_OUT | `motion.js:39-68`, `App.jsx:106` |
-| MOT-02 | 화면 이동 (나감 dim → 새 화면 light) / 뒤로 가기 | leave 260, light 420 | `motion.js:121`, `App.jsx:150,191` |
-| MOT-03 | 화면 안의 화면 (공지 글, 게시글, 대진표, 신청서, 마법사) 들어가기·나오기 | 같음 | `NewsPage.jsx:117-158`, `BoardPage.jsx:242-443`, `BracketsPage.jsx:2627-3076` |
-| MOT-04 | 탭 밑줄 미끄러짐 + 새 내용 점등 | 420 | `motion.js:77-92,154`, `Board.jsx:14-37` |
-| MOT-05 | 칩·타입 격자·페이저 바꿈 후 목록 점등 | light | `Board.jsx:35-38,302-327`, `Pager.jsx:9` |
-| MOT-06 | 늦게 온 그림 묶음 점등 (최대 1200 대기) | tone | `Board.jsx:138-154` |
-| MOT-07 | 접힘 펼치기: 행이 38 간격으로 올라옴, 셰브런 회전 | 420 | `tokens.css:243-246` |
-| MOT-08 | 시트 열기(스프링)·닫기(260 ease-in), 끌기 속도 인계 | | `Modal.jsx:72-156` |
-| MOT-09 | 데스크톱 대화상자 열기(12 올라옴 420)·닫기(12 내려감 160) | | `Modal.jsx:75,113` |
-| MOT-10 | 팝오버·드롭다운 페이드 160 | | `Menu.jsx:55-62`, `Dropdown.jsx:11` |
-| MOT-11 | 토스트 들어옴(12, 420) / 나감(260) | | `Toaster.jsx:14-18` |
-| MOT-12 | 오류 문장·폼 오류 y-rise | | `tokens.css:248` |
-| MOT-13 | 테마 전환: 옛 바탕 .618 → 0, 260 + 해/달 회전 | | `motion.js:131-150`, `tokens.css:261-265` |
-| MOT-14 | busy 칸 회전 840 | | `shell.css:90-100` |
-| MOT-15 | 세그먼트 값 바뀜 tone 한 번 | 160 | `Seg.jsx:19` |
-| MOT-16 | prefers-reduced-motion 전체 (CSS 9곳 + JS `reduced()`) | | `tokens.css:230,250-259`, `motion.js:11` |
+| MOT-01 | First-entry light-up: panels staggered by 38, segments by 62, 12 rise over 420 | EASE_OUT | `motion.js:39-68`, `App.jsx:106` |
+| MOT-02 | Page navigation (leave dim, then new screen light) / back navigation | leave 260, light 420 | `motion.js:121`, `App.jsx:150,191` |
+| MOT-03 | Sub-views inside a page (notice post, board post, bracket, registration form, wizard) enter and exit | Same | `NewsPage.jsx:117-158`, `BoardPage.jsx:242-443`, `BracketsPage.jsx:2627-3076` |
+| MOT-04 | Tab underline slide + new content light-up | 420 | `motion.js:77-92,154`, `Board.jsx:14-37` |
+| MOT-05 | List light-up after changing chips, type grid, or pager | light | `Board.jsx:35-38,302-327`, `Pager.jsx:9` |
+| MOT-06 | Late image batch light-up (waits up to 1200) | tone | `Board.jsx:138-154` |
+| MOT-07 | Disclosure expand: rows rise staggered by 38, chevron rotates | 420 | `tokens.css:243-246` |
+| MOT-08 | Sheet open (spring) and close (260 ease-in), drag velocity handoff | | `Modal.jsx:72-156` |
+| MOT-09 | Desktop dialog open (12 rise over 420) and close (12 drop over 160) | | `Modal.jsx:75,113` |
+| MOT-10 | Popover and dropdown fade 160 | | `Menu.jsx:55-62`, `Dropdown.jsx:11` |
+| MOT-11 | Toast enter (12, 420) / exit (260) | | `Toaster.jsx:14-18` |
+| MOT-12 | Error message and form error y-rise | | `tokens.css:248` |
+| MOT-13 | Theme switch: old background fades from .618 to 0 over 260 + sun/moon rotation | | `motion.js:131-150`, `tokens.css:261-265` |
+| MOT-14 | Busy cell rotation 840 | | `shell.css:90-100` |
+| MOT-15 | Segment value change tone pulse | 160 | `Seg.jsx:19` |
+| MOT-16 | `prefers-reduced-motion` across the site (9 CSS places + JS `reduced()`) | | `tokens.css:230,250-259`, `motion.js:11` |
 
-## 2. 홈 (`?view` 없음)
+## 2. Home (no `?view`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| HOME-01 | 다가오는 대회 없음 + 지난 대회 있음 (우승 행, 첫 행 반전) | `HomePage.jsx:222-231` |
-| HOME-02 | 다가오는 대회도 지난 대회도 없음 (꺼진 세그먼트) | `:238,246` |
-| HOME-03 | 카운트다운 (D-day 120, 두 자리 / 100일 이상 세 자리), 이름 32, 일시·신청 마감·형식 | `:238-250` |
-| HOME-04 | 신청 접수 중 (앰버 램프, "이번 대회 신청") | `:213,236-237` |
-| HOME-05 | 대회 당일 (시계 세그먼트, 시간 없을 때 빈 칸) | `:234-245` |
-| HOME-06 | 파티 제출 카운터 (일 / 시간+앰버) | `:253-256` |
-| HOME-07 | 주 버튼 문구 다섯 가지 | `:213,257-259` |
-| HOME-08 | 로그인+연결된 선수, 당일: 내 다음 경기 (상대 결정 전 / 곧 시작 / 진행 중), 체크인 전·완료 | `:260-279` |
-| HOME-09 | 지금 경기 묶음 (라이브 경기, 진행 행, 관전 줄) | `:280-292` |
-| HOME-10 | 챔피언 패널: 꺼짐 → 켜짐, 세대 0일 때 | `:215`, `Board.jsx:171-191` |
-| HOME-11 | 기록 읽기 실패 (ErrorNote) | `:297` |
-| HOME-12 | 시즌 순위: 뼈대 / 5행 / 단독 선두 반전 / 시즌 없음(숨김) | `:300-303`, `StandTable.jsx` |
-| HOME-13 | 공지: 리드 + 2행, 새 글 램프, 고정 / 0건(숨김) | `:305-312` |
-| HOME-14 | 역대 챔피언 벽: 2명 / 아주 많을 때 | `:315-323` |
-| HOME-15 | 챔피언 시트 (현 챔피언 / 명예의 전당, 세트 있음 / 없음) | `common/ChampionSheet.jsx` |
-| HOME-M | 첫 방문 점등, 늦은 섹션 점등, 재방문 무점등 | `:108-119` |
+| HOME-01 | No upcoming tournament + past tournament exists (winner row, first row inverted) | `HomePage.jsx:222-231` |
+| HOME-02 | Neither upcoming nor past tournament (unlit segment) | `:238,246` |
+| HOME-03 | Countdown (D-day 120, two digits / 100+ days three digits), title 32, date, registration deadline, format | `:238-250` |
+| HOME-04 | Registration open (amber lamp, "이번 대회 신청") | `:213,236-237` |
+| HOME-05 | Tournament day (clock segment, empty slot when no time is set) | `:234-245` |
+| HOME-06 | Party submission counter (days / hours with amber) | `:253-256` |
+| HOME-07 | Five primary button labels | `:213,257-259` |
+| HOME-08 | Logged in + linked player on tournament day: "내 다음 경기" (opponent TBD / starting soon / live), before and after check-in | `:260-279` |
+| HOME-09 | Live matches block (live matches, progress row, spectate row) | `:280-292` |
+| HOME-10 | Champion panel: unlit to lit, when generation is 0 | `:215`, `Board.jsx:171-191` |
+| HOME-11 | Records load failure (ErrorNote) | `:297` |
+| HOME-12 | Season standings: skeleton / 5 rows / sole leader inverted / no season (hidden) | `:300-303`, `StandTable.jsx` |
+| HOME-13 | Notices: lead + 2 rows, new post lamp, pinned / 0 items (hidden) | `:305-312` |
+| HOME-14 | Past champions wall: 2 champions / many champions | `:315-323` |
+| HOME-15 | Champion sheet (current champion / hall of fame, with and without sets) | `common/ChampionSheet.jsx` |
+| HOME-M | First-visit light-up, late section light-up, no light-up on revisit | `:108-119` |
 
-## 3. 소개 (`?view=about`)
+## 3. About (`?view=about`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| ABOUT-01 | 정적 화면 전체 (리드, 단계 문, 시즌 흐름, 연혁 4개, 대회 셋, 정규 리그) | `AboutPage.jsx:46-95` |
+| ABOUT-01 | Full static screen (lead, stage doors, season flow, 4 milestones, three tournaments, regular league) | `AboutPage.jsx:46-95` |
 
-## 4. 공지 (`?view=news`)
+## 4. Notices (`?view=news`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| NEWS-01 | 목록: 다가오는 대회 섹션, 리드 + 행, 페이저 (8개씩) | `NewsPage.jsx:266-287` |
-| NEWS-02 | 검색 입력 중 (N건) / 결과 없음 (0건 + 최근 공지) | `:279-284` |
-| NEWS-03 | 공지 0건 | `:285` |
-| NEWS-04 | 글 없음 (로딩 → "공지를 찾을 수 없습니다.") | `:169-172` |
-| NEWS-05 | 글: 머리, 카운터(까지 N일 / 오늘 진행 중), 신청 수 N명(꺼짐→켜짐), 스펙 행, 옆 버튼들, 다른 공지, 본문 | `:205-240` |
-| NEWS-06 | 글 주 버튼: 참가 신청 / 파티 제출 / 신청 마감(비활성) | `:191,233` |
-| NEWS-07 | 신청 현황 접힘 / 펼침(행 / "아직 신청자가 없습니다.") | `:293-327` |
-| NEWS-08 | 링크 공유 → "주소를 복사했습니다." | `:221-228` |
-| NEWS-09 | 신청서: 빈 상태 (구글 줄 로그아웃 / 로그인·승인 / 확인 중) | `:481-490` |
-| NEWS-10 | 신청서: 입력 중, 비슷한 이름, 같은 이름 기록 + 본인 확인 | `:491-515` |
-| NEWS-11 | 신청서: 질문 다섯 종류 (짧은, 긴, 하나, 여럿, 드롭다운) / 질문 0개 | `:517-529` |
-| NEWS-12 | 신청서: 검증 오류 (필수 전부 한꺼번에) | `:491-529` |
-| NEWS-13 | 신청서: 제출 중 / 실패 토스트(다시 시도) / 접수 완료(반전 패널) | `:451-454,474-476` |
-| NEWS-14 | 신청 수정: 이름+비밀번호 단계, 오류, 불러오는 중 | `:455-469` |
-| NEWS-15 | 신청서 옆 사실(일시, 마감, 루키·마스터 함께) | `:439-446` |
-| ADM-NEWS-01 | 관리자: 공지 작성 링크, 응답 보기 N, 수정 | `:229-232,266` |
-| ADM-NEWS-02 | 신청자 시트: 카운터, 리그 나눔, 검색, CSV, 칩, 행, 빈 상태 | `:565-589` |
-| ADM-NEWS-03 | 비밀번호 초기화 / 신청 삭제 / 응답 삭제 확인 창 [쓰기] | `:130-138,584` |
+| NEWS-01 | List: upcoming tournament section, lead + rows, pager (8 per page) | `NewsPage.jsx:266-287` |
+| NEWS-02 | Typing search query (N results) / no results (0 results + recent notices) | `:279-284` |
+| NEWS-03 | 0 notices | `:285` |
+| NEWS-04 | Missing post (loading, then "공지를 찾을 수 없습니다.") | `:169-172` |
+| NEWS-05 | Post: header, counter ("까지 N일" / "오늘 진행 중"), applicant count N명 (unlit to lit), spec rows, side buttons, other notices, body | `:205-240` |
+| NEWS-06 | Post primary button: "참가 신청" / "파티 제출" / "신청 마감" (disabled) | `:191,233` |
+| NEWS-07 | Applicant list collapsed / expanded (rows / "아직 신청자가 없습니다.") | `:293-327` |
+| NEWS-08 | Share link copies URL ("주소를 복사했습니다.") | `:221-228` |
+| NEWS-09 | Registration form: empty (Google row logged out / logged in and approved / checking) | `:481-490` |
+| NEWS-10 | Registration form: typing, similar name, matching name record + identity confirmation | `:491-515` |
+| NEWS-11 | Registration form: five question types (short, long, single choice, multiple choice, dropdown) / 0 questions | `:517-529` |
+| NEWS-12 | Registration form: validation errors (all required fields at once) | `:491-529` |
+| NEWS-13 | Registration form: submitting / failure toast (retry) / confirmation (inverted panel) | `:451-454,474-476` |
+| NEWS-14 | Edit registration: name + password step, error, loading | `:455-469` |
+| NEWS-15 | Registration form side facts (date, deadline, rookie and master combined) | `:439-446` |
+| ADM-NEWS-01 | Admin: write notice link, view responses N, edit | `:229-232,266` |
+| ADM-NEWS-02 | Applicants sheet: counter, league split, search, CSV, chips, rows, empty state | `:565-589` |
+| ADM-NEWS-03 | Password reset / delete registration / delete response confirmation dialog `[write]` | `:130-138,584` |
 
-## 5. 게시판 (`?view=board`)
+## 5. Board (`?view=board`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| BOARD-01 | 자유 목록: 로딩 / 오류 / 빈 / 검색 빈 / 행(관리자 전용 표시, 댓글 N) / 페이저 | `BoardPage.jsx:286-303` |
-| BOARD-02 | 자유 글: 없음 / 본문 + 유튜브·사진·링크 첨부 / 제목 없음 | `:261-283` |
-| BOARD-03 | 댓글: 답글 한 단계, 수정됨, 답글 폼 열림, 계정 이름으로 쓰기, 오류 | `:175-219` |
-| BOARD-04 | 새 글 시트: 빈 / 입력 / 오류 전부 / 사진 올리는 중·실패 / 비공개 힌트 / 배틀에서 넘어온 초안 | `:64-98,238` |
-| BOARD-05 | 글·댓글 수정 시트 | `:149-172` |
-| BOARD-06 | 신고 시트 (이유 고르기 전 비활성) | `:100-107` |
-| BOARD-07 | 권한: 비밀번호 prompt, 틀린 비밀번호, 계정 글 안내, 비밀번호 없는 글 안내, 관리자 삭제 확인 [쓰기] | `:110-134` |
-| BOARD-08 | 샘플·파티 탭: 싱글/더블 칩, 로딩·오류·빈, 카드(여섯 / 하나) | `:501-519` |
-| BOARD-09 | 샘플·파티 글: 여섯 칸, 팀 빌더에서 열기, 이미지 저장, 세팅(로딩 / 오류), 댓글 | `:465-498` |
-| BOARD-10 | 팀 고르기 시트 (팀 있음 / 없음) | `:342-355` |
-| BOARD-11 | 소개글 쓰기 시트 (형식, 내용, 샘플 고르기, 오류, 데이터 로딩 중 비활성) | `:358-412` |
+| BOARD-01 | Free board list: loading / error / empty / empty search / rows (admin-only badge, N comments) / pager | `BoardPage.jsx:286-303` |
+| BOARD-02 | Free board post: missing / body + YouTube, image, and link attachments / untitled | `:261-283` |
+| BOARD-03 | Comments: one-level reply, edited badge, reply form open, posting with account name, error | `:175-219` |
+| BOARD-04 | New post sheet: empty / filled / all errors / uploading and failed photo / private hint / draft passed from battle | `:64-98,238` |
+| BOARD-05 | Edit post and edit comment sheet | `:149-172` |
+| BOARD-06 | Report sheet (disabled before choosing a reason) | `:100-107` |
+| BOARD-07 | Permissions: password prompt, wrong password, account post notice, passwordless post notice, admin delete confirm `[write]` | `:110-134` |
+| BOARD-08 | Sample and party tab: single/double chips, loading, error, empty, cards (six / one) | `:501-519` |
+| BOARD-09 | Sample and party post: six slots, open in team builder, save image, sets (loading / error), comments | `:465-498` |
+| BOARD-10 | Pick team sheet (with teams / no teams) | `:342-355` |
+| BOARD-11 | Write intro post sheet (format, body, pick sample, errors, disabled while data loads) | `:358-412` |
 
-## 6. 기록 (`?view=records`)
+## 6. Records (`?view=records`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| REC-01 | 머리, 공식 기록 읽기 실패 ErrorNote, 로딩 | `RecordsPage.jsx:239-249` |
-| REC-02 | 트레이너 탭: 상위 3 패널(첫째 반전), 범례, 행(마스터/루키, 나), 20명 넘음 → 전체 보기 | `:300-386` |
-| REC-03 | 트레이너 탭: 정렬 칩 3개, 시즌 드롭다운, 검색 빈, 기록 0 | `:300-386,325` |
-| REC-04 | 내 기록 찾기(`me=1`): 로그아웃 / 확인 중 / 연결 없음 / 승인 / 대기 / 거절, "이름으로 시작" 행 | `:650-684` |
-| REC-05 | 트레이너 시트: 카운터, 연결 리드(찾기 모드), 내 전적, 시즌 칩 | `:493-502,390-407,612-627` |
-| REC-06 | 트레이너 시트: 칭호 보드(메달 다 그린 뒤 표시), 타입·지방 램프 | `TitleFaces.jsx:66-116` |
-| REC-07 | 트레이너 시트: 최근 대회 + 페이저 12 / 빈, 공식 배틀 N판, 사용한 파티 4 + 전체, 자주 쓴 포켓몬 / 빈 | `:45-65,510-555` |
-| REC-08 | 트레이너 시트: 내 기록 연결 섹션 상태들, 링크 공유 → 복사 완료 | `:629-643`, `ShareHere.jsx` |
-| REC-09 | 대회 탭: 전체 칩 + 투어 칩, 시즌 장 머리, 회차 카드(일반 / 챔피언스), 팀 회차 | `:773-909` |
-| REC-10 | 대회 탭: 공식 파티 접힘 → 펼침(파티 미제출 포함), 검색 N건 / 빈 | `:831-852,869-888` |
-| REC-11 | 포켓몬 탭: 카드 격자 24 + 전체 보기, 검색 빈, 0 | `:917-952` |
-| REC-12 | 포켓몬 시트: 순위 84, 카운터 4, 공식 경기, 능력치 막대, 구성(로딩 / 오류), 샘플 8, 트레이너 막대, 동반 / 빈, 역대 챔피언 | `:984-1098` |
-| REC-13 | 파티 시트: 옛 파티(여섯만) / 상세(로딩 / 오류 / TeamSheet), 샘플 좁게·파티 넓게 | `:121-139` |
-| REC-14 | 랭킹 탭: 시즌 드롭다운, 단독 선두 84, 공동 N위, 12명 넘음, 빈 시즌, 랭킹 없음 | `:1103-1183` |
-| ADM-REC-01 | 트레이너 탭 연결 요청 블록 (승인·거절·해제 확인 [쓰기]) | `LinkRequests.jsx` |
-| ADM-REC-02 | 트레이너 시트 운영: 이름 바꾸기, 합치기 미리보기, 확인 [쓰기] | `:409-449` |
-| ADM-REC-03 | 시즌 추가 / 누적 탭 추가 prompt [쓰기], 회차 편집, 랭킹 수정 시트 | `:1118-1174,896` |
+| REC-01 | Header, official records load failure ErrorNote, loading | `RecordsPage.jsx:239-249` |
+| REC-02 | Trainers tab: top 3 panels (first inverted), legend, rows (master/rookie, "나"), over 20 rows shows "전체 보기" | `:300-386` |
+| REC-03 | Trainers tab: 3 sort chips, season dropdown, empty search, 0 records | `:300-386,325` |
+| REC-04 | Find my record (`me=1`): logged out / checking / unlinked / approved / pending / rejected, "이름으로 시작" row | `:650-684` |
+| REC-05 | Trainer sheet: counters, link lead (finder mode), "내 전적", season chips | `:493-502,390-407,612-627` |
+| REC-06 | Trainer sheet: title board (shown after medals finish drawing), type and region lamps | `TitleFaces.jsx:66-116` |
+| REC-07 | Trainer sheet: recent tournaments + pager 12 / empty, official battles N games, used parties 4 + all, frequent Pokemon / empty | `:45-65,510-555` |
+| REC-08 | Trainer sheet: "내 기록 연결" section states, share link copies URL | `:629-643`, `ShareHere.jsx` |
+| REC-09 | Tournaments tab: all chip + tour chips, season chapter header, round cards (standard / `포켓몬 챔피언스`), team rounds | `:773-909` |
+| REC-10 | Tournaments tab: official parties collapsed to expanded (including unsubmitted parties), search N results / empty | `:831-852,869-888` |
+| REC-11 | Pokemon tab: 24-card grid + "전체 보기", empty search, 0 items | `:917-952` |
+| REC-12 | Pokemon sheet: rank 84, 4 counters, official matches, stat bars, builds (loading / error), 8 samples, trainer bars, teammates / empty, past champions | `:984-1098` |
+| REC-13 | Party sheet: legacy party (six only) / detailed (loading / error / TeamSheet), narrow for sample and wide for party | `:121-139` |
+| REC-14 | Rankings tab: season dropdown, sole leader 84, tied Nth place, over 12 rows, empty season, no rankings | `:1103-1183` |
+| ADM-REC-01 | Trainers tab link requests block (approve, reject, unlink confirmation `[write]`) | `LinkRequests.jsx` |
+| ADM-REC-02 | Trainer sheet admin tools: rename, merge preview, confirmation `[write]` | `:409-449` |
+| ADM-REC-03 | Add season / add cumulative tab prompt `[write]`, edit round, edit rankings sheet | `:1118-1174,896` |
 
-## 7. 대진표 (`?view=bracket`)
+## 7. Brackets (`?view=bracket`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| BRK-01 | 공식 목록: 로딩 / 오류 / 빈 / 리드 + 행(진행 중 램프, 날짜) | `BracketsPage.jsx:3033-3048` |
-| BRK-02 | 대진표 머리: 뒤로, 제목, 도구(링크, QR, 우승·대진표 이미지), 진행 중 줄, 휴대폰 공유 | `:3049-3075` |
-| BRK-03 | 결과: 우승 반전 패널 + 순위 행 (준우승·4강 / 3위·4위) | `:1885-1896` |
-| BRK-04 | 내 경기로 버튼, 파티 제출 현황 접힘 / 펼침 / 로딩 / 오류 / 빈 | `:1472-1533,1897-1907` |
-| BRK-05 | 보기 탭: 대진표(트리) / 목록 | `:1917-1926` |
-| BRK-06 | 트리: 싱글 4·8·16·32강, 3위 결정전, 더블(패자조·그랜드 파이널·리셋), 우승 칸 꺼짐 / 켜짐, 테이블 미정 | `:1369-1462` |
-| BRK-07 | 경기 카드: 승자 반전, 패자 dim, 부전승·대기, 시드, 나, 점수, 기권·실격·시간 초과·불참, 라이브 램프 | `:963-991` |
-| BRK-08 | 목록 보기: 라운드별, 승리+점수 / 진행 중 / 경기 전 | `:1317-1335` |
-| BRK-09 | 경기 시트: 두 편 행, 시작 시계·테이블 카운터, 사이트 배틀 상태 전부, 다전제, 결과 보고 | `:995-1163` |
-| BRK-10 | QR 시트 | `:1307-1313` |
-| BRK-11 | 조별 리그: 조 섹션, 순위 행, 경기 패널, 순위 결정전 | `:1535-1575` |
-| BRK-12 | 추첨 애니메이션: 이름 굴림(70ms), 확정, 건너뛰기 | `:2461-2515`, `bracket.css:41-54` |
-| BRK-13 | 사설 탭: 안내 행, 검색, 로딩 / 오류 / 빈 / 검색 빈, 리드 | `:2719-2734` |
-| BRK-14 | 사설 대진표: 없음 / 열림(결과 입력 잠김 / 풀림), 우승 패널 | `:2681-2716` |
-| BRK-15 | 새 사설 대진표 시트 (빈, 오류 전부, 참가자 N명, 만드는 중) / 수정 시트 | `:2537-2602` |
-| BRK-16 | 사설 비밀번호 prompt, 틀림, 다시 추첨·삭제 확인 [쓰기] | `:2652-2678` |
-| ADM-BRK-01 | 새 대진표 / 첫 대진표 만들기, 반영 상태 태그 | `:3031-3044` |
-| ADM-BRK-02 | 대진표 마법사 3단계 (대회 설정 → 참가자 확정 → 대진 배치), 로딩 / 빈 / 오류 [쓰기] | `:270,632-872` |
-| ADM-BRK-03 | 읽기 전용 안내, 기록에 반영 독, 반영됨·재시도·반영 취소 [쓰기] | `:1866-1894` |
-| ADM-BRK-04 | 결과 입력: 점수 스텝퍼, 결과 변경·승자 취소·자리 교체·비밀번호 초기화 확인 [쓰기] | `:1207-1281,1610,1798,1859` |
-| ADM-BRK-05 | 부전승·배틀 무효·다시 넣기 [쓰기], 팀 경기 시트, 경기 일정 시트 | `:918,1010-1071,1186` |
-| ADM-BRK-06 | 조별: 결정전 추첨, 초기화, 본선 추첨·취소 [쓰기] | `:1560-1570` |
-| ADM-BRK-07 | 선발전 현황 [쓰기] | `ChampionsBracketControls.jsx:62-80` |
-| ADM-BRK-08 | 기록 반영 시트 → 반영 전 확인 → 칭호 획득 / 다시 판정 로딩 [쓰기] | `:2177-2270` |
-| ADM-BRK-09 | 대진표 삭제: 이름 입력 prompt, 다른 이름 알림, 반영 먼저 취소 알림 [쓰기] | `:2971-2981` |
+| BRK-01 | Official list: loading / error / empty / lead + rows (live lamp, date) | `BracketsPage.jsx:3033-3048` |
+| BRK-02 | Bracket header: back, title, tools (link, QR, winner and bracket images), live strip, mobile share | `:3049-3075` |
+| BRK-03 | Results: inverted winner panel + placement rows (runner-up and top 4 / 3rd and 4th) | `:1885-1896` |
+| BRK-04 | "내 경기로" button, party submission status collapsed / expanded / loading / error / empty | `:1472-1533,1897-1907` |
+| BRK-05 | View tabs: bracket (tree) / list | `:1917-1926` |
+| BRK-06 | Tree: single elimination 4, 8, 16, 32 players, 3rd-place match, double elimination (losers bracket, grand final, reset), champion slot unlit / lit, table TBD | `:1369-1462` |
+| BRK-07 | Match card: winner inverted, loser dimmed, bye and waiting, seed, "나", score, forfeit, DQ, timeout, no-show, live lamp | `:963-991` |
+| BRK-08 | List view: by round, win + score / live / before match | `:1317-1335` |
+| BRK-09 | Match sheet: both side rows, start clock and table counter, all site battle states, best-of series, result report | `:995-1163` |
+| BRK-10 | QR sheet | `:1307-1313` |
+| BRK-11 | Group stage: group sections, standings rows, match panels, tiebreaker | `:1535-1575` |
+| BRK-12 | Draw animation: name roll (70ms), locked in, skip | `:2461-2515`, `bracket.css:41-54` |
+| BRK-13 | Private tab: info row, search, loading / error / empty / empty search, lead | `:2719-2734` |
+| BRK-14 | Private bracket: missing / open (result entry locked / unlocked), winner panel | `:2681-2716` |
+| BRK-15 | New private bracket sheet (empty, all errors, N participants, creating) / edit sheet | `:2537-2602` |
+| BRK-16 | Private password prompt, wrong password, redraw and delete confirmation `[write]` | `:2652-2678` |
+| ADM-BRK-01 | New bracket / create first bracket, record sync status tag | `:3031-3044` |
+| ADM-BRK-02 | Bracket wizard 3 steps (tournament setup, confirm participants, place bracket), loading / empty / error `[write]` | `:270,632-872` |
+| ADM-BRK-03 | Read-only notice, sync-to-records dock, synced, retry, cancel sync `[write]` | `:1866-1894` |
+| ADM-BRK-04 | Result entry: score stepper, change result, undo winner, swap slots, password reset confirmation `[write]` | `:1207-1281,1610,1798,1859` |
+| ADM-BRK-05 | Bye, void battle, re-enter `[write]`, team match sheet, match schedule sheet | `:918,1010-1071,1186` |
+| ADM-BRK-06 | Groups: tiebreaker draw, reset, finals draw and cancel `[write]` | `:1560-1570` |
+| ADM-BRK-07 | Qualifier status `[write]` | `ChampionsBracketControls.jsx:62-80` |
+| ADM-BRK-08 | Sync-to-records sheet, pre-sync confirmation, title awarded / re-check loading `[write]` | `:2177-2270` |
+| ADM-BRK-09 | Delete bracket: name input prompt, mismatch alert, cancel sync first alert `[write]` | `:2971-2981` |
 
-## 8. 팀 빌더 (`?view=builder`)
+## 8. Team builder (`?view=builder`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| BLD-01 | 휴대폰 단계 탭 3개 (규정 / 포켓몬 선택 / 팀 구성) | `TeamBuilderPage.jsx:1445-1447` |
-| BLD-02 | 규정: 데스크톱 드롭다운 / 휴대폰 OptionRows / 모노타입 격자 / 대회 기준 잠김 | `:1450-1475` |
-| BLD-03 | 공식 제출 패널(`eventId`): 단계 1~3, 신청자 확인(바쁨 / 성공 / 오류들), 비밀번호, 제출 중, 제출됨, 제출 기록 | `:308-425,792-840` |
-| BLD-04 | 후보 목록: 데이터 상태 줄 4종, 검색 제안 드롭다운, 칩, 타입 격자, 정렬 | `:1519-1564` |
-| BLD-05 | 후보 목록: 모노타입 미선택 / 로딩 / 실패 / 검색 빈 / 359행 전체 | `:1574-1582` |
-| BLD-06 | 후보 행: 추가 / 이미 팀에 있음 / 바꾸기 | `:158-182` |
-| BLD-07 | 팀 패널: 새 팀 / 이름, 변경사항 있음, 임시저장 상태, 슬롯(빈 / 채움 / 활성 반전 / 미확인), N/6 | `:186-204,1589` |
-| BLD-08 | 편집기: 빈("세팅할 포켓몬을 선택해 주세요."), 특성·도구(잠긴 메가 도구)·성격, 능력 포인트 66 초과, 기술 4칸 / 실패 | `:1610-1694` |
-| BLD-09 | 독: 현재 팀 저장 / 변경사항 저장 / 저장됨, 게시판에 올리기 | `:1696-1701` |
-| BLD-10 | 규정 검사: 미완성 / 위반(8개 + 외 N개) / 통과 | `:267-303` |
-| BLD-11 | 타입 상성: 휴대폰 방어·공격 고르기, 데스크톱 둘 다 | `:210-265` |
-| BLD-12 | 도구·기술 고르기 시트, 규칙 변경 확인, 팀 전환 전 저장, 텍스트 가져오기·내보내기 | `:1719-1758` |
-| BLD-13 | 내 팀 시트: 빈 / 여러 개 / 열린 팀 반전, 저장 메시지들, 계정에 올리기 | `:1760-1801` |
-| BLD-14 | 토스트 "뺐습니다 / 되돌리기", 팀 삭제·초기화 확인, 불러오기 실패 알림 | `:947,1140-1249` |
-| BLD-M | 단계 바꿈 place 38 간격, 팀에 들어간 포켓몬이 칸으로 올라옴 | `:488-493`, `board.css:341` |
+| BLD-01 | Mobile 3 step tabs ("규정" / "포켓몬 선택" / "팀 구성") | `TeamBuilderPage.jsx:1445-1447` |
+| BLD-02 | Rules: desktop dropdown / mobile OptionRows / monotype grid / locked to tournament rules | `:1450-1475` |
+| BLD-03 | Official submission panel (`eventId`): steps 1 to 3, applicant check (busy / success / errors), password, submitting, submitted, submission history | `:308-425,792-840` |
+| BLD-04 | Candidate list: 4 data status rows, search suggestion dropdown, chips, type grid, sort | `:1519-1564` |
+| BLD-05 | Candidate list: monotype unselected / loading / failed / empty search / all 359 rows | `:1574-1582` |
+| BLD-06 | Candidate row: add / already on team / replace | `:158-182` |
+| BLD-07 | Team panel: new team / name, unsaved changes, autosave status, slots (empty / filled / active inverted / unverified), N/6 | `:186-204,1589` |
+| BLD-08 | Editor: empty ("세팅할 포켓몬을 선택해 주세요."), ability, item (locked Mega item), nature, stat points over 66, 4 move slots / failed | `:1610-1694` |
+| BLD-09 | Dock: save current team / save changes / saved, post to board | `:1696-1701` |
+| BLD-10 | Rule check: incomplete / violations (8 + N more) / passed | `:267-303` |
+| BLD-11 | Type chart: mobile defense/offense toggle, desktop shows both | `:210-265` |
+| BLD-12 | Item and move picker sheet, rule change confirm, save before switching team, text import and export | `:1719-1758` |
+| BLD-13 | My teams sheet: empty / multiple / open team inverted, save messages, upload to account | `:1760-1801` |
+| BLD-14 | Toast "뺐습니다 / 되돌리기", delete and reset team confirmation, load failure alert | `:947,1140-1249` |
+| BLD-M | Step switch places rows staggered by 38, added Pokemon rises into slot | `:488-493`, `board.css:341` |
 
-## 9. 칭호 (`?view=titles`)
+## 9. Titles (`?view=titles`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| TTL-01 | 탭 6개 (챔피언, 타입, 지방, 파트너, 기타 칭호 등) 각각 | `TitlesPage.jsx:82-87,121` |
-| TTL-02 | 조건 패널 + 메달 보드 (켜짐 / 꺼짐 / ×N / 현 챔피언), 빈 패널로 채운 직사각형 | `TitleFaces.jsx:66-85` |
-| TTL-03 | "그 밖" 보드 | `:128` |
-| TTL-04 | 칭호 시트: 주인 있음(N호 행) / 없음(꺼진 메달 + 빈) | `:60-78` |
-| ADM-TTL-01 | 칭호 추가·수정 시트 (주인 칩, 모양 고르기, 미리보기, 색 없음 알림), 삭제 확인 [쓰기] | `AdminEditors.jsx:75-139` |
+| TTL-01 | 6 tabs ("챔피언", "타입", "지방", "파트너", "기타 칭호", etc.) | `TitlesPage.jsx:82-87,121` |
+| TTL-02 | Condition panel + medal board (lit / unlit / xN / current champion), rectangle padded with empty panels | `TitleFaces.jsx:66-85` |
+| TTL-03 | "그 밖" board | `:128` |
+| TTL-04 | Title sheet: with holders (N호 rows) / no holders (unlit medal + empty) | `:60-78` |
+| ADM-TTL-01 | Add and edit title sheet (holder chips, shape picker, preview, missing color alert), delete confirm `[write]` | `AdminEditors.jsx:75-139` |
 
-## 10. 명예의 전당 (`?view=champions`)
+## 10. Hall of fame (`?view=champions`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| CHAMP-01 | 오류 / 로딩 / 빈 | `ChampionsPage.jsx:88-89` |
-| CHAMP-02 | 왕관 패널 (세대 84 / 세대 0 글자), 여섯, 기록·파티 보기 | `:90-104` |
-| CHAMP-03 | 역대 챔피언 벽 (2명 이상) | `:108-121` |
-| CHAMP-04 | 챔피언 시트 (`gen=`) | `:123-126` |
-| ADM-CHAMP-01 | 이전 챔피언 추가·수정 시트 (6칸, 이미지 없음), 이름 빈 알림, 삭제 확인 [쓰기] | `AdminEditors.jsx:53` |
+| CHAMP-01 | Error / loading / empty | `ChampionsPage.jsx:88-89` |
+| CHAMP-02 | Crown panel (generation 84 / generation 0 text), six Pokemon, view records and party | `:90-104` |
+| CHAMP-03 | Past champions wall (2 or more) | `:108-121` |
+| CHAMP-04 | Champion sheet (`gen=`) | `:123-126` |
+| ADM-CHAMP-01 | Add and edit past champion sheet (6 slots, no image), empty name alert, delete confirm `[write]` | `AdminEditors.jsx:53` |
 
-## 11. 계산기 (`?view=calc`)
+## 11. Calculator (`?view=calc`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| CALC-01 | 로딩 / 데이터 실패 | `CalculatorPage.jsx:688-697` |
-| CALC-02 | 대미지: 양쪽 빈 / 한쪽 / 양쪽, 스피드 줄, 서로 바꾸기 | `:334-352` |
-| CALC-03 | 결과 보드: % 범위, HP 막대, KO, 난수 보기 펼침, 변화 기술 / 계산 불가 행 | `:128-208` |
-| CALC-04 | 배틀 조건(싱글·더블, 날씨, 필드, 토글), 세부 설정(내 / 상대, 스텝퍼, 66 초과) | `:210-317,365-377` |
-| CALC-05 | 스피드: 기준 없음 / 있음(세그먼트, 내 위치 스크롤), 약 350행 | `:382-463` |
-| CALC-06 | 도감: 빈 / 포켓몬(종족값, 방어 상성, 기술 표 + 필터, 빈 결과) | `:465-574` |
-| CALC-07 | 포켓몬·기술·도구 고르기 시트 (내 팀 그룹, 최근) | `:183-185,298,700-703` |
+| CALC-01 | Loading / data failure | `CalculatorPage.jsx:688-697` |
+| CALC-02 | Damage: both empty / one side / both sides, speed line, swap sides | `:334-352` |
+| CALC-03 | Result board: % range, HP bar, KO, expand rolls, status move / non-calculable row | `:128-208` |
+| CALC-04 | Battle conditions (single and double, weather, terrain, toggles), detailed settings (mine / opponent, stepper, over 66) | `:210-317,365-377` |
+| CALC-05 | Speed: no reference / with reference (segment, scroll to my position), roughly 350 rows | `:382-463` |
+| CALC-06 | Pokedex: empty / Pokemon (base stats, defensive matchups, move table + filter, empty result) | `:465-574` |
+| CALC-07 | Pokemon, move, and item picker sheet ("내 팀" group, recent) | `:183-185,298,700-703` |
 
-## 12. 더보기 (`?view=more`), 알림 (`?view=alerts`), 개인정보 (`?view=privacy`)
+## 12. More (`?view=more`), alerts (`?view=alerts`), privacy (`?view=privacy`)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| MORE-01 | 내 계정: 숨김 / 로그아웃 / 로그인(연결됨 반전, 확인 중, 거절, 연결 전), 하위 행 | `MorePage.jsx:39-72` |
-| MORE-02 | 계정 키: 로그아웃, 연결 해제·계정 삭제 확인 [쓰기], 실패 | `AccountKeys.jsx` |
-| MORE-03 | 그룹 행 (새 알림 램프), 테마 고르기 4개, 관리자 로그인·로그아웃 행 | `:80-104` |
-| ALERT-01 | 알림 지원 없음 / iOS 설치 필요 / 사용 가능 / 권한 거부 | `PushControl.jsx:12-64` |
-| ALERT-02 | 받은 알림: 로딩 / 숨김(SQL 전) / 빈 / 날짜별 행(안 읽음 밝게, 읽음 dim) | `AlertsPage.jsx:28-57` |
-| ALERT-03 | 이 기기 알림 스위치, 받을 알림 칸(켜짐 반전), 개인 알림 안내 | `PushControl.jsx:76-96` |
-| ALERT-04 | 알림 켜기 시트 (설치 / 차단 / 실패 안내) | `:50-62` |
-| PRIV-01 | 본문 11조 + 조문 목차 | `PrivacyPage.jsx:77-94` |
+| MORE-01 | My account: hidden / logged out / logged in (linked inverted, checking, rejected, unlinked), sub-rows | `MorePage.jsx:39-72` |
+| MORE-02 | Account buttons: logout, unlink and delete account confirmation `[write]`, failure | `AccountKeys.jsx` |
+| MORE-03 | Group rows (new alert lamp), 4 theme choices, admin login and logout rows | `:80-104` |
+| ALERT-01 | Push unsupported / iOS install required / available / permission denied | `PushControl.jsx:12-64` |
+| ALERT-02 | Received alerts: loading / hidden (before SQL) / empty / rows by date (unread bright, read dim) | `AlertsPage.jsx:28-57` |
+| ALERT-03 | This-device notification switch, alert category cells (on inverted), personal alert notice | `PushControl.jsx:76-96` |
+| ALERT-04 | Enable notifications sheet (install / blocked / failure guide) | `:50-62` |
+| PRIV-01 | 11 articles + article table of contents | `PrivacyPage.jsx:77-94` |
 
-## 13. 관리자 (`?view=admin` 과 공통 크롬)
+## 13. Admin (`?view=admin` and shared chrome)
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| ADM-01 | 관리자 로그인 시트: 빈 / 오류 2종 / 로그인 중 | `AdminEditors.jsx:26-39`, `storage.js:59-62` |
-| ADM-02 | 로그인 성공 토스트, 지난 대회 반영 전 토스트, 만료 토스트 | `AdminModalHost.jsx:30`, `App.jsx:194,209-215` |
-| ADM-03 | 관리자 독 (운영 / 연결 요청 N / 운영 화면에서 숨김), 토스트·페이지 여백 밀림 | `AdminModeBar.jsx`, `shell.css:80,106-115` |
-| ADM-04 | 운영 화면: 로그인 필요 / 로딩 / 현황 실패 | `AdminPage.jsx:163-184` |
-| ADM-05 | 카운터 4개(램프 켜짐·꺼짐), 할 일 목록 / 빈, 탑 칭호 행 [쓰기] | `:175-193` |
-| ADM-06 | 편집 문들, 포인트 시트 [쓰기] | `:26-33,66-87` |
-| ADM-07 | 최근 변경(더 보기), 화면 오류, 신고(지우기 [쓰기]), 내보내기 5행(받는 중) | `ChangeLog.jsx`, `ClientErrors.jsx`, `CommunityReports.jsx`, `AdminPage.jsx:36-62` |
-| ADM-08 | 대회 진행 옆 기둥: 단계 1~4, 지금 마감 [쓰기], 대회 취소 확인 [쓰기] / 진행 중 대회 없음 | `:95-121,147-162,209` |
-| ADM-09 | 공지 작성·수정 시트: 신청 받기 켬, 지난 대회에서 불러오기, 대회 연결 칸, 챔피언스 변형, 질문 카드, 링크 첨부 접힘, 예약·고정·수정 알림, 시간 빠짐 알림, 삭제 [쓰기] | `AdminEditors.jsx:205-317`, `AdminModalHost.jsx:171` |
-| ADM-10 | 랭킹 수정 / 성적 수정 / 회차 수정 시트 [쓰기] | `AdminEditors.jsx:326-377` |
-| ADM-11 | 편집 시트 지연 로딩 / 실패 | `LazyContent.jsx:117-126` |
+| ADM-01 | Admin login sheet: empty / 2 error types / logging in | `AdminEditors.jsx:26-39`, `storage.js:59-62` |
+| ADM-02 | Login success toast, unsynced past tournament toast, session expired toast | `AdminModalHost.jsx:30`, `App.jsx:194,209-215` |
+| ADM-03 | Admin dock (admin / N link requests / hidden on admin screen), toast and page margin offset | `AdminModeBar.jsx`, `shell.css:80,106-115` |
+| ADM-04 | Admin page: login required / loading / status load failure | `AdminPage.jsx:163-184` |
+| ADM-05 | 4 counters (lamp on and off), to-do list / empty, tower title row `[write]` | `:175-193` |
+| ADM-06 | Edit doors, points sheet `[write]` | `:26-33,66-87` |
+| ADM-07 | Recent changes (show more), client errors, reports (clear `[write]`), 5 export rows (downloading) | `ChangeLog.jsx`, `ClientErrors.jsx`, `CommunityReports.jsx`, `AdminPage.jsx:36-62` |
+| ADM-08 | Tournament progress side column: steps 1 to 4, close now `[write]`, cancel tournament confirm `[write]` / no active tournament | `:95-121,147-162,209` |
+| ADM-09 | Notice write and edit sheet: registration enabled, import from past tournament, tournament link slot, `포켓몬 챔피언스` variant, question card, collapsed link attachment, schedule, pin, and edit alerts, missing time alert, delete `[write]` | `AdminEditors.jsx:205-317`, `AdminModalHost.jsx:171` |
+| ADM-10 | Edit rankings / edit scores / edit rounds sheet `[write]` | `AdminEditors.jsx:326-377` |
+| ADM-11 | Edit sheet lazy loading / failure | `LazyContent.jsx:117-126` |
 
-## 14. 배틀 (`?view=battle`)
+## 14. Battle (`?view=battle`)
 
-화면 규칙이 다르다 (DESIGN.md "Battle": 게임 화면, designLaw 테스트 제외, 색과 취향만 공유). 시트, 대화상자, 토스트, `streak.css` 는 사이트 규칙을 그대로 따른다.
+Battle follows separate screen rules (DESIGN.md "Battle": game screen, excluded from designLaw tests, shares only color and tone). Sheets, dialogs, toasts, and `streak.css` follow standard site rules.
 
-| ID | 상태 | 위치 |
+| ID | State | Location |
 |---|---|---|
-| BTL-01 | 탭 5개: 배틀 열기 / 도전의 탑 / 방 목록 N / 중계 N / 기록 | `BattlePage.jsx:551-573` |
-| BTL-02 | 로비: 데스크톱 옆 기둥 / 휴대폰 "상대"·"파티" 시트, 규정·파티 고르기(저장 팀 있음 / 없음), 무작위 파티 | `:211-290` |
-| BTL-03 | 상대 시트: 컴퓨터(난이도) / 방 만들기(공개·비밀, 싱글·더블), 이름 빈 오류, 만들기 오류, 바쁨 | `:595-646` |
-| BTL-04 | 컴퓨터 배틀 이어하기 행, 새로 시작 확인 | `:598,630` |
-| BTL-05 | 방 목록: 카운터, 검색, 필터 칩, 로딩 / 오류 / 빈 / 필터 빈, 비밀 방 자물쇠, 30개 페이저 | `:498-541` |
-| BTL-06 | 참가(상대 쪽): 방 코드 4자리, 오류, 참가 | `:937-981` |
-| BTL-07 | 상대 기다림: 방 코드 84 카운터, 기다린 시간, 링크 공유, 대기 취소 확인 | `:814-850,777` |
-| BTL-08 | 배틀 없음 / 연결 끊김 / 준비 실패 / 3회 충돌 | `:137-175,771-772` |
-| BTL-09 | 공식 경기 자리: 로딩 / 없음 / 이미 결정 / 선수 고르기 / 비밀번호 / 틀림 / 관전 | `:876-935` |
-| BTL-10 | 선출: 상대 여섯, 공 던지기 코트, 순서 칸, 카드, i 키, 수문장 반전, 판 걸림 띠 | `Sets.jsx:146-199` |
-| BTL-11 | 선출 독: N마리 더 고르기 → 선출 확정 → 잠김·바쁨 (1200 미만 아래 / 이상 옆) | `:1644-1646,1742,1762` |
-| BTL-12 | 기술 고르기: 4키(타입색, 효과 칩, 위력, PP, 대미지 게이지), off, 길게 누르기 안내 토스트, 펼침 카드 | `:1863-2003,1493-1516,1749` |
-| BTL-13 | 잠긴 키 (턴 진행 / 상대 선택), 강제 교체, 되살리기, 교체 벤치(쓰러짐) | `:1752-1753,1907-1957,2090-2159` |
-| BTL-14 | 더블 대상 고르기, 처음부터 다시, 메가 키(on / off / 없음) | `:2074-2123` |
-| BTL-15 | 시계: 보통 / 30초 이하 / 10초 이하 / 멈춤 / 내 차례 | `Stage.jsx:646-655`, `battle.css:560-566` |
-| BTL-16 | 무대 HUD: 플레이트, 필드 칩, 메시지 창, 특성·도구 팝업, 포켓몬 정보 시트 | `Stage.jsx:414-415,659-713,823-840` |
-| BTL-17 | 옆 기둥(데스크톱): 머리, 파티 칩, 메뉴, 다른 중계, 전체 기록 | `:1758-1773,1014-1020` |
-| BTL-18 | 메뉴(휴대폰 시트): 연출 속도, 소리 시트, 시점, 공유 링크들, 기권 확인, 나가기 확인 | `:1322-1323,1622,1664-1683,995-1012` |
-| BTL-19 | 내 파티 / 상대 파티 / 설명 시트 | `:1776-1783` |
-| BTL-20 | 전체화면 (컨트롤 숨김 2600ms) | `:1226-1257`, `battle.css:1007-1021` |
-| BTL-21 | 결과 띠: 승리(반전) / 패배 / 무승부 / 무효 / 관전자 "X 승리", 줄 문구 4종 | `Stage.jsx:631-637`, `:1614-1660` |
-| BTL-22 | 공식 반영 줄 5종, 다시하기 / 수락 / 대진표 / 나가기, 다시하기 제안 램프 | `:1274-1279,1729-1739` |
-| BTL-23 | 리플레이 바: 처음·이전·재생·다음·끝, KO·메가 표시, 소리 켜기, 전체화면 (600 이하 끝 키 숨김) | `Replay.jsx:29-62`, `battle.css:280` |
-| BTL-24 | 중계: 실시간 키(방송 중 / 뒤처짐), 휴대폰 로그 띠, 탑 다음 판 기다림 | `:1159-1163,1585-1718` |
-| BTL-25 | 중계 목록: 카운터, 필터, 공식 리드 카드, 로딩 / 빈 / 필터 빈 / 오류 | `Live.jsx:84-127` |
-| BTL-26 | 기록 목록: 로딩 / 오류 / 빈(계정 / 기기), 결과별 행, 고르기 모드, 삭제 확인 | `Replay.jsx:121-184` |
-| BTL-27 | 컴퓨터 배틀 오류 3종, 컴퓨터 리플레이 오류 | `:414-466` |
-| BTL-28 | 등반전: 목록(로딩 / 오류 / 빈 / 숨김), 열기 시트(오류 2), 코드 입력, 등반전 보드(시작 전 / 진행 / 마감, 지금 마감 확인) | `Cups.jsx:45-207` |
-| TWR-01 | 도전의 탑 탭: 탑 장면 / 초안 보드, 문, 키, 옆 기둥(진행 기록, 월 순위, 내 도전) | `Streak.jsx:374-589` |
-| TWR-02 | 키 상태: 계정 확인 중 / 로그아웃·미승인 / 고르는 중 / 진행 중 / 그 밖 | `:490-495` |
-| TWR-03 | 게이트 시트: 구글 로그인 / 이름 확인 중 / 트레이너 이름 정하기, 새로 도전 확인 | `:463,501-508` |
-| TWR-04 | 월 순위: 뼈대 / 오류 / 빈, 지난달 넘기기 | `:553-557` |
-| TWR-05 | 초안: 6칸 띠(빈 / 채움 / 지금 / 아직), 후보 카드 3장 뒤집기, 메가 표시 | `:158-244` |
-| TWR-06 | 문 셋: 보통 / 강한 / 수문장 | `:254-277` |
-| TWR-07 | 쉼(break): 결과 박자(84 카운트 올라감), 교환 박자, 문 박자, 키들 | `:682-818` |
-| TWR-08 | 패배·도전 끝: 카운터, 월 순위, 올라간 층 탑, 다시 도전 | `:774-813` |
-| BTL-M | 로비 → 배틀 어두워짐(1100), 선출 도착 lineup, 보드 전환(changeover), 개막 램프(680), 리드 던지기(260 간격), 기절, 끝 띠, 탑 장면 전부(입장 1780, 도착, 걸음, 층 이동, 다이브, 엘리베이터) | `stageFx.js:788-856`, `changeover.js:15-69`, `tower.js:33-575`, `docs/BATTLE_TRANSITIONS.md` |
+| BTL-01 | 5 tabs: "배틀 열기" / "도전의 탑" / "방 목록" N / "중계" N / "기록" | `BattlePage.jsx:551-573` |
+| BTL-02 | Lobby: desktop side column / mobile "상대" and "파티" sheets, rule and party picker (saved teams / none), random party | `:211-290` |
+| BTL-03 | Opponent sheet: CPU (difficulty) / create room (public and private, single and double), empty name error, create error, busy | `:595-646` |
+| BTL-04 | Resume CPU battle row, start-new confirmation | `:598,630` |
+| BTL-05 | Room list: counters, search, filter chips, loading / error / empty / empty filter, private room lock, 30-item pager | `:498-541` |
+| BTL-06 | Join (opponent side): 4-digit room code, error, join | `:937-981` |
+| BTL-07 | Waiting for opponent: 84 room code counter, wait timer, share link, cancel wait confirmation | `:814-850,777` |
+| BTL-08 | Missing battle / disconnected / setup failure / 3-conflict error | `:137-175,771-772` |
+| BTL-09 | Official match seat: loading / missing / already decided / pick player / password / wrong password / spectate | `:876-935` |
+| BTL-10 | Team preview: opponent six, pokeball court, order cells, cards, `i` button, gatekeeper inverted, stakes strip | `Sets.jsx:146-199` |
+| BTL-11 | Team preview dock: pick N more, confirm lineup, locked and busy (bottom under 1200 / side at 1200+) | `:1644-1646,1742,1762` |
+| BTL-12 | Move selection: 4 buttons (type color, effectiveness chip, power, PP, damage gauge), off, long-press tip toast, expanded card | `:1863-2003,1493-1516,1749` |
+| BTL-13 | Locked buttons (turn running / opponent choosing), forced switch, revive, switch bench (fainted) | `:1752-1753,1907-1957,2090-2159` |
+| BTL-14 | Doubles target selection, restart turn choice, Mega button (on / off / absent) | `:2074-2123` |
+| BTL-15 | Timer: normal / 30s or less / 10s or less / paused / my turn | `Stage.jsx:646-655`, `battle.css:560-566` |
+| BTL-16 | Stage HUD: plates, field chips, message box, ability and item popups, Pokemon info sheet | `Stage.jsx:414-415,659-713,823-840` |
+| BTL-17 | Side column (desktop): header, party chips, menu, other live streams, full log | `:1758-1773,1014-1020` |
+| BTL-18 | Menu (mobile sheet): animation speed, sound sheet, perspective, share links, forfeit confirm, leave confirm | `:1322-1323,1622,1664-1683,995-1012` |
+| BTL-19 | My party / opponent party / help sheet | `:1776-1783` |
+| BTL-20 | Fullscreen (controls hide after 2600ms) | `:1226-1257`, `battle.css:1007-1021` |
+| BTL-21 | Result strip: win (inverted) / loss / draw / void / spectator "X 승리", 4 subtitle lines | `Stage.jsx:631-637`, `:1614-1660` |
+| BTL-22 | 5 official sync lines, rematch / accept / bracket / leave, rematch offer lamp | `:1274-1279,1729-1739` |
+| BTL-23 | Replay bar: start, prev, play, next, end, KO and Mega markers, unmute, fullscreen (end button hidden at 600 and below) | `Replay.jsx:29-62`, `battle.css:280` |
+| BTL-24 | Live stream: real-time button (live / behind), mobile log strip, tower next-match wait | `:1159-1163,1585-1718` |
+| BTL-25 | Live list: counters, filters, official lead card, loading / empty / empty filter / error | `Live.jsx:84-127` |
+| BTL-26 | History list: loading / error / empty (account / device), rows by result, select mode, delete confirm | `Replay.jsx:121-184` |
+| BTL-27 | 3 CPU battle errors, CPU replay error | `:414-466` |
+| BTL-28 | Climb cups: list (loading / error / empty / hidden), open sheet (2 errors), code entry, cup board (pre-start / active / closed, close-now confirm) | `Cups.jsx:45-207` |
+| TWR-01 | `도전의 탑` tab: tower scene / draft board, doors, buttons, side column (run log, monthly rankings, my runs) | `Streak.jsx:374-589` |
+| TWR-02 | Button states: checking account / logged out or unapproved / drafting / in progress / other | `:490-495` |
+| TWR-03 | Gate sheet: Google login / checking name / set trainer name, restart run confirm | `:463,501-508` |
+| TWR-04 | Monthly rankings: skeleton / error / empty, switch to last month | `:553-557` |
+| TWR-05 | Draft: 6-slot strip (empty / filled / current / upcoming), 3 candidate card flips, Mega badge | `:158-244` |
+| TWR-06 | Three doors: normal / strong / gatekeeper | `:254-277` |
+| TWR-07 | Break screen: result beat (84 count-up), swap beat, door beat, buttons | `:682-818` |
+| TWR-08 | Defeat and run end: counters, monthly rankings, climbed tower floors, retry | `:774-813` |
+| BTL-M | Lobby to battle dim (1100), team preview lineup arrival, board changeover, opening lamp (680), lead throw (260 stagger), faint, end strip, all tower scenes (entry 1780, arrival, steps, floor climb, dive, elevator) | `stageFx.js:788-856`, `changeover.js:15-69`, `tower.js:33-575`, `docs/BATTLE_TRANSITIONS.md` |
 
-## 15. 데이터 극단 (route 가로채기로 만든다)
+## 15. Data extremes (simulated via route interception)
 
-| ID | 경우 | 볼 화면 |
+| ID | Case | Screens to check |
 |---|---|---|
-| EXT-01 | 아주 긴 트레이너 이름 (한글 16자, 영문 24자, 띄어쓰기 없음) | 상단 계정 버튼, 기록 행·시트, 대진표 경기 카드·트리, 홈 챔피언, 배틀 플레이트, 방 목록 |
-| EXT-02 | 아주 긴 공지·게시글 제목, 긴 대회 이름 | 공지 리드·행, 홈 카운트다운 이름, 대진표 머리, LiveStrip |
-| EXT-03 | 0건 | 위 각 화면의 빈 상태 |
-| EXT-04 | 많음: 공지 100, 게시글 200, 트레이너 150, 대진표 64강, 챔피언 20, 방 60 | 페이저, 전체 보기, 트리 가로 길이, 벽 |
-| EXT-05 | 숫자 자릿수 섞임 (1위와 100위, 9회와 120회, 점수 10:9) | 순위 표, 카운터, 세그먼트 |
+| EXT-01 | Very long trainer names (16 Korean characters, 24 Latin characters, no spaces) | Top bar account button, record rows and sheet, bracket match cards and tree, home champion, battle plates, room list |
+| EXT-02 | Very long notice and board titles, long tournament names | Notice lead and rows, home countdown title, bracket header, LiveStrip |
+| EXT-03 | 0 items | Empty states across each screen above |
+| EXT-04 | High volume: 100 notices, 200 board posts, 150 trainers, 64-player bracket, 20 champions, 60 rooms | Pagers, show-all controls, tree horizontal width, champion wall |
+| EXT-05 | Mixed digit counts (1st and 100th, 9th and 120th, 10:9 score) | Standings tables, counters, segments |
 
-## 캡처 공백 (지금 저장소만으로는 바로 띄울 수 없는 상태)
+## Capture gaps (states not directly launchable from this repo alone)
 
-1. **실시간 2인 상태** (BTL-06, BTL-07의 상대 입장, BTL-22 다시하기 제안, BTL-24 중계): 브라우저 두 개와 백엔드가 필요하다. 운영에서 실제 방을 만들면 데이터가 생기므로, Supabase 응답 가로채기로 흉내 내거나 사용자 허락을 받고 운영에서 친선 방을 하나 연다.
-2. **도전의 탑 초안·쉼·패배** (TWR-05~08): 문서에 나오는 PGlite 서버(`:54321`)가 저장소에 없다. localStorage `ypl-battle:streak*` 를 심고 함수 응답을 가로채 만든다.
-3. **관리자 쓰기 뒤 화면** (반영됨, 칭호 획득 등): 운영에서는 누르지 않는다. `ypl-dev-offline` 에서 실행해 찍는다.
-4. **Google 계정 상태** (승인 / 대기 / 거절): 사용자 로그인 세션 하나로는 한 상태만 보인다. 나머지는 계정 응답 가로채기로 만든다.
+1. Real-time two-player states (BTL-06, opponent join in BTL-07, rematch offer in BTL-22, live stream in BTL-24) need two browsers and a backend. Creating a real room on production generates live data, so these must either be mocked by intercepting Supabase responses or tested in a single friendly room with user approval.
+2. `도전의 탑` draft, break, and defeat states (TWR-05 to TWR-08) rely on a PGlite server (`:54321`) mentioned in docs that is not in this repository. They are reproduced by seeding localStorage `ypl-battle:streak*` and intercepting function responses.
+3. Post-write admin screens (synced state, title awarded, etc.) are never clicked on production and are captured by running them on `ypl-dev-offline`.
+4. Google account states (approved, pending, rejected) cannot all appear under a single real login session. The remaining states are simulated by intercepting account responses.

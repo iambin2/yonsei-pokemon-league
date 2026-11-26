@@ -1,509 +1,487 @@
-# 시각 완성도 수정 계획서
+# Visual audit fix plan
 
-이 문서만 읽고 실행한다. 진단의 근거는 `docs/visual-audit/report.md` (발견 ID: K-, A-, B-, C-, D-, E-, G-, F-), 화면 ID는 `docs/visual-audit/inventory.md` 에 있다.
+Execute directly from this document. Diagnostic evidence lives in `docs/visual-audit/report.md` (finding IDs K-, A-, B-, C-, D-, E-, G-, F-), and screen IDs live in `docs/visual-audit/inventory.md`.
 
-## 0. 목표와 지켜야 할 것
+## 0. Goal and constraints
 
-**목표:** league.pokeyonsei.com 의 현재 디자인 양식을 그대로 둔 채, 양식이 고르게 적용되지 않은 곳과 구성이 어긋난 곳을 바로잡는다.
+The goal is to keep the current design language of league.pokeyonsei.com intact while fixing places where that language is applied unevenly or where layout structure breaks down.
 
-**바꾸지 않는 것 (어기면 실패):**
-- 디자인 양식: 색(토큰), 폰트, 네모난 패널(모서리 둥글기 없음), 그림자 없음, 세그먼트 숫자, 앰버 램프, 전체 분위기. 수정 전후를 나란히 놓았을 때 "같은 사이트가 더 정돈됐다"로 보여야 한다. "디자인이 바뀌었다"로 보이면 실패다.
-- 기능 동작과 데이터 동작. 스타일과 배치만 바꾼다. 이 계획의 어떤 작업도 서비스 코드(`src/services/`), RPC, 저장 형식을 건드리지 않는다.
-- 새 값을 만들지 않는다. 아래 1장의 값만 쓴다. 필요한 값이 없으면 멈추고 묻는다.
-- `DESIGN.md`, `PRODUCT.md`, `CLAUDE.md` 가 이 문서보다 위다. 충돌하면 멈추고 묻는다. 한국어 문구는 합니다체, 가운뎃점(·) 금지, 줄표 금지.
-- `npm test` (특히 `tests/designLaw.test.mjs`) 가 통과해야 한다. 실패하면 값을 고친다. 테스트의 `EXCEPT` 에 추가하지 않는다.
-- 배틀 화면(`battle.css`, `battle-stage.css`, `tower-play.css`, `src/pages/battle/`)은 DESIGN.md "Battle" 장이 기준이다. 배틀의 선택 로직(`src/services/battleCpu.js`)은 건드리지 않는다.
-- 라이트와 다크는 한 작업이다. 한쪽에서 고친 것은 같은 변경에서 다른 쪽도 확인한다.
-- 커밋 메시지는 CLAUDE.md "Commit messages"의 네 구획(문제 인식, 사고 과정, 기획 방향성, 프롬프트)을 갖춘다. 배포는 하지 않는다. 사용자가 따로 말할 때만 한다.
+Do not violate any of these constraints:
+- Keep the design language untouched: color tokens, fonts, sharp-cornered panels (zero border radius), zero shadows, segmented numbers, amber lamps, and general tone. Placed side by side, before and after must read as the same site made tidier. If it looks redesigned, the change failed.
+- Do not change functional or data behavior. Adjust styling and layout only. No task in this plan touches service code (`src/services/`), RPCs, or storage formats (with the single string-formatting exception in T-102).
+- Do not invent new values. Use only the values listed in Section 1. If a needed value is missing, stop and ask.
+- `DESIGN.md`, `PRODUCT.md`, and `CLAUDE.md` outrank this document. If anything conflicts, stop and ask. Korean copy uses polite formal endings (`합니다체`) with no middle dots and no em dashes.
+- `npm test` (especially `tests/designLaw.test.mjs`) must pass. Fix values when a test fails; never add entries to `EXCEPT` in the test.
+- Battle screens (`battle.css`, `battle-stage.css`, `tower-play.css`, `src/pages/battle/`) follow the "Battle" chapter of `DESIGN.md`. Do not touch battle selection logic (`src/services/battleCpu.js`).
+- Light and dark themes are one unit of work. Check the other theme in the same change whenever you fix one.
+- Commit messages must include the four sections from "Commit messages" in `CLAUDE.md` (`문제 인식`, `사고 과정`, `기획 방향성`, `프롬프트`). Do not deploy unless the user explicitly asks.
 
-**문서의 두 부분:** 3장(T-01~T-58)은 체계에서 벗어난 값과 버그를 바로잡는다. 5장(T-59~T-102)은 판단이 들어가는 작업으로, `docs/visual-audit/questions.md` 의 항목을 사용자가 2026-11-23에 "권한 쪽으로 전부" 확정한 것이다. 3장을 먼저 끝낸다. 기능 결함(report.md 9장)은 T-102 하나만 넣었다.
+This document has two parts. Section 3 (T-01 to T-58) fixes off-system values and bugs. Section 5 (T-59 to T-102, plus Batches 17 and 20 added later) covers judgment-based changes, which the user approved on 2026-11-23 from `docs/visual-audit/questions.md` ("권한 쪽으로 전부"). Finish Section 3 first. Only one functional bug from report.md Section 9 is included (T-102).
 
-## 1. 확정된 체계
+## 1. Established system
 
-새로 설계한 값이 아니다. 지금 사이트가 쓰는 값이고, 근거는 사용 횟수다(배틀 3개 파일을 뺀 `src/styles/*.css` 20개 기준, 2026-11-22 집계).
+None of these values are newly invented. They are the values the site already uses, verified by occurrence count across the 20 files in `src/styles/*.css` excluding the three battle stylesheets (counted on 2026-11-22).
 
-### 간격 (`tokens.css:107`)
-| 토큰 | 값 | 쓰임 | 사용 횟수 |
+### Spacing (`tokens.css:107`)
+
+| Token | Value | Use | Count |
 |---|---|---|---|
-| `--seam` | 2 | 패널과 패널 사이 | 70 |
-| `--s1` | 4 | 라벨과 값, 제목과 회색 줄 | 134 |
-| `--s2` | 8 | 라벨과 칸, 조작 안쪽 | 210 |
-| `--s3` | 12 | 섹션 제목과 내용, 패널 안쪽 여백(휴대폰) | 285 |
-| `--s5` | 20 | 휴대폰 옆 여백, 한 섹션 안의 블록 사이, 칸과 칸 | 214 |
-| `--s8` | 32 | 묶음 사이, 페이지 제목 아래, 데스크톱 옆 여백 | 79 |
-| `--s13` | 52 | 섹션 사이, 데스크톱 열 간격 | 80 |
-| `--s21` | 84 | 데스크톱 장 사이 | 39 |
-| `--pad` | 12 (859 이하) / 20 (860 이상) | 패널 안쪽 여백 | 94 |
+| `--seam` | 2 | Between panels | 70 |
+| `--s1` | 4 | Label and value, title and grey line | 134 |
+| `--s2` | 8 | Label and input, control inner gap | 210 |
+| `--s3` | 12 | Section title and content, mobile panel padding | 285 |
+| `--s5` | 20 | Mobile side margin, blocks within a section, between inputs | 214 |
+| `--s8` | 32 | Between groups, below page title, desktop side margin | 79 |
+| `--s13` | 52 | Between sections, desktop column gap | 80 |
+| `--s21` | 84 | Between desktop chapters | 39 |
+| `--pad` | 12 (859 or below) / 20 (860 or above) | Panel inner padding | 94 |
 
-토큰을 거치지 않은 길이는 선(1, 2), 분기점, 아이콘(16, 20, 24), 폭 고정값(439, 709, 576, 1200, 220, 136)뿐이다. 14, 24, 34, 40 같은 간격이 화면에 나오면 두 여백이 겹친 버그다(report K-04, K-13).
+Only lines (1, 2), breakpoints, icons (16, 20, 24), and fixed widths (439, 709, 576, 1200, 220, 136) bypass tokens. Gaps like 14, 24, 34, or 40 on screen indicate two margins colliding (report K-04, K-13).
 
-### 글자 (`tokens.css:109-111`)
-화면에 그려진 글자 측정(1440과 360, 다크, 장면 59개):
+### Typography (`tokens.css:109-111`)
 
-| 단 | 크기/줄높이 | 굵기 | 쓰임 | 그려진 횟수 (1440 / 360) |
+Measured from rendered text at 1440 and 360, dark theme, across 59 scenes:
+
+| Step | Size / line-height | Weight | Use | Rendered count (1440 / 360) |
 |---|---|---|---|---|
-| 32 | 32/40 | 700 | 페이지 제목, 기록의 한 이름 | 66 / 66 |
-| 20 | 20/28 | 700 | 섹션·시트 제목, 패널의 한 이름 | 296 / 275 |
-| 15 | 15/20 | 700 제목·키, 600 칸·탭, 400 회색 줄 | 행 제목, 키, 값 | 10,339 / 2,402 |
-| 읽기 | 15/24 | 400 | 본문 | 102 / 105 |
-| 12 | 12/16 (860 이상에서는 15/20) | 600 라벨, 400 회색 줄 | 라벨, 회색 줄, 단위, 힌트 | 0 / 8,136 |
+| 32 | 32/40 | 700 | Page title, single name in records | 66 / 66 |
+| 20 | 20/28 | 700 | Section and sheet title, single panel name | 296 / 275 |
+| 15 | 15/20 | 700 title and key, 600 input and tab, 400 grey line | Row title, key, value | 10,339 / 2,402 |
+| Reading | 15/24 | 400 | Body prose | 102 / 105 |
+| 12 | 12/16 (15/20 at 860 or above) | 600 label, 400 grey line | Label, grey line, unit, hint | 0 / 8,136 |
 
-다섯 번째 크기는 없다. 굵기는 400, 600, 700 셋.
+There is no fifth size. There are three weights: 400, 600, and 700.
 
-### 높이 (`tokens.css:113`)
-32 띠 / 44 터치 바닥 / 52 행·키 / 64 두 줄 행 / 84 카운터. 휴대폰에서 누르는 것은 44 미만이 없어야 한다.
+### Heights (`tokens.css:113`)
 
-### 모서리와 그림자
-둥글기 0, 그림자 0. 경계가 필요한 떠 있는 면은 시트가 이미 쓰는 안쪽 머리카락 선(`box-shadow: inset 0 1px 0 var(--rule)`, `components.css:191`)과 같은 방식만 쓴다.
+Heights are 32 for strips, 44 for touch floor, 52 for rows and keys, 64 for two-line rows, and 84 for counters. Nothing tappable on mobile may be shorter than 44.
 
-### 전환 (`tokens.css:120-123`)
-| 토큰 | 값 | 쓰임 | 사용 횟수 |
+### Corners and shadows
+
+Border radius is 0 and shadows are 0. Floating surfaces that need an edge use the same inner hairline rule sheets already use (`box-shadow: inset 0 1px 0 var(--rule)`, `components.css:191`).
+
+### Transitions (`tokens.css:120-123`)
+
+| Token | Value | Use | Count |
 |---|---|---|---|
-| `--move-press` | 100ms ease-out | 누름 (scale .976) | 38 |
-| `--move-tone` | 160ms ease-out | 상태 변화 (톤, 램프, 반전) | 76 |
-| `--move-leave` | 260ms ease-in | 나감 (시트, 토스트, 옛 화면) | 3 |
-| `--move-light` | 420ms ease-out | 들어옴 (12 올라오며 켜짐) | 19 |
+| `--move-press` | 100ms ease-out | Press (scale .976) | 38 |
+| `--move-tone` | 160ms ease-out | State change (tone, lamp, inversion) | 76 |
+| `--move-leave` | 260ms ease-in | Exit (sheet, toast, old screen) | 3 |
+| `--move-light` | 420ms ease-out | Enter (rising 12 while lighting up) | 19 |
 
-`--ease-out: cubic-bezier(.22,1,.36,1)`, `--ease-in: cubic-bezier(.5,0,.75,0)`, 간격 38(행) / 62(세그먼트). 토큰을 거치지 않은 전환 선언은 사이트 CSS에 0건이다. JS는 `src/components/common/motion.js` 의 `DUR`, `EASE_OUT`, `EASE_IN`, `STAGGER` 만 쓴다.
+Easing uses `--ease-out: cubic-bezier(.22,1,.36,1)` and `--ease-in: cubic-bezier(.5,0,.75,0)`, with stagger intervals of 38 for rows and 62 for segments. Site CSS has 0 untokenized transition declarations. JavaScript uses only `DUR`, `EASE_OUT`, `EASE_IN`, and `STAGGER` from `src/components/common/motion.js`.
 
-### 배치
-휴대폰 옆 여백 20, 640~859는 576 한 기둥, 860 이상은 1200(두 종류를 담는 화면은 709 + 52 + 439). 읽는 글은 709를 넘지 않는다.
+### Layout
 
-## 2. 도구
+Mobile side margin is 20. Viewports from 640 to 859 use a single 576 column. Viewports at 860 or above use 1200 (two-kind screens split into 709 + 52 + 439). Reading prose never exceeds 709.
 
-Playwright는 의존성이 아니다. `npx playwright --version` 을 한 번 실행해 npx 캐시에 받아 둔다. 스크립트는 설치된 Chrome(`channel: "chrome"`)을 쓴다.
+## 2. Tools
+
+Playwright is not a project dependency. Run `npx playwright --version` once to populate the npx cache. The scripts use installed Chrome (`channel: "chrome"`).
 
 ```bash
-# 개발 서버 (운영 데이터 읽기). .claude/launch.json 의 ypl-dev-prod-data, 포트 5183
+# Dev server reading production data (ypl-dev-prod-data in .claude/launch.json, port 5183)
 npx vite --mode production --port 5183 --strictPort
 
-# 전 화면 스크린샷 + 측정. 결과: docs/visual-audit/shots/<ID>/<폭>x<높이>-<테마>.png, shots/measure.jsonl
-node scripts/visual-audit.cjs --set public,inner,sheet --vp all          # 360 390 430 768 1280 1440 1920, 다크와 라이트
-node scripts/visual-audit.cjs --set public,inner --vp edges --theme dark # 분기점 바로 아래와 위
-node scripts/visual-audit.cjs --only REC-02,HOME --vp core               # 고친 화면만 (390x844, 1440x900)
-node scripts/visual-audit.cjs --login --set admin --vp core              # 관리자: 창이 뜨면 사용자가 직접 로그인. 읽기가 아닌 요청은 모두 막는다
+# Full-screen screenshots and measurements. Output: docs/visual-audit/shots/<ID>/<width>x<height>-<theme>.png, shots/measure.jsonl
+node scripts/visual-audit.cjs --set public,inner,sheet --vp all          # 360 390 430 768 1280 1440 1920, dark and light
+node scripts/visual-audit.cjs --set public,inner --vp edges --theme dark # Just below and above breakpoints
+node scripts/visual-audit.cjs --only REC-02,HOME --vp core               # Changed screens only (390x844, 1440x900)
+node scripts/visual-audit.cjs --login --set admin --vp core              # Admin: user signs in manually; all non-read requests are blocked
 
-# 한 곳을 재는 자 (Git Bash에서는 앞에 MSYS_NO_PATHCONV=1)
+# Single-point measurement probe (prefix with MSYS_NO_PATHCONV=1 in Git Bash)
 MSYS_NO_PATHCONV=1 node scripts/visual-audit-probe.cjs "/?view=records" 1440x900 dark \
   "[...document.querySelectorAll('.rc-tr-place')].map(e=>e.getBoundingClientRect().right)" --shot out.png
 
-# 전환 녹화 (프레임 시트)
+# Transition recording (frame sheet)
 node scripts/record-transition.cjs <out dir> "http://localhost:5183/?view=news" --ms 2000 --every 60 --cpu 1 --act "<js>"
 ```
 
-- 장면 정의는 `scripts/visual-audit.scenes.cjs`. 새 상태를 확인해야 하면 장면을 거기에 더한다.
-- **전후 비교:** 시작 전에 `--out docs/visual-audit/before` 로 전 화면을 한 번 찍어 두고, 묶음을 마칠 때마다 `--out docs/visual-audit/after` 로 해당 화면을 찍어 나란히 본다. 두 폴더는 `.gitignore` 에 넣는다.
-- 관리자 캡처는 사용자가 직접 로그인해야 한다. 비밀번호를 묻거나 적지 않는다. 운영 서버에 쓰는 키(저장, 삭제, 결과 확정, 신청, 글 등록)는 누르지 않는다.
-- 컴퓨터 배틀은 끝나면 `battle` 함수에 기록을 보낸다. 배틀을 끝까지 돌리는 확인에서는 `**/functions/v1/battle*` 요청을 막는다.
-- 관리자 화면의 배치만 볼 때는 `ypl-dev-offline` (포트 5182, Supabase 없음, 아무 아이디로 로그인, 데이터는 그 브라우저의 localStorage)을 쓴다.
-- 스크린샷 스크립트의 한계: 전체 페이지 샷에서 휴대폰 탭 바가 페이지 중간에 그려진다(고정 요소). 결함이 아니다.
+- Scene definitions live in `scripts/visual-audit.scenes.cjs`. Add new states there when needed.
+- Capture a full baseline with `--out docs/visual-audit/before` before starting, then capture changed screens to `--out docs/visual-audit/after` after each batch for side-by-side review. Add both folders to `.gitignore`.
+- Admin captures require the user to sign in manually. Never ask for or write down passwords, and never click write actions against production (save, delete, finalize result, register, submit post).
+- CPU battles send a record to the `battle` function on completion. Block `**/functions/v1/battle*` requests during any verification that runs a battle to the end.
+- Use `ypl-dev-offline` (port 5182, no Supabase, sign in with any ID, data in localStorage) when checking admin layout only.
+- Full-page screenshots draw the fixed mobile tab bar in the middle of the page. That is a script limitation, not a defect.
 
-**작업마다 하는 확인 (공통):** ① 적힌 "확인" 수치를 probe로 잰다. ② 적힌 화면을 390x844와 1440x900, 다크와 라이트로 다시 찍어 본다. ③ `measure.jsonl` 의 그 화면 줄에서 `overflow` 가 비어 있는지 본다. ④ `npm test`.
+Run these four checks after every task:
+1. Measure the listed verification values with the probe script.
+2. Re-capture the listed screens at 390x844 and 1440x900 in both dark and light themes.
+3. Confirm `overflow` is empty for those screens in `measure.jsonl`.
+4. Run `npm test`.
 
-## 3. 작업
+## 3. Tasks
 
-순서대로 한다. 묶음 하나가 커밋 하나다. 줄 번호는 3ffd32c 기준이라 앞 작업으로 밀릴 수 있으니 **선택자 문자열로 찾는다**. "현재"에 적힌 문자열이 파일에 없으면 그 작업은 멈추고 보고한다(추측으로 고치지 않는다).
-
----
-
-### 묶음 1. 공통 부품 (모든 화면에 걸리는 것 먼저)
-
-**T-01 확인 창의 두 키를 1 : 1.618로** (K-08)
-- 파일: `src/styles/components.css`, `.modal-actions .btn--main { flex-grow: 1.618; }` 줄 바로 아래에 추가
-- 현재: 두 키가 flex-grow 1 대 1.618인데 안쪽 여백이 빠져 390에서 158 : 230 (1.46), 1440에서 229 : 345 (1.51)
-- 추가: `.modal-actions:has(> .btn:first-child:nth-last-child(2)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }`
-- 이유: DESIGN.md Hierarchy "뒤로 가는 쪽이 먼저, 주 행동이 1.618배". 키가 하나거나 셋인 줄은 그대로 flex다.
-- 확인: 팀 빌더 `초기화` 확인 창(`?view=builder` → 팀에 포켓몬 하나 넣고 `초기화`). 두 키 폭의 비가 1.60~1.63 (390에서 148 : 240, 1440에서 219 : 355 안팎). 키가 셋인 공지 수정 시트(삭제, 취소, 저장)는 전과 같아야 한다.
-
-**T-02 알림 켜기 창의 두 키를 같은 줄로** (K-08)
-- 파일: `src/components/common/PushControl.jsx` (`<div className="push-ask">` 안), `src/styles/board.css` (`.push-ask`)
-- 현재: `알림 받기`(main)와 `나중에`(second)가 세로로 쌓임, 각 536x52, 사이 20
-- 바꿈: 두 `<Button>` 을 `<div className="modal-actions">` 로 감싸고 순서를 `나중에` 먼저, `알림 받기` 나중으로. 안내 문단(`push-note`)은 그 위에 그대로. `mode !== "ready" || blocked` 여서 `알림 받기` 가 없을 때는 `나중에` 하나만 들어간다. `.push-ask { display: grid; gap: var(--s5); }` 는 그대로 둔다.
-- 확인: `?view=alerts` → 스위치를 눌러 시트를 연다(권한 창은 승인하지 않는다). 두 키가 한 줄, 간격 2, 폭 비 1.60~1.63.
-
-**T-03 데스크톱 대화상자 위쪽 빈 띠** (K-08)
-- 파일: `src/styles/components.css`, `@media (min-width: 860px)` 안의 `.grip::after { display: none; }` 다음 줄에 추가
-- 현재: `.grip { height: 20px }` 가 데스크톱에서도 자리를 차지해 제목 위 28 (옆 20)
-- 추가: `.grip { height: var(--s3); }`
-- 확인: 1440에서 아무 시트(`?view=records` → 트레이너 행). `.sheet` top에서 `.modal > h3` top까지 20 (12 + 8).
-
-**T-04 닫기 ×를 제목 줄 가운데로** (K-08)
-- 파일: `src/styles/components.css`, `.modal-x` 규칙
-- 현재: 52x52 상자가 `.modal` 맨 위(top 0)에 `place-items: center` 로 서서 × 가운데가 제목 첫 줄 가운데보다 4 낮다 (1440: 72 대 68, 390: 98 대 94)
-- 바꿈: `.modal-x` 에 `translate: 0 calc(var(--s1) * -1);` 추가 (상자와 누르는 자리가 4 올라간다)
-- 확인: 390과 1440에서 `.modal > h3` 첫 줄 상자의 세로 가운데와 `.modal-x svg` 의 세로 가운데 차이가 1 이하. × 상자의 위쪽이 시트 밖으로 잘리지 않는지(390에서 `.sheet` top보다 아래) 본다. 잘리면 이 작업은 되돌리고 보고한다.
-
-**T-05 반전 패널 위의 초점 테두리** (K-10)
-- 파일: `src/styles/tokens.css`, `:focus-visible { outline: var(--line) solid var(--lit); ... }` 줄 바로 아래에 추가
-- 현재: 흰(반전) 바탕 위에 흰 2px 테두리라 안 보임
-- 추가: `:is(.inv, .btn--main, .skip-link, .seg-track > [aria-selected="true"]):focus-visible { outline-color: var(--ground); }` (같은 예외가 이미 `board.css` 의 `.choice-opt.inv:has(:focus-visible)` 와 `.opt-row.inv:has(:focus-visible)` 두 곳에 있다. 그 방식을 반전된 모든 것으로 넓힌다)
-- 확인: 1440과 390, 다크와 라이트. 키보드 Tab을 한 번 눌러 키보드 방식을 켠 뒤 `el.focus()`. 기록 1위 패널(`.rc-top.inv`), 게시판 `글쓰기`(`.btn--main`), 새 사설 대진표 시트의 방식 선택(`.seg-track` 고른 칸), 건너뛰기 링크, 고른 칩에서 `outline-color` 가 배경색과 다르고 화면에서 2px 선이 보인다.
-
-**T-06 검색 건수를 칸 안으로** (K-03)
-- 파일: `src/components/common/ListSearch.jsx`
-- 현재: `{q && <span className="search-count t12 dim">{count}건</span>}` 가 `<label className="pn search-in">` **밖**에 있어, 글자를 넣으면 칸 폭이 1200 → 1157로 줄고 자릿수마다 움직인다
-- 바꿈: 그 `<span>` 을 `<label>` 안, `<input>` 과 지우기 `<button className="search-clear">` 사이로 옮긴다. 다른 것은 그대로.
-- 확인: `?view=records` 1440과 390. 검색 칸에 "김"을 넣기 전후 `.search-in` 의 width가 같다(1200 / 350). `count` 를 넘기지 않는 화면(건수가 `undefined건` 으로 찍히는 곳이 없는지)을 `grep -rn "<ListSearch" src` 로 모두 확인한다.
-
-**T-07 행의 회색 줄을 400으로** (K-07)
-- 파일: `src/components/common/Board.jsx`, `Row` 안의 `{line && <span className="t12 dim">{line}</span>}`
-- 현재: 행의 회색 줄 600, 같은 목록 리드 판의 회색 줄 400 (`t12 dim reg`)
-- 바꿈: `className="t12 dim reg"`
-- 이유: DESIGN.md Hierarchy 5단 "600 a label, 400 a grey line". 리드 판, 알림 종류 칸, 시트의 힌트가 이미 400이다.
-- 확인: `?view=news`, `?view=bracket`, `?view=alerts`, `?view=more`, `?view=board` 를 390과 1440으로 다시 찍는다. 리드와 그 아래 행의 날짜 줄 `font-weight` 가 둘 다 400. 행 제목(`b.t15`)은 700 그대로.
-
-**T-08 램프는 말 앞에, 행 끝 램프는 안쪽 선에** (K-06)
-- 근거: 램프가 말 앞에 서는 곳 4종(상단 바 "진행 중", LiveStrip, 공지 리드 "새 글", 더보기 "새 알림"), 말 뒤에 서는 곳 2종(일반 Row, 일반 Lead). 많은 쪽으로 맞춘다.
-- 파일 1: `src/components/common/Board.jsx`
-  - `Row`: 현재 `{typeof lamp === "string" && <span className="row-lamp-word t12">{lamp}</span>}` 다음 줄에 `{lamp != null && <span className="row-lamp">…<i className="lamp…"/></span>}`. 바꿈: lamp가 문자열이면 `<span className="row-lamp-word t12"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>` 하나만 그리고, 문자열이 아닐 때만 기존 `row-lamp` 를 그린다.
-  - `Lead`: 현재 `<span className="t12 lead-lamp">{lamp}<i className=… /></span>`. 바꿈: `<i … />` 를 `{lamp}` 앞으로.
-- 파일 2: `src/styles/board.css`
-  - `.row-lamp-word { flex: none; font-weight: 600; white-space: nowrap; }` → `.row-lamp-word { flex: none; display: inline-flex; align-items: center; gap: var(--s2); padding-right: var(--pad); font-weight: 600; white-space: nowrap; }`
-  - `.row-lamp { …; width: var(--s8); }` → `width` 를 지우고 `justify-content: flex-end; padding: 0 var(--pad) 0 var(--s3);` (말 없는 램프도 오른쪽 여백이 `--pad`)
-- 파일 3: `src/styles/home.css`, `.ho-news .row-lamp { width: var(--s13); }` 줄 삭제
-- 확인: `?view=news`, 홈, `?view=news&notice=<id>` (다른 공지), `?view=alerts` 1440. 램프의 오른쪽 끝 또는 "새 글" 말의 오른쪽 끝이 같은 행의 다른 것과 같은 x(1300). 램프와 말 사이 8. 대진표 목록의 "진행 중" 행, 배틀 로비의 "진행 중" 행도 같이 본다.
-
-**T-09 드롭다운 메뉴와 더보기 팝오버** (K-09)
-- 파일: `src/styles/components.css`
-  - `.dd-opt` 의 `padding: var(--s2) var(--s3);` → `padding: var(--s2) var(--pad);` (값 x 140과 항목 x 132의 8 어긋남 해소)
-  - `.dd-menu` 규칙에 추가: `box-shadow: inset 0 0 0 var(--hair) var(--rule);`
-  - `.popover` 규칙에 추가: `box-shadow: inset 0 0 0 var(--hair) var(--rule);`
-  - `.mi` 규칙의 좌우 padding이 `var(--s3)` 이면 `var(--pad)` 로
-- 이유: 떠 있는 면이 아래 패널과 한 단계 톤 차이뿐이라 라이트에서 이어져 보인다. 시트의 머리카락 선과 같은 방식.
-- 확인: `?view=records&tab=rank` 1440 드롭다운을 열어 버튼 글자와 항목 글자의 left가 같다. 1024x768에서 상단 바 `더보기` 를 눌러 팝오버 가장자리 1px 선이 다크와 라이트 모두 보인다.
-
-**T-10 섹션 제목 아래를 12로** (K-04)
-- 파일: `src/styles/board.css`, `.sh { … margin-bottom: var(--s3); }` 줄 아래에 추가
-  - `.stack > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }` (stack의 간격 2와 합쳐 12)
-  - `.stack > :is(h2, h3):first-child:not(.sh) { margin-bottom: calc(var(--s3) - var(--seam)); }` (stack 안의 맨 제목: 2 → 12)
-- 파일: `src/styles/admin.css`, `.ad-block { display: grid; gap: var(--s3); }` 아래에 추가: `.ad-block > .sh { margin-bottom: 0; }` (24 → 12)
-- 파일: `src/styles/records-board.css`, `.rc-chapter` 의 `padding: var(--s8) 0 var(--s3);` → `padding: calc(var(--s8) - var(--seam)) 0 calc(var(--s3) - var(--seam));` (34 / 14 → 32 / 12)
-- 확인(제목 하단 → 첫 행 상단): 대진표 조별 리그 `?view=bracket&eventId=4379f233-b441-43ba-8c05-581d6c07af05` 의 "1조" 12 / 대진표 목록 보기 라운드 머리 12 / 게시글 "댓글 N" 12 / `?view=records&tab=tour` 시즌 장 머리 12, 장 사이 32 / `?view=admin` 구역 제목 12.
-
-**T-11 패널 위의 second 키와 칸이 패널에 묻히는 곳** (K-11)
-- `src/styles/news.css` 끝에 추가: `.nw-form .row .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }`
-- `src/styles/admin.css`, `.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group) :is(input…` 선택자의 목록에 `.fold` 추가 → `.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group, .fold) :is(…)`
-- `src/styles/admin.css`, 위 규칙 아래에 추가: `.sheet .fb-dot { background: var(--panel); }`
-- `src/styles/records-board.css`, `.rc-top-cell` 규칙 아래에 추가: `@media (hover: hover) { .rc-top.pn:hover .rc-top-cell { background: var(--rule); } }`
-- 확인: 신청서(`?view=news` → 공지 → 참가 신청)의 "구글 로그인" 키 배경이 행 배경과 다르다. 오프라인 서버에서 공지 작성 → 링크 첨부를 펼쳐 입력칸 배경이 접힘 배경과 다르다. 객관식 질문의 선택지 앞 네모가 보인다. 기록 2위·3위 패널에 포인터를 올려도 칸이 보인다.
-
-**묶음 1 끝 확인:** `--set public,inner,sheet --vp core` 전체를 다시 찍어 before와 비교한다. 달라진 곳이 위 11개 작업에서 말한 곳뿐이어야 한다.
+Work in order. Each batch is one commit. Line references come from commit `3ffd32c` and may shift after earlier edits, so locate code by selector string. If the string listed as current is missing from the file, stop and report rather than guessing.
 
 ---
 
-### 묶음 2. 폭 구간과 넘침
+### Batch 1. Shared components
 
-**T-12 상단 바 전체 탭 분기점** (K-14)
-- 파일: `src/components/layout/Navigation.jsx`, `const WIDE = "(min-width: 1100px)";`
-- 바꿈: `"(min-width: 1200px)"`
-- 이유: 탭 12개 + 계정 + 진행 중 + 테마 키가 서려면 약 1160이 필요하다. 1100~1150에서 "명예의 전당", "팀 빌더", "진행 중"이 두 줄이 된다. 1200은 이미 쓰는 분기점이다(`battle.css`).
-- 확인: 대회 당일 상태가 필요하다. probe의 `--act` 로 `.topbar` 에 진행 중 램프와 긴 계정 이름을 흉내 낸다: 계정 버튼(`.acct`)의 글자를 "가나다라마바사아자차"로 바꾼 뒤, 1100, 1160, 1199, 1200, 1280에서 모든 `.navlink` 의 height가 64이고 `scrollWidth <= clientWidth`. 1199 이하는 5탭 + 더보기다.
+#### T-01 Confirm dialog buttons at 1 to 1.618 (K-08)
+- Edit `src/styles/components.css` immediately below `.modal-actions .btn--main { flex-grow: 1.618; }`.
+- Currently the two buttons use flex-grow 1 and 1.618, but inner padding skews the ratio to 158 vs 230 (1.46) at 390 and 229 vs 345 (1.51) at 1440.
+- Add `.modal-actions:has(> .btn:first-child:nth-last-child(2)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.618fr); }`.
+- `DESIGN.md` Hierarchy specifies that the back action comes first and the main action is 1.618 times as wide. Rows with one or three buttons stay flex.
+- Verify on the team builder `초기화` confirm dialog (open `?view=builder`, add one Pokemon, click `초기화`). The width ratio must be 1.60 to 1.63 (around 148 to 240 at 390, and 219 to 355 at 1440). The three-button notice edit sheet (delete, cancel, save) must remain unchanged.
 
-**T-13 5열 대진표 트리의 8px 넘침** (C-02)
-- 파일: `src/styles/brackets.css`, `@media (min-width: 860px)` 안의 `.bk-tree > .bk-col2 { flex: 1 0 var(--bk-w); width: auto; }`
-- 현재: 216x5 + 32x4 = 1208 > 1200. `.bk-scroll` clientWidth 1200, scrollWidth 1208, 우승 패널이 8 잘린다
-- 바꿈: `.bk-tree > .bk-col2 { flex: 1 1 0; min-width: calc(var(--s21) * 2 + var(--s8)); width: auto; }` (최소 200: 5열 1128, 6열부터 스크롤)
-- 확인: `?view=bracket&eventId=17ffc2ab-5128-4af0-8a32-efb826372d10` (싱글 12명) 1280, 1440, 1920에서 `.bk-scroll` 의 scrollWidth === clientWidth. 모든 `.bk-col2` 의 left와 width가 정수. 더블(`eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13`)과 싱글 7명(`927a1b9a-2ca7-431a-b71d-078ac9e5767b`)이 전과 같은 줄에 선다. 더블의 열 폭이 소수(378.67 등)로 남는 것은 T-75에서 다룬다.
+#### T-02 Notification prompt buttons on one row (K-08)
+- Edit `src/components/common/PushControl.jsx` (inside `<div className="push-ask">`) and `src/styles/board.css` (`.push-ask`).
+- Currently `알림 받기` (main) and `나중에` (second) stack vertically at 536x52 each with a 20 gap.
+- Wrap both `<Button>` elements in `<div className="modal-actions">`, placing `나중에` first and `알림 받기` second. Keep the guidance paragraph (`push-note`) above them. When `mode !== "ready" || blocked` hides `알림 받기`, only `나중에` renders. Leave `.push-ask { display: grid; gap: var(--s5); }` as is.
+- Verify on `?view=alerts` by toggling the switch to open the sheet (do not grant browser permission). Both buttons sit on one row with a 2 gap and a width ratio of 1.60 to 1.63.
 
-**T-14 결승 한 라운드 트리에서 우승 패널 잘림** (C-01)
-- 화면: `?view=bracket&eventId=4379f233-b441-43ba-8c05-581d6c07af05` (본선이 결승 하나) 1440, 다크와 라이트
-- 현재: `.bk-scroll` 높이 126, `.bk-champ-pos` 높이 180이 결승 가운데로 `translate` 되어 위 21, 아래 33이 잘리고 "우승" 열 머리를 덮는다 (`brackets.css` 의 `.bk-champ-pos`, `.bk-champ-col .bk-champ-node`, `.bk-scroll`)
-- 바꿈: `src/styles/brackets.css` 에 추가: `.bk-tree:has(> .bk-col2:nth-child(2):last-child) .bk-champ-node { height: var(--mb); }` 와 같은 조건에서 `.bk-champ-pos { translate: none; }` (열이 결승과 우승 둘뿐일 때 우승 패널을 경기 카드 높이 `--mb` 로). `:has` 조건의 열 선택자는 실제 DOM(`.bk-tree` 의 직계 자식 수)을 probe로 확인하고 맞춘다.
-- 끝난 것의 기준(수치): `.bk-champ-pos` 의 top ≥ `.bk-scroll` 의 top + 열 머리 높이, bottom ≤ `.bk-scroll` 의 bottom. "우승" 열 머리 글자가 보인다. 2라운드 이상인 트리(위 12명, 7명)는 전과 같다.
+#### T-03 Top empty band on desktop dialogs (K-08)
+- Edit `src/styles/components.css` immediately below `.grip::after { display: none; }` inside `@media (min-width: 860px)`.
+- Currently `.grip { height: 20px }` still reserves space on desktop, leaving 28 above the title vs 20 on the sides.
+- Add `.grip { height: var(--s3); }`.
+- Verify at 1440 on any sheet (open `?view=records` and click a trainer row). Distance from `.sheet` top to `.modal > h3` top must be 20 (12 + 8).
 
-**T-15 라이트 테마 승자 띠** (E-01)
-- 파일: `src/styles/battle.css`
-- 현재: `:root[data-theme="light"] .bt-strip { background: var(--panel); }` (명시도 0,2,1)가 `.bt-strip[data-won] { background: var(--lit); color: var(--ground); }` (0,2,0)를 이겨, 라이트에서 승자 띠가 패널 색 바탕에 흰 글자가 된다
-- 바꿈: 앞 규칙의 선택자를 `:root[data-theme="light"] .bt-strip:not([data-won])` 로
-- 확인: 라이트에서 컴퓨터 배틀을 기권으로 끝낸 화면(390, 1440; `battle` 함수 요청은 막는다). `.bt-strip[data-won]` 의 배경이 `--lit`, 글자가 `--ground`. 다크는 전과 같다.
+#### T-04 Center close × on the title line (K-08)
+- Edit the `.modal-x` rule in `src/styles/components.css`.
+- Currently the 52x52 box sits at top 0 of `.modal` with `place-items: center`, putting the center of × 4 lower than the center of the first title line (72 vs 68 at 1440, 98 vs 94 at 390).
+- Add `translate: 0 calc(var(--s1) * -1);` to `.modal-x` so the box and hit area move up by 4.
+- Verify at 390 and 1440 that the vertical center of the first line of `.modal > h3` and the vertical center of `.modal-x svg` differ by at most 1. Check that the top of the × box is not clipped outside the sheet (below `.sheet` top at 390); if it clips, revert and report.
 
-**T-16 데스크톱 배틀에서 대회 진행 띠** (E-04)
-- 파일: `src/styles/battle.css`, `@media (min-width: 1200px)` 블록의 `.ypl:has(.bt-match) .site-foot { display: none; }`
-- 바꿈: `.ypl:has(.bt-match) :is(.site-foot, .live-strip) { display: none; }`
-- 이유: 그 블록의 주석이 "배틀은 한 창이고 아래에 아무것도 없다"인데 띠(44 + 20)를 세지 않아 대회 당일에는 늘 88 스크롤된다. 휴대폰 블록은 이미 `.live-strip` 을 숨긴다.
-- 확인: 대회 당일 상태에서 1200x800, 1440x900. 배틀 중 `document.documentElement.scrollHeight === innerHeight`. 대회 당일이 아니면 띠 요소를 probe의 `--act` 로 `#ypl-main` 앞에 `<button class="pn live-strip">` 을 넣어 같은 조건을 만든다.
+#### T-05 Focus outline on inverted panels (K-10)
+- Edit `src/styles/tokens.css` right below `:focus-visible { outline: var(--line) solid var(--lit); ... }`.
+- Currently a white 2px outline on a white inverted surface is invisible.
+- Add `:is(.inv, .btn--main, .skip-link, .seg-track > [aria-selected="true"]):focus-visible { outline-color: var(--ground); }`. This extends the pattern already used by `.choice-opt.inv:has(:focus-visible)` and `.opt-row.inv:has(:focus-visible)` in `board.css` to all inverted elements.
+- Verify at 1440 and 390 in both dark and light themes. Press Tab once to enter keyboard mode, then call `el.focus()`. Confirm `outline-color` contrasts with the background and a 2px outline is visible on the 1st-place records panel (`.rc-top.inv`), the board `글쓰기` button (`.btn--main`), the selected segment in the new private bracket sheet (`.seg-track`), the skip link, and selected chips.
 
-**T-17 끝난 뒤 데스크톱 키 높이** (E-11)
-- 파일: `src/styles/battle.css`, `@media (min-width: 860px)` 의 `.bt-end-row` 묶음 끝에 추가
-- 현재: `.bt-end-row { min-height: var(--h-counter); }` 와 `.bt-end-keys > .btn { min-height: 100%; }` 가 결과 머리 없이 키만 있을 때도 걸려 다시하기 692x84, 나가기 74x84
-- 추가: `.bt-end-row:has(> :only-child) { min-height: 0; }` 와 `.bt-end-row:has(> :only-child) .bt-end-keys > .btn { min-height: var(--h-row); }`
-- 확인: 1440에서 일반 컴퓨터 배틀이 끝난 뒤 두 키 높이 52. 도전의 탑과 중계(결과 머리가 옆에 서는 경우)는 84 그대로.
+#### T-06 Search count inside the input box (K-03)
+- Edit `src/components/common/ListSearch.jsx`.
+- Currently `{q && <span className="search-count t12 dim">{count}건</span>}` sits outside `<label className="pn search-in">`, shrinking the input width from 1200 to 1157 on input and shifting it as digit counts change.
+- Move that `<span>` inside `<label>`, between `<input>` and the clear `<button className="search-clear">`. Leave everything else unchanged.
+- Verify on `?view=records` at 1440 and 390. `.search-in` width must stay identical before and after typing "김" (1200 at 1440, 350 at 390). Run `grep -rn "<ListSearch" src` to confirm no caller omits `count` and renders `undefined건`.
 
-**T-18 관리자 휴대폰 순서** (G-01)
-- 파일: `src/styles/admin.css`, `@media (max-width: 859px)` 안의 `.ad-main > .ad-block:last-child { order: 2; }`
-- 현재: 내보내기만 order 2, 대회 진행(`.ad-side`) order 1, 나머지 0이라 대회 진행이 편집과 최근 변경 아래로 밀린다. 그 위 주석은 "할 일, 대회 진행, 편집" 순서다.
-- 바꿈: `.ad-main > :not(.ad-block:first-child) { order: 2; }` (할 일만 0, 대회 진행 1, 나머지 2)
-- 확인: `?view=admin` 390(오프라인 서버로 충분). 화면의 h2 순서가 할 일 → 대회 진행 → 편집 → (최근 변경, 화면 오류, 신고) → 내보내기. 1440은 전과 같다.
+#### T-07 Row grey lines at weight 400 (K-07)
+- Edit `Row` in `src/components/common/Board.jsx` at `{line && <span className="t12 dim">{line}</span>}`.
+- Currently row grey lines render at weight 600 while lead panel grey lines in the same list render at 400 (`t12 dim reg`).
+- Change the class to `className="t12 dim reg"`.
+- `DESIGN.md` Hierarchy step 5 specifies 600 for labels and 400 for grey lines. Lead panels, alert type cells, and sheet hints already use 400.
+- Verify by re-capturing `?view=news`, `?view=bracket`, `?view=alerts`, `?view=more`, and `?view=board` at 390 and 1440. Both the lead panel date line and row date lines must have `font-weight` 400, while row titles (`b.t15`) stay 700.
 
-**T-19 신청자 시트 휴대폰 겹침** (G-04)
-- 파일: `src/styles/pages.css`, `.fr-name { display: flex; align-items: baseline; gap: var(--s3); min-width: 0; }` 아래에 추가
-- 추가: `@media (max-width: 639px) { .fr-name { flex-wrap: wrap; row-gap: var(--s1); } }`
-- 현재: 390에서 `.fr-when`(nowrap)이 넘쳐 "11.17 화 23미제출"로 겹친다
-- 확인: 관리자 로그인 뒤 `ADM-NEWS-02` 390. 모든 행에서 `.fr-when` 의 right ≤ `.fr-actions` 의 left. 1440은 전과 같다.
+#### T-08 Lamps before words and aligned to inner padding (K-06)
+- Four places put the lamp before the word (top bar "진행 중", `LiveStrip`, notice lead "새 글", more page "새 알림") and two put it after (standard `Row`, standard `Lead`). Standardize on lamp-first.
+- In `src/components/common/Board.jsx`, update `Row` so that when `lamp` is a string it renders only `<span className="row-lamp-word t12"><i className={"lamp" + (sig ? " sig" : "")} aria-hidden="true" />{lamp}</span>`, and renders the existing `row-lamp` only when `lamp` is not a string. In `Lead`, move `<i ... />` before `{lamp}` inside `<span className="t12 lead-lamp">`.
+- In `src/styles/board.css`, change `.row-lamp-word { flex: none; font-weight: 600; white-space: nowrap; }` to `.row-lamp-word { flex: none; display: inline-flex; align-items: center; gap: var(--s2); padding-right: var(--pad); font-weight: 600; white-space: nowrap; }`. On `.row-lamp`, remove `width: var(--s8);` and add `justify-content: flex-end; padding: 0 var(--pad) 0 var(--s3);` so wordless lamps also align to `--pad`.
+- In `src/styles/home.css`, delete `.ho-news .row-lamp { width: var(--s13); }`.
+- Verify on `?view=news`, home, `?view=news&notice=<id>` (other notices), and `?view=alerts` at 1440. The right edge of the lamp or "새 글" word must align with other row right edges (x = 1300), with an 8 gap between lamp and word. Check "진행 중" rows in the bracket list and battle lobby as well.
 
-**T-20 더보기 1440의 오른쪽 단** (A-04)
-- 파일: `src/styles/more.css`, `.more-side { grid-column: 2; grid-row: 2 / span 3; }`
-- 바꿈: `span 3` → `span 4` (내 계정 그룹이 생겨 왼쪽 그룹이 넷)
-- 확인: `?view=more` 1440. `.more-side` 의 bottom과 왼쪽 마지막 그룹의 bottom 차이 2 이하. 관리자 로그인 행이 오른쪽 단의 맨 아래. 계정 기능이 꺼진 오프라인 서버(5182)에서도 두 단의 끝이 맞는지 본다. 안 맞으면 `grid-row: 2 / -1` 이 되게 `.more` 의 행을 명시하는 대신 보고한다.
+#### T-09 Dropdown menu and more popover alignment and hairline (K-09)
+- Edit `src/styles/components.css`.
+- Change `.dd-opt` padding from `var(--s2) var(--s3)` to `var(--s2) var(--pad)` to remove the 8 misalignment between button value (x = 140) and menu item (x = 132).
+- Add `box-shadow: inset 0 0 0 var(--hair) var(--rule);` to both `.dd-menu` and `.popover`.
+- If `.mi` uses `var(--s3)` for horizontal padding, change it to `var(--pad)`.
+- Floating menus differ from underlying panels by only one tone step and blend together in light mode; the inner hairline matches sheets.
+- Verify on `?view=records&tab=rank` at 1440 that the opened dropdown button text and option text share the same `left`. At 1024x768, open `더보기` in the top bar and confirm the 1px popover edge is visible in both dark and light themes.
 
-**T-21 휴대폰 탭 줄의 숨은 탭** (B-14)
-- 파일: `src/styles/board.css`, `.tabsline { display: flex; gap: var(--s8); … }` 아래에 추가
-- 추가: `@media (max-width: 859px) { .tabsline { gap: var(--s5); } }`
-- 현재: 360에서 칭호의 "파트너"가 344.9에서 온전히 끝나고 다음 탭이 화면 밖에서 시작해 더 있다는 표시가 없다
-- 확인: `?view=titles` 360과 390. 화면 오른쪽 끝에 다음 탭 글자가 반 이상 잘린 채 걸친다. 탭이 넷인 기록, 다섯인 배틀은 한 줄에 다 선다. 밑줄 미끄러짐이 그대로 도는지 탭을 눌러 본다.
+#### T-10 Section heading bottom gap at 12 (K-04)
+- In `src/styles/board.css`, below `.sh { ... margin-bottom: var(--s3); }`, add `.stack > .sh { margin-bottom: calc(var(--s3) - var(--seam)); }` (total 12 with the stack's 2 gap) and `.stack > :is(h2, h3):first-child:not(.sh) { margin-bottom: calc(var(--s3) - var(--seam)); }` (raises bare stack headings from 2 to 12).
+- In `src/styles/admin.css`, below `.ad-block { display: grid; gap: var(--s3); }`, add `.ad-block > .sh { margin-bottom: 0; }` (fixes 24 to 12).
+- In `src/styles/records-board.css`, change `.rc-chapter` padding from `var(--s8) 0 var(--s3)` to `calc(var(--s8) - var(--seam)) 0 calc(var(--s3) - var(--seam))` (fixes 34 and 14 to 32 and 12).
+- Verify heading bottom to first row top is 12 on: "1조" in group stage `?view=bracket&eventId=4379f233-b441-43ba-8c05-581d6c07af05`, round headers in bracket list view, "댓글 N" on board posts, season chapter headers on `?view=records&tab=tour` (with 32 between chapters), and admin section headings on `?view=admin`.
 
-**묶음 2 끝 확인:** `--set public,inner --vp edges --theme dark` 를 다시 찍고 `measure.jsonl` 에서 `overflow` 0건.
+#### T-11 Controls blending into parent panels (K-11)
+- At the end of `src/styles/news.css`, add `.nw-form .row .btn--second { --btn-bg: var(--panel-2); --btn-bg-hover: var(--rule); }`.
+- In `src/styles/admin.css`, add `.fold` to the selector `.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group) :is(input...` so it reads `.sheet :is(.fb-q, .ed-round, .tb-library-save, .bk-group, .fold) :is(...)`.
+- Immediately below that rule in `src/styles/admin.css`, add `.sheet .fb-dot { background: var(--panel); }`.
+- In `src/styles/records-board.css`, below `.rc-top-cell`, add `@media (hover: hover) { .rc-top.pn:hover .rc-top-cell { background: var(--rule); } }`.
+- Verify that the "구글 로그인" button in the registration form (`?view=news`, open a notice, click `참가 신청`) contrasts with its row background. On the offline server, open notice creation, expand link attachment, and confirm inputs contrast with the fold background and multiple-choice option squares are visible. Confirm cells stay visible when hovering 2nd and 3rd place record panels.
 
----
-
-### 묶음 3. 기록, 칭호, 명예의 전당
-
-**T-22 죽은 선택자** (B-06b)
-- 파일: `src/styles/records-board.css`, `.records-round-detail .row { background: var(--panel-2); }`
-- 바꿈: 선택자를 `.records-round-detail .rc-party-row` 로
-- 확인: `?view=records&tab=tour` → "입상자별 공식 파티"를 펼친다. 파티 행 배경이 카드 배경과 다르고(`--panel-2`) 행 사이 2px 솔기가 보인다. 다크와 라이트.
-
-**T-23 순위 숫자 자릿수 정렬** (B-02)
-- 파일: `src/styles/records-board.css`, `.rc-tr-place { padding-left: var(--pad); color: var(--mute); }`
-- 바꿈: `.rc-tr-place { padding: 0 var(--s3) 0 var(--pad); text-align: right; color: var(--mute); }` (오른쪽 정렬만 주면 숫자가 이름에 붙는다: 시안에서 "4이병재"로 찍혔다. 오른쪽 여백 12를 함께 준다). 두 자리 숫자가 칸 안에 드는지(칸 52 - 20 - 12 = 20, "10" 의 폭 약 19) 확인하고, 세 자리 순위가 생기는 목록이면 칸 폭을 `var(--h-row2)`(64)로 넓힌다.
-- 확인: `?view=records` 1440에서 `N명 전체 보기` 를 누른 뒤 `.rc-tr-place` 글자 범위(Range)의 right가 모든 행에서 같다(±0.5). 390도. 숫자 right와 이름 left 사이가 12.
-
-**T-24 이름 열 고정** (B-03)
-- 파일: `src/styles/records-board.css`, 860 이상의 `.rc-tr-main { grid-template-columns: auto minmax(0, 1fr); … }`
-- 바꿈: `auto` → `calc(var(--s21) * 2 + var(--s13))` (220). 이름이 넘치면 말줄임이 되게 이름 요소에 `min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap` 이 있는지 보고 없으면 준다.
-- 확인: 전체 보기 상태에서 표식 열(작은 네모들)의 left가 모든 행에서 같다. 가장 긴 이름 + 태그 + "나" 태그가 220 안에 드는지 본다. 안 들면 220 대신 넣을 값을 정하지 말고 보고한다.
-
-**T-25 랭킹 각주 폭** (K-02)
-- 파일: `src/styles/records-board.css`, `.rc-note { margin-top: var(--s8); }`
-- 바꿈: `.rc-note { margin-top: var(--s8); max-width: 709px; }`
-- 확인: `?view=records&tab=rank` 1440. 각주 한 줄이 709 이하.
-
-**T-26 기록 탭의 조작 순서와 간격** (K-01의 일부, 휴대폰과 공통)
-- 파일: `src/styles/records-board.css`
-- 현재: 트레이너 탭은 검색 → 12 → 칩 → **2** → 드롭다운. 칩(32)과 드롭다운(52)이 솔기로 붙어 한 덩어리로 보인다.
-- 바꿈: `.rc-sort` 안의 칩과 드롭다운 사이를 12로. `.rc-sort` 가 `.stack` (gap 2)이면 `.rc-sort { gap: var(--s3); }` 을 준다.
-- 확인: 390과 1440에서 칩 bottom → 드롭다운 top = 12.
-- 데스크톱에서 세 조작을 한 줄로 모으는 것은 T-60.
-
-**T-27 칭호 시트 제목** (B-19a)
-- 파일: `src/pages/TitlesPage.jsx`, `TitleSheet` 의 `<Modal title={title} …>` 에 넘기는 제목
-- 현재: 챔피언 메달의 시트 제목이 `item.name` 그대로 "초대 챔피언". 메달과 트레이너 시트는 "1대 챔피언"
-- 바꿈: 챔피언 칭호일 때 제목을 `src/pages/ChampionsPage.jsx` 가 쓰는 세대 표기 함수(`generationText`)로 통과시킨다. 그 함수의 위치는 `grep -rn "generationText" src` 로 찾는다.
-- 확인: `?view=titles` → 1대 챔피언 메달을 누른 시트 제목이 "1대 챔피언".
-
-**T-28 주인 없는 칭호 시트** (K-16)
-- 파일: `src/pages/TitlesPage.jsx`, `TitleSheet` 의 주인 목록
-- 현재: "주인 0명" 제목 아래 "아직 주인이 없습니다."
-- 바꿈: 주인이 0명이면 "주인 0명" 제목을 그리지 않고 빈 상태 한 줄만
-- 확인: `?view=titles&tab=type` 의 꺼진 메달을 누른 시트.
-
-**T-29 시트 맨 아래 링크 공유의 위 간격** (K-08)
-- 파일: `src/styles/titles.css`, `.tl-sheet-sec { margin-top: var(--s8); }` 가 링크 공유에도 걸려 32. 트레이너·포켓몬 시트는 20.
-- 바꿈: 칭호 시트의 링크 공유 묶음 `margin-top` 을 `var(--s5)` 로 (그 요소의 클래스는 `TitlesPage.jsx` 의 `<ShareHere>` 를 감싼 것을 본다)
-- 확인: 칭호 시트에서 마지막 목록 bottom → 링크 공유 top = 20.
-
-**묶음 3 끝 확인:** `--only REC-02,REC-09,REC-10,REC-14,REC-05,TTL-01,TTL-04 --vp core`.
+At the end of Batch 1, re-capture `--set public,inner,sheet --vp core` and compare against `before`. Only the 11 items above should show differences.
 
 ---
 
-### 묶음 4. 공지, 게시판, 대진표, 홈, 소개, 알림
+### Batch 2. Width ranges and overflow
 
-**T-30 자유 글 본문과 댓글을 709로** (K-02)
-- 파일: `src/styles/posts.css`, `@media (min-width: 860px)` 의 `.bd-art.many .bd-cmts { max-width: 709px; }` 근처
-- 바꿈: 자유 글(샘플·파티 글이 아닌 글)의 `.bd-body` 와 `.bd-cmts` 에 `max-width: 709px`. 자유 글의 `<article>` 클래스는 `src/pages/BoardPage.jsx` 의 `PostView` 에서 확인하고, 샘플(`.bd-art.one`)과 파티(`.bd-art.many`)의 배치는 건드리지 않는다.
-- 확인: `?view=board` → 글 하나, 1440과 1920. `.prose` 폭 709, 유튜브 임베드 709, 댓글 패널 709, 댓글 폼의 등록 키가 폼 오른쪽 끝(709 선). 390은 전과 같다.
+#### T-12 Top bar full-tab breakpoint (K-14)
+- In `src/components/layout/Navigation.jsx`, change `const WIDE = "(min-width: 1100px)";` to `"(min-width: 1200px)"`.
+- Fitting 12 tabs, the account control, live indicator, and theme toggle requires about 1160. Between 1100 and 1150, "명예의 전당", "팀 빌더", and "진행 중" wrap to two lines. 1200 is already an established breakpoint (`battle.css`).
+- Verify by simulating tournament-day state via probe `--act`: add a live lamp to `.topbar` and set the account button (`.acct`) text to "가나다라마바사아자차". At 1100, 1160, 1199, 1200, and 1280, every `.navlink` must have height 64 with `scrollWidth <= clientWidth`. Viewports at 1199 or below show 5 tabs plus `더보기`.
 
-**T-31 데스크톱 댓글 키 폭** (K-15)
-- 파일: `src/styles/posts.css`, `.bd-act { min-height: var(--h-control); … padding: 0 var(--s1); … }`
-- 바꿈: `min-width: var(--h-control);` 추가, `text-align: center` 가 필요하면 함께
-- 확인: 1440에서 답글, 수정, 삭제, 신고 각 폭 ≥ 44. 390에서 댓글 머리 줄이 전보다 더 꺾이지 않는다(C-05는 T-78).
+#### T-13 Five-column bracket tree 8px overflow (C-02)
+- Edit `.bk-tree > .bk-col2 { flex: 1 0 var(--bk-w); width: auto; }` inside `@media (min-width: 860px)` in `src/styles/brackets.css`.
+- Currently 216x5 + 32x4 = 1208 exceeds 1200, so `.bk-scroll` has clientWidth 1200 and scrollWidth 1208, clipping the champion panel by 8.
+- Change it to `.bk-tree > .bk-col2 { flex: 1 1 0; min-width: calc(var(--s21) * 2 + var(--s8)); width: auto; }` (min-width 200: 5 columns fit in 1128, and scrolling starts at 6 columns).
+- Verify on `?view=bracket&eventId=17ffc2ab-5128-4af0-8a32-efb826372d10` (12-player single elimination) at 1280, 1440, and 1920: `.bk-scroll` must satisfy `scrollWidth === clientWidth`, and every `.bk-col2` left and width must be integers. Double elimination (`eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13`) and 7-player single elimination (`927a1b9a-2ca7-431a-b71d-078ac9e5767b`) must keep their existing rows. Fractional column widths in double elimination (such as 378.67) are handled in T-75.
 
-**T-32 게시판 행의 글쓴이와 날짜** (C-15)
-- 파일: `src/pages/BoardPage.jsx` 의 자유 목록 행, `src/styles/posts.css` `.bd-day { margin-left: var(--s2); }`
-- 바꿈: 공지("고정, 11.16 월")와 대진표 줄처럼 쉼표로 잇는다: "트레이너, 11.22 일". `.bd-day` 의 margin-left는 지운다.
-- 확인: `?view=board` 390과 1440.
+#### T-14 Champion panel clipped in single-round final tree (C-01)
+- Target screen: `?view=bracket&eventId=4379f233-b441-43ba-8c05-581d6c07af05` (main bracket has only a final) at 1440 in dark and light themes.
+- Currently `.bk-scroll` is 126 tall while `.bk-champ-pos` (180 tall) translates to center on the final, clipping 21 at the top and 33 at the bottom and covering the "우승" column header (`brackets.css`: `.bk-champ-pos`, `.bk-champ-col .bk-champ-node`, `.bk-scroll`).
+- In `src/styles/brackets.css`, add `.bk-tree:has(> .bk-col2:nth-child(2):last-child) .bk-champ-node { height: var(--mb); }` and set `.bk-champ-pos { translate: none; }` under the same condition so the champion panel matches match card height `--mb` when only the final and champion columns exist. Confirm the exact direct-child count of `.bk-tree` with the probe before finalizing the `:has` selector.
+- Done when `.bk-champ-pos` top is at or below `.bk-scroll` top plus header height, bottom is at or above `.bk-scroll` bottom, the "우승" column header is visible, and trees with 2 or more rounds (the 12-player and 7-player brackets above) are unchanged.
 
-**T-33 신청 수정의 오류 자리** (A-16)
-- 파일: `src/pages/NewsPage.jsx`, 신청 수정 단계의 비밀번호 `Question` (힌트 `<p>` 가 children으로 들어가 오류보다 앞에 그려짐)
-- 바꿈: 오류가 있을 때는 힌트 `<p>` 를 그리지 않는다
-- 확인: 공지 → 신청 수정 → 두 칸이 빈 채로 `신청 불러오기` (빈 칸이면 서버에 가지 않는다). 두 칸 모두 칸 bottom → 오류 top = 8.
+#### T-15 Light-theme winner strip (E-01)
+- Edit `src/styles/battle.css`.
+- Currently `:root[data-theme="light"] .bt-strip { background: var(--panel); }` (specificity 0,2,1) overrides `.bt-strip[data-won] { background: var(--lit); color: var(--ground); }` (0,2,0), rendering white text on a panel background in light mode.
+- Change the first selector to `:root[data-theme="light"] .bt-strip:not([data-won])`.
+- Verify by forfeiting a CPU battle in light mode at 390 and 1440 (block `battle` function requests). `.bt-strip[data-won]` must have background `--lit` and text `--ground`. Dark mode stays unchanged.
 
-**T-34 검색 결과 없음** (K-16, K-17)
-- 파일: `src/pages/NewsPage.jsx`, 검색 결과가 없을 때의 `<Empty>` 와 "최근 공지"
-- 바꿈: Empty의 둘째 줄("'…'에 맞는 공지를 찾지 못했습니다.")을 지운다. "최근 공지" 라벨을 다른 섹션과 같은 `SectionHead` (h2 20)로.
-- 세그먼트 "0건"은 T-76에서 뺀다.
-- 확인: `?view=news` 에서 "없는말" 검색, 390과 1440.
+#### T-16 Live tournament strip during desktop battle (E-04)
+- Edit `.ypl:has(.bt-match) .site-foot { display: none; }` inside `@media (min-width: 1200px)` in `src/styles/battle.css`.
+- Change it to `.ypl:has(.bt-match) :is(.site-foot, .live-strip) { display: none; }`.
+- The comment in that block notes that battle occupies a single viewport with nothing below, yet the strip (44 + 20) was omitted and causes 88 of vertical scroll on tournament days. The mobile block already hides `.live-strip`.
+- Verify on tournament day at 1200x800 and 1440x900 that `document.documentElement.scrollHeight === innerHeight` during battle. If it is not tournament day, inject `<button class="pn live-strip">` before `#ypl-main` via probe `--act`.
 
-**T-35 알림 종류 판의 마지막 칸** (K-12)
-- 파일: `src/styles/board.css`, `.push-board { grid-template-columns: 1fr 1fr; }` 아래에 추가
-- 추가: `.push-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }` (칸 클래스 이름은 `PushControl.jsx` 의 `PushBoard` 에서 확인)
-- 확인: `?view=alerts` 390과 1440. 판에 빈 칸이 없다.
+#### T-17 Post-battle desktop button height (E-11)
+- Edit `src/styles/battle.css` at the end of the `.bt-end-row` group inside `@media (min-width: 860px)`.
+- Currently `.bt-end-row { min-height: var(--h-counter); }` and `.bt-end-keys > .btn { min-height: 100%; }` apply even when there is no result header beside the buttons, stretching rematch to 692x84 and exit to 74x84.
+- Add `.bt-end-row:has(> :only-child) { min-height: 0; }` and `.bt-end-row:has(> :only-child) .bt-end-keys > .btn { min-height: var(--h-row); }`.
+- Verify at 1440 after a standard CPU battle that both buttons are 52 tall. 도전의 탑 and relay views (which render a result header alongside) keep height 84.
 
-**T-36 404의 갈 곳 셋** (K-12)
-- 파일: `src/styles/board.css`, `.status-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }` 와 `.status-links > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }`
-- 바꿈: 둘째 규칙을 지우고 첫째를 `repeat(3, minmax(0, 1fr))` 로
-- 확인: `/?view=nothing-here` 390과 1440. 공지, 대진표, 기록 세 키가 같은 폭. 500 화면(키 수가 다르면)은 `StatusPage.jsx` 에서 키 수를 확인하고 2개면 `repeat(2, …)` 가 유지되게 `:has` 로 나눈다.
+#### T-18 Admin mobile section order (G-01)
+- Edit `.ad-main > .ad-block:last-child { order: 2; }` inside `@media (max-width: 859px)` in `src/styles/admin.css`.
+- Currently only export has order 2, live event (`.ad-side`) has order 1, and everything else has order 0, pushing live event below editing and recent changes even though the comment specifies tasks, live event, then editing.
+- Change it to `.ad-main > :not(.ad-block:first-child) { order: 2; }` so only tasks stay at 0, live event at 1, and the rest at 2.
+- Verify on `?view=admin` at 390 (offline server is enough). The `h2` order must be tasks, live event, editing, then recent changes, screen errors, reports, and finally export. Desktop 1440 stays unchanged.
 
-**T-37 소개 리드 판의 빈 띠** (A-20a)
-- 파일: `src/styles/hall.css`, `.ab-lead { display: grid; gap: var(--s3); align-content: start; padding: var(--pad); }`
-- 바꿈: `.ab-lead > :last-child { margin-top: auto; }` 를 추가하고 `.ab-lead` 를 `align-content: stretch` 가 되게(grid면 `grid-template-rows` 마지막을 `1fr` 로 두고 마지막 자식에 `align-self: end`). 디스코드 키가 판의 바닥에 선다.
-- 확인: `?view=about` 1440. 디스코드 키 bottom → 판 bottom = `--pad` (20).
+#### T-19 Applicant sheet mobile overlap (G-04)
+- In `src/styles/pages.css`, below `.fr-name { display: flex; align-items: baseline; gap: var(--s3); min-width: 0; }`, add `@media (max-width: 639px) { .fr-name { flex-wrap: wrap; row-gap: var(--s1); } }`.
+- Currently `.fr-when` (`nowrap`) overflows at 390 and collides into "11.17 화 23미제출".
+- Verify after admin sign-in on `ADM-NEWS-02` at 390: in every row, `.fr-when` right must be less than or equal to `.fr-actions` left. Desktop 1440 stays unchanged.
 
-**T-38 개인정보 번호 목록 내어쓰기** (A-28)
-- 파일: `src/styles/pages.css` 의 `.prose` 목록 규칙 (없으면 `Prose.jsx` 가 번호 줄을 어떻게 그리는지 보고, 번호 줄이 `<p>` 면 손대지 않고 보고한다)
-- 확인: `?view=privacy` 1440 제1조 5항의 둘째 줄이 첫 줄 글자와 같은 x에서 시작.
+#### T-20 More page right column at 1440 (A-04)
+- In `src/styles/more.css`, change `.more-side { grid-column: 2; grid-row: 2 / span 3; }` to `span 4` because the `내 계정` group makes four left-column groups.
+- Verify on `?view=more` at 1440 that `.more-side` bottom and the last left group's bottom differ by at most 2, with the admin login row at the bottom of the right column. Also check the offline server (5182) where accounts are disabled; if the two column bottoms do not align there, report instead of explicitly declaring `.more` rows for `grid-row: 2 / -1`.
 
-**묶음 4 끝 확인:** `--only NEWS-01,NEWS-05,BOARD-01,BOARD-02,BOARD-09,ALERT,ABOUT-01,SHELL-10,PRIV-01 --vp core`.
+#### T-21 Hidden tab on mobile tab strip (B-14)
+- In `src/styles/board.css`, below `.tabsline { display: flex; gap: var(--s8); ... }`, add `@media (max-width: 859px) { .tabsline { gap: var(--s5); } }`.
+- Currently at 360 on the titles page, "파트너" ends cleanly at 344.9 and the next tab starts off-screen, hiding that more tabs exist.
+- Verify on `?view=titles` at 360 and 390 that the next tab text is visibly clipped past the right edge. Records (4 tabs) and battle (5 tabs) still fit on one line, and the sliding underline works on tap.
 
----
-
-### 묶음 5. 팀 빌더, 계산기
-
-**T-39 능력 포인트 슬라이더 높이 (휴대폰)** (K-15)
-- 파일: `src/styles/builder.css`, `.tb-stat-row { … min-height: var(--h-strip); }` 아래에 추가
-- 추가: `@media (max-width: 859px) { .tb-stat-row { min-height: var(--h-control); } }`
-- 확인: `?view=builder` 390, 포켓몬을 고른 편집기. 여섯 행 각 44, range 입력의 높이 ≥ 44. 계산기의 `.calc-stat-row` (44)와 같다.
-
-**T-40 기술 칸의 회색 줄** (D-05)
-- 파일: `src/styles/builder.css` 끝에 추가
-- 현재: `.tb-move-meta` 가 `t12 reg dim` 인데 `board.css` 의 `.cell > span:not(.cell-label)` (15/20/600 nowrap ellipsis)에 덮인다
-- 추가: `.cell > .tb-move-meta { font-size: var(--t12); line-height: var(--l12); font-weight: 400; white-space: normal; }`
-- 확인: 390에서 기술을 고른 칸의 회색 줄이 12/16/400이고 "명중", "PP"가 잘리지 않는다. 칸 넷의 높이가 서로 같다(한 칸만 두 줄이 되어 높이가 달라지면 `min-height` 대신 보고한다).
-
-**T-41 도감 종족값 범위 두 줄** (D-06)
-- 파일: `src/styles/calculator.css`, `.calc-base-row { … grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) calc(var(--s21) - var(--s5)); … }`
-- 추가: `@media (min-width: 860px) { .calc-base-row { grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) var(--s21); } .calc-base-row > :last-child { white-space: nowrap; } }`
-- 확인: `?view=calc&tab=dex` 1440과 1100에서 포켓몬을 고른다. 범위 칸("183 ~ 215")이 한 줄, 행 높이 32.
-
-**T-42 저장 독의 자리** (D-09)
-- 파일: `src/styles/team-builder.css` (또는 `builder.css`) 의 860 이상 구역에 추가
-- 추가: `.tb-main-column > .dock { margin-top: 0; }`
-- 현재: 기술 칸 끝 → 독 52, 독 → 규정 검사 20. 독이 자기가 저장하는 편집기보다 아래 패널에 가깝다.
-- 확인: 1440에서 기술 칸 bottom → 독 top = 20, 독 bottom → 규정 검사 top = 20.
-
-**T-43 빈 요소가 먹는 간격 셋** (K-13)
-- (a) `src/styles/builder.css`, 860 이상의 `.tb-rules:not(:has(.tb-rule-group:nth-child(3))) { grid-template-columns: minmax(0, 1fr); }` → `{ display: none; }`. 확인: 1440 규정 줄 bottom → "포켓몬 선택" top = 20 (현재 40).
-- (b) `src/pages/TeamBuilderPage.jsx`, `<p className="tb-field-meta">` 를 문구가 있을 때만 그린다. 확인: 390과 1440에서 특성·도구·성격 칸 → "능력 포인트" = 32 (현재 44).
-- (c) `src/styles/team-builder.css` 에 추가: `.official-submission > ul { margin-top: 0; }`. 확인: `?view=builder&eventId=4379f233-b441-43ba-8c05-581d6c07af05` 에서 이름 칸 → 오류 줄 = 20 (현재 32).
-
-**T-44 규정 검사 패널의 왼쪽 선** (D-10)
-- 파일: `src/styles/team-builder.css` 의 `.tb-validation…` 규칙들
-- 현재: 제목 x 172, 위반 줄 글자 168, 아이콘 없는 줄 140 (1440)
-- 바꿈: 아이콘과 글자 사이를 두 곳 모두 `var(--s3)` 로 맞추고, 아이콘 없는 `li` 에 `padding-left: calc(var(--s5) + var(--s3))`
-- 확인: 위반 상태(report D의 추가 장면: 텍스트로 가져오기에 `Rotom-Wash` 와 어흥염 `Knock Off`)에서 세 종류 줄의 글자 left가 같다. 390과 1440.
-
-**T-45 규칙 변경 확인의 목록** (D-23)
-- 파일: `src/styles/team-builder.css`, `.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) var(--s5) var(--s3) var(--s13); … }`
-- 바꿈: `list-style: none; padding: var(--s3) var(--pad);`
-- 확인: 팀이 있는 상태에서 규정을 모노타입으로 바꿔 시트를 연다. 점이 없고 글자 left가 시트의 다른 글자와 같다.
-
-**T-46 계산기 기술 칸의 2px 어긋남** (D-14)
-- 파일: `src/styles/team-builder.css`, `.pick-type` 계열의 `height: 24px;`
-- 바꿈: 칸 안의 태그에 한해 `.pick-field .pick-type { height: var(--l15); }` 추가 (목록 시트의 태그 24는 그대로)
-- 확인: `?view=calc` 1100에서 기술 하나만 고른 줄. 채운 칸과 빈 칸의 라벨 top이 같다.
-
-**T-47 대결 칸 이름 줄** (D-15)
-- 파일: `src/styles/calculator.css`, `.calc-vs-band { display: grid; align-content: center; gap: var(--s1); padding: 0 var(--pad); }`
-- 바꿈: `align-content: start; padding: var(--s2) var(--pad) 0;`
-- 확인: 한쪽만 고른 상태에서 두 칸의 첫 줄 top이 같다(390, 1440). 양쪽 다 고른 상태에서 띠 높이가 전과 같은지 본다. 띠가 낮아지면 `min-height` 로 전 높이를 지킨다.
-
-**T-48 내 팀 시트의 버튼 두 줄 사이** (D-22)
-- 파일: `src/styles/builder.css`, `.tb-library-text { grid-template-columns: 1fr 1fr; margin-top: var(--s2); }`
-- 바꿈: `margin-top: var(--seam);`
-- 확인: 내 팀 시트에서 버튼 두 줄 사이 2.
-
-**묶음 5 끝 확인:** `--only BLD,BLD-13,CALC-02,CALC-05,CALC-06 --vp core` 와 1099x900, 1100x900.
+At the end of Batch 2, re-run `--set public,inner --vp edges --theme dark` and confirm 0 `overflow` entries in `measure.jsonl`.
 
 ---
 
-### 묶음 6. 관리자
+### Batch 3. Records, titles, and hall of fame
 
-**T-49 포인트 시트 간격** (K-13)
-- 파일: `src/styles/admin.css`, `.ad-points { display: grid; gap: var(--s3); margin-top: var(--s5); }`
-- 바꿈: `gap: 0;` (Field의 margin-bottom 20과 SectionHead의 12만 남는다)
-- 확인: 오프라인 서버 `?view=admin` → 포인트. 입력 bottom → 다음 라벨 top = 20, 제목 bottom → 첫 라벨 top = 12.
+#### T-22 Dead selector in round detail (B-06b)
+- In `src/styles/records-board.css`, change `.records-round-detail .row { background: var(--panel-2); }` to `.records-round-detail .rc-party-row`.
+- Verify on `?view=records&tab=tour` by expanding "입상자별 공식 파티". Party rows must have `--panel-2` background distinct from the card background, with 2px seams between rows, in dark and light themes.
 
-**T-50 빈 상태 판 높이** (G-15)
-- 파일: `src/styles/admin.css`, `.ad-event-head, .ad-none { display: grid; gap: var(--s1); padding: var(--s3) var(--pad); }` 아래에 추가
-- 추가: `.ad-none { min-height: var(--h-row); align-content: center; }`
-- 확인: "지금 할 일이 없습니다." 판 높이 52.
+#### T-23 Right-aligned rank digits (B-02)
+- In `src/styles/records-board.css`, change `.rc-tr-place { padding-left: var(--pad); color: var(--mute); }` to `.rc-tr-place { padding: 0 var(--s3) 0 var(--pad); text-align: right; color: var(--mute); }`. Right-aligning without right padding glues numbers to names ("4이병재" in the mockup), so include 12 of right padding. Confirm two-digit numbers fit inside the column (52 - 20 - 12 = 20, while "10" is about 19 wide). If any list reaches three-digit ranks, widen the column to `var(--h-row2)` (64).
+- Verify on `?view=records` at 1440 and 390 after clicking `N명 전체 보기`. The text `Range` right edge of `.rc-tr-place` must match across all rows within 0.5, with a 12 gap between digit right and name left.
 
-**T-51 성적 수정 표 머리** (G-18)
-- 파일: `src/styles/admin.css`, `.ed-head span:first-child { text-align: left; }`
-- 바꿈: `.ed-head span:first-child { text-align: left; padding-left: var(--s3); }`
-- 확인: "트레이너" 머리 글자와 그 아래 입력 글자의 left가 같다.
+#### T-24 Fixed name column width (B-03)
+- In `src/styles/records-board.css`, inside the 860+ rule `.rc-tr-main { grid-template-columns: auto minmax(0, 1fr); ... }`, change `auto` to `calc(var(--s21) * 2 + var(--s13))` (220). Check that the name element has `min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap` and add it if missing.
+- Verify in expanded full-list view that the badge column's `left` matches across every row. Confirm the longest name plus league tag plus "나" tag fits inside 220; if not, report rather than picking a replacement width.
 
-**T-52 랭킹 탭 운영 키 두 줄 사이** (G-07)
-- 파일: `src/styles/records-board.css` 에 추가: `.rc-rank > .rc-admin { margin-top: var(--seam); }` (`.rc-admin` 의 기존 `margin-bottom: var(--s5)` 는 그대로)
-- 확인: 관리자 상태 `?view=records&tab=rank`. 시즌 추가/누적 탭 추가 줄 bottom → 성적 수정 줄 top = 2.
+#### T-25 Ranking footnote max width (K-02)
+- In `src/styles/records-board.css`, change `.rc-note { margin-top: var(--s8); }` to `.rc-note { margin-top: var(--s8); max-width: 709px; }`.
+- Verify on `?view=records&tab=rank` at 1440 that footnote lines are 709 or narrower.
 
-**T-53 대회 설정 묶음의 아래 여백** (K-13)
-- 파일: `src/admin/editors/AdminEditors.jsx`, 대회 설정 묶음 안의 마지막 `Field` (`flush` 가 없어 margin-bottom 20이 묶음 padding에 더해져 아래 40)
-- 바꿈: 묶음의 마지막 Field에 `flush` (Field가 이 prop으로 margin-bottom을 0으로 만드는지 `Field.jsx` 에서 확인)
-- 확인: 공지 작성 → 대회 신청 받기 → 대회와 연결. 묶음의 위 여백과 아래 여백이 둘 다 20.
+#### T-26 Records tab control spacing (part of K-01, mobile and shared)
+- Edit `src/styles/records-board.css`.
+- Currently the trainer tab stacks search, 12 gap, chips, 2 gap, and dropdown, gluing the 32-high chips and 52-high dropdown together by a seam.
+- Set the gap between chips and dropdown inside `.rc-sort` to 12. If `.rc-sort` uses `.stack` (gap 2), give `.rc-sort { gap: var(--s3); }`.
+- Verify at 390 and 1440 that chip bottom to dropdown top is 12. Putting all three controls on one desktop row is handled in T-60.
 
-**묶음 6 끝 확인:** 오프라인 서버에서 관리자 화면을 390과 1440으로 찍고, 운영 데이터는 `--login --set admin --vp core` 로 사용자와 함께 한 번 찍는다.
+#### T-27 Title sheet heading for champions (B-19a)
+- Edit the title passed to `<Modal title={title} ...>` in `TitleSheet` inside `src/pages/TitlesPage.jsx`.
+- Currently champion medal sheets display raw `item.name` ("초대 챔피언"), while medals and trainer sheets show "1대 챔피언".
+- Pass champion titles through the generation formatter (`generationText`) used in `src/pages/ChampionsPage.jsx` (locate it with `grep -rn "generationText" src`).
+- Verify on `?view=titles` by clicking the 1st champion medal and confirming the sheet title reads "1대 챔피언".
 
----
+#### T-28 Unowned title sheet heading (K-16)
+- Edit the owner list in `TitleSheet` inside `src/pages/TitlesPage.jsx`.
+- Currently unowned titles render "주인 0명" above "아직 주인이 없습니다.".
+- Omit the "주인 0명" heading when owner count is 0 and render only the single empty-state line.
+- Verify on `?view=titles&tab=type` by clicking an unlit medal.
 
-### 묶음 7. 모션과 상호작용
+#### T-29 Top margin of sheet share link (K-08)
+- Edit `src/styles/titles.css` where `.tl-sheet-sec { margin-top: var(--s8); }` adds 32 above the share link, while trainer and Pokemon sheets use 20.
+- Set `margin-top: var(--s5)` on the share-link wrapper in the title sheet (check the wrapper class around `<ShareHere>` in `TitlesPage.jsx`).
+- Verify on a title sheet that last list bottom to share link top is 20.
 
-**T-54 떠나는 페이지의 어두워짐을 leave로** (F-10)
-- 파일: `src/styles/shell.css`, `.page.is-going { opacity: var(--opacity-disabled); transition: opacity var(--move-tone); pointer-events: none; }`
-- 바꿈: `var(--move-tone)` → `var(--move-leave)` (260ms ease-in. DESIGN.md Motion 표의 leave, `motion.js` 의 `dimAway` 와 같은 값)
-- 확인: probe로 `main.page` 의 computed `transition-duration` 이 0.26s, `transition-timing-function` 이 `cubic-bezier(0.5, 0, 0.75, 0)`.
-
-**T-55 낱말 키의 누름과 세그먼트의 바탕 전환** (F-09)
-- 파일: `src/styles/board.css`, `.sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: color var(--move-tone); }`
-- 바꿈: `transition: scale var(--move-press), color var(--move-tone);`
-- 파일: `src/styles/components.css`, `.seg-track > button` 규칙의 `transition: scale var(--move-press), color var(--move-tone);`
-- 바꿈: `transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);`
-- 확인: 홈의 `전체 보기` 를 누르고 20ms, 60ms, 110ms의 `scale` 이 .976으로 점차 간다(20ms에 이미 .976이면 실패). 세그먼트에서 다른 칸을 고르면 바탕이 160ms로 바뀐다.
-
-**T-56 주 행동 키와 홀로 선 조작의 호버** (F-08)
-- 파일: `src/styles/board.css`, `.btn.btn--main { --btn-bg: var(--lit); --btn-bg-hover: var(--lit); --btn-fg: var(--ground); … }`
-- 바꿈: `--btn-bg-hover: var(--dim);` (다른 반전 패널이 호버에서 쓰는 한 단계: 같은 파일의 `:is(button, a).inv:hover:not(:disabled) { background: var(--dim); … }`)
-- 파일: `src/styles/components.css`, `.dd-btn` 규칙 묶음 뒤에 추가: `@media (hover: hover) { .dd-btn:hover:not(:disabled) { background: var(--panel-2); } }` (칸 안의 드롭다운은 `board.css` 의 `.cell` 규칙이 이미 답한다. 그 규칙이 여전히 이기는지 확인한다)
-- 파일: `src/styles/board.css`, `.search-in` 규칙 묶음 뒤에 추가: `@media (hover: hover) { .pn.search-in:hover { background: var(--panel-2); } }` (시트 안은 `components.css` 의 `.sheet .pn.search-in:hover` 가 이미 `--rule`)
-- 확인: 1440에서 실제 마우스를 올리기 전후 `background-color` 가 달라진다: 게시판 `글쓰기`, 기록의 "모든 시즌" 드롭다운, 공지 검색 칸. 꺼진 키(`:disabled`)는 변하지 않는다. 라이트에서 `--dim` 위의 글자(`--ground`)가 읽히는지 본다.
-- 상단 바의 로고, 내 기록, 진행 중, 테마 키는 그대로 둔다(T-97).
-
-**T-57 대회 탭 이름 링크의 누르는 폭** (F-13)
-- 파일: `src/styles/records.css`, `.rc-name-link::after { content: ""; position: absolute; inset: -12px -4px; }`
-- 바꿈: `inset: calc(var(--s3) * -1) calc(var(--s2) * -1);` (가로 42 → 50)
-- 확인: `?view=records&tab=tour` 390. 이름 링크의 누름 상자 폭 ≥ 44. 한 줄에 이름이 둘 이상 있는 행(4강)에서 옆 이름의 상자와 겹치지 않는지 본다. 겹치면 되돌리고 보고한다.
-
-**T-58 DESIGN.md의 표를 실제와 맞춤** (F-12)
-- 파일: `DESIGN.md` "Motion"의 표, light 줄의 Length `420 in all`
-- 바꿈: `420 a panel, about 680 until the last has lit` (같은 장의 "First open" 문단이 이미 "38 apart (the stagger stops growing at 260), each rising 12 into place over 420"이라고 적는다. 코드는 바꾸지 않는다)
-- 확인: 글만 바뀐다.
-
-**묶음 7 끝 확인:** `node scripts/record-transition.cjs` 로 페이지 이동(`?view=news` 에서 상단 바 `기록` 누르기)을 `--cpu 1 --every 40` 으로 녹화해 before와 after의 프레임 시트를 나란히 본다. 줄인 움직임(`scripts/visual-audit-probe.cjs … --reduced`)에서 transform 애니메이션이 여전히 0개.
-
-시트가 올라오는 첫 프레임(F-02), 첫 방문 홈의 내용 바뀜(F-03), 탭을 바꿀 때 검색 칸까지 다시 켜지는 것(F-04), 접힘의 닫힘(F-07), 폼 오류로 대화상자가 뛰는 것(F-06)은 값이 아니라 구조를 바꾸는 일이라 5장 묶음 14(T-92~T-96)에 있다.
-
-## 4. 끝났는지 확인하는 법 (전체)
-
-1. `npm test` 통과, `npm run build` 에 경고 없음.
-2. `node scripts/visual-audit.cjs --set public,inner,sheet --vp all` 과 `--vp edges --theme dark` 를 다시 돌려 `measure.jsonl` 에서 `overflow` 0건, 글자 크기 종류가 1장의 다섯 가지뿐.
-3. before와 after를 화면 ID별로 나란히 본다. 달라진 곳마다 이 문서의 작업 번호를 댈 수 있어야 한다. 번호를 댈 수 없는 변화는 되돌린다.
-4. 색, 폰트, 패널 모양, 그림자가 달라진 화면이 하나도 없어야 한다.
-5. 사용자가 직접 써 본다: 휴대폰(390)과 데스크톱(1440)에서 홈 → 공지 → 신청서, 기록 → 트레이너 시트, 대진표 → 경기 시트, 팀 빌더 저장, 컴퓨터 배틀 한 판.
+At the end of Batch 3, re-capture `--only REC-02,REC-09,REC-10,REC-14,REC-05,TTL-01,TTL-04 --vp core`.
 
 ---
 
-## 5. 판단이 들어가는 작업 (2026-11-23 추가)
+### Batch 4. Notices, board, brackets, home, about, and alerts
 
-**배경.** 3장의 작업을 다 해도 "버그 없는 기계적인 사이트"가 된다. 진단의 큰 덩어리는 값이 틀린 곳이 아니라 **규칙을 판단 없이 끝까지 적용한 곳**이었다(1200을 다 쓰라는 규칙 → 50px 글자에 1200 폭 드롭다운, 두 단의 끝 선을 맞추라는 규칙 → 빈 띠, 모든 행동은 52 면이라는 규칙 → 같은 무게로 쌓인 키 넷). 사용자는 이 진단에 동의했고, `questions.md` 의 항목을 **모두 권한 쪽으로 확정**하라고 맡겼다("너의 추천안대로 해줘"). 아래가 그 확정이다. 3장을 먼저 끝낸 뒤에 한다.
+#### T-30 Free post body and comments at 709 (K-02)
+- Edit `src/styles/posts.css` near `.bd-art.many .bd-cmts { max-width: 709px; }` inside `@media (min-width: 860px)`.
+- Apply `max-width: 709px` to `.bd-body` and `.bd-cmts` on free posts (posts that are neither sample nor party posts). Check the `<article>` class in `PostView` inside `src/pages/BoardPage.jsx`, and leave sample (`.bd-art.one`) and party (`.bd-art.many`) layouts untouched.
+- Verify on `?view=board` by opening a free post at 1440 and 1920: `.prose` is 709 wide, YouTube embeds are 709, comment panels are 709, and the comment submit button aligns with the 709 right edge. Mobile 390 stays unchanged.
 
-**원칙의 검증.** 네 원칙을 기록 트레이너 탭과 공지 글에 스타일만 덮어씌워 전후를 찍어 확인했다(`docs/visual-audit/shots/_drafts/*-pair.png`, 왼쪽이 지금, 오른쪽이 적용). 색, 폰트, 패널 모양은 그대로이고 조작의 폭과 순서만 달라진다. 이 사진이 "같은 사이트가 더 정돈됐다"의 기준이다.
+#### T-31 Desktop comment action button width (K-15)
+- In `src/styles/posts.css`, update `.bd-act { min-height: var(--h-control); ... padding: 0 var(--s1); ... }` by adding `min-width: var(--h-control);` (and `text-align: center` if needed).
+- Verify at 1440 that reply, edit, delete, and report buttons are each at least 44 wide, and at 390 that comment header rows do not wrap more than before (C-05 is handled in T-78).
 
-**여기서도 지킬 것.** 0장의 금지는 그대로다. 새 색, 새 글자 크기, 새 간격 값을 만들지 않는다. 구조(JSX)를 고치는 작업은 그리는 순서와 클래스만 바꾸고, 데이터와 동작은 건드리지 않는다. 작업에 적힌 "끝난 것의 기준"을 수치로 채우지 못하면 멈추고 보고한다.
+#### T-32 Board row author and date punctuation (C-15)
+- Edit free-board list rows in `src/pages/BoardPage.jsx` and `.bd-day { margin-left: var(--s2); }` in `src/styles/posts.css`.
+- Join author and date with a comma like notices ("고정, 11.16 월") and bracket rows: "트레이너, 11.22 일". Remove `margin-left` from `.bd-day`.
+- Verify on `?view=board` at 390 and 1440.
 
-### 묶음 8. DESIGN.md 개정 (코드보다 먼저, 커밋 하나)
+#### T-33 Registration edit error placement (A-16)
+- Edit the password `Question` in the registration edit step in `src/pages/NewsPage.jsx`, where a hint `<p>` passed as children renders ahead of the error message.
+- Do not render the hint `<p>` when an error is present.
+- Verify by opening a notice, clicking registration edit, and clicking `신청 불러오기` with both fields empty (empty submission does not hit the server). Both fields must show an 8 gap from input bottom to error top.
 
-**T-59 "Composing a screen"에 27~30을 더한다**
-- 파일: `DESIGN.md`, "Composing a screen"의 26번 문단 바로 뒤, "## Made by people" 앞에 아래 문단을 그대로 넣는다.
+#### T-34 Empty notice search state (K-16, K-17)
+- Edit the empty search `<Empty>` and "최근 공지" label in `src/pages/NewsPage.jsx`.
+- Remove the second line of `Empty` ("'...'에 맞는 공지를 찾지 못했습니다."). Render "최근 공지" with `SectionHead` (`h2` 20) like other sections. Removing the segmented "0건" is handled in T-76.
+- Verify on `?view=news` by searching "없는말" at 390 and 1440.
+
+#### T-35 Last cell of alert type board (K-12)
+- In `src/styles/board.css`, below `.push-board { grid-template-columns: 1fr 1fr; }`, add `.push-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }` (confirm the cell class name in `PushBoard` inside `PushControl.jsx`).
+- Verify on `?view=alerts` at 390 and 1440 that the board has no blank trailing cell.
+
+#### T-36 Three links on 404 status page (K-12)
+- In `src/styles/board.css`, edit `.status-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }` and `.status-links > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }`.
+- Delete the second rule and change the first to `repeat(3, minmax(0, 1fr))`.
+- Verify on `/?view=nothing-here` at 390 and 1440 that `공지`, `대진표`, and `기록` buttons have equal width. Check button count on the 500 screen in `StatusPage.jsx`, and split with `:has` so a two-button screen keeps `repeat(2, ...)`.
+
+#### T-37 Bottom gap inside about lead panel (A-20a)
+- Edit `.ab-lead { display: grid; gap: var(--s3); align-content: start; padding: var(--pad); }` in `src/styles/hall.css`.
+- Add `.ab-lead > :last-child { margin-top: auto; }` and stretch `.ab-lead` vertically (for grid, make the last row `1fr` in `grid-template-rows` and set `align-self: end` on the last child) so the Discord button sits at the panel bottom.
+- Verify on `?view=about` at 1440 that Discord button bottom to panel bottom is `--pad` (20).
+
+#### T-38 Hanging indent on privacy numbered list (A-28)
+- Check `.prose` list rules in `src/styles/pages.css`. If absent, inspect how `Prose.jsx` renders numbered lines; if numbered lines are `<p>` elements, leave them untouched and report.
+- Verify on `?view=privacy` at 1440 that the second line of Article 1 item 5 starts at the same x as the first line's text.
+
+At the end of Batch 4, re-capture `--only NEWS-01,NEWS-05,BOARD-01,BOARD-02,BOARD-09,ALERT,ABOUT-01,SHELL-10,PRIV-01 --vp core`.
+
+---
+
+### Batch 5. Team builder and calculator
+
+#### T-39 Mobile stat slider row height (K-15)
+- In `src/styles/builder.css`, below `.tb-stat-row { ... min-height: var(--h-strip); }`, add `@media (max-width: 859px) { .tb-stat-row { min-height: var(--h-control); } }`.
+- Verify on `?view=builder` at 390 with a Pokemon selected in the editor: all six rows must be 44 tall with range input height at least 44, matching `.calc-stat-row` (44) in the calculator.
+
+#### T-40 Move cell grey line styling (D-05)
+- Edit the end of `src/styles/builder.css`.
+- Currently `.tb-move-meta` (`t12 reg dim`) is overridden by `.cell > span:not(.cell-label)` (15/20/600 nowrap ellipsis) in `board.css`.
+- Add `.cell > .tb-move-meta { font-size: var(--t12); line-height: var(--l12); font-weight: 400; white-space: normal; }`.
+- Verify at 390 that selected move cells show 12/16/400 grey text without clipping "명중" or "PP". All four cells must keep matching height; if one cell wraps to two lines and changes height, report instead of adding `min-height`.
+
+#### T-41 Pokedex base stat range wrapping (D-06)
+- In `src/styles/calculator.css`, below `.calc-base-row { ... grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) calc(var(--s21) - var(--s5)); ... }`, add `@media (min-width: 860px) { .calc-base-row { grid-template-columns: var(--s5) minmax(0, 1fr) var(--s8) var(--s21); } .calc-base-row > :last-child { white-space: nowrap; } }`.
+- Verify on `?view=calc&tab=dex` at 1440 and 1100 with a Pokemon selected: the range cell ("183 ~ 215") stays on one line and row height is 32.
+
+#### T-42 Save dock placement (D-09)
+- In the 860+ section of `src/styles/team-builder.css` (or `builder.css`), add `.tb-main-column > .dock { margin-top: 0; }`.
+- Currently the gap is 52 from move cells to dock and 20 from dock to validation, making the dock look closer to the panel below than to the editor it saves.
+- Verify at 1440 that move cell bottom to dock top is 20 and dock bottom to validation top is 20.
+
+#### T-43 Three empty elements adding extra spacing (K-13)
+- In `src/styles/builder.css` (860+), change `.tb-rules:not(:has(.tb-rule-group:nth-child(3))) { grid-template-columns: minmax(0, 1fr); }` to `{ display: none; }`. Verify at 1440 that rules row bottom to "포켓몬 선택" top is 20 (currently 40).
+- In `src/pages/TeamBuilderPage.jsx`, render `<p className="tb-field-meta">` only when it has text. Verify at 390 and 1440 that ability, item, and nature cells to "능력 포인트" is 32 (currently 44).
+- In `src/styles/team-builder.css`, add `.official-submission > ul { margin-top: 0; }`. Verify on `?view=builder&eventId=4379f233-b441-43ba-8c05-581d6c07af05` that name field to error line is 20 (currently 32).
+
+#### T-44 Validation panel left alignment (D-10)
+- Edit the `.tb-validation...` rules in `src/styles/team-builder.css`.
+- Currently at 1440, the title sits at x = 172, violation text at x = 168, and iconless lines at x = 140.
+- Set icon-to-text gap to `var(--s3)` in both places and give iconless `li` items `padding-left: calc(var(--s5) + var(--s3))`.
+- Verify in a violation state (the extra report D scene: import text with `Rotom-Wash` and `어흥염` with `Knock Off`) at 390 and 1440 that all three line types share the same text `left`.
+
+#### T-45 Rule-change confirm list styling (D-23)
+- Edit `.tb-rule-confirm-list { margin: var(--s3) 0; padding: var(--s3) var(--s5) var(--s3) var(--s13); ... }` in `src/styles/team-builder.css`.
+- Change it to `list-style: none; padding: var(--s3) var(--pad);`.
+- Verify by switching rules to monotype with a team present: no bullets appear, and list text `left` matches other text in the sheet.
+
+#### T-46 Calculator move cell 2px misalignment (D-14)
+- Edit `.pick-type` (`height: 24px;`) in `src/styles/team-builder.css`.
+- Add `.pick-field .pick-type { height: var(--l15); }` for tags inside pick fields while leaving picker sheet tags at 24.
+- Verify on `?view=calc` at 1100 on a row with one move selected: the label `top` of filled and empty cells must match.
+
+#### T-47 Matchup cell name line alignment (D-15)
+- Edit `.calc-vs-band { display: grid; align-content: center; gap: var(--s1); padding: 0 var(--pad); }` in `src/styles/calculator.css`.
+- Change it to `align-content: start; padding: var(--s2) var(--pad) 0;`.
+- Verify at 390 and 1440 with only one side selected that both cells share the same first-line `top`. With both sides selected, confirm band height stays unchanged; if it shrinks, preserve the prior height with `min-height`.
+
+#### T-48 Gap between two button rows in my teams sheet (D-22)
+- In `src/styles/builder.css`, change `.tb-library-text { grid-template-columns: 1fr 1fr; margin-top: var(--s2); }` to `margin-top: var(--seam);`.
+- Verify in the my teams sheet that the gap between the two button rows is 2.
+
+At the end of Batch 5, re-capture `--only BLD,BLD-13,CALC-02,CALC-05,CALC-06 --vp core` plus 1099x900 and 1100x900.
+
+---
+
+### Batch 6. Admin
+
+#### T-49 Points sheet spacing (K-13)
+- In `src/styles/admin.css`, change `.ad-points { display: grid; gap: var(--s3); margin-top: var(--s5); }` to `gap: 0;` so only `Field`'s 20 bottom margin and `SectionHead`'s 12 remain.
+- Verify on the offline server at `?view=admin` under points: input bottom to next label top is 20, and heading bottom to first label top is 12.
+
+#### T-50 Empty state panel height (G-15)
+- In `src/styles/admin.css`, below `.ad-event-head, .ad-none { display: grid; gap: var(--s1); padding: var(--s3) var(--pad); }`, add `.ad-none { min-height: var(--h-row); align-content: center; }`.
+- Verify that the "지금 할 일이 없습니다." panel is 52 tall.
+
+#### T-51 Standing editor table header alignment (G-18)
+- In `src/styles/admin.css`, change `.ed-head span:first-child { text-align: left; }` to `.ed-head span:first-child { text-align: left; padding-left: var(--s3); }`.
+- Verify that the "트레이너" header text and the input text below it share the same `left`.
+
+#### T-52 Gap between two admin button rows on rankings tab (G-07)
+- In `src/styles/records-board.css`, add `.rc-rank > .rc-admin { margin-top: var(--seam); }` while keeping the existing `margin-bottom: var(--s5)` on `.rc-admin`.
+- Verify as admin on `?view=records&tab=rank` that the add-season/add-cumulative-tab row bottom to edit-standings row top is 2.
+
+#### T-53 Bottom padding of tournament settings group (K-13)
+- Edit the last `Field` inside the tournament settings group in `src/admin/editors/AdminEditors.jsx`, where omitting `flush` adds 20 bottom margin on top of group padding for 40 total.
+- Pass `flush` to that last `Field` (confirm in `Field.jsx` that `flush` zeroes bottom margin).
+- Verify in notice creation by enabling tournament registration and linking a tournament: top and bottom group padding are both 20.
+
+At the end of Batch 6, capture admin screens at 390 and 1440 on the offline server, and run `--login --set admin --vp core` once with the user for production data.
+
+---
+
+### Batch 7. Motion and interaction
+
+#### T-54 Leaving page dim transition (F-10)
+- In `src/styles/shell.css`, change `.page.is-going { opacity: var(--opacity-disabled); transition: opacity var(--move-tone); pointer-events: none; }` to use `var(--move-leave)` (260ms ease-in, matching the `DESIGN.md` Motion table and `dimAway` in `motion.js`).
+- Verify via probe that `main.page` has computed `transition-duration` of `0.26s` and `transition-timing-function` of `cubic-bezier(0.5, 0, 0.75, 0)`.
+
+#### T-55 Word button press and segment background transition (F-09)
+- In `src/styles/board.css`, change `.sh-link, .btn--link, .site-foot-dc, .site-foot-login, .site-foot-admin { transition: color var(--move-tone); }` to `transition: scale var(--move-press), color var(--move-tone);`.
+- In `src/styles/components.css`, change `.seg-track > button`'s `transition: scale var(--move-press), color var(--move-tone);` to `transition: scale var(--move-press), background-color var(--move-tone), color var(--move-tone);`.
+- Verify by pressing `전체 보기` on home: `scale` at 20ms, 60ms, and 110ms must progress smoothly toward .976 (already reaching .976 at 20ms fails). Switching a segment option must transition background color over 160ms.
+
+#### T-56 Hover states on main buttons and standalone controls (F-08)
+- In `src/styles/board.css`, change `.btn.btn--main`'s `--btn-bg-hover: var(--lit);` to `--btn-bg-hover: var(--dim);` (matching `:is(button, a).inv:hover:not(:disabled) { background: var(--dim); ... }` in the same file).
+- In `src/styles/components.css`, after the `.dd-btn` rules, add `@media (hover: hover) { .dd-btn:hover:not(:disabled) { background: var(--panel-2); } }`. Confirm that the `.cell` rule in `board.css` still wins for dropdowns inside cells.
+- In `src/styles/board.css`, after the `.search-in` rules, add `@media (hover: hover) { .pn.search-in:hover { background: var(--panel-2); } }` (`.sheet .pn.search-in:hover` in `components.css` already sets `--rule`).
+- Verify at 1440 that actual mouse hover changes `background-color` on board `글쓰기`, the "모든 시즌" dropdown in records, and the notice search input, while `:disabled` buttons do not change. Confirm `--ground` text on `--dim` stays legible in light mode.
+- Leave the top bar logo, my records, live indicator, and theme toggle untouched (T-97).
+
+#### T-57 Tournament tab name link hit width (F-13)
+- In `src/styles/records.css`, change `.rc-name-link::after { content: ""; position: absolute; inset: -12px -4px; }` to `inset: calc(var(--s3) * -1) calc(var(--s2) * -1);` (widens hit width from 42 to 50).
+- Verify on `?view=records&tab=tour` at 390 that name link hit boxes are at least 44 wide. Check rows with multiple names on one line (semifinals) to make sure adjacent hit boxes do not overlap; if they overlap, revert and report.
+
+#### T-58 Align DESIGN.md motion table with actual timing (F-12)
+- In the `DESIGN.md` Motion table, change the `light` row's Length from `420 in all` to `420 a panel, about 680 until the last has lit` (the "First open" paragraph in the same chapter already says "38 apart (the stagger stops growing at 260), each rising 12 into place over 420"). Do not change code.
+- Verify prose-only diff.
+
+At the end of Batch 7, record a page navigation (`?view=news`, clicking `기록` in the top bar) with `node scripts/record-transition.cjs` using `--cpu 1 --every 40` and compare before and after frame sheets side by side. Confirm reduced motion (`scripts/visual-audit-probe.cjs ... --reduced`) still has 0 transform animations.
+
+First-frame sheet entrance (F-02), first-visit home content swap (F-03), search input relighting on tab switch (F-04), fold exit animation (F-07), and dialog jump on form error (F-06) require structural changes and live in Section 5 Batch 14 (T-92 to T-96).
+
+## 4. Full completion checklist
+
+1. `npm test` passes and `npm run build` finishes with no warnings.
+2. Re-run `node scripts/visual-audit.cjs --set public,inner,sheet --vp all` and `--vp edges --theme dark`, confirming 0 `overflow` entries in `measure.jsonl` and only the five Section 1 font sizes.
+3. Review `before` and `after` screenshots side by side for every screen ID. Every visible difference must map to a task ID in this plan; revert any unexplained change.
+4. No screen may change color, font, panel shape, or shadow.
+5. Manual walkthrough by the user at mobile (390) and desktop (1440): home to notice to registration form, records to trainer sheet, bracket to match sheet, team builder save, and one CPU battle.
+
+---
+
+## 5. Judgment-based tasks (added 2026-11-23)
+
+Finishing Section 3 yields a bug-free but mechanical site. Most audit findings were not wrong values; they came from carrying rules to the letter without judgment (stretching a 50px label dropdown across 1200, adding empty bands to force two columns to end on one line, or stacking four 52-high panels of equal weight). The user agreed with this diagnosis and approved all recommended options in `questions.md` ("너의 추천안대로 해줘"). Complete Section 3 before starting Section 5.
+
+The four principles below were tested beforehand by overriding styles on the records trainer tab and notice detail page (`docs/visual-audit/shots/_drafts/*-pair.png`, current on the left and proposed on the right). Colors, fonts, and panel shapes stayed identical while control widths and action hierarchy changed. Those pairs define "the same site made tidier."
+
+All Section 0 constraints still apply. Do not invent new colors, font sizes, or spacing values. JSX edits may change render order and classes only, never data or behavior. If a task's numeric completion criteria cannot be met, stop and report.
+
+### Batch 8. DESIGN.md revision (before code, one commit)
+
+#### T-59 Add rules 27 to 30 to "Composing a screen"
+- In `DESIGN.md`, insert the following block verbatim right after paragraph 26 of "Composing a screen" and before `## Made by people`:
 
 ```markdown
 **Judged, not only measured** (2026-11-23: a whole-site audit found the numbers kept everywhere and the screens still reading as machine-made, because rules were carried out to the letter where the content asked for less; the owner: "기계적으로 체계를 지키고 있기 때문이 아닐까")
@@ -514,394 +492,413 @@ node scripts/record-transition.cjs <out dir> "http://localhost:5183/?view=news" 
 30. **The seam joins one kind.** 2 stands between panels of one kind (rows of a list, cells of a board, keys of one row). Two different kinds of thing (a row of chips and a select, a list and the key under it) stand 12 apart or more, even when both are panels.
 ```
 
-- 같은 파일 "Space" 장의 문장 "A page of one list or one kind of panel (공지, 기록, 칭호, 명예의 전당, 게시판, 소개) uses the whole 1200, so its head's right end and every row end on the bar's right edge, a short bracket tree included." 바로 뒤에 한 문장을 더한다: `Its controls do not: a search, a select and a key follow Composing a screen 27.`
-- 같은 파일 "Sheets, dialogs, toasts"의 "then its actions as planes along the bottom edge, a word action standing as a second action panel." 뒤에 더한다: `On desktop a sheet's single utility key (링크 공유) is as wide as its word, at the sheet's end edge.`
-- 같은 파일 "Hierarchy"의 Actions 문장 "a destructive confirm is the main action too, its sentence says what it destroys." 를 다음으로 바꾼다: `a destructive confirm is the main action too, without the ✓ (a ✓ says done; a delete is not a thing done well), its sentence says what it destroys, and the keyboard's focus starts on the way back.`
-- 확인: 글만 바뀐다. `npm test` (문서 법 테스트가 있으면 통과).
-
-### 묶음 9. 조작의 폭 (원칙 27)
-
-**T-60 기록 트레이너 탭: 검색, 칩, 시즌을 한 줄로** (K-01, Q-03)
-- 파일: `src/styles/records-board.css` 의 860 이상 구역
-- 구조(확인됨): `.rc-list` 의 직계 자식이 `.search`, `.stack.rc-sort`(안에 `.chips` 와 `.dd`), `.rc-tops`, `.rc-legend`, `.rc-table`, `.rc-more` 순이다.
-- 추가:
-  ```css
-  @media (min-width: 860px) {
-    .rc-list { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); }
-    .rc-list > * { grid-column: 1 / -1; }
-    .rc-list > .search { grid-column: 1; }
-    .rc-list > .rc-sort { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: var(--s3); margin-top: 0; }
-    .rc-sort .dd { width: calc(var(--s21) * 2 + var(--s13)); }
-  }
-  ```
-- 시즌이 하나뿐이라 드롭다운이 없을 때도 칩이 검색 오른쪽에 선다. 대회 탭(`TournamentArchiveView`)은 칩이 먼저, 검색이 나중이라 순서가 다르다: 같은 줄 배치를 그 탭에도 준다(검색 왼쪽, 칩 오른쪽). 칩이 많아(투어 수) 한 줄에 안 들어가면 칩은 검색 아래 줄에 그대로 두고 간격만 12로 한다.
-- 랭킹 탭의 시즌 드롭다운: 860 이상에서 폭 220, 왼쪽 정렬(`.rc-season .dd { width: calc(var(--s21) * 2 + var(--s13)); }`). 메뉴(`.dd-menu`)는 버튼 폭을 따른다.
-- 끝난 것의 기준(1440): 검색 칸, 칩 줄, 드롭다운의 세로 가운데가 같은 y(±1). 드롭다운 폭 220, 오른쪽 끝 1320. 검색 칸 높이 52 그대로. 390은 T-26의 결과(세 줄, 간격 12)와 같다. 시안: `_drafts/rec-1440x900-pair.png`.
-
-**T-61 사설 대진표의 도구 키를 공식 대진표와 같게** (K-01, C-03)
-- 파일: `src/pages/BracketsPage.jsx` 의 사설 대진표 보기(도구 키 묶음 `stack bk-actions`), `src/styles/brackets.css`
-- 바꿈: 860 이상에서 공식 대진표가 쓰는 제목 줄 구조(`.bk-open-row` 안의 `.bk-tools`, 높이 44, 폭은 낱말만큼)를 사설에도 쓴다. 키의 순서를 공식과 같게: 링크 공유, QR(있으면), 우승 이미지, 대진표 이미지, 그 뒤에 사설만의 키(결과 입력, 수정, 삭제). 휴대폰은 지금의 2열 격자 그대로.
-- 끝난 것의 기준(1440): 사설 도구 키 각 높이 44, 폭 120 이하, 제목과 같은 줄의 오른쪽 끝. 묶음 높이 160 → 44.
-
-**T-62 운영 진입 키를 제목 줄의 링크로** (K-01, G-06, G-07)
-- 대상: 칭호 추가(`TitlesPage.jsx`), 이전 챔피언 추가(`ChampionsPage.jsx`), 회차 편집·시즌 추가·누적 탭 추가·성적 수정·랭킹 수정(`RecordsPage.jsx`), 첫 대진표 만들기(`BracketsPage.jsx`)
-- 바꿈: 공지 작성과 새 대진표가 이미 쓰는 방식으로 통일한다: 그 화면 제목 줄(h1 줄 또는 해당 섹션의 `SectionHead`) 오른쪽 끝의 밑줄 링크(`btn--link` / `sh-link`, 12단 600). 여러 개면 한 줄에 `gap: var(--s5)` 로 나란히. 누르는 높이는 44를 지킨다(기존 링크와 같은 방식).
-- 대진표 삭제(`bk-delete`, 1200 폭 한 낱말): 860 이상에서 오른쪽 끝에 낱말 폭 + 좌우 20의 second 키(52)로. `justify-self: end; width: auto`.
-- 끝난 것의 기준(1440, 관리자): 위 키 중 폭이 200을 넘는 것이 없다. 랭킹 탭 목록 위의 1200x104 덩어리가 사라지고 시즌 드롭다운과 같은 줄에 링크가 선다.
-
-**T-63 데스크톱 시트의 맨 아래 키** (K-08, Q-06)
-- 파일: `src/pages/RecordsPage.jsx`(트레이너·포켓몬 시트의 링크 공유), `src/pages/TitlesPage.jsx`, `src/components/ShareHere.jsx`, 해당 CSS
-- 바꿈: 860 이상에서 시트의 링크 공유 키는 낱말 폭 + 좌우 20, 시트 안쪽 오른쪽 끝(`justify-self: end; width: auto`). 휴대폰은 전폭 그대로.
-- 챔피언 시트의 "○○ 기록 보기"(`hof-sheet-act`)를 파티 시트와 같은 `.modal-actions` 로 바꾼다(한 주 행동은 붙박이 면).
-- 끝난 것의 기준(1440): 링크 공유 폭 160 이하. 챔피언 시트와 파티 시트의 "기록 보기" 키가 같은 자리, 같은 폭.
-
-**T-64 대진표 마법사와 팀 빌더 규정** (K-01, D-07)
-- 대진표 마법사 1단계(`BracketsPage.jsx` `BracketWizard`): 860 이상에서 입력 열을 709로 줄여 취소·다음(439 열)과 52 간격으로 나란히 서게 한다(공지의 신청서와 같은 709 + 439).
-- 팀 빌더 규정 줄(`builder.css` `.tb-rules-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }`): 1100 이상에서 `minmax(0, 439fr) minmax(0, 709fr)`, `column-gap: var(--s13)` 로 아래 두 단과 같은 선에.
-- 끝난 것의 기준: 팀 빌더 1440에서 규정 두 칸의 경계 x가 아래 두 단의 경계(559 / 611)와 같다.
-
-**T-65 계산기 데스크톱** (D-16, Q-15)
-- 스피드 탭: 860 이상에서 기준 패널과 조건(Segmented, 칩, 설명 문단)을 439 열에 `position: sticky` 로 붙들고 속도 줄 목록을 709 열에 세운다. 도감 탭: 종족값과 방어 상성을 439, 기술 표를 709.
-- 끝난 것의 기준(1440): 속도 줄에서 이름과 종족값 사이 빈칸이 960 → 480 이하. 기술 표의 "기술"과 "타입" 사이 394 → 200 이하.
-
-### 묶음 10. 행동의 순서 (원칙 28)
-
-**T-66 위험한 확인 창의 키** (K-08, Q-01)
-- 파일: `src/components/common/SiteDialog.jsx`
-- 바꿈: `current.danger` 이거나 `current.kind === "alert"` 이면 확인 키의 `icon="check"` 를 넘기지 않는다. `danger` 이면 `autoFocus` 를 확인 키가 아니라 취소 키에 준다. 키의 변형(`variant="main"`), 문구, 순서는 그대로.
-- 파일: `src/styles/battle.css` `.bt-forfeit.btn { --btn-bg: #4A1820; --btn-bg-hover: #6A2230; --btn-fg: #FFFFFF; … }`: 색은 그대로 두되 손대지 않는다(새 토큰을 만드는 일이라 이 계획 밖이다).
-- 끝난 것의 기준: 공지 삭제, 팀 초기화, 기권 확인 창의 실행 키에 체크가 없고, 창이 열릴 때 초점이 취소에 있다. 저장·승인 같은 일반 확인은 체크와 초점이 전과 같다.
-
-**T-67 공지 글의 보조 키** (A-10, Q-09)
-- 파일: `src/pages/NewsPage.jsx`(글 보기의 `.nw-more`), `src/styles/news.css`
-- 바꿈: 키를 두 묶음으로 나눈다. **신청 묶음**(신청 수정, 파티 제출, 선발전·본선 파티 제출): 52 second 키, 세로로. **쓰임새 묶음**(캘린더에 추가, 링크 공유, 링크 1·2): 한 줄에 나란히 44 높이, `grid-template-columns: repeat(auto-fit, minmax(0, 1fr))`, 간격 2. 두 묶음 사이 12(원칙 30). 쓰임새 묶음에는 클래스 `nw-utils` 를 준다.
-- 휴대폰(859 이하): 신청 묶음만 스펙 행 바로 아래, 본문 앞으로 올린다(`.nw-more` 의 `order` 를 본문보다 앞으로, 위 간격 20). 키가 둘이면 한 줄 두 칸, 44 높이. 쓰임새 묶음은 본문 뒤 그대로.
-- 끝난 것의 기준: 1440에서 옆 단의 52 키가 주 키 포함 최대 셋(주 키, 신청 수정, 파티 제출), 캘린더와 링크 공유는 44. 390에서 파티 제출 키의 top이 본문 첫 줄보다 위. 시안: `_drafts/news-1440x900-pair.png`, `_drafts/news-390x844-pair.png` (시안은 키를 뜻이 아니라 순서로 골라 "파티 제출"이 작게 찍혔다. 위 글이 기준이다).
+- In the "Space" chapter of `DESIGN.md`, right after "A page of one list or one kind of panel (공지, 기록, 칭호, 명예의 전당, 게시판, 소개) uses the whole 1200, so its head's right end and every row end on the bar's right edge, a short bracket tree included.", append: `Its controls do not: a search, a select and a key follow Composing a screen 27.`
+- In "Sheets, dialogs, toasts", right after "then its actions as planes along the bottom edge, a word action standing as a second action panel.", append: `On desktop a sheet's single utility key (링크 공유) is as wide as its word, at the sheet's end edge.`
+- In "Hierarchy" under Actions, replace "a destructive confirm is the main action too, its sentence says what it destroys." with: `a destructive confirm is the main action too, without the ✓ (a ✓ says done; a delete is not a thing done well), its sentence says what it destroys, and the keyboard's focus starts on the way back.`
+- Verify prose-only diff and run `npm test`.
+
+### Batch 9. Control widths (principle 27)
+
+#### T-60 Records trainer tab search, chips, and season on one row (K-01, Q-03)
+- Edit the 860+ section of `src/styles/records-board.css`.
+- Confirmed DOM structure: direct children of `.rc-list` are `.search`, `.stack.rc-sort` (holding `.chips` and `.dd`), `.rc-tops`, `.rc-legend`, `.rc-table`, and `.rc-more`.
+- Add:
+
+```css
+@media (min-width: 860px) {
+  .rc-list { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); }
+  .rc-list > * { grid-column: 1 / -1; }
+  .rc-list > .search { grid-column: 1; }
+  .rc-list > .rc-sort { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: var(--s3); margin-top: 0; }
+  .rc-sort .dd { width: calc(var(--s21) * 2 + var(--s13)); }
+}
+```
+
+- Chips still sit to the right of search when only one season exists and no dropdown renders. On the tournament tab (`TournamentArchiveView`), chips precede search; give it the same single-row layout (search left, chips right), or leave chips on the row below with a 12 gap if too many tour chips overflow one line.
+- On the rankings tab at 860+, give the season dropdown width 220 and left alignment (`.rc-season .dd { width: calc(var(--s21) * 2 + var(--s13)); }`), with `.dd-menu` matching the button width.
+- Done at 1440 when search input, chip row, and dropdown share vertical center within 1, dropdown width is 220 with right edge at 1320, and search input stays 52 tall. Mobile 390 matches T-26 (three stacked rows, 12 gap). Reference mockup: `_drafts/rec-1440x900-pair.png`.
+
+#### T-61 Private bracket tool buttons matching official brackets (K-01, C-03)
+- Edit the private bracket tool group (`stack bk-actions`) in `src/pages/BracketsPage.jsx` and `src/styles/brackets.css`.
+- At 860+, use the official bracket title-row structure (`.bk-tools` inside `.bk-open-row`, height 44, word-width buttons). Order buttons to match official brackets: `링크 공유`, QR (if present), champion image, bracket image, followed by private-only actions (score entry, edit, delete). Keep the 2-column grid on mobile.
+- Done at 1440 when each private tool button is 44 tall, at most 120 wide, aligned to the right end of the title row, reducing group height from 160 to 44.
+
+#### T-62 Admin entry buttons as title-row links (K-01, G-06, G-07)
+- Targets: add title (`TitlesPage.jsx`), add past champion (`ChampionsPage.jsx`), edit round, add season, add cumulative tab, edit standings, and edit ranking (`RecordsPage.jsx`), and create first bracket (`BracketsPage.jsx`).
+- Match the pattern already used by notice creation and new bracket: underlined links (`btn--link` or `sh-link`, step 12 weight 600) at the right end of the `h1` row or `SectionHead`, arranged side by side with `gap: var(--s5)` when multiple links exist, preserving a 44 hit height.
+- For bracket delete (`bk-delete`, currently a 1200-wide single word), make it a right-aligned word-width + 20 horizontal padding second button (height 52) at 860+ using `justify-self: end; width: auto`.
+- Done at 1440 (admin) when none of these buttons exceed 200 width, and the 1200x104 block above the rankings list disappears with links sharing the season dropdown row.
+
+#### T-63 Desktop sheet bottom buttons (K-08, Q-06)
+- Edit `src/pages/RecordsPage.jsx` (trainer and Pokemon sheet share links), `src/pages/TitlesPage.jsx`, `src/components/ShareHere.jsx`, and related CSS.
+- At 860+, size sheet `링크 공유` buttons to word width plus 20 horizontal padding aligned to the sheet's inner right edge (`justify-self: end; width: auto`). Keep full width on mobile.
+- Change "○○ 기록 보기" (`hof-sheet-act`) in the champion sheet to `.modal-actions` like the party sheet (a single main action sits as a docked plane).
+- Done at 1440 when `링크 공유` is at most 160 wide, and "기록 보기" in the champion sheet matches the party sheet in position and width.
+
+#### T-64 Bracket wizard and team builder rules bar (K-01, D-07)
+- In `BracketWizard` step 1 (`BracketsPage.jsx`), narrow the input column to 709 at 860+ so cancel and next (439 column) sit beside it with a 52 gap, matching the 709 + 439 notice registration form.
+- In `builder.css`, update `.tb-rules-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }` at 1100+ to `minmax(0, 439fr) minmax(0, 709fr)` with `column-gap: var(--s13)` so it aligns with the two columns below.
+- Done at 1440 on team builder when the boundary x of the two rule cells matches the two-column boundary below (559 / 611).
+
+#### T-65 Calculator desktop layout (D-16, Q-15)
+- On the speed tab at 860+, place the reference panel and conditions (Segmented, chips, description paragraph) in a `position: sticky` 439 column and the speed list in the 709 column. On the Pokedex tab, put base stats and type chart in 439 and the move table in 709.
+- Done at 1440 when the blank gap between name and base stat in speed rows drops from 960 to 480 or less, and the gap between "기술" and "타입" in the move table drops from 394 to 200 or less.
+
+### Batch 10. Action hierarchy (principle 28)
+
+#### T-66 Destructive confirm dialog buttons (K-08, Q-01)
+- Edit `src/components/common/SiteDialog.jsx`.
+- Omit `icon="check"` on the confirm button when `current.danger` is true or `current.kind === "alert"`. When `danger` is true, move `autoFocus` from the confirm button to the cancel button. Keep `variant="main"`, copy, and button order unchanged.
+- Do not touch `.bt-forfeit.btn { --btn-bg: #4A1820; --btn-bg-hover: #6A2230; --btn-fg: #FFFFFF; ... }` in `src/styles/battle.css` (adding a new token is outside this plan).
+- Done when delete notice, reset team, and forfeit confirm dialogs have no checkmark on the confirm button and focus starts on cancel. Normal confirmations (save, approve) keep checkmark and focus as before.
+
+#### T-67 Notice detail secondary buttons (A-10, Q-09)
+- Edit `.nw-more` in `src/pages/NewsPage.jsx` and `src/styles/news.css`.
+- Split buttons into two groups. The registration group (`신청 수정`, `파티 제출`, qualifier/main party submit) uses stacked 52-high second buttons. The utility group (`캘린더에 추가`, `링크 공유`, links 1 and 2, class `nw-utils`) sits on one row at height 44 with `grid-template-columns: repeat(auto-fit, minmax(0, 1fr))` and a 2 gap. Separate the two groups by 12 (principle 30).
+- On mobile (859 or below), move only the registration group above the body directly below the spec rows (`.nw-more` `order` before body, 20 top margin). When two buttons are present, place them side by side in two columns at height 44. Leave the utility group after the body.
+- Done at 1440 when the side column has at most three 52-high buttons including the main button (main, `신청 수정`, `파티 제출`), while calendar and share are 44. At 390, `파티 제출` top sits above the first body line. Reference mockups: `_drafts/news-1440x900-pair.png` and `_drafts/news-390x844-pair.png` (note that the mockups picked buttons by position rather than meaning and drew `파티 제출` small; follow the text spec above).
+
+#### T-68 Edit and delete on sample and party board posts (C-12, Q-13)
+- Edit `src/pages/BoardPage.jsx`.
+- Move edit and delete to text buttons (`.bd-act`) on the metadata row just like free posts, leaving only image save and `링크 공유` in the large button grid (`.bd-bar`).
+- Done when edit, delete, and report have identical placement and size across all three post types.
+
+#### T-69 Admin live event panel and bracket operations row (G-03, G-13, Q-16)
+- In `EventPanel` (`src/admin/AdminPage.jsx`), change cancel tournament to `variant="link"` at the bottom right of the panel (12 top margin). During registration, make `신청 현황` the main button (`variant="main"`) and `지금 마감` a second button, keeping the 1 (`지금 마감`) to 1.618 (`신청 현황`) width ratio.
+- In `src/pages/BracketsPage.jsx`, place the post-recording row ("기록 반영됨" on the left, "칭호 다시 판정" and "반영 취소" links on the right with `gap: var(--s5)`) on a separate row from the image buttons using `display: flex; justify-content: space-between; align-items: baseline`.
+- Done when `신청 현황` is the widest button in the live event panel and all three text items in the operations row share a baseline y within 1.
+
+#### T-70 "내 기록 연결" placement in trainer sheet (B-18e, Q-14)
+- In `src/pages/RecordsPage.jsx`, move the "내 기록 연결" section from between recent tournaments and used parties down to right above `링크 공유` at the bottom of the trainer sheet. Keep the top lead (`TrainerLink lead`) unchanged in find-my-record mode (`me=1`).
+
+### Batch 11. No stretching (principle 29) and relational spacing (principle 30)
+
+#### T-71 Last row of medal boards and hall of fame wall (K-12, Q-05)
+- In `MedalBoard` (`src/components/TitleFaces.jsx`), remove the code that pads empty panels. In `COLS` (`src/pages/TitlesPage.jsx`), when the last row would have fewer medals than columns, set the column count to a divisor of the medal count or the medal count itself (7 partner medals become 7 desktop columns, 3 misc become 3 columns, 8 event become two rows of 4). Shrink board width to column count times cell width and left-align it without widening cells to fill 1200.
+- In `.hof-wall` (`src/styles/hall.css`), render 5 champions in a single 5-column row (`repeat(5, ...)`) at 1440, and use 3 columns for 6 or more. Derive column count from champion count (pass `--n` from JSX and read it in CSS, as the home wall already does).
+- Done when no titles tab contains blank panels that are neither `.off` nor medals, and the hall of fame wall has no empty cells at 1440 or 768.
+
+#### T-72 Empty inverted panel in champion sheet (A-05, Q-14)
+- In `src/components/common/ChampionSheet.jsx`, omit `className="wide"` from `Modal` when a championship has no `sets` so it opens at width 576 (fitting six sprites cleanly). Keep `wide` when `sets` exist, placing the seal (`.hof-seal`) in 439 and name, season, and "기록 보기" in 709 at 860+.
+- Done at 1440 when no empty horizontal band inside `.hof-seal` exceeds 40.
+
+#### T-73 About page two columns and lead panel (A-20)
+- In `src/styles/hall.css`, match the lead panel split to home's `.ho-screen` formula (`minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148)`). Do not stretch the "세 가지 대회" and "정규 리그" columns to align their bottoms (keep the 122 difference per principle 29).
+- In `src/pages/AboutPage.jsx`, add step number "1" to the lead panel (Discord join), since only "2" and "3" exist now.
+
+#### T-74 Home hero (A-02, A-13, Q-07, Q-08)
+- Fix clock overflow at 360: in the tournament-day branch of `src/pages/HomePage.jsx`, render the "시작" unit (`.ho-unit`) on the label line above ("오늘 대회 진행 중") instead of beside the clock at 389 or below. A CSS-only equivalent is `@media (max-width: 389px) { .ho-board.today { flex-wrap: wrap; } .ho-board.today .ho-unit { order: -1; flex-basis: 100%; } }`. Keep the clock at height 84.
+- Fix the 72 empty band at 1440: in `src/styles/home.css` (860+), change `.ho-display`'s `align-items: end` to `align-items: start`. Omit the date-and-time spec row on tournament day when `now.today` is true (it repeats the clock).
+- Done when at 360 `.ho-board` right is within panel inner right with no horizontal overflow, at 390 the clock has at least 12 right padding, and at 1440 name block bottom to clock top is 20.
+
+#### T-75 Group stage and double elimination (C-07, C-08, C-09, Q-12)
+- In group stage (`GroupStageBoard` in `BracketsPage.jsx`, `brackets.css`), put 12 between the group standings rows and match rows (principle 30), and 12 below / 32 above the "본선" heading. At 860+, constrain group blocks to 709 so names and "본선 진출" do not sit 1100 apart.
+- On mobile list view, move the champion panel to the top just like tree view: remove `:has(.bk-champ-node)` from `.bk-board:has(.bk-champ-node) .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }` in `brackets.css` so it applies across all viewports at 859 or below. Set the desktop list view champion name to 32/40 as well.
+- In double elimination, keep column widths as integers (do not switch `.bk-tree` to grid; give columns `flex: 1 1 0` with an integer `min-width`, letting the last column take any remainder when `.bk-scroll` width is not evenly divisible). Place grand finals and champion on a separate row below with their own "그랜드 파이널" header rather than under "패자조". Leave losers bracket without connector lines.
+- Done at 1440 on double elimination (`eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13`) when every `.bk-col2` left and width is an integer, and in group stage standings bottom to matches top is 12.
 
-**T-68 게시판 샘플·파티 글의 수정과 삭제** (C-12, Q-13)
-- 파일: `src/pages/BoardPage.jsx`
-- 바꿈: 수정, 삭제를 자유 글과 같은 메타 줄의 글자 키(`.bd-act`)로 옮기고, 큰 키 격자(`.bd-bar`)에는 이미지 저장과 링크 공유만 둔다.
-- 끝난 것의 기준: 세 종류 글에서 수정·삭제·신고가 같은 자리, 같은 크기.
+#### T-76 Unified empty search state (K-17, Q-11)
+- Standardize on the board's single-line text panel. Remove `<Seg value={0} cells={2}/>` from `<Empty className="search-none">` in the private brackets tab (`BracketsPage.jsx`) and notice search (`NewsPage.jsx`), since T-06 already displays the count inside the search box.
+- Done when empty search states across all three screens share the same height and structure.
 
-**T-69 관리자: 대회 진행 패널과 대진표 운영 줄** (G-03, G-13, Q-16)
-- `src/admin/AdminPage.jsx` `EventPanel`: 대회 취소를 `variant="link"` 로 패널 오른쪽 아래에(위 간격 12). 접수 단계의 주 키는 신청 현황(`variant="main"`), 지금 마감은 second. 두 키의 비 1(지금 마감) : 1.618(신청 현황) 그대로.
-- `src/pages/BracketsPage.jsx` 의 기록 반영 뒤 줄: "기록 반영됨"(왼쪽)과 링크 둘("칭호 다시 판정", "반영 취소", 오른쪽 끝, `gap: var(--s5)`)을 이미지 키들과 다른 한 줄에 `display: flex; justify-content: space-between; align-items: baseline` 로.
-- 끝난 것의 기준: 대회 진행 패널에서 가장 넓은 키가 신청 현황. 운영 줄의 세 요소 글자 기준선 y가 같다(±1).
+#### T-77 Notice list search placement (K-03, Q-08)
+- In `src/pages/NewsPage.jsx`, move the search box above the "다가오는 대회" section (directly below `h1`, spaced by T-79). Keep hiding "다가오는 대회" while a query is active.
+- Done at 1440 and 390 when `.search-in` top stays identical before and after entering a search query.
 
-**T-70 트레이너 시트의 "내 기록 연결"** (B-18e, Q-14)
-- 파일: `src/pages/RecordsPage.jsx` 트레이너 시트: "내 기록 연결" 섹션을 최근 대회와 사용한 파티 사이에서 맨 아래 링크 공유 바로 위로 옮긴다. 내 기록 찾기 모드(`me=1`)에서 맨 위에 서는 리드(`TrainerLink lead`)는 그대로.
+#### T-78 Mobile comment header (C-05, Q-10)
+- In `src/pages/BoardPage.jsx`, format comment and post header dates at 639 or below as "11.19 오후 3:12" (or "25.11.19 오후 3:12" for another year) with `white-space: nowrap`. Implement this formatter in the page layer without modifying existing functions in `src/services/dateFormat.js`.
+- Done at 390 and 360 when every comment header stays on one line (height 16) and comment panel height does not vary with author name length.
 
-### 묶음 11. 늘리지 않기 (원칙 29)와 관계의 간격 (원칙 30)
+#### T-79 Unified spacing below titles (K-05, Q-04)
+- Below `h1`, use 32 (`--s8`, "between groups; a page title under the bar"). Update whichever of `.nw-upcoming, .nw-search, .nw-list` in `news.css` directly follows `h1`, `.alerts > h1 { margin-bottom: var(--s5); }` in `more.css`, and `.ab-screen { margin-top: var(--s5); }` in `hall.css` to `var(--s8)`. More and records already use 32.
+- Below tab strips, use 20 (`--s5`). Change `.rc-body { margin-top: var(--s3); }` in `records-board.css` to `var(--s5)`. Titles already uses 20.
+- Remove the three `... > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }` rules from `news.css`, `brackets.css`, and `posts.css` so back links align with the side column top (matching the registration form) and stop overlapping `LiveStrip` by 6 on mobile.
+- Done at 1440 when `h1` bottom to next element top is 32 on notices, alerts, about, more, and records; tab strip bottom to content top is 20 on records and titles; and the back link box top aligns with the side or body column top on notice detail, bracket, and board post pages.
 
-**T-71 메달 판과 역대 챔피언 벽의 마지막 줄** (K-12, Q-05)
-- `src/components/TitleFaces.jsx` `MedalBoard`: 빈 패널로 채우는 코드를 지운다. `src/pages/TitlesPage.jsx` 의 `COLS`: 메달 수가 열 수보다 적은 마지막 줄이 생기면 열 수를 메달 수의 약수 또는 메달 수로 맞춘다(파트너 7개 → 데스크톱 7열, 기타 3개 → 3열, 이벤트 8개 → 4열 두 줄). 판의 폭은 열 수 x 칸 폭으로 줄고 왼쪽 정렬한다(1200을 채우려고 칸을 넓히지 않는다. 칸 폭은 지금의 값).
-- `src/styles/hall.css` `.hof-wall`: 1440에서 5명이면 5열 한 줄(`repeat(5, …)`), 6명 이상이면 3열. 열 수는 사람 수로 정한다(JSX에서 `--n` 을 넘기고 CSS가 읽는다. 홈의 벽이 이미 `--n` 을 쓴다).
-- 끝난 것의 기준: 칭호의 어느 탭에도 `.off` 도 메달도 아닌 빈 패널이 없다. 명예의 전당 1440과 768에서 벽에 빈 칸이 없다.
+#### T-80 Hint text sizing (G-12, Q-02)
+- In `src/styles/components.css`, change `.bk-hint, .hint { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }` to `font-size: var(--t12); line-height: var(--l12);` (Hierarchy step 5: hints are 12/16 on mobile, 15/20 on desktop). Inspect every match of `grep -rn "className=\"hint\"\|bk-hint" src` and switch multi-line reading paragraphs to `prose` classes.
+- Done at 390 when no hint is larger than its field label.
 
-**T-72 챔피언 시트의 빈 반전 패널** (A-05, Q-14)
-- 파일: `src/components/common/ChampionSheet.jsx`: 세트(`sets`)가 없는 우승은 `Modal` 의 `className="wide"` 를 빼 576 폭으로 연다(여섯 그림만 있으므로 좁은 시트에 맞다). 세트가 있는 우승은 `wide` 그대로 두되 860 이상에서 인장(`.hof-seal`)을 439, 그 오른쪽 709에 이름·시즌·"기록 보기"를 둔다.
-- 끝난 것의 기준(1440): `.hof-seal` 안에서 잉크 없는 가로 띠가 40을 넘지 않는다.
+### Batch 12. Remaining records fixes (Q-14)
 
-**T-73 소개의 두 단과 리드 판** (A-20)
-- `src/styles/hall.css`: 리드 판 분할을 홈과 같은 식으로(`home.css` 의 `.ho-screen` 식 `minmax(0, 1fr) calc((100% - var(--s13)) * 439 / 1148)`). "세 가지 대회"와 "정규 리그" 두 단은 끝 선을 맞추려 늘리지 않는다(원칙 29, 지금대로 122 차이를 둔다).
-- `src/pages/AboutPage.jsx`: 단계 번호가 "2", "3"만 있다. 리드 판(디스코드 참여)에 "1"을 준다.
+#### T-81 Top 3 panel counters
+- In `src/styles/records-board.css`, remove the background from `.rc-top-cell { ... padding: var(--s2) var(--s3); background: var(--panel-2); }` and set `padding: var(--s2) var(--s3) var(--s2) 0;` so all three panels render without nested cells and labels align with the name's left edge. Delete the now-redundant `.inv .rc-top-cell { background: transparent; padding-left: 0; }` rule and the hover rule added in T-11. Reference mockup: `_drafts/rec-1440x900-pair.png`.
 
-**T-74 홈 히어로** (A-02, A-13, Q-07, Q-08)
-- 360에서 시계가 넘침: `src/pages/HomePage.jsx` 대회 당일 분기에서, 폭 389 이하일 때 "시작" 단위(`.ho-unit`)를 시계 옆이 아니라 위 라벨 줄("오늘 대회 진행 중" 뒤)에 그린다. CSS만으로 한다면 `@media (max-width: 389px) { .ho-board.today { flex-wrap: wrap; } .ho-board.today .ho-unit { order: -1; flex-basis: 100%; } }`. 시계는 84 그대로.
-- 1440의 72 빈 띠: `src/styles/home.css` 860 이상 `.ho-display { … align-items: end; … }` → `align-items: start`. 대회 당일에는 스펙 행에서 일시 행을 그리지 않는다(시계와 같은 사실, `HomePage.jsx` 의 스펙 행 목록에서 `now.today` 일 때 제외).
-- 끝난 것의 기준: 360에서 `.ho-board` 의 right ≤ 패널 안쪽 right, 문서 가로 넘침 없음, 390에서 시계 오른쪽 여백 ≥ 12. 1440에서 이름 블록 bottom → 시계 top이 20.
+#### T-82 Tournament tab length
+- In `TournamentArchiveView` (`RecordsPage.jsx`), render only the 20 most recent tournaments initially with a "N개 전체 보기" button below (matching "N명 전체 보기" on the trainer tab). Render all items while searching or when a tour chip is selected.
+- Done on `?view=records&tab=tour` at 1440 when document height drops from 15,568 to 7,000 or less.
 
-**T-75 조별 리그와 더블 엘리미네이션** (C-07, C-08, C-09, Q-12)
-- 조별 리그(`BracketsPage.jsx` `GroupStageBoard`, `brackets.css`): 조 순위 행 묶음과 조 경기 행 묶음 사이 12(원칙 30). "본선" 머리 아래 12, 위 32. 860 이상에서 조 묶음은 709 열(이름과 "본선 진출"이 1100 떨어지지 않게).
-- 휴대폰 목록 보기: 우승 패널을 트리 보기와 같이 맨 위로. `brackets.css` 의 `.bk-board:has(.bk-champ-node) .bk-result > .bk-winner { display: grid; order: -1; margin: 0; }` 에서 `:has(.bk-champ-node)` 조건을 빼고 859 이하 전체에 준다. 데스크톱 목록 보기의 우승 이름도 32/40.
-- 더블 엘리미네이션: 열 폭을 정수로(`.bk-tree` 를 grid로 바꾸지 말고, 열에 `flex: 1 1 0` 과 `min-width` 정수, 그리고 `.bk-scroll` 폭이 열 수로 나누어떨어지지 않으면 마지막 열이 나머지를 받는다). 그랜드 파이널과 우승은 "패자조" 머리 밑이 아니라 그 아래 별도 줄에 제 머리("그랜드 파이널")와 함께. 패자조의 선은 그리지 않는다(지금대로).
-- 끝난 것의 기준: 더블(`eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13`) 1440에서 모든 `.bk-col2` 의 left와 width가 정수. 조별 리그에서 순위 묶음 bottom → 경기 묶음 top = 12.
+#### T-83 League tags
+- Leave as is (no change). Column misalignment is solved by T-24.
 
-**T-76 검색 결과 없음을 한 모양으로** (K-17, Q-11)
-- 게시판의 모양(글 한 줄 패널)으로 통일한다. `BracketsPage.jsx` 사설 탭과 `NewsPage.jsx` 의 `<Empty className="search-none"><Seg value={0} cells={2}/>…` 에서 세그먼트를 뺀다(건수는 T-06으로 검색 칸 안에 있다).
-- 끝난 것의 기준: 세 화면의 검색 빈 상태가 같은 높이, 같은 구조.
+#### T-84 Hall of fame crown six sprites
+- In `src/styles/hall.css`, change mobile `.hof-crown-mon` from `--floor: var(--h-control)` to `--floor: var(--h-strip)` (shrinking the name strip from 44 to 32 so sprites grow). At 860+, change `.hof-crown` from `align-items: end` to `align-items: stretch`, and `.hof-crown-mon` from `aspect-ratio: auto; height: calc(var(--s21) * 2);` to `height: 100%; min-height: calc(var(--s21) * 2);`.
+- Done when at 390 the current champion's sprites are at least 1.25x larger than past wall sprites, and at 1440 the blank band above the six sprites is at most 40.
 
-**T-77 공지 목록의 검색 자리** (K-03, Q-08)
-- `src/pages/NewsPage.jsx`: 검색 칸을 "다가오는 대회" 섹션 **위**(h1 바로 아래, 간격은 T-79의 값)로 옮긴다. 검색어가 있을 때 "다가오는 대회"를 숨기는 동작은 그대로.
-- 끝난 것의 기준: 검색어를 넣기 전후 `.search-in` 의 top이 같다(1440, 390).
+#### T-85 Recent tournament date formatting
+- When a trainer sheet's recent tournament list spans two or more years, show the year on every row. Do not modify `src/services/dateFormat.js`; pick a year-inclusive formatter in the sheet (reusing an existing one from `dateFormat.js` if available).
 
-**T-78 휴대폰 댓글 머리** (C-05, Q-10)
-- `src/pages/BoardPage.jsx` 댓글과 글 머리의 날짜: 639 이하에서 짧은 형식 "11.19 오후 3:12"(연도가 다르면 "25.11.19 오후 3:12")로, `white-space: nowrap`. 날짜 서식은 화면 쪽 함수로 만들고 `src/services/dateFormat.js` 의 기존 함수는 바꾸지 않는다.
-- 끝난 것의 기준(390, 360): 모든 댓글 머리가 한 줄(높이 16), 댓글 패널 높이가 이름 길이와 무관.
+### Batch 13. Team builder and calculator (Q-15)
 
-**T-79 제목 아래 간격을 하나로** (K-05, Q-04)
-- h1 아래: 32(`--s8`, "between groups; a page title under the bar"). `news.css` `.nw-upcoming, .nw-search, .nw-list { margin-top: var(--s5); }` 중 h1 바로 다음에 오는 것, `more.css` `.alerts > h1 { margin-bottom: var(--s5); }`, `hall.css` `.ab-screen { margin-top: var(--s5); }` 를 `var(--s8)` 로. 더보기와 기록은 이미 32.
-- 탭 줄 아래: 20(`--s5`). `records-board.css` `.rc-body { margin-top: var(--s3); }` → `var(--s5)`. 칭호는 이미 20.
-- 뒤로 링크: `news.css`, `brackets.css`, `posts.css` 의 `… > .back:first-child { margin-top: calc(var(--s3) * -1 + (var(--l12) - var(--h-control)) / 2); }` 세 줄을 지운다(신청서와 같은 선, 옆 단의 윗선과 같아진다). 휴대폰에서 LiveStrip과 6 겹치던 것도 풀린다.
-- 끝난 것의 기준(1440): 공지, 알림, 소개, 더보기, 기록에서 h1 bottom → 다음 요소 top = 32. 기록과 칭호에서 탭 줄 bottom → 내용 top = 20. 공지 글, 대진표, 게시글에서 뒤로 링크 상자의 top = 옆 단(또는 본문 열)의 top.
+#### T-86 Candidate pool at 860 to 1099
+- In `src/styles/team-builder.css` for the 860 to 1099 range, change `.tb-pool-panel { position: static; max-height: 576px; }` to `max-height: none;` and set `.tb-pokemon-list { max-height: none; overflow: visible; }` so the pool scrolls with the page like mobile.
+- Done at 1099x900 and 860x900 when the candidate list has no internal scroll.
 
-**T-80 도움말 문장** (G-12, Q-02)
-- `src/styles/components.css` `.bk-hint, .hint { font-size: var(--t15); line-height: var(--l-read); color: var(--dim); }` → `font-size: var(--t12); line-height: var(--l12);` (Hierarchy 5단: 힌트는 12/16, 데스크톱 15/20). 두 줄 이상 이어지는 설명 문단으로 쓰인 곳(`grep -rn "className=\"hint\"\|bk-hint" src`)은 하나씩 열어 보고, 읽는 글이면 클래스를 `prose` 계열로 바꾼다.
-- 끝난 것의 기준(390): 어떤 칸에서도 힌트가 그 칸의 라벨보다 크지 않다.
+#### T-87 Desktop candidate row
+- At 1100+, change the 3-line desktop row rule in `src/styles/team-builder.css` to a single 64-high row: 64 sprite cell, name and type tags on one line, and six stat cells plus total. Keep the type grid as is.
+- Done at 1280x800 when visible candidate rows increase from 2.6 to at least 5, and at 1100 to 1199 the gap between stat numbers is at least 8 (D-25).
 
-### 묶음 12. 기록 화면의 나머지 (Q-14)
+#### T-88 Calculator mobile stat rows
+- In the mobile section of `src/styles/calculator.css`, change `.calc-stat-row { grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control) calc(var(--s21) + var(--s5)); }` using `grid-template-areas` to move the rank stepper onto a second line. The HP row has no rank and stays single-line.
+- Done at 390 when bar width grows from 134 to at least 230.
 
-**T-81 상위 3 패널의 카운터**: `records-board.css` `.rc-top-cell { … padding: var(--s2) var(--s3); background: var(--panel-2); }` → 배경을 지우고 `padding: var(--s2) var(--s3) var(--s2) 0;` (세 패널 모두 칸 없이, 라벨이 이름과 같은 왼쪽 선). `.inv .rc-top-cell { background: transparent; padding-left: 0; }` 줄은 필요 없어지니 지운다. T-11에서 더한 호버 규칙도 지운다. 시안: `_drafts/rec-1440x900-pair.png`.
+#### T-89 Blocked official submission panel
+- In `OfficialSubmissionPanel` (`TeamBuilderPage.jsx`), when `blocked` is true, display the reason right below the title and omit the step strip, name input, and applicant lookup. Replace the dropdown chevron on locked rule selects with a lock icon (matching `tb-locked-item` in the editor).
 
-**T-82 대회 탭의 길이**: `RecordsPage.jsx` `TournamentArchiveView`: 처음에는 최근 20개 대회만 그리고 그 아래 "N개 전체 보기"(트레이너 탭의 "N명 전체 보기"와 같은 키, 같은 동작). 검색 중이거나 투어 칩을 고른 때는 전부 그린다.
-- 끝난 것의 기준: `?view=records&tab=tour` 1440의 문서 높이가 15,568 → 7,000 이하.
+#### T-90 Remove plus sign on empty slots
+- In `TeamBuilderPage.jsx`, remove the `+` from empty slots since they are not interactive; show only the dimmed slot number.
 
-**T-83 리그 태그**: 그대로 둔다(변경 없음). 열 어긋남은 T-24로 풀린다.
+#### T-91 "최종" column header
+- In `TeamBuilderPage.jsx`, stop repeating "최종" on every stat point row ("최종 185"). Show "최종" once at the right end of the stat points header row and right-align the numbers (`font-variant-numeric: tabular-nums` is already global).
 
-**T-84 명예의 전당 왕관의 여섯**: `hall.css` 휴대폰 `.hof-crown-mon { --floor: var(--h-control); … }` → `--floor: var(--h-strip);` (이름 띠 44 → 32, 그림이 그만큼 커진다). 860 이상 `.hof-crown { … align-items: end; … }` → `align-items: stretch`, `.hof-crown-mon { aspect-ratio: auto; height: calc(var(--s21) * 2); }` → `height: 100%; min-height: calc(var(--s21) * 2);`.
-- 끝난 것의 기준: 390에서 현 챔피언의 그림이 역대 벽의 그림보다 1.25배 이상 크다. 1440에서 여섯 위의 빈 띠가 40 이하.
+### Batch 14. Structural motion (Q-18)
 
-**T-85 최근 대회 날짜 표기**: 트레이너 시트의 목록에서 해가 둘 이상이면 모든 줄에 연도를 붙인다. `src/services/dateFormat.js` 는 바꾸지 않고, 시트가 줄을 그릴 때 "올해 날짜에 연도 생략" 대신 연도 포함 형식을 고른다(그 서비스에 연도 포함 함수가 이미 있으면 그것을 쓴다).
+#### T-92 Relight only changed content on tab and chip switch (F-04, F-05)
+- Update `lightAfter` in `src/components/common/motion.js` so it skips siblings marked with `[data-still]` instead of relighting every sibling after the control. Add `data-still` to the outer element of `ListSearch` and `Dock` so search inputs (`.search`) and main button docks (`.dock`) stay still. Remove `.swap` from containers already lit by `light` (`.rc-body`, title boards, `.bk-board`, `.bk-list`) to eliminate double fades.
+- Done when clicking the "더블" chip on the board party tab leaves `.search-in` and `.btn--main` with empty `getAnimations()`, while list rows still light up over 420ms with 38ms stagger.
 
-### 묶음 13. 팀 빌더, 계산기 (Q-15)
+#### T-93 Fold close animation (F-07)
+- Add exit animation to folds in `RecordsPage.jsx` (round official parties), `NewsPage.jsx` (registration status), and `BracketsPage.jsx` (party submission status) using the `useExitAnimation` pattern from `Modal.jsx`: fade content opacity to 0 over 160ms (`tone`, `ease-in`) before unmounting. Never animate height (only `transform` and `opacity` are allowed).
+- Done when closing runs one 160ms opacity animation on the content and closes immediately under reduced motion.
 
-**T-86 860~1099의 후보 목록**: `team-builder.css` `.tb-pool-panel { position: static; max-height: 576px; }` (이 구간의 규칙) → `max-height: none;` 과 `.tb-pokemon-list { max-height: none; overflow: visible; }` (휴대폰처럼 페이지와 함께 스크롤). 끝난 것의 기준(1099x900, 860x900): 후보 목록 안쪽 스크롤이 없다.
+#### T-94 Prevent desktop dialogs from jumping on errors (F-06)
+- Desktop `.sheet` in `components.css` (860+) uses `top: 50%; bottom: auto; ... translate: -50% -50%;`. Right after `Modal.jsx` opens, measure `.sheet` top in pixels once, write it to `style.top`, and change `translate` to `-50% 0` so later height growth expands downward only (existing `max-height` still caps overflow).
+- Done at 1440 when submitting an empty post sheet triggers validation errors without changing `.sheet` top (previously 54 to 26).
 
-**T-87 데스크톱 후보 행**: 1100 이상에서 행을 한 줄 64로: 그림(64 칸), 이름과 타입 태그 한 줄, 능력치 여섯 칸과 합. `team-builder.css` 의 데스크톱 행 규칙(3줄)을 바꾼다. 타입 격자는 그대로. 끝난 것의 기준(1280x800): 보이는 후보 행이 2.6 → 5 이상. 1100~1199에서 능력치 숫자 사이 간격 ≥ 8(D-25).
+#### T-95 First-visit home layout stability (F-03)
+- In `src/pages/HomePage.jsx`, while `last` (previous tournament) is still loading and there is no upcoming tournament, do not render the "다음 대회" layout or "공지 보기" button. Render an unlit panel matching the previous tournament panel's height (unlit segments, no button), then light it in place once data arrives.
+- Done when recording a cold visit (no cached copy) at `--cpu 4` shows no frame where the main button label changes and 0 layout shift on the standings section top.
 
-**T-88 계산기 휴대폰 능력치 행**: `calculator.css` `.calc-stat-row { grid-template-columns: var(--s8) minmax(0, 1fr) var(--h-control) calc(var(--s21) + var(--s5)); }` (휴대폰 쪽) → 랭크 스텝퍼를 둘째 줄로 내린다(`grid-template-areas`). H 행은 랭크가 없으니 한 줄. 끝난 것의 기준(390): 막대 폭 134 → 230 이상.
+#### T-96 Heavy sheet first frame (F-02)
+- Measure first on a production build (`npm run build && npx vite preview --port 4173`) using `scripts/record-transition.cjs` to record opening a trainer sheet at 390, `--cpu 4`, `--every 40`. If the sheet's top edge has already passed halfway from start (864) to end (52) on the first frame after click, delay the spring start in `Modal.jsx` until after the sheet's first paint (two `requestAnimationFrame` calls before `slide(0)`). If it has not passed halfway, close as no change and record the measurement.
 
-**T-89 공식 제출 패널이 막혔을 때**: `TeamBuilderPage.jsx` `OfficialSubmissionPanel`: `blocked` 이면 제목 바로 아래에 사유 문장을 두고 단계 띠, 이름 칸, 신청자 확인을 그리지 않는다. 잠긴 규정 드롭다운은 펼침 화살표 대신 자물쇠 아이콘(편집기의 잠긴 메가 도구 `tb-locked-item` 과 같은 표시).
+#### T-97 Top bar hover (F-08, Q-17)
+- Leave as is (no change). Dimming top bar words at rest alters the site's tone; keep existing `.navlink` hover only.
 
-**T-90 빈 칸의 +**: 누를 수 있는 것이 아니므로 +를 뺀다(`TeamBuilderPage.jsx` 의 빈 슬롯). 빈 칸은 번호만 흐리게.
+#### T-98 Pager (F-11)
+- Leave as is (no change). Giving lists a minimum height creates an empty band on short last pages (principle 29).
 
-**T-91 "최종" 열**: `TeamBuilderPage.jsx` 능력 포인트 행의 "최종 185"에서 낱말 "최종"을 행마다 쓰지 않고 능력 포인트 머리줄의 오른쪽 끝에 한 번 쓴다. 행에는 숫자만 오른쪽 정렬(`font-variant-numeric: tabular-nums` 는 이미 전역).
+### Batch 15. Battle (Q-19, Q-20)
 
-### 묶음 14. 구조를 바꾸는 모션 (Q-18)
+Battle screens follow "Judging the play screen" in the "Battle" chapter of `DESIGN.md`. After edits, re-measure frames with `scripts/measure-frames.cjs` as documented in `docs/BATTLE_FRAMES.md`. Visual effects and behavior must stay intact.
 
-**T-92 탭과 칩을 바꿀 때 바뀐 것만 켠다** (F-04, F-05): `src/components/common/motion.js` `lightAfter` 가 컨트롤 뒤의 모든 형제를 켜는 것을, 내용이 바뀌는 컨테이너만 켜게 한다. 검색 칸(`.search`)과 주 키(`.dock`, `.btn--main` 을 가진 줄)는 건너뛴다: 형제 중 `[data-still]` 표시가 있는 것을 건너뛰고, `ListSearch` 의 바깥 요소와 `Dock` 에 `data-still` 을 준다. light가 닿는 컨테이너(`.rc-body`, 칭호의 판, 대진표의 `.bk-board`, `.bk-list`)에서는 `.swap` 클래스를 뺀다(두 겹 페이드 제거).
-- 끝난 것의 기준: 게시판 파티 탭에서 칩 "더블"을 누른 직후 `.search-in` 과 `.btn--main` 의 `getAnimations()` 가 비어 있다. 목록 행은 전과 같이 420, 38 간격으로 켜진다.
+#### T-99 Two-column battle from 860 to 1199 (E-02)
+- Lower the `@media (min-width: 1200px)` block in `src/styles/battle.css` (two-column `grid-template-columns: minmax(0, 1fr) 400px`, stage `max-height`, sticky side column) and `WIDE = "(min-width: 1200px)"` in `src/pages/BattlePage.jsx` to 860. Narrow the side column to `calc(var(--s21) * 4)` (336) between 860 and 1199 (400 would leave only 420 for the stage at 860). Clean up existing `@media (min-width: 860px) and (max-width: 1199px)` rules (`max-width: 980`, etc.) in `battle.css` so they do not conflict.
+- Done at 860x900, 1024x768, and 1199x800 when battle document height equals viewport height (no scroll), all four move buttons and bench fit inside the viewport, and `.bt-head` sits above the deck. Viewports at 1200+ must match pixel-for-pixel against `before`. `measure-frames.cjs lobby` and `replay-open` must pass.
 
-**T-93 접힘의 닫힘** (F-07): `RecordsPage.jsx`(회차 공식 파티), `NewsPage.jsx`(신청 현황), `BracketsPage.jsx`(파티 제출 현황)의 접힘에 `Modal.jsx` 의 `useExitAnimation` 과 같은 방식으로 닫힘을 준다: 닫을 때 내용의 opacity를 160(tone, ease-in)으로 0까지 내린 뒤 떼어낸다. 높이는 움직이지 않는다(법: transform과 opacity만).
-- 끝난 것의 기준: 닫는 동안 내용에 opacity 애니메이션 160ms가 하나 돈다. 줄인 움직임에서는 바로 닫힌다.
+#### T-100 Minor battle adjustments (E-05, E-07, E-08, E-09)
+- In the desktop side column (`.bt-side` child order in `BattlePage.jsx`), place the menu (effects, sound, forfeit) directly below the header and the party panel beneath it.
+- Dismiss the turn-1 guidance toast after 4.66 seconds (matching `Toaster.jsx`), keeping its position and appearance unchanged.
+- In desktop doubles (860+ `.bt-hud-own` in `battle.css`), stack the player's two plates vertically on the right (`column` under `.two`) just like mobile.
+- At 379 or below, reduce vertical padding on team-preview `.bt-card.short` from 12 to 8.
+- Done when at 1440x900 the forfeit button stays inside the viewport during battle, in doubles player plates overlap player Pokemon boxes by at most 20% of box area, and at 375x667 team preview the third row card bottom is at or above dock top.
 
-**T-94 데스크톱 대화상자가 오류로 뛰지 않게** (F-06): `components.css` 860 이상 `.sheet { top: 50%; bottom: auto; … translate: -50% -50%; … }`: 열릴 때의 top을 고정한다. `Modal.jsx` 가 열린 직후 `.sheet` 의 top(px)을 한 번 재서 `style.top` 으로 넣고 `translate` 를 `-50% 0` 으로 바꾼다. 그 뒤 높이가 변하면 아래로만 자란다. 창 높이를 넘으면 기존 `max-height` 가 막는다.
-- 끝난 것의 기준(1440): 글쓰기 시트에서 빈 채로 등록을 눌러 오류가 떠도 `.sheet` 의 top이 변하지 않는다(전 54 → 26).
+#### T-101 Battle items left unchanged
+- No changes for the 140 gap above the post-battle mobile deck (preserves deck height), the 107 gap below the lobby court, turn counter label, three 0 counters in the room list, or extreme 390x480 height. Lobby-to-preview clipping (E-06) stays a separate task under `docs/BATTLE_TRANSITIONS.md`.
 
-**T-95 첫 방문 홈** (F-03): `HomePage.jsx`: `last`(지난 대회)를 아직 읽는 중이고 다가오는 대회가 없을 때, "다음 대회" 모양과 "공지 보기" 키를 그리지 않는다. 지난 대회 패널과 같은 높이의 꺼진 판(세그먼트 꺼짐, 키 없음)을 둔다. 읽기가 끝나면 그 자리에서 켠다.
-- 끝난 것의 기준: 저장된 사본이 없는 첫 방문을 `--cpu 4` 로 녹화했을 때 주 키의 낱말이 바뀌는 프레임이 없고, 순위 구역의 top이 변하지 않는다(layout-shift 0).
+### Batch 16. Visible functional bug (Q-21)
 
-**T-96 무거운 시트의 첫 프레임** (F-02): 먼저 잰다. `npm run build && npx vite preview --port 4173` 의 운영 빌드에서 `scripts/record-transition.cjs` 로 트레이너 시트 열기를 390, `--cpu 4`, `--every 40` 으로 녹화한다. 누른 뒤 첫 프레임에 시트 윗변이 출발점(864)에서 끝점(52)까지 거리의 절반을 이미 지나 있으면: `Modal.jsx` 의 스프링 시작을 시트 내용의 첫 그림 다음 프레임으로 미룬다(`requestAnimationFrame` 두 번 뒤 `slide(0)`). 절반을 지나지 않으면 이 작업은 "변경 없음"으로 닫고 측정값을 적는다.
+#### T-102 Calculator "난수 5타 (NaN%)" (BUG-1)
+- In `koLabel` (`src/services/calculatorCore.js`), omit the parenthetical percentage and return `난수 ${ko.n}타` when `ko.chance` is not a valid number. Add a test case if calculator tests exist under `tests/`. Although this is in service code, it only fixes one display string and leaves calculation logic untouched.
 
-**T-97 상단 바의 호버** (F-08, Q-17): 지금대로 둔다(변경 없음). 상단 바의 낱말을 평소에 한 단계 어둡게 하는 것은 사이트의 인상을 바꾼다. `.navlink` 의 기존 호버만 유지한다.
+Deferred bugs not in this plan: empty info on random CPU battle parties (BUG-2) has an unknown root cause and needs `systematic-debugging`; BUG-3 and BUG-4 need reproduction and data verification first.
 
-**T-98 페이저** (F-11): 지금대로 둔다(변경 없음). 목록에 최소 높이를 주면 짧은 마지막 쪽에 빈 띠가 생긴다(원칙 29).
+### Batch 17. Linked-account screens (added 2026-11-23)
 
-### 묶음 15. 배틀 (Q-19, Q-20)
+The initial audit ran without Google account linking. These tasks come from 12 logged-in production screenshots captured by the user (report.md Section 11, `docs/visual-audit/shots/ACCT-*/`). Run this batch after Batch 16. Because only the user can sign in, verify structure and numbers from code and logged-out states as far as possible, and report linked-account screens as needing user verification.
 
-배틀은 DESIGN.md "Battle"의 "Judging the play screen"이 기준이고, 바꾼 뒤에는 `docs/BATTLE_FRAMES.md` 의 방법(`scripts/measure-frames.cjs`)으로 프레임을 다시 잰다. 연출과 기능은 그대로여야 한다.
+#### T-103 Account keys group where logout is the largest button (H-01, principles 27 and 28)
+- Edit `src/components/AccountKeys.jsx` and `src/styles/records-board.css` (or `more.css`).
+- Currently `<div className="stack rc-more">` renders `<Button variant="second">로그아웃</Button>` (1156x52 on records, 709x52 on more, 1145x52 on my sheet) above two centered `variant="link"` items (`기록 연결 해제`, `계정 삭제`).
+- Make all three actions `variant="link"` on a single left-aligned row: `로그아웃`, `기록 연결 해제`, `계정 삭제`. Rename the wrapper class to `acct-keys` with `.acct-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); margin-top: var(--s3); }` and `min-height: var(--h-control)` (44) on each link. Place `FormError` full-width on the row below.
+- Done on more, find-my-record (`?view=records&me=1`), and my trainer sheet when all three words share one baseline, align with the group's left text edge, and no button exceeds width 200.
 
-**T-99 860~1199의 배틀을 두 단으로** (E-02): `src/styles/battle.css` 의 `@media (min-width: 1200px)` 블록(두 단 `grid-template-columns: minmax(0, 1fr) 400px`, 무대 `max-height`, 옆 기둥 sticky)과 `src/pages/BattlePage.jsx` 의 `WIDE = "(min-width: 1200px)"` 를 860으로 내린다. 옆 기둥 폭은 860~1199에서 `calc(var(--s21) * 4)`(336)로 줄인다(400이면 860에서 무대가 420밖에 안 남는다). `@media (min-width: 860px) and (max-width: 1199px)` 인 기존 규칙(`battle.css` 의 max-width 980 등)은 새 배치와 겹치지 않게 정리한다.
-- 끝난 것의 기준: 860x900, 1024x768, 1199x800에서 배틀 중 문서 높이 = 창 높이(스크롤 없음), 기술 키 넷과 벤치가 창 안, 머리(`.bt-head`)가 덱보다 위. 1200 이상은 전과 같은 픽셀(전후 샷 비교). `measure-frames.cjs lobby`, `replay-open` 이 실패하지 않는다.
+#### T-104 Top connection banner and logout on my sheet (H-02, principle 28)
+- Edit `TrainerLink`'s `lead` and the `AccountKeys` below it in the trainer sheet (`src/pages/RecordsPage.jsx`).
+- Currently on a linked user's own sheet, an inverted strip "내 기록으로 연결되었습니다." (1145x44) and `로그아웃` button (1145x52) sit right below the counters ahead of "내 전적".
+- Do not render that top lead on an already approved own sheet. Instead, place a single `Row` ("기록 연결됨") in the "내 기록 연결" section moved to the bottom by T-70, followed by T-103's account keys row. Keep the top lead ("○○ 님의 기록이라면", link button) when unlinked or viewing someone else's sheet in find-my-record mode.
+- Done on a linked own sheet when the "내 전적" heading comes directly after the counters.
 
-**T-100 배틀의 작은 것들** (E-05, E-07, E-08, E-09)
-- 데스크톱 옆 기둥: 메뉴(연출, 소리, 기권)를 머리 바로 아래에, 파티 패널을 그 밑에(`BattlePage.jsx` 의 `.bt-side` 자식 순서).
-- 첫 턴 안내 토스트: 뜬 뒤 4.66초(사이트 토스트의 수명, `Toaster.jsx` 의 값)에 꺼진다. 자리와 모양은 그대로.
-- 데스크톱 더블: 내 플레이트 둘을 휴대폰처럼 오른쪽에 세로로 쌓는다(`battle.css` 860 이상의 `.bt-hud-own` 배치에서 `.two` 일 때 column).
-- 379 이하 선출 카드: `.bt-card.short` 의 세로 안쪽 여백 12 → 8.
-- 끝난 것의 기준: 1440x900 배틀 중 기권 키가 창 안. 더블에서 내 플레이트와 내 포켓몬 상자의 겹침이 상자 넓이의 20% 이하. 375x667 선출에서 셋째 줄 카드 bottom ≤ 독 top.
+#### T-105 "내 전적" section (H-03, Composing a screen 22)
+- Edit `MyRecord` in `src/pages/RecordsPage.jsx`.
+- Currently an explanatory panel `<Row title="나에게만 보입니다." line="다른 사람의 시트에는 전적이 서지 않습니다." />` (height 64) sits under the heading, every opponent row repeats "자주 만난 상대" as its grey line, and win/loss counters repeat "승" / "패" as both label and unit.
+- Replace the explanatory panel with one grey line (`t12 dim reg`, 4 below the title): "나에게만 보입니다.". Place a single label (`t12 dim`, 8 bottom margin) "자주 만난 상대" above the opponent rows, remove that phrase from individual row grey lines (showing only "게임 a:b" when game scores exist), and change win/loss counter units to "판" (label `승`, value 3, unit `판`).
+- Done when "자주 만난 상대" appears once in the "내 전적" section.
 
-**T-101 그대로 두는 것**: 끝난 뒤 휴대폰 덱 위 140 빈칸(덱 높이를 지키는 의도), 로비 코트 아래 107 빈칸, 턴 수 카운터의 라벨, 방 목록의 0 카운터 셋, 390x480의 극단 높이. 변경 없음. 로비 → 선출 전환의 잘림(E-06)은 `docs/BATTLE_TRANSITIONS.md` 기준의 별도 작업으로 남긴다(이 계획 밖).
+#### T-106 Duplicate "알림" row on more page (H-04, K-16)
+- Edit `src/pages/MorePage.jsx`.
+- Currently when signed in, both the "내 계정" group ("이 기기에서 꺼짐") and the "함께하기" group ("새 알림" lamp) render an `알림` row.
+- When signed in (when the `내 계정` group renders), omit `알림` from "함께하기" and move the "새 알림" lamp onto the `내 계정` group's `알림` row. Leave logged-out state unchanged.
+- Done when a signed-in more page shows only one row starting with "알림".
 
-### 묶음 16. 화면에 보이는 결함 하나 (Q-21)
+#### T-107 Scrollbars inside sheets and menus (H-05)
+- Edit `src/styles/tokens.css`.
+- Currently `scrollbar-color: var(--mute) transparent; scrollbar-width: none;` on `html` inherits `scrollbar-color`, causing Chrome 121+ to ignore `::-webkit-scrollbar { width: 8px }` inside sheet and menu scrollers and draw native OS scrollbars with arrow buttons (visible on the right edge of headed capture `ACCT-my-sheet/1440x900-light.png`; headless captures hid it).
+- Below the `::-webkit-scrollbar` rules, add `@supports selector(::-webkit-scrollbar) { body { scrollbar-color: auto; } }` so Chromium and Safari use the 8px scrollbar while Firefox keeps `scrollbar-color`.
+- Done in headed Chrome (`scripts/visual-audit.cjs --headed`) when opening a trainer sheet gives `.modal` `offsetWidth - clientWidth` of at most 8, screenshots show no scrollbar arrow buttons, and the page (`html`) scrollbar remains hidden.
 
-**T-102 계산기 "난수 5타 (NaN%)"** (BUG-1): `src/services/calculatorCore.js` `koLabel`: `ko.chance` 가 숫자가 아니면 괄호 없이 `난수 ${ko.n}타` 만 쓴다. `tests/` 에 계산기 테스트가 있으면 이 경우를 하나 더한다. 이것만은 서비스 코드지만 화면 문자열 한 줄이고 계산은 바뀌지 않는다.
+#### T-108 Verification-only items
+- Confirm on the user's own row (`이제빈`) that T-24 (220 name column) fixes the 43 shift of the badge column caused by the "나" tag (x = 344 vs 301 on other rows; name + league tag + "나" tag is about 140 wide).
+- Confirm that T-20 fixes admin login floating mid-column (y = 1160 vs left column bottom 1436) on the logged-in more page.
+- Battle records and 도전의 탑 linked-account tabs did not load during that capture because `battle` function requests were blocked (reads also use POST); they were not evaluated.
 
-**이 계획에 넣지 않은 결함:** 컴퓨터 배틀 무작위 파티의 빈 정보(BUG-2)는 원인을 모른다. `systematic-debugging` 으로 따로 다룬다. BUG-3, BUG-4는 재현과 데이터 확인이 먼저다.
+### Batch 20. Test environment findings (added 2026-11-23, report.md Section 12)
 
-### 묶음 17. 계정을 연동했을 때만 보이는 화면 (2026-11-23 추가)
+These items come from testing states missed by the initial audit using `scripts/visual-audit-env/` (see its README). All items below were still present after Batches 1 to 19 (only P-01, the 24-too-tall battle screen, was resolved by another fix). Locate code by selector and string rather than line numbers. Verify in the same environment (5193 production read, 5194 + 54321 mock backend; the scripts restrict production traffic to GET only). Split this batch into four commits: 20a loading and errors, 20b account and home, 20c brackets and operations, and 20d battle and 도전의 탑.
 
-첫 검수는 Google 계정 연동 없이 했다. 사용자가 직접 로그인한 창으로 운영 사이트의 연동 화면 12개를 찍어 본 결과다(report.md 11장, 샷 `docs/visual-audit/shots/ACCT-*/`). 묶음 16 다음에 한다. 확인에는 연동된 계정이 필요하다: 로그인은 사용자만 할 수 있으니, 구조와 수치는 코드와 로그아웃 상태로 확인할 수 있는 데까지 하고, 연동 상태의 화면은 "사용자 확인 필요"로 보고한다.
+Judgment calls are decided below per the user's delegation at the top of `questions.md`.
 
-**T-103 계정 키 묶음: 로그아웃이 가장 큰 키** (H-01, 원칙 27·28)
-- 파일: `src/components/AccountKeys.jsx`, `src/styles/records-board.css` (또는 `more.css`)
-- 현재: `<div className="stack rc-more">` 안에 `<Button variant="second">로그아웃</Button>` (기록 화면 1156x52, 더보기 709x52, 내 시트 1145x52), 그 아래 `variant="link"` 둘(기록 연결 해제, 계정 삭제)이 가운데 정렬로 세로로 쌓임
-- 바꿈: 세 행동을 모두 `variant="link"` 로, 한 줄에 왼쪽부터 로그아웃, 기록 연결 해제, 계정 삭제. 감싸는 요소의 클래스를 `acct-keys` 로 바꾸고 `.acct-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s5); margin-top: var(--s3); }`, 각 링크의 누르는 높이 44(`min-height: var(--h-control)`). `FormError` 는 그 아래 줄 전체 폭.
-- 끝난 것의 기준: 더보기, 내 기록 찾기(`?view=records&me=1`), 내 트레이너 시트에서 세 낱말이 같은 기준선, 왼쪽 끝이 그 묶음의 다른 글자와 같은 x, 폭이 200을 넘는 키가 없다.
+#### 20a. Loading, error, and empty states
 
-**T-104 내 시트 맨 위의 연결 상태 띠와 로그아웃** (H-02, 원칙 28)
-- 파일: `src/pages/RecordsPage.jsx` 트레이너 시트 (`TrainerLink` 의 `lead` 와 그 아래 AccountKeys)
-- 현재: 내 시트에서 카운터 바로 아래에 반전 띠 "내 기록으로 연결되었습니다."(1145x44)와 로그아웃 키(1145x52)가 서고, 그다음이 "내 전적". 기록을 보러 온 화면에서 계정 상태와 로그아웃이 둘째 자리다.
-- 바꿈: 이미 연결된(approved) 내 시트에서는 이 리드를 맨 위에 그리지 않는다. 연결 상태는 T-70으로 맨 아래에 옮긴 "내 기록 연결" 섹션에 Row 하나("기록 연결됨")로 두고 그 아래 T-103의 계정 키 줄. 아직 연결 전이거나 내 기록 찾기 모드에서 남의 시트를 볼 때의 리드("○○ 님의 기록이라면", 내 기록으로 연결 키)는 그대로 맨 위.
-- 끝난 것의 기준: 연결된 내 시트에서 카운터 다음 요소가 "내 전적" 제목.
+##### T-109 Home error notice when site data fails (R-01)
+- Edit `{factsFailed && <ErrorNote ... >리그 기록을 불러오지 못했습니다.</ErrorNote>}` in `src/pages/HomePage.jsx`.
+- Render the same `ErrorNote` when `site_data` loading also fails and the page falls back to bundled `siteSeed`. Pass a source flag from `App.jsx` so home knows it fell back to bundled data, without altering how bundled champions and standings render.
+- Verify in fail mode of `scripts/visual-audit-env/states/states.cjs` (all REST calls return 500) at 390 and 1440: one `.error-note` renders on home.
 
-**T-105 "내 전적" 섹션** (H-03, Composing a screen 22)
-- 파일: `src/pages/RecordsPage.jsx` `MyRecord`
-- 현재: 제목 아래 설명 패널 `<Row title="나에게만 보입니다." line="다른 사람의 시트에는 전적이 서지 않습니다." />` (64 높이). 상대 행마다 회색 줄 "자주 만난 상대"가 반복된다(세 행에 세 번). 카운터는 라벨 "승"에 단위 "승", 라벨 "패"에 단위 "패".
-- 바꿈: 설명 패널을 지우고 제목 아래 회색 줄 하나(`t12 dim reg`, 제목과 4 간격) "나에게만 보입니다."로. 상대 행 묶음 위에 라벨 한 번(`t12 dim`, 아래 8) "자주 만난 상대", 각 행의 회색 줄에서는 그 낱말을 빼고 게임 점수가 있을 때만 "게임 a:b". 승·패 카운터의 단위는 "판"으로(라벨 승, 값 3, 단위 판).
-- 끝난 것의 기준: "내 전적" 섹션에 "자주 만난 상대"가 한 번만 나온다.
+##### T-110 Notices and alerts error state vs empty state (R-02)
+- Edit `<Empty title="등록된 공지가 없습니다."/>` in `src/pages/NewsPage.jsx` and `최근 7일의 알림이 없습니다.` in `src/pages/AlertsPage.jsx`.
+- Distinguish list fetch failure (error return or exception from the service) from an empty result, rendering `<ErrorNote action="다시 불러오기" onRetry=...>` with `공지를 불러오지 못했습니다.` or `알림을 불러오지 못했습니다.` just like board and brackets. Show the empty state only when the fetch succeeds with 0 items.
+- Verify in fail mode that notices and alerts display `.error-note` with no empty-state text, while normal mode stays unchanged.
 
-**T-106 더보기에 "알림"이 두 번** (H-04, K-16)
-- 파일: `src/pages/MorePage.jsx`
-- 현재: 로그인하면 "내 계정" 묶음의 알림 행("이 기기에서 꺼짐")과 "함께하기" 묶음의 알림 행("새 알림" 램프)이 한 화면에 둘 다 선다.
-- 바꿈: 로그인 상태(내 계정 묶음이 그려질 때)에는 "함께하기"에서 알림을 빼고, "새 알림" 램프는 내 계정 묶음의 알림 행에 둔다. 로그아웃 상태는 지금대로.
-- 끝난 것의 기준: 로그인한 더보기에서 글자 "알림"으로 시작하는 행이 하나.
+##### T-111 Brackets not showing error and empty state together (R-03)
+- In `src/pages/BracketsPage.jsx`, change `: list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다.">` to `list.length===0&&!normalizedLoadError&&`.
+- Verify in fail mode that only the error panel renders.
 
-**T-107 시트와 메뉴 안의 스크롤바** (H-05)
-- 파일: `src/styles/tokens.css`
-- 현재: `html` 쪽 규칙의 `scrollbar-color: var(--mute) transparent; scrollbar-width: none;` 에서 `scrollbar-color` 가 상속되어, Chrome(121 이상)이 시트·메뉴 안 스크롤러에서 `::-webkit-scrollbar { width: 8px }` 규칙을 무시하고 화살표 단추가 달린 운영체제 스크롤바를 그린다(창이 보이는 Chrome으로 찍은 `ACCT-my-sheet/1440x900-light.png` 오른쪽 끝. 창 없는 캡처에서는 안 보여 첫 검수가 놓쳤다).
-- 바꿈: `::-webkit-scrollbar` 규칙들 아래에 추가: `@supports selector(::-webkit-scrollbar) { body { scrollbar-color: auto; } }` (Chromium과 Safari는 8px 규칙을 쓰고, Firefox는 `scrollbar-color` 를 그대로 쓴다).
-- 끝난 것의 기준: 창이 보이는 Chrome(`scripts/visual-audit.cjs --headed`)에서 트레이너 시트를 열고 `.modal` 의 `offsetWidth - clientWidth` 가 8 이하, 스크린샷에 화살표 단추가 없다. 페이지 자체(`html`)의 스크롤바는 전과 같이 숨겨져 있다.
+##### T-112 ErrorNote retry button width and top margin (R-07)
+- In `src/styles/board.css`, below `.error-note { display: grid; gap: var(--s3); padding: var(--pad); }`, add `.error-note > .btn { justify-self: start; }` and `h1 + .error-note, .page-head + .error-note { margin-top: var(--s5); }` (check actual preceding elements in `LazyContent` and each page to match the right selectors).
+- Verify at 1440 that `다시 불러오기` and `새로고침` buttons are word-width plus 20 horizontal padding (200 or less) and `h1` bottom to panel top is 20.
 
-**T-108 확인만 하는 것**
-- 내 행의 "나" 태그가 표식 열을 43 민다(이제빈 행 344, 다른 행 301): T-24(이름 열 220)로 풀리는지 내 행으로 확인한다. 이름 + 리그 태그 + "나" 태그의 폭은 약 140이다.
-- 더보기 오른쪽 단의 관리자 로그인이 로그인 상태에서도 중간(y 1160, 왼쪽 단 끝은 1436)에 뜬다: T-20으로 풀리는지 확인한다.
-- 배틀의 기록 탭과 도전의 탑 탭의 연동 화면은 이번 캡처에서 `battle` 함수 요청이 막혀(읽기도 POST) 제대로 뜨지 않았다. 판정하지 않았다.
+##### T-113 Unlit first row in home standings skeleton (R-06)
+- In `src/components/common/StandTable.jsx`, change the skeleton's `<div className="inv ls-row ls-first" />` to `className="pn ls-row ls-first"` (same height, no inversion, per `DESIGN.md` "Loading": right size, nothing lit).
+- Verify in `states.cjs` hold mode at 1500ms that no white bar appears in the standings area.
 
-### 묶음 20. 테스트 환경으로 찾은 것 (2026-11-23 추가, report.md 12장)
+##### T-114 Reserve height for team builder data status line (R-13)
+- Edit the line rendering `dataStatusText` in `src/pages/TeamBuilderPage.jsx`.
+- Keep the element mounted with `min-height: var(--l12)` when empty so content below does not jump up. Remove the ellipsis from the copy so it reads "배틀 데이터 불러오는 중" (`DESIGN.md` Voice forbids `...`).
+- Verify in hold mode at 390 that `.tb-search-row` top stays identical before and after data arrives.
 
-첫 검수가 못 본 상태를 `scripts/visual-audit-env/` 의 테스트 환경(README)으로 띄워 찾은 것이다. 묶음 1~19 뒤에 확인했을 때 아래는 아직 그대로였다(배틀 화면이 24 길던 P-01만 다른 수정에 함께 풀렸다). 줄 번호는 적지 않는다: 선택자와 문자열로 찾는다. 확인은 같은 환경으로 한다(5193 운영 읽기, 5194 + 54321 가짜 백엔드). 운영 서버로는 GET만 나가게 하는 것은 그 스크립트들이 이미 한다. 묶음을 넷으로 나눠 커밋한다(20a 로딩과 오류, 20b 계정과 홈, 20c 대진표와 운영, 20d 배틀과 도전의 탑).
+##### T-115 Home main button in zero-data state (R-19)
+- In `src/pages/HomePage.jsx`, where `primary` resolves to `["공지 보기", "news"]`, omit the main button if notice count is also 0.
+- Verify in zero mode (`extremes.cjs zero`) that no white button renders on home.
 
-판단이 갈리는 항목은 사용자가 맡긴 대로(questions.md 맨 위) 아래에 하나로 정해 두었다.
+#### 20b. Account and home
 
-#### 20a. 로딩, 오류, 빈 상태
+##### T-116 Reserve height while account resolves on find-my-record and more (R-08, R-09)
+- Edit `FindMe` in `src/pages/RecordsPage.jsx` and the `내 계정` group in `src/pages/MorePage.jsx`.
+- While `account === undefined`, reserve the resolved heights of `FindMe`'s account keys and "내 기록 보기" row with unlit panels. Keep "저장한 팀" and "내 배틀" rows on more at two-line height (`--h-row2`, 64) while loading their subtitle line, reserving an empty line slot until loaded and showing "불러오지 못했습니다." on failure.
+- Verify with `states/account.cjs checking pending approved` at 390 that "72명 전체 보기" y stays within 2 across all three states, and with `account.cjs linesfail` that all more rows remain 64 tall.
 
-**T-109 홈: 사이트 데이터를 못 읽으면 알린다** (R-01)
-- 파일: `src/pages/HomePage.jsx`, `{factsFailed && <ErrorNote … >리그 기록을 불러오지 못했습니다.</ErrorNote>}`
-- 바꿈: 사이트 데이터(`site_data`) 읽기도 실패해 내장 자료(`siteSeed`)로 그리고 있을 때 같은 ErrorNote를 세운다. `App.jsx` 가 내장 자료로 떨어졌는지를 알 수 있게 하는 값(예: 데이터 객체의 출처 표시)을 홈에 넘긴다. 내장 자료로 챔피언과 순위를 그리는 동작 자체는 바꾸지 않는다(데이터 동작).
-- 확인: `scripts/visual-audit-env/states/states.cjs` 의 fail 모드(모든 REST 500)로 홈 390과 1440에 `.error-note` 가 하나 선다.
+##### T-117 No unlink button when link request is rejected (R-15)
+- In `src/pages/RecordsPage.jsx` and `src/pages/MorePage.jsx`, pass `link={null}` to `AccountKeys` when `link?.status === "rejected"`.
+- Verify with `account.cjs rejected` that "기록 연결 해제" does not appear.
 
-**T-110 공지와 알림: 읽기 실패는 "없음"이 아니다** (R-02)
-- 파일: `src/pages/NewsPage.jsx` 의 `<Empty title="등록된 공지가 없습니다."/>`, `src/pages/AlertsPage.jsx` 의 `최근 7일의 알림이 없습니다.`
-- 바꿈: 목록 읽기가 실패한 경우를 구별해(서비스가 오류를 돌려주는 값 또는 예외), 실패면 게시판·대진표와 같은 `<ErrorNote action="다시 불러오기" onRetry=…>공지를 불러오지 못했습니다.</ErrorNote>` / `알림을 불러오지 못했습니다.` 를 세운다. 빈 상태는 성공했는데 0건일 때만.
-- 확인: fail 모드에서 공지와 알림에 `.error-note` 가 서고 빈 상태 문장이 없다. 정상 모드에서는 전과 같다.
+##### T-118 Keep top bar account button clear of the wordmark (R-10)
+- Edit `.acct` in `src/styles/shell.css`.
+- At 859 or below, set `max-width: calc(var(--s21) * 2)` (168) with ellipsis on the account name element (confirm the class in `SiteHeader.jsx`).
+- Verify with `account.cjs long` at 390 that wordmark right edge to account button left edge is at least 20.
 
-**T-111 대진표: 오류와 빈 상태를 함께 세우지 않는다** (R-03)
-- 파일: `src/pages/BracketsPage.jsx`, `: list.length===0&&<Empty title="아직 만들어진 대진표가 없습니다.">`
-- 바꿈: 조건을 `list.length===0&&!normalizedLoadError&&` 로.
-- 확인: fail 모드에서 오류 판 하나만.
+##### T-119 도전의 탑 gate sheet copy (R-11)
+- Edit `gateSheet` in `src/pages/battle/Streak.jsx`.
+- When the user has no linked name, label the button "내 기록 찾기" (matching the destination). When `account?.status === "rejected"`, add the hint line "연결 요청이 거절되었습니다." (matching `LINK_STATE.rejected` in `RecordsPage.jsx`).
+- Verify with `account.cjs none rejected` that sheet title and button label differ and the rejected state shows the hint.
 
-**T-112 ErrorNote의 다시 시도 키** (R-07)
-- 파일: `src/styles/board.css`, `.error-note { display: grid; gap: var(--s3); padding: var(--pad); }`
-- 바꿈: 다음 줄에 `.error-note > .btn { justify-self: start; }` 그리고 `h1 + .error-note, .page-head + .error-note { margin-top: var(--s5); }` (h1 바로 아래 붙지 않게. 실제 앞 요소는 지연 화면 실패(`LazyContent`)와 각 페이지에서 확인하고 맞는 선택자를 쓴다).
-- 확인: 1440에서 "다시 불러오기", "새로고침" 키의 폭이 낱말 + 좌우 20 (200 이하). h1 아래 끝과 판 위 사이 20.
+##### T-120 Long current champion name in hall of fame (R-05)
+- In `src/styles/hall.css`, change `.hof-crown-name { margin-top: var(--s2); }` to `.hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }`.
+- Verify with `extremes.cjs long 390 844 dark` on hall of fame that name right edge stays within panel inner right, while Korean names behave as before.
 
-**T-113 홈 순위 뼈대의 첫 줄을 끈다** (R-06)
-- 파일: `src/components/common/StandTable.jsx`, 뼈대의 `<div className="inv ls-row ls-first" />`
-- 바꿈: `className="pn ls-row ls-first"` (높이는 그대로, 반전만 뺀다. DESIGN.md "Loading": 켜진 것 없이 제 크기로).
-- 확인: `states.cjs` hold 모드 1500ms 샷에서 순위 자리에 흰 줄이 없다.
+##### T-121 Home past champions row cap (R-04)
+- Edit the past champions wall in `src/pages/HomePage.jsx` (leave `.ho-line` in `src/styles/home.css` unchanged).
+- Show only the 5 most recent champions on home (the "명예의 전당" link sits directly above), setting `--n` to `min(championCount, 5)`.
+- Verify with `node scripts/visual-audit-env/states/manyhome.cjs` (20 champions) at 1440: 5 cells render, each at least 200 wide.
 
-**T-114 팀 빌더 데이터 상태 줄이 사라질 때 아래가 올라가지 않게** (R-13)
-- 파일: `src/pages/TeamBuilderPage.jsx` 의 `dataStatusText` 를 그리는 줄
-- 바꿈: 줄이 사라질 때도 그 자리를 남긴다(같은 요소를 비운 채 `min-height: var(--l12)` 로 둔다). 문구의 말줄임표 "…"는 빼고 "배틀 데이터 불러오는 중"으로(사이트는 "…"을 쓰지 않는다: DESIGN.md Voice).
-- 확인: hold 모드로 도착 전후 `.tb-search-row` 의 top이 같다(390).
+##### T-122 Tournament-day home layout and live card (Q-11, Q-12, Q-13)
+- In `src/styles/home.css` (860+), change `.ho-screen`'s `align-items: stretch` to `align-items: start`, and check that a shorter champion panel leaves an empty band of at most 40 below (if it exceeds 40, revert this line and report).
+- In `primary` (`src/pages/HomePage.jsx`), when today is a tournament day and `myNext` exists, set the main button to "대진표 보기" (the "내 다음 경기" card directly below already links to the user's match).
+- On the live match card, show the stage name of the displayed match (`liveMatch`) instead of a different match's `live.stage`.
+- Verify with `scripts/visual-audit-env/admin/flow.cjs live HOME-08 1440x900 light visitor "/" wait:3000 full:mynext` that no empty surface appears from panel height mismatch and the progress line stage matches the card header.
 
-**T-115 홈 빈 상태에서 주 키** (R-19)
-- 파일: `src/pages/HomePage.jsx`, `primary` 가 `["공지 보기", "news"]` 가 되는 경우
-- 바꿈: 공지도 0건이면 주 키를 그리지 않는다.
-- 확인: zero 모드(`extremes.cjs zero`)의 홈에 흰 키가 없다.
+#### 20c. Brackets and operations
 
-#### 20b. 계정과 홈
+##### T-123 Score entry width and buttons (Q-01)
+- Edit `.bk-entry-row` and `.bk-entry-actions { grid-template-columns: minmax(0, 1fr); }` in `src/styles/bracket.css`.
+- At 860+, constrain `.bk-entry` to width 709 and set `.bk-entry-actions` to `display: flex; flex-wrap: wrap; gap: var(--seam);` with word-width (`flex: 0 0 auto`), 44-high buttons.
+- Verify with `admin/flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided`: gap between name and score stepper is at most 500, and no-show, forfeit, and DQ buttons are each at most 160 wide.
 
-**T-116 내 기록 찾기와 더보기: 계정 답이 와도 아래가 밀리지 않게** (R-08, R-09)
-- 파일: `src/pages/RecordsPage.jsx` 의 FindMe, `src/pages/MorePage.jsx` 의 내 계정 묶음
-- 바꿈: 계정을 확인하는 동안(`account === undefined`) FindMe의 계정 키 묶음과 "내 기록 보기" 행의 자리를 확인된 상태와 같은 높이로 잡는다(꺼진 패널). 더보기의 "저장한 팀", "내 배틀" 행은 줄을 읽는 동안에도 두 줄 행 높이(`--h-row2`)를 지킨다: Row에 `line` 이 아직 없으면 빈 줄 자리를 두고, 읽기에 실패하면 "불러오지 못했습니다."
-- 확인: `states/account.cjs checking pending approved` 로 390에서 "72명 전체 보기"의 y가 세 상태에서 같다(±2). `account.cjs linesfail` 로 더보기 행 높이가 모두 64.
+##### T-124 Show "테이블 미정" only on unplayed matches (Q-03)
+- Edit `const stripOf=m=>{ ... "테이블 미정" ... }` in `src/pages/BracketsPage.jsx`.
+- When a match already has a winner or a bye and no table is assigned, render an empty `.mb-strip` of the same height instead of "테이블 미정" so tree alignment stays intact.
+- Verify with `live` data that finished match cards show no "테이블 미정" text while keeping their previous y positions.
 
-**T-117 거절 상태에는 연결 해제가 없다** (R-15)
-- 파일: `src/pages/RecordsPage.jsx`, `src/pages/MorePage.jsx` 에서 `AccountKeys` 에 `link` 를 넘기는 곳
-- 바꿈: `link?.status === "rejected"` 이면 `link={null}` 로 넘긴다.
-- 확인: `account.cjs rejected` 에서 "기록 연결 해제"가 없다.
+##### T-125 Bye winner name color (Q-04)
+- In `src/styles/brackets.css`, below `.mb-row.inv .mb-seed { color: var(--ground); }`, add `.mb-row.inv :is(.mb-name, .mb-name *) { color: var(--ground); }` (or, if cleaner, add `:not(.inv *)` to the rule causing grey text).
+- Verify that the winner row name in a bye match renders in `rgb(8,28,61)` in dark mode or `--ground` in light mode.
 
-**T-118 상단 바 계정 키가 로고에 붙지 않게** (R-10)
-- 파일: `src/styles/shell.css`, `.acct { … }`
-- 바꿈: 859 이하에서 계정 이름에 `max-width: calc(var(--s21) * 2)` (168, 말줄임). 이름 요소의 클래스는 `SiteHeader.jsx` 에서 확인한다.
-- 확인: `account.cjs long` 390에서 워드마크 오른쪽 끝과 계정 키 왼쪽 사이 ≥ 20.
+##### T-126 Dismiss report action placement (Q-07)
+- Edit `src/components/CommunityReports.jsx`.
+- Place "신고 지우기" in the row's `value` slot (like "연결 해제" on link requests) instead of as a separate link between rows.
+- Verify with `admin/flow.cjs live ADM-07 1440x900 dark admin "/?view=admin" wait:1500 full:rows` that no other element interrupts between report rows.
 
-**T-119 도전의 탑 문 시트** (R-11)
-- 파일: `src/pages/battle/Streak.jsx` 의 `gateSheet`
-- 바꿈: 이름이 없는 상태의 키 낱말을 "내 기록 찾기"로(가는 곳의 이름). 거절 상태(`account?.status === "rejected"`)에는 힌트 한 줄 "연결 요청이 거절되었습니다." (`RecordsPage.jsx` 의 `LINK_STATE.rejected` 와 같은 문장).
-- 확인: `account.cjs none rejected` 로 시트 제목과 키 낱말이 다르고, 거절에 힌트가 선다.
+##### T-127 Bracket wizard tool buttons (Q-08)
+- Edit `.bk-pin-keys { grid-template-columns: repeat(3, minmax(0, 1fr)); ... }` and `.bk-place-tools` in `src/styles/bracket.css`.
+- At 860+, set `display: flex; flex-wrap: wrap; gap: var(--seam);` with word-width, 44-high buttons. Constrain participant lists and placement rows to 709 (aligning with T-64's 709 + 439).
+- Verify on steps 2 and 3 at 1440 that each button is at most 200 wide.
 
-**T-120 명예의 전당 현 챔피언의 긴 이름** (R-05)
-- 파일: `src/styles/hall.css`, `.hof-crown-name { margin-top: var(--s2); }`
-- 바꿈: `.hof-crown-name { margin-top: var(--s2); min-width: 0; overflow-wrap: anywhere; }`
-- 확인: `extremes.cjs long 390 844 dark` 의 명예의 전당에서 이름의 오른쪽 끝 ≤ 패널 안쪽 오른쪽. 한글 이름은 전과 같다.
+##### T-128 Admin fields in trainer sheet (Q-10)
+- Edit rename ("이름 저장") and merge controls in `src/pages/RecordsPage.jsx`.
+- At 860+, place input and button on one row (`grid-template-columns: minmax(0, 439px) auto; gap: var(--seam)`) with 32 between the rename group and merge group.
+- Verify by opening a sheet via `admin/flow.cjs plain` (see README): name input is 439 wide and "이름 저장" sits directly to its right.
 
-**T-121 홈 역대 챔피언 줄** (R-04)
-- 파일: `src/pages/HomePage.jsx` 의 역대 챔피언 벽, `src/styles/home.css` 의 `.ho-line`
-- 바꿈: 홈에는 최근 다섯 대만 세운다(그 위는 "명예의 전당" 링크가 이미 있다). `--n` 은 `min(챔피언 수, 5)`. CSS는 그대로.
-- 확인: `node scripts/visual-audit-env/states/manyhome.cjs` (20명)에서 칸이 5개, 각 폭 ≥ 200(1440).
+##### T-129 "내 경기로" button on live bracket (Q-14)
+- Edit `{myMatch&&<Button variant="second" icon="arrow" ...>내 경기로</Button>}` in `src/pages/BracketsPage.jsx`.
+- On mobile (859 or below), move it above the share buttons and use `variant="main"`. Keep desktop in its current spot as `second`.
+- Verify at 390 as a linked player in `live` data that "내 경기로" sits above the share buttons and is inverted.
 
-**T-122 대회 당일 홈** (Q-11, Q-12, Q-13)
-- `src/styles/home.css` 860 이상 `.ho-screen { … align-items: stretch; }` → `align-items: start;` 그리고 챔피언 패널이 왼쪽보다 짧을 때 아래가 비지 않는지 본다(빈 띠 40 이하가 기준. 넘으면 이 줄은 되돌리고 보고).
-- `src/pages/HomePage.jsx` `primary`: 오늘 대회이고 `myNext` 가 있으면 주 키를 "대진표 보기"로(바로 아래 "내 다음 경기" 카드가 내 경기로 간다).
-- 지금 경기 카드의 진행 줄: 카드가 보이는 경기(`liveMatch`)의 단계 이름을 쓴다. 지금은 다른 경기(`live.stage`)의 단계가 나온다(표시 오류).
-- 확인: `scripts/visual-audit-env/admin/flow.cjs live HOME-08 1440x900 light visitor "/" wait:3000 full:mynext` 에서 두 패널 높이 차이로 생긴 빈 면이 없고, 진행 줄의 단계가 카드 머리와 같다.
+#### 20d. Battle and 도전의 탑
 
-#### 20c. 대진표와 운영
+##### T-130 Single card light-up when entering a tower game (P-02)
+- Edit `useMatchLit` in `src/pages/BattlePage.jsx` at `if (!preview?.querySelector(".bt-card")) { light(main, DUR.leave); return; }`.
+- Narrow the early return to when `.bt-preview` itself does not exist. When cards are not mounted yet, run `look()` to catch late-arriving cards and light them with `lineup(..., -wait)` (using `liftArrive`'s `wait`) the moment they appear.
+- Verify in `scripts/visual-audit-env/streak/t6.cjs 390 844` logs that cards start near opacity 0 on their first frame and reach 1 after `.tw-veil` clears, including on the next game. Confirm `t4.cjs` frame sheets show no double light-up.
 
-**T-123 결과 입력** (Q-01)
-- 파일: `src/styles/bracket.css` 의 `.bk-entry-row`, `.bk-entry-actions { grid-template-columns: minmax(0, 1fr); }`
-- 바꿈: 860 이상에서 결과 입력 묶음(`.bk-entry`)의 폭을 709로. `.bk-entry-actions` 는 860 이상에서 `display: flex; flex-wrap: wrap; gap: var(--seam);` 키는 낱말 폭(`flex: 0 0 auto`), 높이 44.
-- 확인: `admin/flow.cjs live ADM-BRK-04 1440x900 dark admin "/?view=bracket&eventId=c34f3629-ad49-4d32-82fb-38d1f989fa13" wait:2500 "M5" shot:decided` 에서 이름과 점수 스텝퍼 사이 ≤ 500, 불참·기권·실격 키 각 폭 ≤ 160.
+##### T-131 Keep site bar hidden between tower games (P-03)
+- Edit `return () => page?.classList.remove("page--battle");` in `src/pages/BattlePage.jsx`.
+- Remove `page--battle` only when leaving the battle screen (when battle ID clears in `BattlePage` or `BattlePage` itself unmounts), not when `Arena` unmounts.
+- Verify in `t6.cjs` logs that `.topbar` height stays 0 while transitioning to the next game.
 
-**T-124 "테이블 미정"은 아직 안 한 경기에만** (Q-03)
-- 파일: `src/pages/BracketsPage.jsx`, `const stripOf=m=>{ … "테이블 미정" … }`
-- 바꿈: 경기에 승자가 있거나 한쪽이 부전승이면, 테이블이 정해지지 않았을 때 띠 대신 같은 높이의 빈 자리(`mb-strip` 에 글자 없이)를 둔다. 띠가 없어지면 트리의 줄이 어긋나므로 높이는 지킨다.
-- 확인: `live` 자료로 끝난 경기 카드에 "테이블 미정" 글자가 없고, 카드의 y가 전과 같다.
+##### T-132 Code room waiting screen on mobile (P-04)
+- Edit `<Counter label="기다린 시간" ... h={code && !rematch ? 84 : 40} />` in `src/pages/BattlePage.jsx`.
+- Always use `h={40}` for `기다린 시간` (keep only the room code at 84). If cancel waiting still falls outside the viewport at 859 or below, place cancel waiting as the second button in the dock at a 1 (cancel waiting) to 1.618 (`링크 공유`) ratio, matching confirm dialogs.
+- Verify on `streak/t8.cjs` code room wait at 390x844 that the `기다린 시간` counter bottom is at or above dock top and cancel waiting fits inside the viewport.
 
-**T-125 부전승 승자 이름의 색** (Q-04)
-- 파일: `src/styles/brackets.css`, `.mb-row.inv .mb-seed { color: var(--ground); }` 아래
-- 바꿈: `.mb-row.inv :is(.mb-name, .mb-name *) { color: var(--ground); }` (회색이 되는 원인 규칙을 먼저 찾아 그 규칙에 `:not(.inv *)` 를 주는 쪽이 낫다면 그렇게 한다).
-- 확인: 부전승 경기의 승자 행 이름 색이 rgb(8,28,61)(다크) 또는 라이트의 `--ground`.
+##### T-133 Tower party draft cards on mobile (P-05)
+- Edit the draft card styles in `src/styles/tower-play.css` and the two-line ability/item markup in `src/pages/battle/Streak.jsx`.
+- At 859 or below, combine ability and item onto one line ("특성, 도구", with ellipsis on overflow).
+- Verify on the 3 draft cards in `t8.cjs` at 390x844 that `.streak-pick-stats` bottom is at or above dock top.
 
-**T-126 신고 지우기** (Q-07)
-- 파일: `src/components/CommunityReports.jsx`
-- 바꿈: "신고 지우기"를 행 사이의 링크가 아니라 그 행의 `value` 자리에(연결 요청의 "연결 해제"와 같은 방식).
-- 확인: `admin/flow.cjs live ADM-07 1440x900 dark admin "/?view=admin" wait:1500 full:rows` 에서 신고 행 사이에 다른 종류가 끼지 않는다.
+##### T-134 Desktop header game label (P-06)
+- Edit the header tag `도전의 탑 ${gameWords(gameAt)}` in `src/pages/BattlePage.jsx`.
+- Show only `gameWords(gameAt)` ("2층 두 번째 판") when game position is known, and show "도전의 탑" only when unknown.
+- Verify on 1440 rest and end screens that the label satisfies `scrollWidth <= clientWidth`.
 
-**T-127 대진표 마법사의 도구 키** (Q-08)
-- 파일: `src/styles/bracket.css`, `.bk-pin-keys { grid-template-columns: repeat(3, minmax(0, 1fr)); … }`, `.bk-place-tools` 둘
-- 바꿈: 860 이상에서 `display: flex; flex-wrap: wrap; gap: var(--seam);` 키는 낱말 폭, 높이 44. 참가자 목록과 배치 행은 709 폭(T-64의 709 + 439와 같은 줄).
-- 확인: 2·3단계 1440에서 키 폭 각 ≤ 200.
+##### T-135 Relay tab chips on mobile (P-08)
+- Edit the chip row in the relay list (`LiveHall`) in `src/styles/battle.css` (not `.bt-match .chips`).
+- At 639 or below, add `flex-wrap: wrap` so it wraps to two lines like other chip rows on the site.
+- Verify on `streak/t3b.cjs` relay list at 390 that the chip row right edge is at or below 370.
 
-**T-128 트레이너 시트의 운영 칸** (Q-10)
-- 파일: `src/pages/RecordsPage.jsx` 의 이름 바꾸기("이름 저장")와 합치기
-- 바꿈: 860 이상에서 칸과 키를 한 줄로(`grid-template-columns: minmax(0, 439px) auto; gap: var(--seam)`). 이름 바꾸기 묶음과 합치기 묶음 사이 32.
-- 확인: `admin/flow.cjs plain` 으로 시트를 열어(README) 이름 칸 폭 439, "이름 저장"이 칸 오른쪽에 붙는다.
+Items left unchanged in Batch 20: R-14 (solved by T-103), R-16 (32 shift, 0 at 1440), R-17 (busy cell), R-18 (single loading cell on blank screen, no motion), Q-02 (solved by T-62), Q-05 (T-18), Q-06 (T-69), Q-09 (link request button width reads as one unit with its card), Q-15 (match schedule sheet), and P-07 (single pause on swap-to-gate, about 60ms at real speed; keep measurement only).
 
-**T-129 진행 중 대진표의 "내 경기로"** (Q-14)
-- 파일: `src/pages/BracketsPage.jsx`, `{myMatch&&<Button variant="second" icon="arrow" …>내 경기로</Button>}`
-- 바꿈: 휴대폰(859 이하)에서는 공유 키 위로 올리고 `variant="main"`. 데스크톱은 지금 자리에 second.
-- 확인: `live` 자료와 연결된 선수로 390에서 "내 경기로"가 공유 키보다 위, 반전.
+At the end of Batch 20, re-run the scripts above to verify each task's numbers, then run `npm test` and `npm run build`. Compare normal logged-out production shots (`scripts/visual-audit.cjs --vp core`) against post-Batch-19 shots to confirm nothing else changed.
 
-#### 20d. 배틀과 도전의 탑
+### Section 5 execution order and final check
 
-**T-130 탑에서 판으로 들어갈 때 카드가 한 번만 켜진다** (P-02)
-- 파일: `src/pages/BattlePage.jsx` 의 `useMatchLit`, `if (!preview?.querySelector(".bt-card")) { light(main, DUR.leave); return; }`
-- 바꿈: 이른 return을 `.bt-preview` 자체가 없을 때로 좁힌다. 카드가 아직 없으면 늦게 온 카드를 잡는 `look()` 을 돌려, 카드가 생기는 순간 `lineup(…, -wait)` 으로 켠다(`wait` 은 `liftArrive` 의 값).
-- 확인: `scripts/visual-audit-env/streak/t6.cjs 390 844` 로그에서 카드가 처음 생기는 프레임의 불투명도가 0에 가깝고, `.tw-veil` 이 사라진 뒤에 1이 된다. 다음 판도 같다. `t4.cjs` 녹화 시트에서 카드가 두 번 켜지지 않는다.
-
-**T-131 판과 판 사이에 사이트 막대가 나오지 않게** (P-03)
-- 파일: `src/pages/BattlePage.jsx`, `return () => page?.classList.remove("page--battle");`
-- 바꿈: Arena가 언마운트될 때 지우지 말고, 배틀 화면을 떠날 때(BattlePage에서 배틀 id가 없어질 때, 또는 BattlePage 자체가 언마운트될 때) 지운다.
-- 확인: `t6.cjs` 로그에서 다음 판으로 넘어가는 동안 `.topbar` 높이가 0을 유지한다.
-
-**T-132 코드 방 대기(휴대폰)** (P-04)
-- 파일: `src/pages/BattlePage.jsx`, `<Counter label="기다린 시간" … h={code && !rematch ? 84 : 40} />`
-- 바꿈: 기다린 시간은 늘 `h={40}` (방 코드만 84). 그래도 대기 취소가 창 밖이면 859 이하에서 대기 취소를 독 안 두 번째 키로 둔다(링크 공유 1 : 대기 취소… 가 아니라 대기 취소 1 : 링크 공유 1.618, 확인 창과 같은 비).
-- 확인: `streak/t8.cjs` 의 코드 방 대기 390x844에서 기다린 시간 카운터 bottom ≤ 독 top, 대기 취소가 창 안.
-
-**T-133 탑 파티 고르기(휴대폰)** (P-05)
-- 파일: `src/styles/tower-play.css` 의 draft 카드, 그리고 카드의 특성·도구 두 줄을 그리는 `src/pages/battle/Streak.jsx`
-- 바꿈: 859 이하에서 특성과 도구를 한 줄에 ("특성, 도구", 넘치면 말줄임).
-- 확인: `t8.cjs` 의 draft 3장 390x844에서 `.streak-pick-stats` bottom ≤ 독 top.
-
-**T-134 데스크톱 머리의 판 이름** (P-06)
-- 파일: `src/pages/BattlePage.jsx`, 머리 태그 `도전의 탑 ${gameWords(gameAt)}`
-- 바꿈: 판 위치를 알 때는 `gameWords(gameAt)` 만 ("2층 두 번째 판"). "도전의 탑"은 판 위치를 모를 때만.
-- 확인: 1440 쉬는 화면과 끝 화면에서 그 글자의 scrollWidth ≤ clientWidth.
-
-**T-135 중계 탭의 칩(휴대폰)** (P-08)
-- 파일: `src/styles/battle.css`, `.bt-match .chips { … }` 가 아닌 중계 목록(LiveHall)의 칩 줄
-- 바꿈: 639 이하에서 그 칩 줄에 `flex-wrap: wrap` (사이트의 다른 칩 줄과 같이 두 줄로).
-- 확인: `streak/t3b.cjs` 의 중계 목록 390에서 칩 줄 오른쪽 끝 ≤ 370.
-
-**그대로 두는 것:** R-14(T-103에서 풀림), R-16(32 이동, 1440은 0), R-17(busy 칸), R-18(로딩이 빈 화면에 칸 하나: 움직임이 없다), Q-02(T-62에서 풀림), Q-05(T-18), Q-06(T-69), Q-09(연결 요청 키 폭, 카드와 한 덩어리로 읽힘), Q-15(경기 일정 시트), P-07(교환 → 문의 한 번 멈춤, 실제 속도 약 60ms. 측정만 남긴다).
-
-**묶음 20 끝 확인:** 위 스크립트들을 다시 돌려 각 작업의 수치를 채우고, `npm test`, `npm run build`. 정상 상태(운영 데이터, 로그아웃)의 `scripts/visual-audit.cjs --vp core` 샷을 묶음 19 뒤 샷과 나란히 놓아, 위 작업 말고 달라진 것이 없는지 본다.
-
-### 5장의 순서와 끝 확인
-
-묶음 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17, 그리고 묶음 20(18과 19는 실행 중에 수정 세션이 따로 만든 커밋이다). 묶음마다 3장과 같은 공통 확인을 하고, 묶음 9~11을 마친 뒤에는 `_drafts/*-pair.png` 의 오른쪽 그림과 실제 화면을 나란히 본다. 5장을 다 마친 뒤 4장의 전체 확인을 다시 한다.
+Run Batches 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, and then 20 (Batches 18 and 19 were separate commits made during execution). Run the common per-batch checks from Section 3 after each batch. After finishing Batches 9 to 11, compare live screens side by side against the right half of `_drafts/*-pair.png`. After completing all of Section 5, run the full Section 4 checklist again.

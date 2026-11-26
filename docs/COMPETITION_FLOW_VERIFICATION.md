@@ -1,35 +1,35 @@
-# 대회 흐름 검증
+# Competition flow verification
 
-2026-11-02 운영 DB와 현재 프런트엔드를 기준으로 확인했다. `npm test` 446개와 격리 PostgreSQL 통합 검증 20개가 통과했고 production build도 통과했다.
+Verified on 2026-11-02 against the Production DB and current frontend. All 446 `npm test` cases, 20 isolated PostgreSQL integration checks, and the production build passed.
 
-## 유형별 결과
+## Results by competition type
 
-| 유형 | 검증한 동작 |
+| Type | Verified behavior |
 | --- | --- |
-| 정규 파이컵 | 하나의 공지로 접수하고 이력에 따라 마스터/루키로 배정한다. 회차는 공유하며 신청, 대진표, 제출 파티, 기록 반영/취소는 각 Event가 소유한다. 마스터 포인트와 루키 무포인트 정책을 유지한다. |
-| 팀전 | 신규 팀전은 마스터로 고정되고 정규 파이컵 회차를 진행시킨다. 우승/준우승 팀원별 30/20점이며 개인 마스터 참가 자격의 근거가 되지 않는다. 제출 파티 freeze와 취소도 확인했다. |
-| 챔피언스 | 싱글/더블의 선발전과 본선이 같은 7회에 연결된다. 실제 Double graph의 2패 탈락, 직행자 1명과 생존자 2명의 본선 신청 생성, 당일 실제 참가자 선택, 본선 별도 파티 제출, 7대 챔피언 두 명의 HOF 공존과 한쪽 취소를 검증했다. 양쪽 phase 모두 랭킹 포인트를 만들지 않는다. |
-| 라이트 | 과거 7회 다음 8회를 배정한다. 현재 새 공지의 랭킹 제외 정책을 유지하며 개인 우승은 마스터 자격으로 인정한다. 제출 파티 freeze/취소를 확인했다. |
-| 일반 대회 | `pokecup + division=other`를 유지하고 회차/edition과 랭킹에서 제외한다. 오래된 `rankingEnabled=true`가 있어도 마스터 포인트로 추론하지 않는다. |
-| 사설 대진표 | 2~64명의 Single/Double, BYE 분산과 저장 용량을 확인했다. PIN 검증, 다른 행의 보존, 익명 직접 쓰기 차단과 오래된 버전 저장 거부를 검증했다. 공식 Event/기록과 연결되지 않는다. |
+| Regular PokéCup | Collects applications under one announcement and assigns Master or Rookie from history. Both divisions share an edition while each Event owns its registrations, bracket, submitted parties, and record apply/revert. Keeps Master points and Rookie zero-point policy. |
+| Team | New Team events lock to Master and advance the regular PokéCup edition counter. Awards 30/20 points per champion/runner-up team member without granting individual Master eligibility. Verified party submission freeze and revert. |
+| Champions | Singles and Doubles Qualifiers and Finals share the 7th edition. Verified 2-loss elimination in a real Double graph, Final registration creation for 1 direct entrant and 2 survivors, day-of participant selection, separate Final party submission, coexistence of two 7th champions in HOF, and reverting one side. Neither phase creates ranking points. |
+| Light | Assigns the 8th edition after historical 7th. Keeps ranking exclusion for new announcements while counting individual wins toward Master eligibility. Verified party submission freeze and revert. |
+| General tournament | Keeps `pokecup` with `division=other`, excluded from editions and rankings. An older `rankingEnabled=true` flag is not inferred as Master points. |
+| Private bracket | Verified 2 to 64 players in Single and Double formats, BYE distribution, and payload size. Verified PIN validation, preservation of other rows, blocking direct anonymous writes, and rejecting stale-version saves. Not linked to official Events or records. |
 
-`scripts/verify-league-intake-db.mjs <PGlite dist/index.js>`가 `scripts/competition-flow-checks.mjs`를 함께 실행한다. 이 테스트는 Supabase에 연결하지 않으며 관리자/anon 역할과 RLS 아래 실제 SQL 함수 및 프런트엔드의 projection/포인트 계산 함수를 사용한다.
+`scripts/verify-league-intake-db.mjs <PGlite dist/index.js>` runs `scripts/competition-flow-checks.mjs` alongside it. The suite does not connect to Supabase; it executes the real SQL functions and frontend projection/points logic under admin and `anon` roles with RLS enabled.
 
-## 기존 세미나
+## Existing seminar events
 
-운영 DB의 배틀부 세미나 미니대회 1조/2조는 이미 `event_type=pokecup`, `division=other`, `officialEvent=false`, `rankingEnabled=false`다. `round_number`와 `competition_edition_id`는 NULL이다. 기존 Event와 신청/Entry/runtime을 재생성하거나 NULL event_type으로 바꾸지 않는다.
+In Production DB, `배틀부 세미나 미니대회` Group 1 and Group 2 already have `event_type=pokecup`, `division=other`, `officialEvent=false`, and `rankingEnabled=false`. Both `round_number` and `competition_edition_id` are `NULL`. Existing Events, registrations, Entries, and runtimes are not recreated or changed to a `NULL` `event_type`.
 
-1조 7명/6경기, 2조 6명/5경기의 승자가 모두 입력되어 있지만 Event는 `running`, 기록 반영은 미완료 상태다. 이번 점검에서는 기존 경기나 기록 반영 상태를 변경하지 않았다. 공지 편집과 기록 확인 화면의 분류를 일반 대회로 표시하고 신규 공지에도 일반 대회 옵션을 제공한다.
+All winners are entered for Group 1 (7 players, 6 matches) and Group 2 (6 players, 5 matches), while both Events remain `running` with records not yet applied. This verification did not modify existing matches or record-apply state. The announcement editor and record confirmation views label them as general tournaments, and new announcements also offer the general tournament option.
 
-실제 공지 편집 컴포넌트를 390px/1440px에서 확인했다. 기존 세미나 초안은 이름, `other`와 기존 Event 연결을 유지하며 신규 일반 대회는 회차 없이 랭킹 제외 설정으로 저장된다.
+The actual announcement editor component was checked at 390px and 1440px. Existing seminar drafts keep their names, `other` division, and existing Event links, and new general tournaments save without an edition and with rankings disabled.
 
-## 운영 DB 확인
+## Production DB verification
 
-`guard_private_bracket_concurrent_saves` migration을 적용했다. `community_write`의 기존 PIN, RLS와 권한 범위를 유지하며 사설 대진표 저장에만 버전 검사를 추가한다. 화면이 보여 준 버전과 새 조회 결과가 다르면 먼저 입력을 중단해 다른 기기의 재추첨에 이전 승자 선택을 적용하지 않는다. DB가 `updatedAt` 토큰을 발급하고 `_expectedUpdatedAt`과 현재 토큰을 행 잠금 아래 비교해 조회 이후 발생한 경합도 차단한다. 다르면 `stale`을 반환하고 저장하지 않는다. 토큰 없는 구형 클라이언트도 새로고침을 요구하며 일반 게시판은 기존 쓰기 형식을 유지한다.
+The `guard_private_bracket_concurrent_saves` migration was applied. It keeps existing PIN, RLS, and permission boundaries on `community_write` while adding a version check only for private bracket saves. If a fresh read differs from the version displayed on screen, input stops immediately so a prior winner selection is not applied to another device's redraw. The DB issues an `updatedAt` token and compares `_expectedUpdatedAt` against the current token under a row lock to block races that happen after the read. On mismatch, it returns `stale` without saving. Older clients without a token are prompted to reload, and the general board keeps its existing write format.
 
-운영 함수로 아래 두 검증을 실행한 뒤 각각 전체 트랜잭션을 롤백했다.
+Two verification suites ran against Production functions, each rolled back in full inside a transaction:
 
-1. PIN/RLS, 동일 버전의 두 저장 중 뒤 요청 차단, 최신 토큰으로 재시도, 다른 사설 행 보존, 일반 게시판 수정과 PIN 삭제.
-2. 정규 통합 접수 다음 회차, 그다음 팀전 회차, 루키 팀전 거부, 라이트 다음 회차, 일반 대회 회차 제외, 챔피언스 싱글/더블 선발전/본선의 회차 공유.
+1. PIN and RLS enforcement, blocking the second of two same-version saves, retrying with the latest token, preserving other private rows, and editing or PIN-deleting general board posts.
+2. Next edition for regular unified intake, next edition for Team, rejecting Rookie Team, next edition for Light, excluding general tournaments from editions, and sharing an edition across Champions Singles/Doubles Qualifiers and Finals.
 
-22개 테이블의 행 수와 전체 행 fingerprint가 검증 전후 일치했다. 운영 테스트용 대회, 신청, 사설 대진표나 포인트는 남지 않았다. 기존 세미나와 37회 팀전, 38회 신청도 보존했다.
+Row counts and full-row fingerprints across all 22 tables matched before and after verification. No test tournaments, registrations, private brackets, or points remained in Production. Existing seminar events, the 37th Team event, and 38th registrations were preserved.

@@ -1,78 +1,78 @@
-# 기술 연출을 원작의 시간과 세기에 맞추기 (설계)
+# Matching move effects to source timing and intensity
 
-2026-11-21. 운영자 지시: "화염방사뿐만 아니라 모든 기술 이펙트를 수정해줘. 원본과 비교해서 거의 동일하도록. 그래픽 스타일은 사이트의 포켓몬 이미지와 비슷한 스타일을 유지해서." 원작과 우리 규칙이 부딪히는 곳은 B(섬광만 허용)로 정했다.
+2026-11-21. Operator direction: `"화염방사뿐만 아니라 모든 기술 이펙트를 수정해줘. 원본과 비교해서 거의 동일하도록. 그래픽 스타일은 사이트의 포켓몬 이미지와 비슷한 스타일을 유지해서."` Where the source conflicts with our rules, option B (impact flash only) was selected.
 
-## 왜
+## Motivation
 
-기술 연출 223개 각본(`docs/move-fx-work/recipes.json`, 모든 기술이 이 중 하나에 묶인다)은 2026-11-07에 원작 스토리보드(약 1초 간격)를 눈으로 보고 맞췄다. 1초 간격으로는 단계의 길이를 볼 수 없어서, 화염방사 시험(2026-11-21)에서 30fps로 재 보니 불줄기가 원작의 두 배(1.1초 대 0.5초)였고, 맞는 순간의 섬광과 떨어지는 불씨가 없었다. 연출이 원작처럼 느껴지게 하는 것은 그림의 모양보다 단계의 시간과 세기다. 그것을 모든 기술에서 숫자로 맞춘다.
+All 223 move effect recipes (`docs/move-fx-work/recipes.json`, which group every move) were matched by eye on 2026-11-07 against source storyboards sampled at roughly 1-second intervals. One-second steps hide phase durations: measuring Flamethrower at 30fps on 2026-11-21 showed our flame stream lasted twice as long as the source (1.1s vs 0.5s), while missing the impact flash and falling embers. What makes an effect feel like the source is phase timing and intensity rather than silhouette. This work matches those numbers across every move.
 
-## 목표
+## Goals
 
-- 각본마다 원작 영상에서 대표 기술의 구간을 찾아, 맞는 순간을 0으로 놓고 단계(모으기, 날아가기, 맞기, 섬광, 남는 것)의 시작과 길이를 잰다.
-- 우리 연출을 같은 30fps로 찍어 같은 수치를 재고, 기준을 넘을 때까지 고친다.
-- 그림은 지금처럼 우리 동사(`moveFx.js`)와 GPU 무대(`gl.js`)로 그린다. 사이트의 포켓몬 이미지처럼 매트한 물질감(빛보다 물질, 흰 심 없는 타입 색 램프)을 지킨다.
+- Locate each recipe's representative move in source footage, anchor impact at time 0, and measure the start and duration of each phase (charge, travel, land, flash, residue).
+- Capture our effects at the same 30fps, compute the same metrics, and iterate until every threshold passes.
+- Keep rendering with our own verbs (`moveFx.js`) and GPU stage (`gl.js`), preserving the matte material look of the site's Pokemon sprites (substance over glow, type-color ramps without white cores).
 
-## 하지 않는 것
+## Non-goals
 
-- 원작의 텍스처, 프레임, 모델, 셰이더를 가져오거나 한 장씩 따라 그리지 않는다. 원작은 시간, 단계, 색의 범위, 면적을 재는 자료로만 쓴다.
-- 카메라는 움직이지 않는다(DESIGN.md "The camera"). 원작의 카메라 전환은 비교에서 뺀다.
-- 화면을 픽셀끼리 맞대는 일치율은 목표가 아니다. 구도와 카메라가 달라 의미가 없다.
-- 날씨, 필드, 룸, 장판, 벽, 메가진화(`shootfield.mjs`가 찍는 것)는 이번에 고치지 않는다. 운영자 결정(2026-11-21, "기술만 먼저"): 기술 223개가 끝난 뒤 따로 한다.
+- Never import source textures, frames, models, or shaders, and never trace frame by frame. Use the source strictly to measure timing, phases, color ranges, and areas.
+- Keep the camera stationary (`DESIGN.md` "The camera"), excluding source camera cuts from comparison.
+- Do not target pixel-by-pixel image similarity; differing framing and cameras make it meaningless.
+- Leave weather, terrain, rooms, hazards, screens, and Mega Evolution (captured by `shootfield.mjs`) out of this pass. Per the operator's 2026-11-21 decision (`"기술만 먼저"`), handle them separately after the 223 move recipes finish.
 
-## 실패로 치는 것
+## Failure conditions
 
-- 기술 하나가 원작보다 눈에 띄게 길어져 배틀이 늘어지는 것(메시지 줄은 연출이 끝나야 넘어간다).
-- 휴대폰 속도에서 프레임이 떨어지는 것(`docs/BATTLE_FRAMES.md`의 기준).
-- 몸이 하얗게 뜨거나 흰 덩어리가 대상을 덮는 것(B에서도 금지).
+- Any move running noticeably longer than the source and dragging out battles (message lines wait for the effect to end).
+- Frame drops at mobile speed (checked against `docs/BATTLE_FRAMES.md`).
+- Body whitening or a solid white mass covering the target (still forbidden under option B).
 
-## 규칙 바꾸기 (B)
+## Rule change (option B)
 
-- 맞는 지점에서만, 원작에서 잰 길이(화염방사 기준 약 0.15초) 동안 흰 섬광을 허용한다. 섬광은 맞는 지점의 빛이고 대상의 몸 값(flash, rim, tint)은 하얗게 만들지 않는다.
-- 세기 상한은 원작에서 잰 흰 면적의 최댓값을 넘지 않는다(화염방사는 화면의 13%).
-- `docs/move-fx-work/README.md` "지킬 것"의 "흰 별" 줄과 DESIGN.md "What the stage plays"의 hit 줄을 이 내용으로 같이 고친다.
+- Allow a white flash strictly at the impact point for the duration sampled in the source (about 0.15s for Flamethrower). The flash is an impact light only and must not whiten target body parameters (`flash`, `rim`, `tint`).
+- Cap flash intensity so its peak white area never exceeds the source (13% of screen for Flamethrower).
+- Update the `"흰 별"` line in `docs/move-fx-work/README.md` (`"지킬 것"`) and the hit row in `DESIGN.md` ("What the stage plays") to match.
 
-## 방법 (화염방사 시험으로 확인한 파이프라인)
+## Pipeline (verified on Flamethrower)
 
-1. **원작 자료.** Jeyknite의 타입별 영상 17개(4K 원본, 720p60 영상만 받으면 각 80~100MB). 노멀 타입은 따로 찾는다. 영상마다 받기 전에 이름, 출처, 크기를 묻고, 스크래치패드에만 둔다.
-2. **구간 찾기.** 2초 간격 색인 시트(타임코드와 화면 위 기술 이름)로 대표 기술을 찾고, 30fps 프레임으로 자른다(`frames.ts`). 대표 기술이 영상에 없으면 같은 각본의 다른 기술을 쓴다. 각본의 어느 기술도 없으면 그 각본은 고치지 않고 목록에 남긴다.
-3. **재기.** `fxmeasure.ts`(스크래치패드에서 시작, 저장소 `docs/move-fx-work/`로 옮긴다)가 프레임마다 밝기, 흰 면적, 타입 색 면적, 그 중심을 낸다. 불꽃 색만 재던 것을 18타입의 색 범위로 넓힌다. 기준선(연출 전 화면)을 빼서 무대 장식과 UI를 지운다.
-4. **우리 쪽 찍기.** 실험실(`?view=lab`)을 Reanimate `capture.ts`로 같은 30fps에 찍는다. 개발 서버에서는 가상 시계가 load에서 멈추므로 실제 시계와 실제 GPU를 쓴다. 빌드한 페이지(`ypl-preview`)에서 가상 시계가 되면 그쪽으로 바꾼다. 녹화가 연출 시작을 놓치지 않게 재생을 녹화 시작 뒤로 미룬다.
-5. **비교와 기준.** 맞는 순간을 0으로 맞춘 뒤 각본마다 표 한 줄(`docs/move-fx-work/match.tsv`):
-   - 단계의 시작과 길이: 원작과 ±80ms(Reanimate의 기준).
-   - 흰 섬광: 원작에 있으면 있고, 길이 ±50ms, 최대 면적은 원작 이하.
-   - 타입 색 면적의 최댓값: 대상 크기로 나눈 값이 원작의 ±25%.
-   - 남는 것(불씨, 물방울, 파편)이 사라지는 시각: ±120ms.
-   통과하지 못한 줄은 수치와 이유를 남긴다. 기준을 낮춰 통과시키지 않는다.
-6. **눈으로 보기.** 수치가 통과해도 원작과 우리 필름스트립을 나란히 놓고 본다(`pair.py`). 수치는 어긋남을 알려 주고, 무엇이 어긋났는지는 그림이 알려 준다.
+1. Source footage. Use Jeyknite's 17 per-type videos (4K originals, 80 to 100MB each as 720p60 video-only) and locate a separate source for Normal. Ask before downloading each video with its name, source, and size, and store files in the scratchpad only.
+2. Segment lookup. Locate each representative move using a 2-second interval index sheet (timecodes and on-screen move names) and slice 30fps frames (`frames.ts`). If the representative move is missing, use another move from the same recipe; if none appear, skip the recipe and log it.
+3. Measurement. `fxmeasure.ts` (starting in the scratchpad, then moved into `docs/move-fx-work/`) computes per-frame luminance, white area, type-color area, and centroid. Expand the Fire-only color check to cover all 18 types, subtracting a pre-effect baseline to strip stage decor and UI.
+4. Capturing our side. Record the lab (`?view=lab`) at 30fps with Reanimate `capture.ts`. Because virtual clock stalls on load in the dev server, use the real clock and real GPU, switching to virtual clock if it works on the built preview (`ypl-preview`). Delay playback until after recording starts so frame 0 never clips the opening.
+5. Comparison and thresholds. Align impact at time 0 and write one row per recipe to `docs/move-fx-work/match.tsv`:
+   - Phase start and duration: within ±80ms of the source (Reanimate standard).
+   - White flash: present whenever the source has one, duration within ±50ms, peak area at or below the source.
+   - Peak type-color area: normalized by target size, within ±25% of the source.
+   - Residue fade time (embers, droplets, debris): within ±120ms.
+   Record metrics and reasons for any failing row without lowering thresholds to pass.
+6. Visual check. Even after numbers pass, review side-by-side filmstrips via `pair.py`. Metrics catch drift; the frames show what drifted.
 
-## 순서와 단위
+## Order and batching
 
-- 타입 하나가 한 묶음이다. 불꽃부터 시작해 영상이 있는 순서로 간다. 묶음마다 커밋 하나(네 섹션 커밋 메시지), 배포는 운영자가 말할 때.
-- 여러 타입이 함께 쓰는 동사(hit, beam, burst 등)를 고치면 그 동사를 쓰는 다른 각본도 다시 찍어 수치가 나빠지지 않았는지 본다.
-- 묶음마다 `final.tsv` 점수와 `docs/move-fx-ranking.html`을 갱신한다.
+- Work one type per batch, starting with Fire and continuing through types with available footage. Make one four-section commit per batch, deploying only when the operator asks.
+- Whenever a shared verb (`hit`, `beam`, `burst`, and similar) changes, recapture other recipes using that verb to verify no regressions.
+- Update `final.tsv` scores and `docs/move-fx-ranking.html` after each batch.
 
-## 확인
+## Verification
 
-- 묶음마다 `npm test`, 실제 배틀(일반 배틀과 도전의 탑)에서 그 타입 기술을 한 번씩 써 본다.
-- 휴대폰 속도 프레임 기록(`docs/BATTLE_FRAMES.md`의 방법)으로 새 섬광과 입자가 프레임을 떨어뜨리지 않는지 잰다.
-- 연출 길이가 바뀐 각본은 메시지 시간과 효과음(`sfx.js`의 동사 소리)이 어긋나지 않는지 본다.
+- Run `npm test` after each batch and trigger moves of that type in both regular battle and 도전의 탑.
+- Check mobile-speed frame logs (`docs/BATTLE_FRAMES.md` method) to confirm new flashes and particles do not drop frames.
+- For recipes whose duration changed, verify message timing and verb sound effects (`sfx.js`) stay aligned.
 
-## 방법 비교
+## Options compared
 
-- **A. 규칙 우선:** 섬광 없이 시간, 색, 면적만 맞춘다. 맞는 순간이 원작보다 약하다.
-- **B. 섬광만 허용 (선택):** 카메라는 그대로, 맞는 지점의 짧은 흰 섬광만 허용. 원작의 세기에 가깝고 우리 규칙의 뜻(몸이 하얗게 뜨지 않음)은 지킨다.
-- **C. 원작 우선:** 카메라 이동까지. 배틀 화면 전체의 원칙이 바뀐다.
+- Option A (rules first) matches timing, color, and area with no flash, leaving impacts weaker than the source.
+- Option B (flash only, chosen) keeps the camera fixed and allows a brief impact-point white flash, approaching source impact while preserving the rule against body whitening.
+- Option C (source first) adds camera movement, which breaks the battle screen's core layout rules.
 
-## 설계자가 정한 것 (검토 질문에 대한 답, 운영자가 바꿀 수 있음)
+## Designer decisions (open to operator override)
 
-- **맞는 순간이 없는 기술**(굳히기, 기 모으기, 방어 계열처럼 자신에게 쓰는 기술): 연출이 처음 화면을 바꾸는 프레임을 0으로 놓는다. 단계는 시작, 가장 큰 순간, 끝으로 잰다.
-- **여러 타입이 섞인 각본**: 대표 기술의 타입 묶음에서 고친다. 뒤 묶음에서는 나빠지지 않았는지만 다시 잰다.
-- **한 각본 안에서 원작의 기술끼리 시간이 다를 때**: 이번 작업에서는 각본을 나누지 않는다. 대표 기술에 맞추고, 영상에 있는 다른 기술도 재서 ±80ms를 넘으면 목록에 남긴다. 나누기는 그 목록을 보고 따로 정한다.
-- **흰 섬광의 상한**: 화면이 아니라 대상 크기(포켓몬의 잉크 높이)로 나눈 값으로 비교한다. 색 면적과 같은 기준이어야 구도 차이로 잘못 통과하거나 떨어지지 않는다.
-- **비행, 강철, 얼음, 바위**: 타입 색 자체가 희므로, 흰 섬광은 "거의 흰 색이면서 그 타입 색 범위 밖"으로 센다. 이 네 타입의 맞는 빛은 지금처럼 `${t}.d` 램프로 그리고, 그것은 섬광 면적에 넣지 않는다.
+- Self-targeted moves with no impact moment (harden, focus, protect, and similar) anchor time 0 at the first frame the effect changes the screen, measuring start, peak, and end.
+- Multi-type recipes are tuned during their representative move's type batch and only regression-checked in later batches.
+- When source moves inside one recipe differ in duration, do not split the recipe during this pass. Match the representative move, measure other moves in the video, and log any pair differing by more than ±80ms for a separate splitting decision.
+- Normalize the white flash ceiling by target size (Pokemon ink height) rather than full screen, matching the color-area denominator so framing differences do not skew passes or failures.
+- Because Flying, Steel, Ice, and Rock have near-white type colors, count white flash only for near-white pixels outside each type's color window. Keep their impact light on the `${t}.d` ramp and exclude it from flash area.
 
-## 구현하는 사람에게 맡기는 것
+## Left to the implementer
 
-- 단계 경계를 수치에서 자동으로 자를지(흰 면적과 타입 색 면적의 꺾이는 점), 프레임을 보고 손으로 적을지.
-- 동사 안에서 길이를 바꾸는 방법(각본의 숫자, 동사의 기본값, 연출 속도 배율 중 무엇을 건드릴지).
-- 원작과 우리 쪽의 대상 크기를 맞추는 방법(포켓몬의 잉크 높이로 나눌지).
+- Whether to detect phase boundaries automatically from metric inflection points (white and type-color area) or mark them manually from frames.
+- How to adjust duration inside a verb (recipe parameters, verb defaults, or playback speed scaling).
+- How to normalize target size between source and captured frames (such as dividing by Pokemon ink height).
