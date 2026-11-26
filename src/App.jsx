@@ -77,7 +77,7 @@ const whenReady = (v, run) => { if (ready(v)) run(); else PAGES[v].preload().the
 function normalizeData(d){
   if(!d || typeof d!=="object") return d;
   const labelFix={"파이컵 Lite":"파이컵 라이트","PY-CUP Lite":"파이컵 라이트","파이컵 lite":"파이컵 라이트"};
-  const groupDesc={champion:"챔피언스 시리즈 우승",partner:"같은 포켓몬으로 2회 이상 우승",event:"파이컵 라이트 등 이벤트 대회 우승"};
+  const groupDesc={champion:"챔피언스 시리즈 우승",region:"같은 세대의 포켓몬만 사용해서 개인전 4강 이상 진출",partner:"같은 포켓몬으로 2회 이상 우승",event:"파이컵 라이트 등 이벤트 대회 우승"};
   const tournaments=Array.isArray(d.tournaments)?d.tournaments.map(t=>t&&labelFix[t.label]?{...t,label:labelFix[t.label]}:t):d.tournaments;
   const titleGroups=Array.isArray(d.titleGroups)?d.titleGroups.map(g=>g&&groupDesc[g.key]?{...g,desc:groupDesc[g.key]}:g):d.titleGroups;
   const brackets=Array.isArray(d.brackets)?d.brackets:[];

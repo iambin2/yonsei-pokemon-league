@@ -31,7 +31,7 @@ export const SEED = {
       {id:uid(),name:"전기 엑스퍼트",holders:[]},{id:uid(),name:"에스퍼 엑스퍼트",holders:["이제빈","천승은"]},
       {id:uid(),name:"얼음 엑스퍼트",holders:[]},{id:uid(),name:"드래곤 엑스퍼트",holders:[]},
       {id:uid(),name:"악 엑스퍼트",holders:[]},{id:uid(),name:"페어리 엑스퍼트",holders:["김다온","김원의"]} ]},
-    { id:uid(), key:"region", name:"지방 엘리트", icon:"🗺️", desc:"같은 세대의 포켓몬만 사용해서 개인전 4강 이상 진출 (리전폼은 해당 지역 세대 기준)", items:[
+    { id:uid(), key:"region", name:"지방 엘리트", icon:"🗺️", desc:"같은 세대의 포켓몬만 사용해서 개인전 4강 이상 진출", items:[
       {id:uid(),name:"관동 엘리트",holders:[]},{id:uid(),name:"성도 엘리트",holders:["이제빈"]},
       {id:uid(),name:"호연 엘리트",holders:[]},{id:uid(),name:"신오 엘리트",holders:[]},
       {id:uid(),name:"히스이 엘리트",holders:["김장현"]},{id:uid(),name:"하나 엘리트",holders:["임준하","정두호"]},
