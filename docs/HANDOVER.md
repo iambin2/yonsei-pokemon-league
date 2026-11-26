@@ -6,7 +6,7 @@
 
 | 부분 | 어디 | 배포 |
 |---|---|---|
-| 사이트 | GitHub 저장소 `iambin2/ypl-site`, GitHub Pages | `main`에 push하면 자동 (`deploy.yml`) |
+| 사이트 | GitHub 저장소 `iambin2/yonsei-pokemon-league`, GitHub Pages | `main`에 push하면 자동 (`deploy.yml`) |
 | 데이터베이스 | Supabase 프로젝트 `rqffrogcverfjqzjasax` (PostgreSQL 17) | SQL 편집기에서 손으로 (`docs/db/README.md`) |
 | `battle` 함수 | Supabase Edge Function (배틀, 공식 경기, 도전의 탑) | `main`에 push하면 자동 (`functions.yml`), 토큰 필요 |
 | `notify-announcement` 함수 | Supabase Edge Function (푸시 알림 발송) | 같음 |

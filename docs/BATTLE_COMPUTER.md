@@ -126,7 +126,7 @@ node scripts/cpu-readability.mjs --games 200 --ref HEAD  # 마지막 커밋의 �
 
 컴퓨터를 계속 고치는 데 필요한 것:
 
-- GitHub 저장소 `iambin2/ypl-site`의 쓰기 권한. `main`에 푸시하면 사이트가 배포된다. 지금은 개인 계정 소유라, 운영진이 바뀌면 협업자로 추가하거나 단체 계정으로 옮긴다.
+- GitHub 저장소 `iambin2/yonsei-pokemon-league`의 쓰기 권한. `main`에 푸시하면 사이트가 배포된다. 지금은 개인 계정 소유라, 운영진이 바뀌면 협업자로 추가하거나 단체 계정으로 옮긴다.
 - 저장소 시크릿 `SUPABASE_SERVICE_ROLE_KEY`(학습 워크플로와 `--parties players`용). Supabase 대시보드의 운영 프로젝트(`rqffrogcverfjqzjasax`) API 설정에 있다. 이 값은 DB 전체 권한이므로 저장소 밖으로 내보내지 않는다.
 - 배틀 함수를 바꿀 때만 Supabase 프로젝트 권한(`npm run build:battle` 후 함수 배포).
 

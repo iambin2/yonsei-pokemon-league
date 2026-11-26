@@ -44,7 +44,7 @@ OVERRIDES = {
 ALIASES = {"a": "alola", "g": "galar", "h": "hisui", "p": "paldea", "female": "f", "male": "m"}
 
 def get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ypl-site sprite build"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 yonsei-pokemon-league sprite build"})
     with urllib.request.urlopen(req, timeout=60) as res:
         return res.read()
 

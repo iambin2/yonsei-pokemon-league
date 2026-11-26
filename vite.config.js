@@ -72,7 +72,7 @@ export default defineConfig(({ command }) => {
 
   return {
     // 커스텀 도메인 league.pokeyonsei.com 의 루트에서 서비스합니다.
-    // 도메인을 떼고 iambin2.github.io/ypl-site/ 로 돌아가면 "/ypl-site/" 로 되돌리세요.
+    // 도메인을 떼고 iambin2.github.io/yonsei-pokemon-league/ 로 돌아가면 "/yonsei-pokemon-league/" 로 되돌리세요.
     base: "/",
     plugins: [react(), isProductionBuild && productionVersionPlugin()].filter(Boolean),
     build: {

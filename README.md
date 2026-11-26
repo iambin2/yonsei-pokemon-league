@@ -64,7 +64,7 @@ node tests/championsCore.test.mjs
 
 두 가지만 주의하세요.
 
-- 사이트는 커스텀 도메인 `league.pokeyonsei.com` 의 루트에서 서비스되므로 `vite.config.js` 의 `base` 는 `"/"` 입니다. 도메인을 떼면 `"/ypl-site/"` 로 되돌려야 링크와 정적 자산 경로가 살아 있습니다.
+- 사이트는 커스텀 도메인 `league.pokeyonsei.com` 의 루트에서 서비스되므로 `vite.config.js` 의 `base` 는 `"/"` 입니다. 도메인을 떼면 `"/yonsei-pokemon-league/"` 로 되돌려야 링크와 정적 자산 경로가 살아 있습니다.
 - 빌드 시 `version.json` 이 함께 생성되고, `index.html` 에 주입된 스크립트가 이 파일을 확인해 **새 배포가 감지되면 페이지를 자동으로 새로고침**합니다. 방문자가 캐시된 옛 화면에 머무르지 않게 하는 장치이므로, `index.html` 의 head나 `base` 를 건드릴 때 같이 확인하세요.
 
 ---
@@ -102,7 +102,7 @@ node tests/championsCore.test.mjs
 ## 6. 폴더 구조
 
 ```
-ypl-site/
+yonsei-pokemon-league/
 ├─ index.html                 # 진입 HTML
 ├─ vite.config.js             # base 경로 + 버전 자동 새로고침 플러그인
 ├─ .github/workflows/        # 배포, 검사, 함수 배포, 주간 백업, 가동 감시, 알림 정리, 데이터 갱신 (실패하면 이슈가 열림)

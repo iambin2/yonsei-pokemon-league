@@ -21,7 +21,7 @@ LAST = 1025
 FORMS = {"palafinhero": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/10256.ogg"}
 
 def get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ypl-site cry build"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 yonsei-pokemon-league cry build"})
     with urllib.request.urlopen(req, timeout=60) as res:
         return res.read()
 

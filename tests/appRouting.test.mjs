@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isUnknownPath, isUnknownView } from "../src/services/appRouting.js";
 
-const BASE = "/ypl-site/";
+const BASE = "/yonsei-pokemon-league/";
 
 test("the site's own addresses are known", () => {
-  assert.equal(isUnknownPath("/ypl-site/", BASE), false);
-  assert.equal(isUnknownPath("/ypl-site/index.html", BASE), false);
+  assert.equal(isUnknownPath("/yonsei-pokemon-league/", BASE), false);
+  assert.equal(isUnknownPath("/yonsei-pokemon-league/index.html", BASE), false);
 });
 
 test("anything else under the base is a 404", () => {
-  assert.equal(isUnknownPath("/ypl-site/news", BASE), true);
-  assert.equal(isUnknownPath("/ypl-site/404.html", BASE), true);
+  assert.equal(isUnknownPath("/yonsei-pokemon-league/news", BASE), true);
+  assert.equal(isUnknownPath("/yonsei-pokemon-league/404.html", BASE), true);
 });
 
 test("outside the base nothing is judged", () => {
