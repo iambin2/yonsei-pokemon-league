@@ -6,6 +6,7 @@ import { defensiveMatchups, statRange } from "../../services/calculatorCore.js";
 import { createBattleReader, toID } from "../../services/battleLog.js";
 import * as fx from "./stageFx.js";
 import * as cam from "./stageCamera.js";
+import { actorFlipped } from "./spriteFacing.js";
 import { cry, loadCry } from "./cries.js";
 import { sfx, conditionSound } from "./sfx.js";
 import { DUR, EASE_OUT, reduced } from "../../components/common/motion.js";
@@ -574,11 +575,12 @@ function SideField({ side, scene, own, doubles }) {
         const mon = s?.active?.[slot];
         const alive = mon && (!mon.fainted || mon.standing);
         const doll = mon?.volatiles.includes("substitute") && !scene?.out?.includes(key);
+        const src = alive ? (doll ? fx.SUBSTITUTE : spriteUrl(mon.species)) : "";
         return (
           <div key={slot} className="bs-slot" data-mon={key} data-pos={`${own ? "own" : "foe"}${doubles ? `-d${slot}` : ""}`}>
             {/* the picture is drawn by the GPU stage (gl.js), which reads what stands here; the element keeps the place and the doll */}
             {alive && <div className="bs-mon" key={mon.name} data-name={mon.name}>
-              <img src={doll ? fx.SUBSTITUTE : spriteUrl(mon.species)} alt="" draggable="false" decoding="async" onError={onSpriteError()} />
+              <img src={src} alt="" draggable="false" decoding="async" data-flip={actorFlipped(own, src) ? "1" : undefined} onError={onSpriteError()} />
             </div>}
           </div>
         );

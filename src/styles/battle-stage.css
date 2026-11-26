@@ -43,7 +43,7 @@
 .bs-slot:nth-child(odd) .bs-mon { animation-delay: -1.7s; }
 .bs-side.foe .bs-mon { animation-duration: 3.8s; }
 .bs-mon img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; display: block; }
-.bs-side.own .bs-mon img { transform: scaleX(-1); }
+.bs-mon img[data-flip] { transform: scaleX(-1); }
 @keyframes bs-idle { 50% { translate: 0 -1.5%; } }
 
 .bs-over > i { position: absolute; display: block; will-change: transform, opacity; }

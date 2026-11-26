@@ -8,6 +8,7 @@
    좌표는 무대의 CSS 픽셀(넓은 화면일 때의 자리)이다. DOM의 자리(.bs-slot)는 배치와 누르기만 맡는다. */
 import { reduced } from "../../components/common/motion.js";
 import { inkBoxOf } from "../../components/common/inkCentre.js";
+import { actorFlipped } from "./spriteFacing.js";
 import { C, GRID, ROWS, TEX, MATERIALS, atlasStep, atlasNow } from "./atlas.js";
 export { TEX, MATERIALS, atlasStep, atlasPainted } from "./atlas.js";
 
@@ -677,7 +678,7 @@ class Engine {
     for (const [key, a] of this.actors) if (!seen.has(key)) { this.drop(a); this.actors.delete(key); }
   }
   actor(key, name, own) {
-    const a = { key, name, own, base: { ...ACTOR_BASE }, st: { ...ACTOR_BASE }, phase: Math.random(), hist: [], trail: false, tex: null, prev: null, rect: null, src: "" };
+    const a = { key, name, own, flipped: Boolean(own), base: { ...ACTOR_BASE }, st: { ...ACTOR_BASE }, phase: Math.random(), hist: [], trail: false, tex: null, prev: null, rect: null, src: "" };
     this.actors.set(key, a);
     return a;
   }
@@ -702,6 +703,7 @@ class Engine {
       this.warmed.delete(src);
       if (a.tex) this.gl.deleteTexture(a.tex);
       Object.assign(a, warm.done);
+      a.flipped = actorFlipped(a.own, src);
       a.ready = Promise.resolve();
       return;
     }
@@ -716,6 +718,7 @@ class Engine {
         if (!pic) return resolve();
         if (a.tex) this.gl.deleteTexture(a.tex);
         Object.assign(a, pic);
+        a.flipped = actorFlipped(a.own, src);
         resolve();
       };
       img.onerror = () => resolve();
@@ -890,7 +893,7 @@ class Engine {
     if (!p) return;
     const s = a.st, gl = this.gl, sp = this.prog.sprite;
     if (s.alpha <= .002) return;
-    const breathe = a.breath * .014, flip = a.own ? -1 : 1;
+    const breathe = a.breath * .014, flip = a.flipped ? -1 : 1;
     const model = (st, mirror) => {
       // about the feet: push, turn, then scale; the picture's own box is the unit quad
       const sx = st.sx * (1 - breathe * .35) * flip, sy = st.sy * (1 + breathe) * (mirror ? -1 : 1), c = Math.cos(st.rot), n = Math.sin(st.rot);

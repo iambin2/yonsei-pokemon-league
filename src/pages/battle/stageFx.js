@@ -63,7 +63,7 @@ const overOf = stage => stage?.querySelector(".bs-over");
 // a Pokémon's body (its ink in its picture, as it stands now): lift 0 is its feet, 1 the top of its head
 function centre(stage, key, lift = .45) {
   const e = glOf(stage), a = e?.actors.get(key), p = a && e.placed(a);
-  if (p) { const [x0, y0, x1, y1] = a.ink || [0, 0, 1, 1]; return [p.x + p.w * (a.own ? 1 - (x0 + x1) / 2 : (x0 + x1) / 2), p.y + p.h * lerp(y1, y0, lift)]; }
+  if (p) { const [x0, y0, x1, y1] = a.ink || [0, 0, 1, 1]; return [p.x + p.w * (a.flipped ? 1 - (x0 + x1) / 2 : (x0 + x1) / 2), p.y + p.h * lerp(y1, y0, lift)]; }
   const el = slotEl(stage, key), box = stage?.getBoundingClientRect();
   if (!el || !box) return [(stage?.clientWidth || 400) / 2, (stage?.clientHeight || 300) / 2];
   const r = el.getBoundingClientRect();
