@@ -30,7 +30,7 @@
 .alerts-main { margin-top: var(--s13); }
 .alerts-h { margin-bottom: var(--s5); }
 .alerts-day + .alerts-day { margin-top: var(--s8); }
-.alerts-day-h { padding-bottom: var(--s3); font-weight: 700; color: var(--dim); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.alerts-day-h { padding-inline: var(--band); padding-bottom: var(--s3); font-weight: 700; color: var(--dim); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .alerts-row .row-main > b { font-weight: 600; color: var(--dim); }
 .alerts-row.fresh .row-main > b { font-weight: 700; color: var(--lit); }
 .alerts-new { font-weight: 700; color: var(--lit); }

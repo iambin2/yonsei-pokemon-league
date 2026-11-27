@@ -72,6 +72,7 @@
 .nw-form-facts { display: grid; gap: var(--s3); margin-top: var(--s8); }
 .nw-form-main { margin-top: var(--s8); }
 .nw-form-sec + .nw-form-sec { margin-top: var(--s13); }
+.nw-form-sec > .sh { padding-inline: 0; }
 .nw-form-sec > .sh + * { margin-top: 0; }
 .nw-form-sec > * + * { margin-top: var(--s5); }
 .nw-form-sec .q + .q { margin-top: var(--s5); }

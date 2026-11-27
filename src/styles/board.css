@@ -62,6 +62,7 @@
    전부 통일해줘"): an entry that opens nothing and the section's head set their words --band in, so a list's head, its doors and its
    other entries start and end on one line; the head's and the list's rules still span the column. A door's lit face stays its own box */
 :is(.row, .opt-row, .lead, .bd-post, .pv-toc-row, .hof-row), .sh, .alerts-h, .rc-th, .rc-tr, .tl-crow { padding-inline: var(--band); }
+.modal .sh, .bk-picks > .sh { padding-inline: 0; }
 /* a cell that opens a select keeps its words inside it the same way */
 .cell:has(.dd-btn) { padding-inline: var(--band); }
 

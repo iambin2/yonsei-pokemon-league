@@ -72,6 +72,7 @@
 .bd-bar .dock { margin-top: 0; }
 .bd-body { margin-top: var(--s8); }
 .sc-post-sheet { margin-top: var(--s13); }
+.sc-post-sheet > .sh { padding-inline: 0; }
 .bd-art.one .sc-post-sheet { margin-top: var(--s8); }
 @media (min-width: 860px) {
   .bd-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -86,7 +87,7 @@
 /* comments: entries closed by their hairline, the name 15 bold with its time dim, the words read at 15 */
 .bd-cmts { margin-top: var(--s13); display: grid; gap: var(--seam); }
 /* the comments open under the title's 2px rule, as every section of the almanac */
-.bd-cmts > .sh { margin-bottom: 0; padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.bd-cmts > .sh { margin-bottom: 0; padding-inline: 0; padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
 .bd-cmt { padding-block: var(--s5); }
 .bd-cmt-top { display: flex; align-items: center; gap: var(--s2); }
 .dt-short { display: none; }
