@@ -65,12 +65,12 @@ export default function SiteFooter({ onNavigate, onAdmin, siteConfig }) {
         </p>
       </div>
       {colophon && (
-        <Modal label="홈페이지 설계자" onClose={() => setColophon(false)}>
+        <Modal className="colophon-sheet" label="홈페이지 설계자" onClose={() => setColophon(false)}>
           <div className="colophon">
-            <BrandMark size={20} />
-            <div className="colophon-body opens">
-              <span className="t12 dim">홈페이지 설계자</span>
-              <b className="t32">이제빈</b>
+            <div className="colophon-head"><BrandMark size={20} /></div>
+            <div className="colophon-body">
+              <span className="t12 dim colophon-label">홈페이지 설계자</span>
+              <b className="t32 colophon-name">이제빈</b>
             </div>
           </div>
         </Modal>
