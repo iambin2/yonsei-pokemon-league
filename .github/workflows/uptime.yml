@@ -20,7 +20,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Site
         run: curl --fail --silent --show-error --retry 2 --retry-delay 20 "https://league.pokeyonsei.com/version.json"
       - name: Database
