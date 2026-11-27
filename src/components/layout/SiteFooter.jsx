@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icon from "../common/Icon.jsx";
+import Modal from "../common/Modal.jsx";
 import { BrandMark, Wordmark } from "./SiteHeader.jsx";
 import { follow, Row } from "../common/Board.jsx";
 import { viewHref } from "../../services/appRouting.js";
@@ -13,12 +14,36 @@ export default function SiteFooter({ onNavigate, onAdmin, siteConfig }) {
   const cfg = resolveSiteConfig(siteConfig);
   const year = new Date().getFullYear();
   const span = year > cfg.foundedYear ? `${cfg.foundedYear}–${year}` : `${cfg.foundedYear}`;
+  const [colophon, setColophon] = useState(false);
+  const tap = useRef({ n: 0, at: 0, timer: null });
+
+  useEffect(() => () => { if (tap.current.timer) clearTimeout(tap.current.timer); }, []);
+
+  const onBrandClick = e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    const now = Date.now();
+    if (tap.current.timer) { clearTimeout(tap.current.timer); tap.current.timer = null; }
+    const n = now - tap.current.at < 600 ? tap.current.n + 1 : 1;
+    tap.current = { n, at: now, timer: null };
+    if (n >= 5) {
+      tap.current = { n: 0, at: 0, timer: null };
+      setColophon(true);
+      return;
+    }
+    if (n === 1) {
+      tap.current.timer = setTimeout(() => {
+        tap.current.timer = null;
+        onNavigate("home");
+      }, 280);
+    }
+  };
 
   return (
     <footer className="site-foot">
       <div className="site-foot-in">
         <div className="site-foot-mark">
-          <a href={viewHref("home")} className="brand" onClick={follow(() => onNavigate("home"))} aria-label="YPL 홈으로">
+          <a href={viewHref("home")} className="brand" onClick={onBrandClick} aria-label="YPL 홈으로">
             <BrandMark size={20} /><Wordmark />
           </a>
           <span className="site-foot-line">
@@ -39,6 +64,17 @@ export default function SiteFooter({ onNavigate, onAdmin, siteConfig }) {
           Pokémon 및 포켓몬스터는 각 회사의 상표입니다.
         </p>
       </div>
+      {colophon && (
+        <Modal label="홈페이지 설계자" onClose={() => setColophon(false)}>
+          <div className="colophon">
+            <BrandMark size={20} />
+            <div className="colophon-body opens">
+              <span className="t12 dim">홈페이지 설계자</span>
+              <b className="t32">이제빈</b>
+            </div>
+          </div>
+        </Modal>
+      )}
     </footer>
   );
 }
