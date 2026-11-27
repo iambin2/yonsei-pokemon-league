@@ -10,8 +10,8 @@ import { listAvailableChampionshipEditions } from "../../services/normalizedComp
 import { isAutoCheckedTitle } from "../../services/titleAwards.js";
 import { loadHallOfFameArtworkLookup, resolveHallOfFameArtwork } from "../../services/hallOfFamePresentation.js";
 import { loadRecordsPokemonDirectory } from "../../services/recordsPokemon.js";
-import { MAX_BANDS, TITLE_DEVICES, TITLE_TYPES, normalizeTitleLook, ownMedal, titleLook } from "../../services/titleLooks.js";
-import { Medal } from "../../components/TitleFaces.jsx";
+import { MAX_BANDS, MAX_TEXT, TITLE_DEVICES, TITLE_TYPES, normalizeTitleLook, ownMedal, suggestTitleLook, titleLook } from "../../services/titleLooks.js";
+import { Medal, usePokemonLookup } from "../../components/TitleFaces.jsx";
 import { copyEventRules, eventNameBase, eventSubtitleOf, formatEventName, isEventLinked } from "../../services/eventName.js";
 import { formatDate } from "../../services/dateFormat.js";
 import { missingAnnouncementTimes } from "../../services/announcementTimes.js";
@@ -88,23 +88,48 @@ function HolderPicker({ id, names, value, onChange, placeholder }) {
   </div>);
 }
 
-/* 고유 칭호의 메달(DESIGN.md "Titles and hall of fame"): 색은 1~3개 필수, 가운데 장식은 색의 타입 문양, 그려 둔 장식 하나, 또는 메가진화 문양 */
-function TitleLookPicker({ look, onChange }) {
-  const picture=look.mark==="mega"?"mega":look.device?"device":"types";
+/* 고유 칭호의 메달(DESIGN.md "Titles and hall of fame"): 색은 1~3개 필수, 가운데 장식은 색의 타입 문양, 장식 아이콘, 포켓몬 실루엣, 짧은 글자, 또는 메가진화 문양 */
+function TitleLookPicker({ look, onChange, onSuggest, pokemonLookup }) {
+  const picture=look.mark==="mega"?"mega":look.pokemon?"pokemon":look.text?"text":look.device?"device":"types";
+  const [monQuery,setMonQuery]=useState(look.pokemon||"");
+  useEffect(()=>{ if(look.pokemon) setMonQuery(look.pokemon); },[look.pokemon]);
   const set=patch=>onChange({...look,...patch});
   const toggle=id=>set({bands:look.bands.includes(id)?look.bands.filter(x=>x!==id):[...look.bands,id].slice(-MAX_BANDS)});
   const preview=normalizeTitleLook(look);
+  const monList=pokemonLookup?.list||[];
+  const trimmedQuery=monQuery.trim();
+  const monMatches=picture==="pokemon"&&monList.length
+    ? (trimmedQuery ? monList.filter(p=>p.displayName.includes(trimmedQuery)).slice(0,12) : monList.slice(0,12))
+    : [];
+  const chooseMode=v=>{
+    if(v==="mega") set({mark:"mega",device:undefined,pokemon:undefined,text:undefined});
+    else if(v==="device") set({mark:undefined,pokemon:undefined,text:undefined,device:look.device||TITLE_DEVICES[0][0]});
+    else if(v==="pokemon") {
+      const pick=look.pokemon||trimmedQuery||"피카츄";
+      setMonQuery(pick);
+      set({mark:undefined,device:undefined,text:undefined,pokemon:pick});
+    } else if(v==="text") set({mark:undefined,device:undefined,pokemon:undefined,text:look.text||"1"});
+    else set({mark:undefined,device:undefined,pokemon:undefined,text:undefined});
+  };
   return (<>
     <div className="field"><span className="field-label">가운데 장식</span>
-      <Segmented value={picture} onChange={v=>set(v==="mega"?{mark:"mega",device:undefined}:{mark:undefined,device:v==="device"?(look.device||TITLE_DEVICES[0][0]):undefined})}
-        ariaLabel="칭호의 장식" options={[["types","색의 타입 문양"],["device","그린 장식"],["mega","메가진화 문양"]]}/></div>
-    {picture==="device"&&<div className="field"><span className="field-label">장식</span>
+      <Segmented value={picture} onChange={chooseMode}
+        ariaLabel="칭호의 장식" options={[["types","타입 문양"],["device","장식 아이콘"],["pokemon","포켓몬 실루엣"],["text","짧은 글자"],["mega","메가진화"]]}/></div>
+    {picture==="device"&&<div className="field"><span className="field-label">장식 아이콘</span>
       <div className="chips tl-look-devices">{TITLE_DEVICES.map(([id,label])=><button type="button" key={id} className={look.device===id?"inv":"pn"} aria-pressed={look.device===id} onClick={()=>set({device:id})}>{label}</button>)}</div></div>}
+    {picture==="pokemon"&&<div className="field"><label htmlFor="title-look-pokemon">포켓몬 이름</label>
+      <input id="title-look-pokemon" value={monQuery} onChange={e=>{ const v=e.target.value; setMonQuery(v); if(v.trim()) set({pokemon:v.trim()}); }} placeholder="예: 피카츄, 한카리아스"/>
+      {monMatches.length>0&&<div className="chips tl-look-devices">{monMatches.map(p=><button type="button" key={p.pokemonId} className={look.pokemon===p.displayName?"inv":"pn"} aria-pressed={look.pokemon===p.displayName}
+        onClick={()=>{ setMonQuery(p.displayName); const nextBands=look.bands.length===1&&look.bands[0]==="normal"&&p.type?[p.type]:look.bands; set({pokemon:p.displayName,bands:nextBands}); }}>{p.displayName}</button>)}</div>}
+    </div>}
+    {picture==="text"&&<div className="field"><label htmlFor="title-look-text">중앙 글자 (최대 {MAX_TEXT}자)</label>
+      <input id="title-look-text" maxLength={MAX_TEXT} value={look.text||""} onChange={e=>set({text:e.target.value})} placeholder="예: 100, S6, MVP, 봄"/></div>}
     {picture!=="mega"&&<div className="field"><span className="field-label">색 (1~{MAX_BANDS}개, 고른 순서대로)</span>
       <div className="chips tl-look-devices">{TITLE_TYPES.map(t=>{ const at=look.bands.indexOf(t.id);
         return <button type="button" key={t.id} className={at>=0?"inv":"pn"} aria-pressed={at>=0} onClick={()=>toggle(t.id)}>{at>=0?`${at+1} `:""}{t.korean}</button>; })}</div></div>}
     <div className="field"><span className="field-label">미리보기</span>
-      {preview?<div className="tl-sheet-face"><Medal spec={ownMedal({look:preview})} big/></div>:<div className="bk-hint">색을 하나 이상 고르면 메달이 보입니다.</div>}</div>
+      {onSuggest&&<div><Button variant="link" onClick={onSuggest}>이름으로 자동 추천</Button></div>}
+      {preview?<div className="tl-sheet-face"><Medal spec={ownMedal({look:preview},{pokemonPicture:pokemonLookup?.pictureOf})} big/></div>:<div className="bk-hint">색을 하나 이상 고르면 메달이 보입니다.</div>}</div>
   </>);
 }
 
@@ -112,9 +137,21 @@ export function TitleItemEditor({ groupKey, item, data, onClose, onSave, onDelet
   const partner=groupKey==="partner";
   // 타입, 지방, 챔피언, 파트너의 얼굴은 이름에서 정해진다. 그 밖의 칭호만 문장을 고른다.
   const ownFace=!["champion","type","region","partner"].includes(groupKey);
-  // the face it has now, its own or its preset, so the operator starts from what the page shows
-  const [look,setLook]=useState(()=>titleLook(item||{}));
+  const pokemonLookup=usePokemonLookup();
+  const existingLooks=(data?.titleGroups||[]).flatMap(g=>["champion","type","region","partner"].includes(g.key)?[]:(g.items||[]))
+    .filter(entry=>!item||entry.id!==item.id)
+    .map(entry=>normalizeTitleLook(entry.look)||titleLook(entry));
+  // the face it has now, its own or its preset/suggested, so the operator starts from what the page shows
+  const [touched,setTouched]=useState(Boolean(item));
   const [name,setName]=useState(item?.name||""),[desc,setDesc]=useState(item?.desc||""),[holders,setHolders]=useState(item?.holders||[]);
+  const [look,setLook]=useState(()=>item ? (normalizeTitleLook(item.look)||suggestTitleLook({name:item.name,desc:item.desc,existingLooks})) : {bands:["normal"]});
+  useEffect(()=>{
+    if(!ownFace||touched) return;
+    if(!name.trim()&&!desc.trim()) return;
+    setLook(suggestTitleLook({name,desc,pokemonList:pokemonLookup?.list,existingLooks}));
+  },[name,desc,Boolean(pokemonLookup),touched,ownFace]);
+  const handleLookChange=next=>{ setTouched(true); setLook(next); };
+  const handleSuggest=()=>{ setTouched(false); setLook(suggestTitleLook({name,desc,pokemonList:pokemonLookup?.list,existingLooks})); };
   // 고를 이름: 파트너는 포켓몬 이름, 그 밖은 기록의 트레이너(이미 칭호를 받은 이름과 챔피언을 먼저, 기록을 읽으면 더한다)
   const [names,setNames]=useState(()=>partner?[]:[...new Set([...(data?.titleGroups||[]).flatMap(g=>g.key==="partner"?[]:(g.items||[]).flatMap(t=>t.holders||[])),...(data?.champions||[]).map(c=>c.name)].filter(Boolean))]);
   useEffect(()=>{
@@ -140,7 +177,7 @@ export function TitleItemEditor({ groupKey, item, data, onClose, onSave, onDelet
     <div className="field"><label htmlFor="title-holder">{partner?"파트너 포켓몬":"해당자"}</label>
       <HolderPicker id="title-holder" names={names} value={holders} onChange={setHolders} placeholder={partner?"예: 한카리아스":"예: 정두호"}/></div>
     {isAutoCheckedTitle(groupKey,name.trim())&&<div className="bk-hint fb-reveal">기록 반영 때 조건을 자동으로 확인하는 칭호입니다.</div>}
-    {ownFace&&<TitleLookPicker look={look} onChange={setLook}/>}
+    {ownFace&&<TitleLookPicker look={look} onChange={handleLookChange} onSuggest={handleSuggest} pokemonLookup={pokemonLookup}/>}
     {/* 삭제 is rare: an underlined word at the sheet's end, so the strip stays the one pair 취소 and 저장 (2026-11-24, the owner: a heavy line stood between 삭제 and 취소) */}
     {onDelete&&<div className="ad-cancel"><Button variant="link" onClick={onDelete}>삭제</Button></div>}
     <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>

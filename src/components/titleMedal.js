@@ -205,6 +205,183 @@ const DEVICES = {
       c.beginPath(); c.ellipse(x, y, rx, ry, a, 0, Math.PI * 2); c.fill();
     }
   },
+  /* ---------- 범용 장식 18종 (100x100 평면 단색, 선 두께 3 이상) ---------- */
+  /* 트로피: 우승컵 실루엣 + 양쪽 손잡이 + 기단 */
+  trophy: c => {
+    // Cup bowl + handles
+    fillEO(c,
+      "M26 14L74 14L70 46C68 58 60 66 50 66C40 66 32 58 30 46Z" +
+      "M26 20L10 20C10 38 16 48 30 48L28 40C21 39 18 33 18 27L26 27Z" +
+      "M74 20L90 20C90 38 84 48 70 48L72 40C79 39 82 33 82 27L74 27Z"
+    );
+    parts(c,
+      "M44 63L56 63L58 80L42 80Z",
+      "M28 80L72 80L76 90L24 90Z"
+    );
+    cut(c, () => c.fill(P(star(5, 11, 4.6, 50, 36))));
+  },
+  /* 월계관: 대칭으로 감싸는 두 월계수 가지와 중앙 별 */
+  laurel: c => {
+    // Left and right curved branches
+    c.lineWidth = 4.2; c.lineCap = "round";
+    c.beginPath(); c.arc(50, 52, 34, Math.PI * .68, Math.PI * 1.24); c.stroke();
+    c.beginPath(); c.arc(50, 52, 34, -Math.PI * .24, Math.PI * .32); c.stroke();
+    // Sculpted laurel leaves along both arcs
+    for (const side of [-1, 1]) {
+      for (const [deg, r] of [[-52, 34], [-22, 35], [10, 35], [40, 33], [66, 30]]) {
+        const a = (side < 0 ? 180 - deg : deg) * Math.PI / 180;
+        const cx = 50 + Math.cos(a) * r, cy = 52 + Math.sin(a) * r;
+        c.save(); c.translate(cx, cy); c.rotate(a + side * .55);
+        c.beginPath(); c.ellipse(0, -5, 4.8, 10.5, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
+    }
+    // Ribbon tie at bottom + central 4-point star
+    parts(c, "M42 82L58 82L54 92L46 92Z");
+    c.fill(P(star(4, 15, 4.6, 50, 48, 0)));
+  },
+  /* 검: 대각선으로 뻗은 양날 장검 */
+  sword: c => {
+    c.save(); c.translate(50, 50); c.rotate(Math.PI / 4);
+    parts(c,
+      "M0 -46L8 -34L6 16L-6 16L-8 -34Z",
+      "M-22 14L22 14L22 22L-22 22Z",
+      "M-4.5 22L4.5 22L4.5 38L-4.5 38Z",
+      circ(0, 41, 6.5)
+    );
+    cut(c, () => c.fillRect(-1.6, -28, 3.2, 36));
+    c.restore();
+  },
+  /* 방패: 정통 문장 방패와 십자 컷 */
+  shield: c => {
+    c.fill(P("M18 14L82 14L82 48C82 70 66 84 50 92C34 84 18 70 18 48Z"));
+    cut(c, () => {
+      c.fillRect(46.5, 22, 7, 56);
+      c.fillRect(26, 44, 48, 7);
+    });
+  },
+  /* 태양: 8갈래 광선과 중심 원 */
+  sun: c => {
+    c.fill(P(circ(50, 50, 22)));
+    for (let i = 0; i < 8; i++) {
+      c.save(); c.translate(50, 50); c.rotate(i * Math.PI / 4);
+      c.fill(P("M-5 -28L0 -46L5 -28Z"));
+      c.restore();
+    }
+  },
+  /* 초승달: 굵은 초승달과 작은 별 */
+  moon: c => {
+    c.fill(P(circ(46, 52, 36)));
+    cut(c, () => c.fill(P(circ(62, 40, 30))));
+    c.fill(P(star(4, 12, 3.6, 74, 28, 0)));
+  },
+  /* 눈꽃: 6갈래 기하학 결정 */
+  snowflake: c => {
+    c.lineWidth = 5.4; c.lineCap = "round";
+    for (let i = 0; i < 6; i++) {
+      c.save(); c.translate(50, 50); c.rotate(i * Math.PI / 3);
+      c.beginPath();
+      c.moveTo(0, 0); c.lineTo(0, -40);
+      c.moveTo(0, -24); c.lineTo(-10, -32);
+      c.moveTo(0, -24); c.lineTo(10, -32);
+      c.stroke();
+      c.restore();
+    }
+    c.fill(P(circ(50, 50, 7)));
+  },
+  /* 벚꽃: 끝이 살짝 갈라진 5장 꽃잎 */
+  blossom: c => {
+    for (let i = 0; i < 5; i++) {
+      c.save(); c.translate(50, 50); c.rotate(i * Math.PI * 2 / 5);
+      c.fill(P("M0 -8C-14 -14 -18 -32 -7 -43L0 -36L7 -43C18 -32 14 -14 0 -8Z"));
+      c.restore();
+    }
+    cut(c, () => c.fill(P(circ(50, 50, 8))));
+    c.fill(P(circ(50, 50, 4)));
+  },
+  /* 번개: 날카로운 지그재그 번개 */
+  bolt: c => {
+    c.fill(P("M58 6L20 54L46 54L38 94L80 44L53 44Z"));
+  },
+  /* 날개: 힘차게 뻗은 3단 깃털 날개 */
+  wing: c => {
+    c.fill(P("M14 78C14 44 38 18 86 14C78 28 70 36 58 42L82 40C72 52 62 58 48 62L72 62C58 74 38 82 14 78Z"));
+    cut(c, () => {
+      c.lineWidth = 3.2; c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(26, 66); c.quadraticCurveTo(46, 46, 70, 26);
+      c.stroke();
+    });
+  },
+  /* 보석: 선명한 다이아몬드 컷 */
+  gem: c => {
+    c.fill(P("M24 22L76 22L92 42L50 86L8 42Z"));
+    cut(c, () => {
+      c.lineWidth = 3.2; c.lineCap = "round"; c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(8, 42); c.lineTo(92, 42);
+      c.moveTo(24, 22); c.lineTo(35, 42); c.lineTo(50, 86);
+      c.moveTo(76, 22); c.lineTo(65, 42); c.lineTo(50, 86);
+      c.stroke();
+    });
+  },
+  /* 주사위: 5눈 정육면체 주사위 */
+  dice: c => {
+    c.fill(P("M20 14L80 14Q86 14 86 20L86 80Q86 86 80 86L20 86Q14 86 14 80L14 20Q14 14 20 14Z"));
+    cut(c, () => {
+      for (const [x, y] of [[32, 32], [68, 32], [50, 50], [32, 68], [68, 68]]) c.fill(P(circ(x, y, 6.8)));
+    });
+  },
+  /* 모래시계: 위아래 프레임과 모래 */
+  hourglass: c => {
+    parts(c,
+      "M20 12L80 12L80 20L20 20Z",
+      "M20 80L80 80L80 88L20 88Z",
+      "M26 20L74 20L54 48L54 52L74 80L26 80L46 52L46 48Z"
+    );
+    cut(c, () => {
+      c.fill(P("M34 24L66 24L53 42L47 42Z"));
+      c.fill(P("M36 74L64 74L53 60L47 60Z"));
+    });
+  },
+  /* 하트: 균형 잡힌 단색 하트 */
+  heart: c => {
+    c.fill(P("M50 86C24 68 12 52 12 34C12 20 23 12 35 12C43 12 47 16 50 22C53 16 57 12 65 12C77 12 88 20 88 34C88 52 76 68 50 86Z"));
+  },
+  /* 음표: 8분음표 쌍 (시각적 무게 중심을 맞춘 완만한 기울기) */
+  note: c => {
+    parts(c,
+      "M34 21L78 16L78 27L34 32Z",
+      "M34 21L42 21L42 72L34 72Z",
+      "M70 17L78 17L78 67L70 67Z",
+      circ(29, 72, 12.5),
+      circ(65, 67, 12.5)
+    );
+  },
+  /* 깃발: 펄럭이는 깃발과 깃대 */
+  flag: c => {
+    parts(c,
+      "M22 12L30 12L30 88L22 88Z",
+      "M30 16C48 10 62 24 84 18L80 54C60 60 46 46 30 52Z"
+    );
+  },
+  /* 과녁: 동심원과 십자선 */
+  target: c => {
+    fillEO(c, circ(50, 50, 42) + circ(50, 50, 32) + circ(50, 50, 22) + circ(50, 50, 12));
+    c.fill(P(circ(50, 50, 6)));
+    parts(c,
+      "M47.5 6L52.5 6L52.5 24L47.5 24Z",
+      "M47.5 76L52.5 76L52.5 94L47.5 94Z",
+      "M6 47.5L24 47.5L24 52.5L6 52.5Z",
+      "M76 47.5L94 47.5L94 52.5L76 52.5Z"
+    );
+  },
+  /* 나침반: 4방위 바늘과 외곽 링 */
+  compass: c => {
+    fillEO(c, circ(50, 50, 44) + circ(50, 50, 36));
+    c.fill(P("M50 12L60 40L88 50L60 60L50 88L40 60L12 50L40 40Z"));
+    cut(c, () => c.fill(P(circ(50, 50, 7))));
+  },
 };
 
 /* 전화기: 전자공학(chip), 화학공학(flask), 기계공학(gear), each centred in its own cell */
@@ -480,6 +657,8 @@ function drawChampionRoman(c, n, cx, cy, maxWidth) {
 }
 
 const fits = new Map();
+/* 광학 중심 보정 (위쪽이 무거운 방패, 왼쪽 아래가 무거운 음표 등) */
+const OPTICAL_OFFSET = { shield: [0, 2.8], note: [1.4, -1.2] };
 const MARKS = { mega: `${BASE_URL}brand/mega-evolution.png` };
 
 function readTheme() {
@@ -569,11 +748,11 @@ async function drawSeal(spec, off, th) {
 
   // Load any external assets needed for the device
   const ids = spec.glyphs || [];
-  if (spec.champ || spec.device === "n151" || spec.device === "hangul") {
+  if (spec.champ || spec.device === "n151" || spec.device === "hangul" || spec.text) {
     await Promise.all([
       document.fonts.load("700 26px 'Albert Sans'", "IVX"),
-      document.fonts.load("700 44px 'Albert Sans'", "151"),
-      document.fonts.load("700 35px Freesentation", "ㄱㅎ"),
+      document.fonts.load("700 44px 'Albert Sans'", spec.text || "151"),
+      document.fonts.load("700 35px Freesentation", spec.text || "ㄱㅎ"),
     ]).catch(() => {});
   }
   const sheet = ids.length ? await loadImage(SYMBOLS) : null;
@@ -621,12 +800,23 @@ async function drawSeal(spec, off, th) {
         return;
       }
       if (spec.scene) { SCENES[spec.scene]?.(ctx); return; }
+      if (spec.text) {
+        const label = String(spec.text).trim();
+        const isAscii = /^[\x00-\x7F]+$/.test(label);
+        const len = [...label].length;
+        const px = len <= 1 ? 56 : len === 2 ? 44 : len === 3 ? 36 : 30;
+        ctx.font = `700 ${px}px ${isAscii ? "'Albert Sans'" : "Freesentation"}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, 50, 52);
+        return;
+      }
       if (spec.device || spec.partner) { (DEVICES[spec.device] || DEVICES.paw)(ctx); return; }
       if (ids.length === 1) drawType(ctx, sheet, ids[0], C, C, DISC * .88);
     };
 
-    const lone = (spec.scene || spec.device || spec.partner) && !["monkey", "engineering"].includes(spec.device);
-    const fitKey = JSON.stringify([spec.device, spec.scene]);
+    const lone = (spec.scene || spec.device || spec.partner || spec.text) && !["monkey", "engineering"].includes(spec.device);
+    const fitKey = spec.text ? `t:${spec.text}` : JSON.stringify([spec.device, spec.scene]);
     let tf = null;
     if (lone && fits.has(fitKey)) tf = fits.get(fitKey);
     else if (lone) {
@@ -640,7 +830,10 @@ async function drawSeal(spec, off, th) {
       if (x1 >= x0) tf = { s: Math.min(FIT * 2 * DISC / Math.max(w, t), REACH * 2 * DISC / Math.hypot(w, t)), x: (x0 + x1 + 1) / 2 * u, y: (y0 + y1 + 1) / 2 * u };
       fits.set(fitKey, tf);
     }
-    if (tf) { dev.translate(C, C); dev.scale(tf.s, tf.s); dev.translate(-tf.x, -tf.y); }
+    if (tf) {
+      const [ox, oy] = OPTICAL_OFFSET[spec.device] || [0, 0];
+      dev.translate(C + ox, C + oy); dev.scale(tf.s, tf.s); dev.translate(-tf.x, -tf.y);
+    }
     drawOne(dev);
     dev.setTransform(1, 0, 0, 1, 0, 0);
     dev.globalCompositeOperation = "source-in";

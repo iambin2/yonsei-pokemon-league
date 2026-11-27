@@ -5,7 +5,7 @@ import Empty from "../components/common/Empty.jsx";
 import Button from "../components/common/Button.jsx";
 import Modal from "../components/common/Modal.jsx";
 import Fig from "../components/common/Fig.jsx";
-import { LitBoard, Medal, MedalBoard, bigMedal, useDesk, usePartnerMedal } from "../components/TitleFaces.jsx";
+import { LitBoard, Medal, MedalBoard, bigMedal, useDesk, usePartnerMedal, usePokemonLookup } from "../components/TitleFaces.jsx";
 import { medalUrl } from "../components/titleMedal.js";
 import { displaySeasonLabel, generationText } from "../services/seasonLabel.js";
 import { REGIONS, TITLE_TYPES, championMedal, generationOfTitle, ownMedal, regionMedal, regionOfTitle, typeMedal, typeOfTitle } from "../services/titleLooks.js";
@@ -76,7 +76,7 @@ function TitleRows({ medals, desk }) {
 }
 
 /* the medals of one group, in the board's order */
-function groupMedals(group, items, open, champions, partnerMedalOf) {
+function groupMedals(group, items, open, champions, partnerMedalOf, ownOpts) {
   const medal = (item, extra) => ({ key: item?.id || extra.key, item, on: holdersOf(item).length > 0, n: holdersOf(item).length, onClick: item ? open(item) : undefined, ...extra });
   if (group.key === "champion") {
     const hung = items.map(item => ({ item, gen: generationOfTitle(item.name) })).filter(x => x.gen).sort((a, b) => a.gen - b.gen);
@@ -103,7 +103,7 @@ function groupMedals(group, items, open, champions, partnerMedalOf) {
     return [...by].map(([p, g]) => ({ key: p, item: g.item, trainers: g.trainers, on: true, n: g.trainers.length, name: p, onClick: open(g.item, { pokemon: p, trainers: g.trainers }),
       spec: partnerMedalOf ? partnerMedalOf(p) : null, label: `${g.trainers.join(", ")}의 파트너 ${p}` }));
   }
-  return items.map(item => medal(item, { key: item.name, name: item.name, spec: ownMedal(item), label: `${item.name}${holdersOf(item).length ? `, ${holdersOf(item).join(", ")}` : ", 없음"}` }));
+  return items.map(item => medal(item, { key: item.name, name: item.name, spec: ownMedal(item, ownOpts), label: `${item.name}${holdersOf(item).length ? `, ${holdersOf(item).join(", ")}` : ", 없음"}` }));
 }
 
 /* 칭호의 시트: 그 칭호의 메달과 조건, 주인 수, 주인을 받은 순서대로. 이름을 누르면 그 트레이너의 기록. */
@@ -136,9 +136,11 @@ export default function TitlesPage({ data, admin, setModal, go }) {
   const choose = key => { setOpenKey(key); setParams({ tab: key, title: null }); };
   const close = () => { setSheet(null); setParams({ title: null }); };
   const partnerMedalOf = usePartnerMedal();
+  const pokemonLookup = usePokemonLookup();
+  const ownOpts = pokemonLookup ? { pokemonPicture: pokemonLookup.pictureOf, pokemonList: pokemonLookup.list } : undefined;
   const g = groups.find(x => x.key === openKey) || groups[0];
   const items = g ? (g.items || []) : [];
-  const medals = g ? groupMedals(g, items, (item, partner) => () => open(item, partner), data.champions, partnerMedalOf) : [];
+  const medals = g ? groupMedals(g, items, (item, partner) => () => open(item, partner), data.champions, partnerMedalOf, ownOpts) : [];
   // 관리자 모드에서는 칭호가 편집기의 문이고, 그 밖에서는 칭호 시트의 문이다
   function open(item, partner) {
     if (admin) { setModal({ type: "title", groupKey: g.key, item }); return; }
@@ -154,14 +156,14 @@ export default function TitlesPage({ data, admin, setModal, go }) {
     restored.current = true;
     const k = param("title");
     if (!k) return;
-    const m = [...medals, ...(strays.length ? groupMedals({ key: "own" }, strays, item => () => open(item)) : [])].find(x => String(x.key) === k);
+    const m = [...medals, ...(strays.length ? groupMedals({ key: "own" }, strays, item => () => open(item), undefined, undefined, ownOpts) : [])].find(x => String(x.key) === k);
     if (m?.onClick) m.onClick(); else setParams({ title: null });
   }, [medals.length]);
   // the other groups' medals are drawn while this one is read, so a tab pressed switches on whole (this board's own were asked for first)
   const desk = useDesk();
   useEffect(() => {
     if (!partnerMedalOf) return;
-    for (const x of groups) if (x !== g) for (const m of groupMedals(x, x.items || [], () => undefined, data.champions, partnerMedalOf))
+    for (const x of groups) if (x !== g) for (const m of groupMedals(x, x.items || [], () => undefined, data.champions, partnerMedalOf, ownOpts))
       if (m.spec) medalUrl(m.spec, !m.on, x.key === "type" ? bigMedal(TYPE_COLS[desk ? 0 : 1], desk) : bigAt(desk ? 204 : 132), true);
   }, [groups, Boolean(partnerMedalOf), desk]);
   // 타입과 지방 판에 자리가 없는 항목(운영자가 더한 이름)은 제 메달로 뒤에 선다
@@ -180,7 +182,7 @@ export default function TitlesPage({ data, admin, setModal, go }) {
           : g.key === "region" ? <RegionLine medals={medals} desk={desk} />
           : g.key === "partner" ? <PartnerShelves items={items} medals={medals} open={open} />
           : <TitleRows medals={medals} desk={desk} />}
-        {strays.length > 0 && <MedalBoard medals={groupMedals({ key: "own" }, strays, item => () => open(item))} cols={COLS} label={`${g.name} 그 밖`} />}
+        {strays.length > 0 && <MedalBoard medals={groupMedals({ key: "own" }, strays, item => () => open(item), undefined, undefined, ownOpts)} cols={COLS} label={`${g.name} 그 밖`} />}
       </div>
     </div>}
     {sheet && <TitleSheet {...sheet} go={go} onClose={close} />}

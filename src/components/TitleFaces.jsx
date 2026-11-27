@@ -21,7 +21,7 @@ const useGround = () => useSyncExternalStore(onGround, groundNow, () => "");
 
 /* a partner's medal takes its Pokémon's first type and its picture (the silhouette on it): read from the records' Pokémon directory, once */
 let partnerFacts = null;
-export function usePartnerMedal() {
+export function usePokemonLookup() {
   const [map, setMap] = useState(partnerFacts);
   useEffect(() => {
     if (partnerFacts) return;
@@ -34,7 +34,18 @@ export function usePartnerMedal() {
     }, () => { if (on) setMap(new Map()); });
     return () => { on = false; };
   }, []);
-  return map ? name => { const record = map.get(name); return partnerMedal(record?.type || "normal", record?.canonicalName ? spriteUrl(record.canonicalName) : ""); } : null;
+  if (!map) return null;
+  const list = [...map.values()];
+  const pictureOf = name => {
+    const record = map.get(name);
+    return record?.canonicalName ? spriteUrl(record.canonicalName) : "";
+  };
+  return { byName: map, list, pictureOf };
+}
+
+export function usePartnerMedal() {
+  const lookup = usePokemonLookup();
+  return lookup ? name => { const record = lookup.byName.get(name); return partnerMedal(record?.type || "normal", lookup.pictureOf(name)); } : null;
 }
 
 /* a medal shown wider than the small drawing's 384 device pixels is drawn large: a board's cell is the board's width over its columns,
@@ -99,18 +110,20 @@ export function MedalBoard({ medals, cols, className = "", label }) {
 /* 트레이너 시트의 칭호: 챔피언은 제 판에 크게(그 사람의 가장 큰 사실), 그 밖의 가진 칭호는 모두 한 판의 메달로(타입, 지방, 그 밖의 순). 그 아래 타입 18개와 지방 10개는
    메달 대신 이름의 표: 가진 이름만 굵게 켜지고 나머지는 흐린 채 자리를 지킨다. 표 머리에 몇 개를 가졌는지 가는 숫자로. */
 export function TrainerTitles({ champions = [], titles = [] }) {
-  const partnerMedalOf = usePartnerMedal();
+  const pokemonLookup = usePokemonLookup();
+  const partnerMedalOf = pokemonLookup ? name => { const record = pokemonLookup.byName.get(name); return partnerMedal(record?.type || "normal", pokemonLookup.pictureOf(name)); } : null;
   const mine = key => titles.filter(title => title.key === key);
   const types = new Set(mine("type").map(title => typeOfTitle(title.name)).filter(Boolean));
   const regions = new Set(mine("region").map(title => regionOfTitle(title.name)).filter(Boolean));
   const own = titles.filter(title => !["type", "region", "champion"].includes(title.key));
+  const ownOpts = pokemonLookup ? { pokemonPicture: pokemonLookup.pictureOf, pokemonList: pokemonLookup.list } : undefined;
   const reigns = champions.map(c => ({ key: `c${c.gen}`, on: true, big: true, name: `${c.gen}대 챔피언`, spec: championMedal(c.gen) }));
   const held = [
     ...TITLE_TYPES.filter(t => types.has(t.id)).map(t => ({ key: `y${t.id}`, on: true, name: `${t.korean} 엑스퍼트`, spec: typeMedal(t.id) })),
     ...REGIONS.filter(([r]) => regions.has(r)).map(([r]) => ({ key: `r${r}`, on: true, name: `${r} 엘리트`, spec: regionMedal(r) })),
     ...own.map((title, i) => title.key === "partner"
       ? { key: `p${i}`, on: true, name: `${title.pokemon} 파트너`, label: `${title.pokemon}의 파트너`, spec: partnerMedalOf ? partnerMedalOf(title.pokemon) : null }
-      : { key: `t${i}`, on: true, name: title.name, spec: ownMedal(title) }),
+      : { key: `t${i}`, on: true, name: title.name, spec: ownMedal(title, ownOpts) }),
   ];
   const lamps = (label, items, has) => { const n = items.filter(([key]) => has(key)).length; return <div className="tl-lampset">
     <div className="tl-mhead"><span className="t12 dim">{label}</span>
