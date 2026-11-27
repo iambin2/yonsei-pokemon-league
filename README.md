@@ -5,7 +5,7 @@ This is the official battle league records site for Pokémon Center Yonsei. It i
 - Production URL: https://league.pokeyonsei.com/
 - Data backend: Supabase (normalized schema and legacy key-value table)
 
-If you are taking over the site, read these guides in order: [`docs/HANDOVER.md`](docs/HANDOVER.md) for accounts, secrets, and recurring tasks, [`docs/OPERATOR.md`](docs/OPERATOR.md) for running a tournament screen by screen, and [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for incidents, backups, and recovery.
+If you are taking over the site, read these guides in order: [`docs/HANDOVER.md`](docs/HANDOVER.md) for accounts, secrets, and recurring tasks, [`docs/OPERATOR.md`](docs/OPERATOR.md) (or Korean quick guide [`docs/OPERATOR_KO.md`](docs/OPERATOR_KO.md)) for running a tournament screen by screen, and [`docs/RUNBOOK.md`](docs/RUNBOOK.md) for incidents, backups, and recovery.
 
 ---
 
@@ -93,7 +93,7 @@ Row Level Security (RLS) is enabled on every table in `public` and `ypl_schema_v
 - Open the `더보기` screen and select the admin login row (on wide desktop screens, click `관리자 로그인` at the end of the footer).
 - Sign in with the shared operator username and password. Keep the password among operators and never commit it to the repository.
 - Accounts live in Supabase Auth. A username without `@` is converted to `<username>@ypl.invalid` during sign-in (`src/storage.js`), and only accounts with `app_metadata.ypl_admin = true` can write to the database. Public sign-up is disabled.
-- Sessions stay in memory only, so refreshing the page requires signing in again.
+- Sessions persist in `sessionStorage` across reloads and expire when the browser tab closes.
 
 > Database permissions and RLS form the real write boundary. Follow [`docs/db-access-lockdown.md`](docs/db-access-lockdown.md) for the lockdown plan and order.
 
@@ -118,7 +118,7 @@ yonsei-pokemon-league/
    ├─ App.jsx                 # App shell (view state, site data, admin mode)
    ├─ storage.js              # Storage adapter (artifact → Supabase → localStorage)
    ├─ pages/                  # Views (홈, 기록, 대진표, 칭호, 팀 빌더, 계산기 ...)
-   ├─ components/             # Shared UI (common/Board.jsx scoreboard parts, layout/ top bar and tab bar)
+   ├─ components/             # Shared UI (common/Board.jsx Almanac parts re-exported via components/index.js, layout/ top bar and tab bar)
    ├─ admin/                  # Admin mode (editors, modals, mode bar)
    ├─ services/               # Domain logic (bracket lifecycle, projection, records, champions)
    ├─ data/                   # Team builder and calculator data
@@ -129,9 +129,9 @@ Navigation uses `?view=` query strings with no router library (`src/services/app
 
 ### Design system
 
-The site uses the YPL Scoreboard visual system. Facts light up in rectangular panels on an unlit navy board, numbers render in 7-segment style, and a single amber lamp signals anything live right now. The interface avoids decoration and shows only data-backed facts, expressing emphasis through light levels (lit, dim, off, inverted) rather than color. Spacing, type sizes, heights, and durations all derive from one golden ratio.
+The site uses the **YPL League Almanac** visual system (which replaced YPL Scoreboard on 2026-11-24). Nothing stands on a box or surface: entries are set directly on the navy ground in type, closed by 1px `--rule` hairlines, and each section opens with a 2px `--lit` rule. Big numbers render as thin Albert Sans figures (`Fig`), and a single 8px amber mark signals anything live right now. Emphasis is expressed through size, weight, and the 2px rule rather than color or frames, and spacing, type sizes, heights, and durations derive from one golden ratio.
 
-[`DESIGN.md`](DESIGN.md) is the sole authority for visual rules and rationale, and [`PRODUCT.md`](PRODUCT.md) defines product and brand rules. Token values live in `src/styles/tokens.css`, shared parts live in `src/components/common/Board.jsx` and `src/styles/board.css`, and `tests/designLaw.test.mjs` checks all CSS against these rules. Both light and dark themes run on `<html data-theme>`, so hardcoding colors breaks one of the themes silently.
+[`DESIGN.md`](DESIGN.md) is the sole authority for visual rules and rationale, and [`PRODUCT.md`](PRODUCT.md) defines product and brand rules. Token values live in `src/styles/tokens.css`, shared Almanac parts live in `src/components/common/Board.jsx` (re-exported from `src/components/index.js`) and `src/styles/board.css`, and `tests/designLaw.test.mjs` checks all CSS against these rules. Both light and dark themes (plus high contrast) run on `<html data-theme>`, so hardcoding colors breaks themes silently. See [`docs/ADDING_A_FEATURE.md`](docs/ADDING_A_FEATURE.md) for a step-by-step recipe when adding a new page or UI element.
 
 ---
 

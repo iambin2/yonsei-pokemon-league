@@ -37,17 +37,24 @@ jobs:
         env:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/backup-data.mjs backup
-      - name: Encrypt
+      - name: Encrypt and verify recovery
         env:
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
+          ARCHIVE="ypl-backup-$(date -u +%Y%m%d).tar.gz.gpg"
+          node scripts/restore-backup.mjs backup --out /tmp/restore-check.sql
+          test -s /tmp/restore-check.sql
+          rm -f /tmp/restore-check.sql
           tar -czf backup.tar.gz backup
           gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 \
-            -o "ypl-backup-$(date -u +%Y%m%d).tar.gz.gpg" backup.tar.gz <<< "$BACKUP_PASSPHRASE"
+            -o "$ARCHIVE" backup.tar.gz <<< "$BACKUP_PASSPHRASE"
+          # Verify the encrypted archive decrypts and unpacks cleanly before uploading.
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --decrypt "$ARCHIVE" <<< "$BACKUP_PASSPHRASE" | tar -tzf - > /dev/null
           rm -rf backup backup.tar.gz
           cat > HOW-TO-OPEN.txt <<'EOF'
           gpg --decrypt ypl-backup-YYYYMMDD.tar.gz.gpg > backup.tar.gz   (asks for BACKUP_PASSPHRASE)
           tar -xzf backup.tar.gz   ->  backup/<schema>.<table>.json, backup/README.txt
+          npm run restore:plan -- backup --out restore.sql
           EOF
       - uses: actions/upload-artifact@v4
         with:
@@ -61,3 +68,4 @@ jobs:
         uses: ./.github/actions/alert
         with:
           status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

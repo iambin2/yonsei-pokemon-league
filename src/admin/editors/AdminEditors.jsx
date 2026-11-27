@@ -4,6 +4,7 @@ import { normTeam as normalizeLegacyParty } from "../../services/legacyPartyImag
 import { Dropdown, Modal, Segmented, siteAlert } from "../../components/index.js";
 import { CUP_RULES, REGULATIONS } from "../../data/index.js";
 import { getApplicationEventTypeLabel } from "../../services/bracketTeamParticipants.js";
+import { DEFAULT_POINT_TABLE } from "../../services/bracketRankingAwardSnapshot.js";
 import { announcementEventType, changeAnnouncementEventType, normalizedAnnouncementDivision } from "../../services/leagueIntake.js";
 import { listAvailableChampionshipEditions } from "../../services/normalizedCompetitionService.js";
 import { isAutoCheckedTitle } from "../../services/titleAwards.js";
@@ -343,7 +344,8 @@ export function StandingsEditor({ title, rows, onClose, onSave }) {
     <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={submit}>저장</Button></div>
   </Modal>);
 }
-export function RoundsEditor({ title, rounds, onClose, onSave, seasons }) {
+export function RoundsEditor({ title, rounds, onClose, onSave, seasons, pointPolicy }) {
+  const masterPts = { ...DEFAULT_POINT_TABLE.individual.master, ...(pointPolicy?.individual?.master || {}) };
   const splitL=(s)=>String(s||"").split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
   const dkey=(d)=>{const m=String(d||"").match(/\d+/g)||[];return (+(m[0]||0))*1e8+(+(m[1]||0))*1e6+(+(m[2]||0))*1e4;};
   const rkey=(rd)=>{const n=parseInt(String(rd||""),10);return isNaN(n)?999999:n;};
@@ -381,7 +383,7 @@ export function RoundsEditor({ title, rounds, onClose, onSave, seasons }) {
     onSave(out);
   };
   return (<Modal title={`${title} 회차 수정`} onClose={onClose}>
-    <div className="pts-note" style={{marginBottom:"var(--s5)"}}>포인트 기준은 우승 <b>60</b>, 준우승 <b>40</b>, 4강 <b>20</b>점입니다.</div>
+    <div className="pts-note" style={{marginBottom:"var(--s5)"}}>포인트 기준은 우승 <b>{masterPts.win}</b>, 준우승 <b>{masterPts.ru}</b>, 4강 <b>{masterPts.sf}</b>점입니다.</div>
     <div style={{display:"flex",alignItems:"center",gap:"var(--s3)",flexWrap:"wrap",marginBottom:"var(--s5)"}}>
       <Button variant="second" size="sm" onClick={add}>회차 추가 (맨 아래)</Button>
       <Button variant="second" size="sm" onClick={sortNow}>날짜순 정렬</Button>

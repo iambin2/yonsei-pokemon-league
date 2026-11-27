@@ -13,6 +13,11 @@
 -- 한 트랜잭션이다. 이미 옮겼으면 아무것도 바꾸지 않는다. Supabase SQL 편집기에서 실행한다.
 
 begin;
+do $$ begin
+  if current_setting('ypl.allow_one_time_sql', true) is distinct from 'yes' then
+    raise exception 'ONE-TIME SCRIPT (2026-11-03): already applied in production. Do not re-run.';
+  end if;
+end $$;
 
 do $$
 declare

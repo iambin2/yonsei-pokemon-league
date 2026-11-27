@@ -30,11 +30,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run data:champions
+      - run: npm run data:battle-info
+      - run: npm run data:fill-samples
 
       - name: Check for changes
         id: diff
         run: |
-          if git diff --quiet -- src/data/champions-data.json src/data/records-pokemon.json; then
+          if git diff --quiet -- src/data/champions-data.json src/data/records-pokemon.json src/data/battle-info-ko.json src/data/random-sets.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Champions data is already up to date."
           else
@@ -53,14 +55,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C "$BRANCH"
-          git commit -m "chore(data): refresh Champions data from Showdown and PokeAPI" -- src/data/champions-data.json src/data/records-pokemon.json
+          git commit -m "chore(data): refresh Champions data, Korean battle info, and missing samples" -- src/data/champions-data.json src/data/records-pokemon.json src/data/battle-info-ko.json src/data/random-sets.json
           git push --force origin "$BRANCH"
           if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" = "0" ]; then
             gh pr create --base main --head "$BRANCH" \
               --title "chore(data): refresh Champions data" \
-              --body "The weekly refresh found new Showdown or PokeAPI data. npm run data:champions validated it and npm test passed. Merging deploys it."
+              --body "The weekly refresh updated Showdown/PokeAPI data, Korean battle info, and any missing fallback sample sets, and npm test passed. Merging deploys the site and battle function."
           fi
       - if: always()
         uses: ./.github/actions/alert
         with:
           status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

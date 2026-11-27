@@ -128,12 +128,6 @@ const RULES = {
 const C = "src/styles/components.css", P = "src/styles/pages.css", T = "src/styles/tokens.css";
 const B = "src/styles/bracket.css", R = "src/styles/records.css";
 const EXCEPT = {
-  "panels: no line between rows; a hairline edges only the bars, the dock, a tab row and the footer (Panels)": {
-    "the edges DESIGN.md names (Entries and rules)": [
-      "src/styles/shell.css | .topbar | box-shadow: inset 0 -1px 0 var(--rule)", "src/styles/shell.css | .tabbar | box-shadow: inset 0 1px 0 var(--rule)",
-      "src/styles/board.css | .dock | box-shadow: inset 0 1px 0 var(--rule)", "src/styles/board.css | .tabsline-frame | box-shadow: inset 0 -1px 0 var(--rule)",
-      "src/styles/shell.css | .site-foot | box-shadow: inset 0 1px 0 var(--rule)"],
-  },
   "depth: a z-index is a named step": {
     "a stack orders itself: toasts by their place": ["src/components/common/Toaster.jsx | style | z-index: 10 - index"],
   },

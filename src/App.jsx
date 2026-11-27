@@ -1,6 +1,7 @@
 import React, { lazy, useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
 import { flushSync } from "react-dom";
-import { bracketRouteSearch, readInitialAppView } from "./services/appRouting.js";
+import { buildViewSearch, readInitialAppView } from "./services/appRouting.js";
+import { resolveSiteConfig } from "./services/siteConfig.js";
 import { isPublished } from "./services/announcementTimes.js";
 import { setPointTable } from "./services/bracketRankingAwardSnapshot.js";
 import { loadSiteData, saveSiteData, seenSiteData, submitAnnouncementResponse } from "./services/siteDataService.js";
@@ -10,7 +11,6 @@ import { accountsReady as linkAccountsReady, listLinkRequests } from "./services
 import HomePage, { todayEvent } from "./pages/HomePage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import { SiteHeader, SiteFooter, NAV_ITEMS, SiteDialogHost } from "./components/index.js";
-import { DISCORD_URL } from "./components/layout/SiteHeader.jsx";
 import TabBar, { MORE_ITEMS } from "./components/layout/Navigation.jsx";
 import Menu from "./components/common/Menu.jsx";
 import Toaster from "./components/common/Toaster.jsx";
@@ -59,8 +59,9 @@ const CalculatorPage = lazyPage(() => import("./pages/CalculatorPage.jsx"));
 const TitlesPage = lazyPage(() => import("./pages/TitlesPage.jsx"));
 const BattlePage = lazyPage(() => import("./pages/BattlePage.jsx"));
 const AdminPage = lazyPage(() => import("./admin/AdminPage.jsx"));
-// dev only: the production build leaves the lab and the engine it loads out
+// dev only: the production build leaves the lab and the component catalog out
 const BattleLabPage = import.meta.env.DEV ? lazyPage(() => import("./pages/BattleLabPage.jsx")) : null;
+const DevKitPage = import.meta.env.DEV ? lazyPage(() => import("./pages/DevKitPage.jsx")) : null;
 const AdminModalHost = lazy(() => import("./admin/AdminModalHost.jsx"));
 const PAGES = { about: AboutPage, privacy: PrivacyPage, alerts: AlertsPage, board: BoardPage, bracket: BracketsPage, champions: ChampionsPage, news: NewsPage, records: RecordsPage, builder: TeamBuilderPage, calc: CalculatorPage, titles: TitlesPage, battle: BattlePage };
 const ready = v => !PAGES[v] || PAGES[v].ready();
@@ -173,34 +174,13 @@ export default function App() {
     // 지금 탭을 다시 누르면 맨 위로 부드럽게 올라간다. 그 탭 안에서 공지, 글, 대진표를 열어 두었으면 목록으로 돌아간다.
     const here=new URLSearchParams(window.location.search);
     const inside=["notice","post","pb","id","event","match"].some(key=>here.has(key))||(view==="bracket"&&here.has("eventId"))||Boolean(window.history.state?.bracketId);
-    if(v===view&&!inside&&!options.eventId&&!options.notice&&!options.trainer&&!options.tab&&!options.battle&&!options.me){ setMore(null); window.scrollTo({top:0,behavior:reduced()?"auto":"smooth"}); return; }
+    if(v===view&&!inside&&!options.eventId&&!options.notice&&!options.trainer&&!options.tab&&!options.battle&&!options.me&&!options.post&&!options.pb){ setMore(null); window.scrollTo({top:0,behavior:reduced()?"auto":"smooth"}); return; }
+    const url=new URL(window.location.href);
+    url.search=buildViewSearch(v,options,window.location.search);
     if((v==="builder"||v==="bracket")&&options.eventId){
-      const url=new URL(window.location.href);
-      // a battle's own keys (?id=, ?event=, ?match=, ?team=) stay with the battle
-      const here=new URLSearchParams(window.location.search); ["id","event","match","team"].forEach(key=>here.delete(key));
-      // a match named by the move (the home's 다음 경기) opens its sheet on the bracket (?m=, BracketsPage ElimBoard)
-      url.search= v==="builder" ? `view=builder&eventId=${encodeURIComponent(options.eventId)}` : bracketRouteSearch(options.eventId, `?${here}`).slice(1) + (options.m ? `&m=${encodeURIComponent(options.m)}` : "");
       pushHistory({view:v,eventId:options.eventId},url);
-    }else{
-      // 모든 탭이 주소에 남는다 — 새로고침, 뒤로 가기, 링크 공유 모두 같은 화면으로 돌아온다.
-      const url=new URL(window.location.href);
-      url.searchParams.delete("eventId");
-      // 한 화면 안의 항목을 바로 여는 링크: 공지(?notice=), 트레이너 기록(?trainer=), 랭킹 탭(?tab=rank).
-      ["notice","trainer","pokemon","title","gen","m","tab","format","post","pb","id","event","match","team","me"].forEach(key=>url.searchParams.delete(key));
-      if(v==="news"&&options.notice) url.searchParams.set("notice",options.notice);
-      // 한 배틀을 바로 여는 링크(?id=): 홈의 지금 경기, 기록의 배틀 줄
-      if(v==="battle"&&options.battle) url.searchParams.set("id",options.battle);
-      if(v==="records"&&options.trainer) url.searchParams.set("trainer",options.trainer);
-      // 내 기록 찾기(?me=1): 바의 계정 버튼이 여는 트레이너 목록
-      if(v==="records"&&options.me) url.searchParams.set("me","1");
-      if((v==="records"||v==="board"||v==="bracket"||v==="battle")&&options.tab) url.searchParams.set("tab",options.tab);
-      // 게시판의 샘플과 파티 소개글(?post=), 사설 대진표(?pb=)를 바로 여는 링크
-      if(v==="board"&&options.post) url.searchParams.set("post",options.post);
-      if(v==="board"&&options.format==="double") url.searchParams.set("format","double");
-      // 팀 빌더의 룰 설정(reg, cup, type)은 빌더 주소에만 남긴다.
-      if(v!=="builder") ["reg","cup","type"].forEach(key=>url.searchParams.delete(key));
-      if(v==="home") url.searchParams.delete("view"); else url.searchParams.set("view",v);
-      if(inside||url.href!==window.location.href) pushHistory({view:v},url);
+    }else if(inside||url.href!==window.location.href){
+      pushHistory({view:v},url);
     }
     // I1: 지금 화면은 바로 비키고, 새 화면이 맨 위에서 살짝 위로 올라온다.
     // 누름의 반응이 먼저다: 눌림이 보인 프레임이 나간 뒤에 새 페이지를 그린다.
@@ -310,11 +290,12 @@ export default function App() {
   // the operators' point table (운영, 포인트) is what the record sheet reads when an event goes into the records
   useMemo(()=>setPointTable(data?.pointPolicy),[data?.pointPolicy]);
   const shown=useMemo(()=>admin||!data?data:{...data,announcements:(data.announcements||[]).filter(a=>isPublished(a))},[data,admin]);
+  const siteConfig=useMemo(()=>resolveSiteConfig(shown?.siteConfig),[shown?.siteConfig]);
   const live=useMemo(()=>shown?todayEvent(shown.announcements):null,[shown]);
   const moreItems=[
     ...MORE_ITEMS.map(([key,label])=>({key,label,current:view===key,onSelect:()=>go(key)})),
     {key:"sep",sep:true},
-    {key:"discord",label:"디스코드 참여",href:DISCORD_URL},
+    {key:"discord",label:"디스코드 참여",href:siteConfig.discordUrl},
     {key:"admin",label:admin?"관리자 로그아웃":"관리자 로그인",onSelect:onAdmin},
   ];
   return (
@@ -330,9 +311,9 @@ export default function App() {
         {live&&view!=="home"&&view!=="bracket"&&<LiveStrip name={live.name} onGo={()=>go("bracket")}/>}
         {view==="home"&&<HomePage data={shown} go={go} admin={admin} siteFailed={siteFailed} onRetrySite={refresh}/>}
         {view==="about"&&<AboutPage go={go} data={shown} admin={admin}/>}
-        {view==="privacy"&&<PrivacyPage/>}
+        {view==="privacy"&&<PrivacyPage siteConfig={siteConfig}/>}
         {view==="alerts"&&<AlertsPage go={go}/>}
-        {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} contrast={contrast} onToggleContrast={toggleContrast} admin={admin} onAdmin={onAdmin}/>}
+        {view==="more"&&<MorePage go={go} themePref={themePref} onTheme={chooseTheme} contrast={contrast} onToggleContrast={toggleContrast} admin={admin} onAdmin={onAdmin} siteConfig={siteConfig}/>}
         {view==="news"&&<NewsPage data={shown} siteFailed={siteFailed} admin={admin} setModal={setModal} save={save} submitForm={submitForm} refresh={refresh} go={go} flash={flash}/>}
         {view==="board"&&<BoardPage data={shown} admin={admin} save={save} flash={flash} go={go}/>}
         {view==="records"&&<RecordsPage data={shown} admin={admin} setModal={setModal} save={save} go={go}/>}
@@ -342,13 +323,14 @@ export default function App() {
         {view==="battle"&&<BattlePage flash={flash} go={go}/>}
         {view==="admin"&&<AdminPage data={shown} admin={admin} go={go} onAdmin={onAdmin} save={save} flash={flash} onRequests={setLinkPending}/>}
         {view==="lab"&&BattleLabPage&&<BattleLabPage flash={flash} go={go}/>}
+        {view==="dev-kit"&&DevKitPage&&<DevKitPage/>}
         {view==="titles"&&<TitlesPage data={shown} admin={admin} setModal={setModal} go={go}/>}
         {view==="champions"&&<ChampionsPage data={shown} admin={admin} setModal={setModal} go={go}/>}
         </LazyContent>}
       </main>
       {going&&<div className="y-going" role="status" aria-label="불러오는 중"><Busy/></div>}
       </div>
-      {data&&<SiteFooter onNavigate={go} onAdmin={!admin?onAdmin:null}/>}
+      {data&&<SiteFooter onNavigate={go} onAdmin={!admin?onAdmin:null} siteConfig={siteConfig}/>}
 
       <TabBar view={going||view} onNavigate={go} live={live}/>
       {admin&&<AdminModeBar onLogout={logout} requests={linkPending} onDesk={view==="admin"?null:()=>go("admin")}/>}

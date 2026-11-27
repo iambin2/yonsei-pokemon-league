@@ -1,0 +1,69 @@
+name: Refresh battle samples and tower pool
+
+# Every Monday (after Champions data refresh): fills any newly legal species missing from src/data/random-sets.json
+# and pulls newly published season top-team files from champs.pokedb.tokyo into src/data/ranker-teams.json and
+# src/data/tower-tiers.json. Opens a PR to main only when files change; merging deploys both the site and the battle function.
+on:
+  schedule:
+    - cron: "30 0 * * 1" # Monday 09:30 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: refresh-battle-samples
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: data/battle-samples
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run data:fill-samples
+      - run: node scripts/build-ranker-teams.mjs --auto
+      - run: node scripts/check-sets.mjs
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- src/data/random-sets.json src/data/ranker-teams.json src/data/tower-tiers.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Battle samples and tower pools are already up to date."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.diff.outputs.changed == 'true'
+        run: npm test
+
+      - if: steps.diff.outputs.changed == 'true'
+        name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git commit -m "chore(data): refresh battle samples and 도전의 탑 ranker teams" -- src/data/random-sets.json src/data/ranker-teams.json src/data/tower-tiers.json
+          git push --force origin "$BRANCH"
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" = "0" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(data): refresh battle samples and tower teams" \
+              --body "Automated refresh updated missing sample sets and/or newly published ranker teams and tower tiers, and npm test passed. Merging deploys the site and battle function."
+          fi
+
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

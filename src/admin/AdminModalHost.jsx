@@ -11,7 +11,7 @@ import {
   TitleItemEditor,
 } from "./editors/AdminEditors.jsx";
 
-export default function AdminModalHost({ modal, data, setModal, save, refresh, setAdmin, flash, normTeam }) {
+export default function AdminModalHost({ modal, data, setModal, save, refresh, setAdmin, flash }) {
   if (!modal) return null;
   const close = () => setModal(null);
   // 삭제는 되돌릴 수 없다. 게시판 글 삭제와 같은 확인을 한 번 거친다.
@@ -37,7 +37,6 @@ export default function AdminModalHost({ modal, data, setModal, save, refresh, s
     return (
       <ChampionEditor
         item={modal.item}
-        normTeam={normTeam}
         onClose={close}
         onSave={(champion) => {
           const champions = modal.item
@@ -219,6 +218,7 @@ export default function AdminModalHost({ modal, data, setModal, save, refresh, s
         rounds={modal.rounds}
         simple={modal.simple}
         seasons={modal.seasons}
+        pointPolicy={data.pointPolicy}
         onClose={close}
         onSave={(rounds) => { save(modal.build(rounds)); close(); }}
       />

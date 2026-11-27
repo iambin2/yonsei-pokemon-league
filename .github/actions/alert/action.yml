@@ -8,6 +8,10 @@ inputs:
   status:
     description: job.status of the calling job
     required: true
+  discord_webhook:
+    description: Optional Discord webhook URL (repository secret DISCORD_ALERT_WEBHOOK)
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -15,12 +19,22 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         STATUS: ${{ inputs.status }}
+        DISCORD_WEBHOOK: ${{ inputs.discord_webhook }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
         TITLE="자동 작업 실패: $GITHUB_WORKFLOW"
         OPEN="$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "in:title $GITHUB_WORKFLOW" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+        notify_discord() {
+          [ -n "$DISCORD_WEBHOOK" ] || return 0
+          local msg="$1"
+          local body
+          body="$(jq -cn --arg content "$msg" '{content: $content}')"
+          curl --silent --show-error -X POST -H "Content-Type: application/json" -d "$body" "$DISCORD_WEBHOOK" || true
+        }
         if [ "$STATUS" = "failure" ] && [ -z "$OPEN" ]; then
           gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --body "$(printf '%s 작업이 실패했습니다.\n\n실행 기록: %s\n\n대응 순서는 docs/RUNBOOK.md에 있습니다. 다음 실행이 성공하면 이 이슈는 저절로 닫힙니다.' "$GITHUB_WORKFLOW" "$RUN_URL")"
+          notify_discord "$(printf '[YPL 자동 작업 실패] %s\n실행 기록: %s\n대응 절차: docs/RUNBOOK.md' "$GITHUB_WORKFLOW" "$RUN_URL")"
         elif [ "$STATUS" = "success" ] && [ -n "$OPEN" ]; then
           gh issue close -R "$GITHUB_REPOSITORY" "$OPEN" --comment "다시 성공했습니다: $RUN_URL"
+          notify_discord "$(printf '[YPL 자동 작업 복구] %s 작업이 다시 성공했습니다.\n실행 기록: %s' "$GITHUB_WORKFLOW" "$RUN_URL")"
         fi

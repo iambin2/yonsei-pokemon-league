@@ -37,7 +37,7 @@ jobs:
             -d '{"action":"warm"}' "$VITE_SUPABASE_URL/functions/v1/battle"
       - if: always()
         run: |
-          for w in uptime.yml push-sweep.yml backup.yml learn-cpu-sets.yml refresh-champions-data.yml; do
+          for w in uptime.yml push-sweep.yml backup.yml learn-cpu-sets.yml refresh-champions-data.yml refresh-battle-samples.yml refresh-media-assets.yml; do
             gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$w/enable"
           done
         env:
@@ -46,3 +46,4 @@ jobs:
         uses: ./.github/actions/alert
         with:
           status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

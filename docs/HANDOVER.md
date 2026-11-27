@@ -39,6 +39,7 @@ As of 2026-11-22, the backup passphrase is stored in the owner's personal Google
 | `SUPABASE_SERVICE_ROLE_KEY` | GitHub repo Secrets | Weekly backup, CPU learning | Copy again from dashboard Settings, API |
 | `BACKUP_PASSPHRASE` | GitHub repo Secrets, shared password manager | Weekly backup encryption | Without this value, existing backups cannot be decrypted. Always keep it in two places |
 | `SUPABASE_ACCESS_TOKEN` | GitHub repo Secrets | Automatic function deployment | Issued 2026-11-22 as "ypl-site GitHub Actions", no expiry, scoped to Edge Functions read/write and Project Settings read on `YPL_DB`. During handover, have the successor issue a new token with the same scopes at supabase.com (Account, Access Tokens), replace the secret, and revoke the old token |
+| `DISCORD_ALERT_WEBHOOK` | GitHub repo Secrets (optional) | Real-time Discord alerts when any scheduled or deploy workflow fails or recovers | Create a webhook in the officers' Discord channel and paste the URL into repo Secrets |
 | `VAPID_KEYS` | Supabase function Secrets, shared password manager | Push notification signing | The public half is `VAPID_PUBLIC_KEY` in `src/services/announcementPush.js`. Rotating the key pair breaks all existing device subscriptions. The private half is also in the owner's local `.env.local`; move it to the shared password manager |
 | Google OAuth client secret | Supabase dashboard Authentication, Providers, Google | Google login | Reissue in Google Cloud |
 | Operator password | Supabase Auth | Admin screen | See section 4 |
@@ -66,13 +67,11 @@ When an automated workflow fails, it opens a GitHub issue titled `"자동 작업
 |---|---|---|
 | Hourly (delayed by a few hours when GitHub is busy) | Checks that the site, battle function, and database respond (`uptime.yml`). Also prevents the database from pausing after 7 idle days and re-enables scheduled workflows so they do not disable after 60 days without commits | Automatic |
 | Every 15 minutes | Sweeps pending push notifications (`push-sweep.yml`) | Automatic |
-| Sundays at 03:00 | Exports all tables, encrypts the archive, and stores it for 90 days (`backup.yml`) | Automatic |
-| Mondays | Opens PRs for Pokémon data refresh (`refresh-champions-data.yml`), CPU set learning (`learn-cpu-sets.yml`), and dependency updates (Dependabot) | PR creation is automatic; merging is manual (section 6) |
+| Sundays at 03:00 | Exports all tables, verifies restore SQL and archive decryption, encrypts with `BACKUP_PASSPHRASE`, and stores for 90 days (`backup.yml`) | Automatic |
+| Mondays | Opens PRs for Pokémon data + Korean battle info + missing samples (`refresh-champions-data.yml`), battle samples + `도전의 탑` ranker teams (`refresh-battle-samples.yml`), CPU set learning (`learn-cpu-sets.yml`), PokeOS sprites + cries (`refresh-media-assets.yml`), and dependency updates (Dependabot) | PR creation is automatic; merging is manual (section 6) |
 | Semi-annually | Season rollover | Automatic (determined by date in the database) |
-| End of each `포켓몬 챔피언스` season | Update ranker teams by adding the new season number to `SEASONS` in `scripts/build-ranker-teams.mjs` and running it | Manual (see RUNBOOK "Ranker teams") |
-| New regulation release | Follow RUNBOOK "Regulation updates" | Manual |
-| Per tournament | Follow OPERATOR.md | Operator |
-| Once per semester | Download and decrypt one backup as a recovery drill | Manual |
+| New regulation release | Follow RUNBOOK "Regulation updates" (`npm run regulation:rollover`) | Manual |
+| Per tournament | Follow OPERATOR.md (or Korean quick guide OPERATOR_KO.md) | Operator |
 
 ## 6. PR merges and branches
 

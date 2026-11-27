@@ -7,8 +7,9 @@ import { useSlideLine } from "../common/Board.jsx";
 import { TABS, WIDE_TABS, current, tabOf, useWideNav } from "./Navigation.jsx";
 import { follow } from "../common/Board.jsx";
 import { viewHref } from "../../services/appRouting.js";
+import { DEFAULT_DISCORD_URL } from "../../services/siteConfig.js";
 
-export const DISCORD_URL = "https://discord.gg/T7UZHhGvUh";
+export const DISCORD_URL = DEFAULT_DISCORD_URL;
 
 /* YPL Wing Y (2026-10-27 다듬음, H) — public/brand/ypl-wing-y.svg 와 같은 도형, 단색(F1): 서 있는 면의 글자색을 따른다.
    2026-10-12 로고를 그린 규칙(윗변과 나란한 깃털 층, 한 사선 위의 깃털 끝, 세 갈래 꼬리)으로 다시 세우고

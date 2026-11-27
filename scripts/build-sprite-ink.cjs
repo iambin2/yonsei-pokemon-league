@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
   const base = `http://127.0.0.1:${server.address().port}`;
   const slugs = fs.readdirSync(DIR).filter(f => f.endsWith(".webp")).map(f => f.slice(0, -5)).sort();
   const { chromium } = playwright();
-  const browser = await chromium.launch({ channel: "chrome" });
+  const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
   const page = await browser.newPage();
   await page.goto(base + "/");
   const table = await page.evaluate(async slugs => {

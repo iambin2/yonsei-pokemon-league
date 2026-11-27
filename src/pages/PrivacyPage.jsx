@@ -1,13 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import Prose from "../components/common/Prose.jsx";
-import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
+import { resolveSiteConfig } from "../services/siteConfig.js";
 
 /* 개인정보처리방침 (?view=privacy). 구글 로그인의 동의 화면이 이 주소를 가리킨다(docs/db/player_accounts.sql).
    공지 본문과 같은 모양: 제목, 시행일 한 줄, 조문. 처리하는 항목이 바뀌면 이 글과 시행일을 함께 고친다. */
 // 2026-11-22: 배틀, 컴퓨터 배틀, 계정의 팀, 도전의 탑, 알림 종류, 변경 기록, 백업과 본인이 하는 연결 해제와 삭제를 더했다.
 // 제11조대로 시행 전에 공지로 알린다(운영진이 공지를 쓴다).
-const EFFECTIVE = "2026년 11월 29일";
-const TEXT = `포켓몬 센터 연세점(이하 “운영진”)은 YPL(Yonsei Pokémon League) 사이트 league.pokeyonsei.com(이하 “사이트”)을 운영하면서 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 원활하게 처리하기 위하여 다음과 같이 개인정보처리방침을 수립하여 공개합니다.
+function buildPolicyText(discordUrl, effective) {
+  return `포켓몬 센터 연세점(이하 “운영진”)은 YPL(Yonsei Pokémon League) 사이트 league.pokeyonsei.com(이하 “사이트”)을 운영하면서 「개인정보 보호법」에 따라 이용자의 개인정보를 보호하고 관련 고충을 원활하게 처리하기 위하여 다음과 같이 개인정보처리방침을 수립하여 공개합니다.
 
 # 제1조(개인정보의 처리 목적)
 운영진은 다음의 목적을 위하여 개인정보를 처리하며, 목적이 변경되는 경우에는 사전에 사이트 공지로 알립니다.
@@ -66,27 +66,28 @@ const TEXT = `포켓몬 센터 연세점(이하 “운영진”)은 YPL(Yonsei P
 # 제10조(개인정보 보호 담당 및 문의처)
 개인정보 처리에 관한 문의, 열람 등의 요구, 고충 처리는 아래 문의처로 연락하여 주시기 바랍니다.
 담당: 포켓몬 센터 연세점 운영진
-문의처: YPL 디스코드 서버 ${DISCORD_URL}
+문의처: YPL 디스코드 서버 ${discordUrl}
 
 # 제11조(개인정보처리방침의 변경)
-이 개인정보처리방침은 ${EFFECTIVE}부터 적용됩니다. 내용이 변경되는 경우 시행 전에 사이트 공지로 알립니다.`;
+이 개인정보처리방침은 ${effective}부터 적용됩니다. 내용이 변경되는 경우 시행 전에 사이트 공지로 알립니다.`;
+}
 
-/* the articles' names, read from the text itself, for the 439 (draft 2A, 2026-11-19): a press goes to that article */
-const ARTICLES = [...TEXT.matchAll(/^# 제(\d+)조\((.+?)\)/gm)].map(m => ({ n: m[1], name: m[2] }));
-
-export default function PrivacyPage() {
+export default function PrivacyPage({ siteConfig }) {
+  const cfg = resolveSiteConfig(siteConfig);
+  const text = useMemo(() => buildPolicyText(cfg.discordUrl, cfg.privacyEffectiveDate), [cfg.discordUrl, cfg.privacyEffectiveDate]);
+  const articles = useMemo(() => [...text.matchAll(/^# 제(\d+)조\((.+?)\)/gm)].map(m => ({ n: m[1], name: m[2] })), [text]);
   const body = React.useRef(null);
   const goTo = i => body.current?.querySelectorAll("h3")[i]?.scrollIntoView({ block: "start" });
   return (
     <section className="nw pv">
       <h1 className="page-title">개인정보처리방침</h1>
-      <p className="t12 dim reg nw-req">시행일 {EFFECTIVE}</p>
-      <div className="nw-body" ref={body}><Prose text={TEXT} /></div>
+      <p className="t12 dim reg nw-req">시행일 {cfg.privacyEffectiveDate}</p>
+      <div className="nw-body" ref={body}><Prose text={text} /></div>
       {/* the 439 holds the articles, held in view as the reading scrolls (Typesetting: a page of reading keeps it in the 709) */}
       <nav className="pv-toc" aria-labelledby="pv-toc-h">
         <div className="sh"><h2 className="t20" id="pv-toc-h">조문</h2></div>
         <ol className="stack opens pv-toc-list">
-          {ARTICLES.map((a, i) => <li key={a.n}><button type="button" className="pn pv-toc-row" onClick={() => goTo(i)}>
+          {articles.map((a, i) => <li key={a.n}><button type="button" className="pn pv-toc-row" onClick={() => goTo(i)}>
             <span className="num t12 dim">제{a.n}조</span><b className="t15">{a.name}</b></button></li>)}
         </ol>
       </nav>

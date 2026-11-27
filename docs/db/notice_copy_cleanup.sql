@@ -17,6 +17,11 @@
 -- 적용: Supabase SQL 편집기에서 한 번 실행.
 
 begin;
+do $$ begin
+  if current_setting('ypl.allow_one_time_sql', true) is distinct from 'yes' then
+    raise exception 'ONE-TIME SCRIPT (2026-11-06): already applied in production. Do not re-run.';
+  end if;
+end $$;
 
 create schema if not exists ypl_backup;
 create table if not exists ypl_backup.site_data_20261106_notice_copy as

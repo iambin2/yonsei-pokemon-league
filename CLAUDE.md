@@ -9,6 +9,8 @@ npm run dev      # Vite dev server (http://localhost:5173)
 npm run build    # production build → dist/
 npm run preview  # serve the built dist/
 npm test         # full suite: node --test "tests/*.test.mjs"  (including the design law)
+npm run verify:db  # validate docs/db SQL in disposable PostgreSQL (PGlite), no Supabase connection
+npm run backup -- [output-dir]  # read-only Supabase snapshot (one JSON per table)
 npm run data:champions  # rebuild the committed src/data/champions-data.json from Showdown + PokeAPI
 STATS_CACHE=<dir> node scripts/tune-sets.mjs  # M-C sample sets: the ladder's (src/data/random-sets.ladder.json, scripts/build-random-sets.mjs)
                         # with stat points spent by targets into src/data/random-sets.json; then node scripts/curate-sets.mjs (one build, one item;
@@ -47,21 +49,19 @@ There is no linter and no TypeScript, except the Edge Functions' `index.ts` (Den
 GitHub Pages via `.github/workflows/deploy.yml` on every push to `main`. Work happens on `design/scoreboard` (local `main` lags behind); a deploy pushes that branch to both `origin/design/scoreboard` and `origin/main`.
 
 - When a change spans the database, the battle function and the site, it goes out in that order: the owner runs the new `docs/db/*.sql` (the Supabase MCP here is read-only; check the result read-only afterwards), then the function, then the site. Until its SQL has run, the client hides a feature rather than failing.
-- The `battle` Edge Function (rooms, official matches, 도전의 탑, the computer on the server) does not deploy with the site: `npm run build:battle`, then `npx supabase functions deploy battle --use-api --no-verify-jwt --project-ref rqffrogcverfjqzjasax`.
-
+- The `battle` and `notify-announcement` Edge Functions deploy automatically on push to `main` via `.github/workflows/functions.yml` when their inputs change (requiring `SUPABASE_ACCESS_TOKEN` in repo secrets). Manual fallback: `npm run build:battle`, then `npx supabase functions deploy battle --use-api --no-verify-jwt --project-ref rqffrogcverfjqzjasax` (and `notify-announcement` similarly). `notify-announcement` uses the `VAPID_KEYS` secret in Supabase; its public half is `VAPID_PUBLIC_KEY` in `src/services/announcementPush.js` (replacing the pair orphans every subscription).
 - The site is served at the root of the custom domain `league.pokeyonsei.com` (Cloudflare CNAME `league` → `iambin2.github.io`, DNS only; GitHub Pages custom domain set in repo settings), so `vite.config.js` has `base: "/"`. Dropping the domain means going back to `"/yonsei-pokemon-league/"`.
 - A build-only Vite plugin (`productionVersionPlugin`) emits `version.json` and injects a head script that checks it once at page load (reloading onto a newer build) and sets `window.__YPL_BUILD__`. After that `checkBuild` in `src/components/layout/history.js` asks again on returning to the tab and every five minutes; once a newer build is out, the next in-site move (`pushHistory`) loads its address afresh, and the battle room reloads itself when that is safe. A screen file a deploy deleted makes `LazyContent` reload once. Anything touching `index.html` head order or `base` interacts with this.
 - The same plugin copies `index.html` to `404.html`, so an unknown path boots the app and `src/main.jsx` shows `StatusPage`.
-- The `notify-announcement` Edge Function does not deploy with the site; deploy it separately (`npx supabase functions deploy notify-announcement --use-api --no-verify-jwt --project-ref rqffrogcverfjqzjasax`; the sweep and the battle function call it without a sign-in, and it checks the operators' token itself for a notice) with the `VAPID_KEYS` secret set in Supabase. Its public half is `VAPID_PUBLIC_KEY` in `src/services/announcementPush.js`; replacing the pair orphans every subscription.
 - Env vars (`.env` locally, repo secrets in CI): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_YPL_DATA_SCHEMA` (production uses `ypl_schema_validation`).
 
 ## Architecture
 
 React 18 + Vite SPA, no router library and no state library.
 
-- **Routing** is `?view=` query-string only, resolved in `src/services/appRouting.js`. `src/App.jsx` is the single shell that owns view state, site data, and admin mode.
-- **`src/services/`** holds all domain logic as pure ES modules — bracket lifecycle, projections, records, champions, team builder, submission. This is where the real complexity lives and what the test suite covers. Components consume it through the `src/services/index.js` barrel.
-- **`src/pages/`** are view components, **`src/components/`** shared UI, **`src/admin/`** the client-side admin mode (editors, modal host, mode bar).
+- **Routing** is `?view=` query-string only, resolved and serialized through one source of truth (`buildViewSearch`, `viewHref`) in `src/services/appRouting.js`. `src/App.jsx` is the single shell that owns view state, site data, and admin mode.
+- **`src/services/`** holds all domain logic as pure ES modules — bracket lifecycle, projections, records, champions, team builder, submission, site config (`siteConfig.js`). This is where the real complexity lives and what the test suite covers.
+- **`src/pages/`** are view components, **`src/components/`** shared UI (Almanac parts in `Board.jsx` are re-exported from `src/components/index.js`), **`src/admin/`** the client-side admin mode (editors, modal host, mode bar). See `docs/ADDING_A_FEATURE.md` when adding a new screen or UI feature.
 - **Visitor space** (board 자유/샘플/파티 tabs, 사설 대진표 tab) lives in `public.community_items` through `src/services/communityStore.js`, written only by the `community_write` RPC with server-checked pins (`docs/db/visitor_gates.sql`); it never touches official data or records. Team sheets (`buildTeamSheet`) feed both the board and the PNG export (`src/components/teamSheetImage.js`).
 - **Alerts** are Web Push (`docs/PUSH.md`): `public/sw.js` only shows notifications (no fetch handler, no cache), `src/services/announcementPush.js` subscribes and sets each device's kinds through the RPCs in `docs/db/announcement_push.sql` and `docs/db/push_kinds.sql`. What is due waits in `push_outbox` (a new notice, triggers on official battle rooms and tower runs, a 15-minute sweep from `.github/workflows/push-sweep.yml`), and the one sender, the `notify-announcement` Edge Function (`supabase/functions/`, holding `VAPID_KEYS`), takes it out once through `push_take`. iOS only offers push inside the home-screen app, hence `public/manifest.webmanifest`.
 - **`src/storage.js`** is a three-tier data adapter — `window.storage` (Claude artifact) → Supabase → `localStorage` — exposed as `STORAGE_MODE`. It serves the key/value `site_data` table only, not the normalized schema.

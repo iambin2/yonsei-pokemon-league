@@ -60,11 +60,13 @@ Work through these checks from top to bottom by symptom. Account owners and secr
 1. Download and unzip the `ypl-backup` artifact from the desired "Weekly backup" run in Actions.
 2. Decrypt and unpack: `gpg --decrypt ypl-backup-YYYYMMDD.tar.gz.gpg > backup.tar.gz` (enter `BACKUP_PASSPHRASE`), then `tar -xzf backup.tar.gz`.
 3. Each `backup/<schema>.<table>.json` file holds every row of one table. `README.txt` lists row counts per table.
-4. Restoration is intentionally manual. Most recoveries restore a handful of deleted rows, so extract the needed rows from JSON and insert them in the SQL Editor:
-   ```sql
-   insert into ypl_schema_validation.matches select * from jsonb_populate_recordset(null::ypl_schema_validation.matches, '<JSON array>'::jsonb);
+4. Generate a foreign-key-ordered restore script from the unpacked folder:
+   ```powershell
+   npm run restore:plan -- backup --out restore.sql
+   # Or for a single table:
+   npm run restore:plan -- backup --table ypl_schema_validation.matches --out restore.sql
    ```
-   To restore an entire table, take a fresh backup of the current state first, clear the table, and re-insert the same way. Insert parent tables (`seasons`, `players`, `events`) first to satisfy foreign keys.
+   Review `restore.sql` (wrapped in a transaction with `on conflict do nothing`) and run it in the Supabase SQL Editor. To replace an entire table instead of filling missing rows, take a fresh backup first, clear the table, and run the single-table script.
 5. Backups exclude `auth.users` (login accounts). Supabase manages auth separately, so you only need it if the entire project is lost.
 
 Once per semester, practice steps 1 through 3 and verify the row counts.
@@ -103,12 +105,16 @@ The script automatically fetches published season files within `SEASON_RANGE` an
 
 ## Regulation updates
 
-Switching to a new regulation takes several steps:
+Switching to a new regulation:
 
-1. Refresh Pokémon data with `npm run data:champions` (the weekly PR also runs this).
+1. Register the new regulation pool in `src/data/teamBuilderRegulations.js` (and update `DEFAULT_REGULATION_ID`).
 2. If an engine upgrade is needed, follow Engine upgrades below.
-3. Rebuild regulation pools and sample sets using `tune-sets`, `curate-sets`, `render-sample-sets`, and `rate-species` in the order listed at the top of `CLAUDE.md`. Replace `"m-c"` in those scripts with the new regulation code.
-4. Update `SEASON_RANGE` and `FORMAT` in `scripts/build-ranker-teams.mjs`.
+3. Run the unified rollover command (use `--dry-run` first to preview):
+   ```powershell
+   npm run regulation:rollover -- --reg m-d --seasons 9-11
+   ```
+   This runs `data:champions`, `build-ranker-teams.mjs --reg ... --seasons ...`, `check-sets.mjs`, and `npm test` in order.
+4. When rebuilding ladder sample sets from scratch for a brand-new meta, also run `tune-sets`, `curate-sets`, `render-sample-sets`, and `rate-species` in the order listed at the top of `CLAUDE.md`.
 5. Update any tests with `RegulationMC` in their names to match the new regulation.
 
 ## Engine upgrades

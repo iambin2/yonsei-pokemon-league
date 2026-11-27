@@ -69,7 +69,8 @@ Champions Qualifiers use a separate `선발전 기록 반영` action.
 
 - Download winner graphics and bracket images from the `대진표` screen.
 - All records back up automatically every Sunday (see RUNBOOK "Backups"). For spreadsheet copies, use `내보내기` on the `운영` screen (full JSON, plus CSVs for results, matches, rankings, and rosters).
-- Check `화면 오류` on the `운영` screen for client errors reported from visitor browsers, and `신고` for flagged board posts.
+- Check `화면 오류` on the `운영` screen for client errors reported from visitor browsers (click any row to inspect the full message, stack trace, and browser info), and `신고` for flagged board posts.
+- To update the Discord invite URL, the club timeline on the `소개` screen, the privacy policy effective date, or the founded year without editing code, open `운영`, editing, `사이트 설정`.
 - If one person appears under two names or needs a name change, open their trainer sheet, scroll to `운영` at the bottom, and use rename or merge (merging cannot be undone).
 
 ## Frequently asked questions

@@ -22,11 +22,13 @@ const report = [];
 const headers = profile => ({ apikey: key, Authorization: `Bearer ${key}`, "Accept-Profile": profile });
 
 const KNOWN = {
-  public: ["site_data", "account_teams", "battle_secrets", "battles", "community_authors", "community_items", "cpu_battles", "form_private_answers",
-    "player_accounts", "push_outbox", "push_subscriptions", "streak_runs", "tower_cup_players", "tower_cup_runs", "tower_cups", "visitor_pins"],
-  data: ["seasons", "competition_editions", "league_intakes", "players", "player_partners", "events", "event_registrations", "registration_submissions",
-    "team_snapshots", "team_snapshot_members", "entries", "entry_participants", "bracket_runtimes", "bracket_entry_slots", "bracket_identity_changes",
-    "matches", "results", "ranking_awards", "ranking_baselines", "hall_of_fame_entries", "championship_advancements",
+  public: ["site_data", "account_teams", "battle_secrets", "battles", "client_errors", "community_authors", "community_items",
+    "community_reports", "cpu_battles", "form_private_answers", "player_accounts", "push_outbox", "push_subscriptions",
+    "streak_runs", "tower_archive", "tower_cup_players", "tower_cup_runs", "tower_cups", "visitor_pins"],
+  data: ["seasons", "competition_editions", "league_intakes", "players", "player_partners", "events", "event_checkins",
+    "event_registrations", "registration_submissions", "team_snapshots", "team_snapshot_members", "entries", "entry_departures",
+    "entry_participants", "bracket_runtimes", "bracket_entry_slots", "bracket_identity_changes", "matches", "match_picks",
+    "match_reports", "results", "ranking_awards", "ranking_baselines", "hall_of_fame_entries", "championship_advancements",
     "championship_qualifier_direct_selections", "title_definitions", "title_awards"],
 };
 
@@ -60,6 +62,33 @@ for (const profile of SCHEMAS) {
       failed++;
       report.push(`${profile}.${table}: NOT BACKED UP (${error.message.slice(0, 120)})`);
     }
+  }
+}
+if (full) {
+  // Optional audit schema (only succeeds if ypl_audit is exposed in PostgREST db_schemas).
+  try {
+    const auditRows = await dump("change_log", "ypl_audit");
+    writeFileSync(join(out, "ypl_audit.change_log.json"), JSON.stringify(auditRows));
+    report.push(`ypl_audit.change_log: ${auditRows.length} rows`);
+  } catch {
+    report.push("ypl_audit.change_log: skipped (schema not exposed over REST)");
+  }
+  // Storage manifest for uploaded board images (metadata list so operators know what exists in the bucket).
+  try {
+    const res = await fetch(`${url}/storage/v1/object/list/board`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prefix: "", limit: 1000, offset: 0 }),
+    });
+    if (res.ok) {
+      const files = await res.json();
+      writeFileSync(join(out, "storage.board.json"), JSON.stringify(files));
+      report.push(`storage.board: ${Array.isArray(files) ? files.length : 0} objects`);
+    } else {
+      report.push(`storage.board: skipped (${res.status})`);
+    }
+  } catch {
+    report.push("storage.board: skipped");
   }
 }
 writeFileSync(join(out, "README.txt"), `YPL data snapshot ${new Date().toISOString()} (${full ? "every row" : "public key: what RLS shows"})\n\n${report.join("\n")}\n`);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { THEMES } from "../components/layout/themes.js";
 import { Choice, Row } from "../components/common/Board.jsx";
 import Icon from "../components/common/Icon.jsx";
-import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
+import { resolveSiteConfig } from "../services/siteConfig.js";
 import { alertsSeenAt, readInbox, readPushKinds } from "../services/announcementPush.js";
 import { PUSH_KINDS, unreadCount } from "../services/announcementPushPolicy.js";
 import { viewHref } from "../services/appRouting.js";
@@ -77,7 +77,8 @@ function MyAccount({ go, account, fresh }) {
   </div>;
 }
 
-export default function MorePage({ go, themePref, onTheme, contrast = false, onToggleContrast, admin, onAdmin }) {
+export default function MorePage({ go, themePref, onTheme, contrast = false, onToggleContrast, admin, onAdmin, siteConfig }) {
+  const cfg = resolveSiteConfig(siteConfig);
   const fresh = useNewAlerts();
   const account = useAccount();
   const own = accountsEnabled() && Boolean(account);
@@ -90,7 +91,7 @@ export default function MorePage({ go, themePref, onTheme, contrast = false, onT
           <p className="t12 dim more-label">{label}</p>
           <div className="stack opens">
             {items.filter(([key]) => !(own && key === "alerts")).map(([key, text]) => <Row key={key} title={text} value={<>{key === "alerts" && fresh && <span className="t12 more-new">새 알림</span>}<Icon n="chevr" size={20} /></>} onClick={() => go(key)} href={viewHref(key)} />)}
-            {label === "리그" && <a className="pn row" href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
+            {label === "리그" && <a className="pn row" href={cfg.discordUrl} target="_blank" rel="noopener noreferrer">
               <span className="row-main"><b className="t15">디스코드 참여</b></span><span className="row-value"><Icon n="ext" size={20} /></span>
             </a>}
           </div>

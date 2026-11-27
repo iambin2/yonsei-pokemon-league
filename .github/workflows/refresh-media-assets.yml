@@ -1,0 +1,93 @@
+name: Refresh PokeOS sprites and cries
+
+# Weekly incremental fetch from PokeOS for newly added Pokémon sprites and cries.
+# Only runs ink measurement (build-sprite-ink.cjs) when new sprites arrive and loudness normalization
+# (build-cry-levels.py) when new cries arrive. Opens a PR to main only when files change.
+on:
+  schedule:
+    - cron: "30 1 * * 1" # Monday 10:30 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: refresh-media-assets
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: data/media-assets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow av numpy
+      - name: Fetch missing sprites and cries from PokeOS
+        run: |
+          python scripts/build-sprites.py
+          python scripts/build-cries.py
+
+      - name: Check for media additions
+        id: media
+        run: |
+          SPRITES_CHANGED=false
+          CRIES_CHANGED=false
+          if [ -n "$(git status --porcelain -- public/sprites/)" ]; then SPRITES_CHANGED=true; fi
+          if [ -n "$(git status --porcelain -- public/cries/)" ]; then CRIES_CHANGED=true; fi
+          echo "sprites=$SPRITES_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "cries=$CRIES_CHANGED" >> "$GITHUB_OUTPUT"
+          if [ "$SPRITES_CHANGED" = "true" ] || [ "$CRIES_CHANGED" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Sprites and cries are already up to date."
+          fi
+
+      - if: steps.media.outputs.changed == 'true'
+        run: npm ci
+
+      - if: steps.media.outputs.sprites == 'true'
+        name: Recompute sprite ink metrics
+        run: |
+          npx --yes playwright --version
+          node scripts/build-sprite-ink.cjs
+
+      - if: steps.media.outputs.cries == 'true'
+        name: Recompute cry loudness gains
+        run: python scripts/build-cry-levels.py
+
+      - if: steps.media.outputs.changed == 'true'
+        run: npm test
+
+      - if: steps.media.outputs.changed == 'true'
+        name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add public/sprites public/cries src/data/sprite-ink.json src/pages/battle/cryLevels.js
+          git commit -m "chore(assets): refresh PokeOS sprites, cries, ink metrics, and cry levels"
+          git push --force origin "$BRANCH"
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq length)" = "0" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(assets): refresh PokeOS sprites and cries" \
+              --body "Automated PokeOS refresh added missing sprites and/or cries, recomputed ink metrics and cry loudness gains, and passed npm test. Merging deploys them."
+          fi
+
+      - if: always()
+        uses: ./.github/actions/alert
+        with:
+          status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

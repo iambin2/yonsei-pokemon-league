@@ -8,14 +8,15 @@ them by the number in the Pokédex data.
     python scripts/build-cries.py            # fetch only what is missing
     python scripts/build-cries.py --force    # refetch everything
 """
-import io, sys, urllib.request, urllib.error
+import io, json, sys, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import av
 
 OUT = Path(__file__).resolve().parent.parent / "public" / "cries"
+DEX = "https://play.pokemonshowdown.com/data/pokedex.json"
 CRY = "https://s3.pokeos.com/pokeos-uploads/assets/pokemon/home/cries/{}.ogg"
-LAST = 1025
+DEFAULT_LAST = 1025
 # a form that cries differently in the games, which PokeOS does not keep: PokeAPI's set by its form number
 # (its 964 is PokeOS's 964 sample for sample, so these are the same HOME cries), saved by the form's id
 FORMS = {"palafinhero": "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/10256.ogg"}
@@ -24,6 +25,14 @@ def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 yonsei-pokemon-league cry build"})
     with urllib.request.urlopen(req, timeout=60) as res:
         return res.read()
+
+def latest_dex_num():
+    try:
+        dex = json.loads(get(DEX))
+        nums = [r.get("num", 0) for r in dex.values() if isinstance(r, dict) and r.get("isNonstandard") not in ("CAP", "Custom")]
+        return max([DEFAULT_LAST, *nums])
+    except Exception:
+        return DEFAULT_LAST
 
 def encode(ogg, path):
     src = av.open(io.BytesIO(ogg))
@@ -50,12 +59,13 @@ def one(num, force):
 
 def main():
     force = "--force" in sys.argv
+    last = latest_dex_num()
     OUT.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(8) as pool:
-        results = list(pool.map(lambda n: (n, one(n, force)), [*range(1, LAST + 1), *FORMS]))
+        results = list(pool.map(lambda n: (n, one(n, force)), [*range(1, last + 1), *FORMS]))
     for n, r in results:
         if r.startswith("missing"): print(n, r)
-    print({k: sum(1 for _, r in results if r.startswith(k)) for k in ("made", "kept", "missing")})
+    print({"last": last, **{k: sum(1 for _, r in results if r.startswith(k)) for k in ("made", "kept", "missing")}})
 
 if __name__ == "__main__":
     main()

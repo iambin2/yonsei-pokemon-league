@@ -3,7 +3,7 @@ import { Icon } from "../components/index.js";
 import { SectionHead } from "../components/common/Board.jsx";
 import Button from "../components/common/Button.jsx";
 import Fig from "../components/common/Fig.jsx";
-import { DISCORD_URL } from "../components/layout/SiteHeader.jsx";
+import { resolveSiteConfig } from "../services/siteConfig.js";
 
 /* ============================== ABOUT ==============================
    Draft 1C (2026-11-19, the owner's pick), set as the almanac (2026-11-24): joining is the big screen, since the first question of
@@ -17,13 +17,6 @@ const STEPS = [
   { t: "공식 파티 제출", d: "대회 시작 전까지 사이트에서 파티를 제출합니다.", cta: "팀 빌더 열기", to: "builder" },
 ];
 const FLOW = ["매월 파이컵", "포인트 누적", "챔피언스 시리즈", "시즌 챔피언"];
-// 날짜는 읽는 글자다. 기간은 "2023년 – 2025년"처럼 띄운 반각 대시로 잇고, 한 덩어리로 끊기지 않는다.
-const TIMELINE = [
-  { when: "2023년 5월", title: "파이컵 탄생", body: "포센연이 자체 대회인 파이컵을 처음 열었습니다." },
-  { when: "2023년 – 2025년", title: "매달 이어진 도전", body: "파이컵이 매월 정규 대회로 열렸습니다." },
-  { when: "2025년 6월", title: "YPL 체제 출범", body: "마스터 리그와 루키 리그로 나뉘었습니다." },
-  { when: "2026년 9월", title: "YPL 시즌 3 개막", body: "신청과 파티 제출을 이 사이트에서 받습니다." },
-];
 const COMPS = [
   { name: "파이컵", tag: "매월 정규 대회", lit: true, desc: "여기서 얻은 포인트로 챔피언스 시리즈 출전권에 도전합니다." },
   { name: "파이컵 라이트", tag: "번개 대회", desc: "포인트가 없고 자체 상품을 겁니다." },
@@ -41,7 +34,9 @@ const Kinds = ({ items }) => <div className="stack opens">{items.map(c => (
     {c.desc && <p className="read">{c.desc}</p>}
   </div>))}</div>;
 
-export default function AboutPage({ go }) {
+export default function AboutPage({ go, data }) {
+  const cfg = resolveSiteConfig(data?.siteConfig);
+  const timeline = cfg.aboutTimeline;
   return (<section className="about">
     <h1 className="page-title">소개</h1>
 
@@ -58,7 +53,7 @@ export default function AboutPage({ go }) {
         <dl className="stack ab-spec">
           <div className="pn2"><dt className="t12 dim">리그</dt><dd className="t15">마스터 리그, 루키 리그</dd></div>
         </dl>
-        <Button variant="main" icon="ext" href={DISCORD_URL} target="_blank" rel="noreferrer">디스코드 참여</Button>
+        <Button variant="main" icon="ext" href={cfg.discordUrl} target="_blank" rel="noreferrer">디스코드 참여</Button>
       </section>
       {/* the steps after joining the Discord, each a door to where it is done */}
       <ol className="stack ab-steps" start={2}>
@@ -81,8 +76,8 @@ export default function AboutPage({ go }) {
     <section className="ab-sec" aria-labelledby="ab-time">
       <SectionHead id="ab-time" title="리그 연혁" />
       <ol className="stack opens ab-times">
-        {TIMELINE.map((t, i) => (
-          <li key={t.when} className={(i === TIMELINE.length - 1 ? "inv" : "pn") + " ab-time"}>
+        {timeline.map((t, i) => (
+          <li key={`${t.when}-${t.title}`} className={(i === timeline.length - 1 ? "inv" : "pn") + " ab-time"}>
             <span className="ab-when">{t.when}</span>
             <b className="t15">{t.title}</b>
             <p className="read">{t.body}</p>

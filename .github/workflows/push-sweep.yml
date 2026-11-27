@@ -36,3 +36,4 @@ jobs:
         uses: ./.github/actions/alert
         with:
           status: ${{ job.status }}
+          discord_webhook: ${{ secrets.DISCORD_ALERT_WEBHOOK }}

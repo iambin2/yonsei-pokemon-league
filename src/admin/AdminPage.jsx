@@ -6,6 +6,8 @@ import { Counter, Row, SectionHead, Steps, TabsLine } from "../components/common
 import Field from "../components/common/Field.jsx";
 import Modal from "../components/common/Modal.jsx";
 import { DEFAULT_POINT_TABLE } from "../services/bracketRankingAwardSnapshot.js";
+import { isHttpUrl, resolveSiteConfig, sanitizeSiteConfig } from "../services/siteConfig.js";
+import Icon from "../components/common/Icon.jsx";
 import LinkRequests from "../components/LinkRequests.jsx";
 import ChangeLog from "../components/ChangeLog.jsx";
 import ClientErrors from "../components/ClientErrors.jsx";
@@ -105,6 +107,64 @@ function PointSheet({ data, save, onClose }) {
   </Modal>;
 }
 
+/* 사이트 설정: 디스코드 초대 주소, 동아리 연혁, 개인정보처리방침 시행일, 창립 연도를 코드 수정 없이 바꿉니다. */
+function SiteConfigSheet({ data, save, onClose }) {
+  const [cfg, setCfg] = useState(() => resolveSiteConfig(data.siteConfig));
+  const [urlErr, setUrlErr] = useState("");
+  const updTimeline = (idx, key, val) => setCfg(c => ({ ...c, aboutTimeline: c.aboutTimeline.map((row, i) => (i === idx ? { ...row, [key]: val } : row)) }));
+  const addTimeline = () => setCfg(c => ({ ...c, aboutTimeline: [...c.aboutTimeline, { when: "", title: "", body: "" }] }));
+  const delTimeline = idx => setCfg(c => ({ ...c, aboutTimeline: c.aboutTimeline.filter((_, i) => i !== idx) }));
+  const moveTimeline = (idx, dir) => setCfg(c => {
+    const next = [...c.aboutTimeline];
+    const target = idx + dir;
+    if (target < 0 || target >= next.length) return c;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    return { ...c, aboutTimeline: next };
+  });
+  const store = async () => {
+    if (!isHttpUrl(cfg.discordUrl)) {
+      setUrlErr("https:// 또는 http://로 시작하는 주소를 입력해 주세요.");
+      return;
+    }
+    setUrlErr("");
+    const clean = sanitizeSiteConfig(cfg);
+    if (await save({ ...data, siteConfig: clean }, "사이트 설정을 저장했습니다.")) onClose();
+  };
+  return <Modal title="사이트 설정" hint="디스코드 주소, 소개 화면의 리그 연혁, 개인정보처리방침 시행일을 코드 수정 없이 바꿉니다." onClose={onClose}>
+    <Field label="디스코드 초대 주소" error={urlErr}>
+      <input type="url" value={cfg.discordUrl} onChange={e => { setUrlErr(""); setCfg(c => ({ ...c, discordUrl: e.target.value })); }} placeholder="https://discord.gg/..." />
+    </Field>
+    <div className="ed-r2">
+      <Field label="개인정보처리방침 시행일">
+        <input value={cfg.privacyEffectiveDate} onChange={e => setCfg(c => ({ ...c, privacyEffectiveDate: e.target.value }))} placeholder="예: 2026년 11월 29일" />
+      </Field>
+      <Field label="창립 연도">
+        <input inputMode="numeric" value={String(cfg.foundedYear)} onChange={e => setCfg(c => ({ ...c, foundedYear: e.target.value.replace(/[^0-9]/g, "").slice(0, 4) }))} placeholder="2023" />
+      </Field>
+    </div>
+    <section className="ad-points">
+      <SectionHead title="리그 연혁" />
+      <div className="ed-scroll">
+        {cfg.aboutTimeline.map((row, idx) => (
+          <div className="ed-round" key={idx}>
+            <div className="ed-rtop">
+              <input className="ed-w" value={row.when} onChange={e => updTimeline(idx, "when", e.target.value)} placeholder="시기 (예: 2027년 3월)" aria-label="시기" />
+              <input className="ed-w" value={row.title} onChange={e => updTimeline(idx, "title", e.target.value)} placeholder="제목" aria-label="제목" />
+              <button type="button" className="ed-mv" onClick={() => moveTimeline(idx, -1)} disabled={idx === 0} title="위로" aria-label="위로"><Icon n="up" size={16} /></button>
+              <button type="button" className="ed-mv" onClick={() => moveTimeline(idx, 1)} disabled={idx === cfg.aboutTimeline.length - 1} title="아래로" aria-label="아래로"><Icon n="down" size={16} /></button>
+              <button type="button" className="ed-del" onClick={() => delTimeline(idx)} disabled={cfg.aboutTimeline.length <= 1} title="삭제" aria-label="삭제"><Icon n="x" size={16} /></button>
+            </div>
+            <input value={row.body} onChange={e => updTimeline(idx, "body", e.target.value)} placeholder="설명" aria-label="설명" />
+          </div>
+        ))}
+      </div>
+      <Button variant="second" size="sm" onClick={addTimeline}>연혁 추가</Button>
+    </section>
+    <p className="t12 dim">마지막 연혁이 소개 화면에서 현재 단계로 강조됩니다.</p>
+    <div className="modal-actions"><Button variant="second" onClick={onClose}>취소</Button><Button variant="main" icon="check" onClick={store}>저장</Button></div>
+  </Modal>;
+}
+
 const STEP_ACTION = { 1: null, 2: "대진표 만들기", 3: "결과 입력", 4: "기록에 반영" };
 const when = e => (e.heldOn ? formatDate(e.startTime ? `${String(e.heldOn).slice(0, 10)}T${e.startTime}` : e.heldOn, { time: Boolean(e.startTime) }) : "");
 
@@ -146,6 +206,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
   const [points, setPoints] = useState(false);
+  const [siteSettings, setSiteSettings] = useState(false);
   /* 탑의 정상 (2026-11-22): a past month's first of 도전의 탑 waits here as a task until it is given; one press gives it, the toast undoes it */
   const [towerTops, setTowerTops] = useState(null);
   useEffect(() => { if (!admin) return undefined; let on = true; readTowerMonthTops().then(rows => on && setTowerTops(rows), () => {}); return () => { on = false; }; }, [admin]);
@@ -217,7 +278,8 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
             <section className="ad-block" aria-labelledby="ad-doors-h">
               <SectionHead id="ad-doors-h" title="편집" />
               <div className="stack ad-doors">{DOORS.map(([title, view, line, options]) => <Row key={view} title={title} line={line} onClick={() => go(view, options)} />)}
-                <Row title="포인트" line="순위마다 주는 랭킹 포인트" onClick={() => setPoints(true)} /></div>
+                <Row title="포인트" line="순위마다 주는 랭킹 포인트" onClick={() => setPoints(true)} />
+                <Row title="사이트 설정" line="디스코드 주소, 리그 연혁, 시행일" onClick={() => setSiteSettings(true)} /></div>
             </section>
           </div>
           <div className="ad-side">
@@ -234,6 +296,7 @@ export default function AdminPage({ data, admin, go, onAdmin, save, flash, onReq
           </div>
         </div>
         {points && <PointSheet data={data} save={save} onClose={() => setPoints(false)} />}
+        {siteSettings && <SiteConfigSheet data={data} save={save} onClose={() => setSiteSettings(false)} />}
       </>}
   </div>;
 }

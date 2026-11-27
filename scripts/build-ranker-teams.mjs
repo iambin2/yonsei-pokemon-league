@@ -16,9 +16,25 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 // the regulation's seasons (M-C: M-6 to M-8); a season whose file is not out yet is skipped, so rerunning this after a season ends
-// (M-8 ends 2026-12-02) takes it in without editing anything. A new regulation changes this range and FORMAT (docs/RUNBOOK.md).
-const SEASON_RANGE = [6, 8];
-const FORMAT = formatId("m-c", "singles");
+// (M-8 ends 2026-12-02) takes it in without editing anything. Override via CLI: --reg m-d --seasons 9-11, or --auto to probe upcoming seasons.
+function parseCliArgs(argv) {
+  let reg = "m-c";
+  let range = [6, 8];
+  let auto = false;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--reg" && argv[i + 1]) reg = argv[++i].toLowerCase();
+    else if (argv[i] === "--auto") auto = true;
+    else if (argv[i] === "--seasons" && argv[i + 1]) {
+      const m = /^(\d+)-(\d+)$/.exec(argv[++i]);
+      if (!m) throw new Error("--seasons expects <start>-<end>, e.g. --seasons 9-11");
+      range = [Number(m[1]), Number(m[2])];
+    }
+  }
+  if (auto) range = [range[0], range[1] + 4];
+  return { reg, range };
+}
+const { reg: REG_ID, range: SEASON_RANGE } = parseCliArgs(process.argv.slice(2));
+const FORMAT = formatId(REG_ID, "singles");
 const dex = Dex.mod("champions", champions);
 
 const CACHE = process.env.STATS_CACHE;
