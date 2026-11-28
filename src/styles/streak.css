@@ -89,6 +89,7 @@
 }
 
 /* 내 도전 (2026-11-24): three counters on the seam, the runs five a page, the pager 12 under them; the section keeps its height */
+.streak-mine > .sh { padding-inline: 0; }
 .streak-mine-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--s3); }
 .streak-mine-pager { margin-top: var(--s3); }
 
