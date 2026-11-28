@@ -71,6 +71,7 @@ Log every file added after 2026-11-22 in the table below.
 | `push_all_default.sql` | 2026-11-22 | Verified `push_subscriptions.kinds` default set to all seven kinds; 7 notice-only devices upgraded to all (10 total on all), 1 manually disabled device stayed empty |
 | `tower_cups_guest.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (guest nickname join, guest cup climb, monthly board isolation) |
 | `tower_cups_manage.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (`tower_cup_update`, `tower_cup_delete`, pre-start guest guard) |
+| `tower_cups_nickname.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (`tower_cup_join` custom nickname, pending-user guest lookup) |
 
 ## Schema snapshot
 

@@ -205,9 +205,9 @@ export async function readDailyBoard() {
 const standAside = error => { if (error.status === 404 || error.code === "PGRST202") return null; throw error; };
 const signedInNow = async () => visitorSignedIn() && Boolean(await token());
 async function readCupRpc(path, body, guestBody, auth) {
-  if (auth || !hasCupGuestToken()) return rest(path, { method: "POST", body, auth }).catch(standAside);
-  return rest(path, { method: "POST", body: guestBody, auth: false }).catch(error => {
-    if (error.status === 404 || error.code === "PGRST202") return rest(path, { method: "POST", body, auth: false }).catch(standAside);
+  if (!hasCupGuestToken()) return rest(path, { method: "POST", body, auth }).catch(standAside);
+  return rest(path, { method: "POST", body: guestBody, auth }).catch(error => {
+    if (error.status === 404 || error.code === "PGRST202") return rest(path, { method: "POST", body, auth }).catch(standAside);
     throw error;
   });
 }
@@ -225,7 +225,12 @@ export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
 export const updateTowerCup = ({ id, title, startsAt, endsAt, room, limit }) =>
   rest("rpc/tower_cup_update", { method: "POST", body: { p_id: id, p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
 export const deleteTowerCup = id => rest("rpc/tower_cup_delete", { method: "POST", body: { p_id: id } });
-export const joinTowerCup = (id, code = null) => rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
+export const joinTowerCup = (id, code = null, nickname = null) =>
+  rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null, p_nickname: nickname ? String(nickname).trim() : null } })
+    .catch(error => {
+      if (error.status === 404 || error.code === "PGRST202") return rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
+      throw error;
+    });
 export const joinTowerCupGuest = (id, nickname, code = null) => {
   const name = String(nickname || "").trim();
   if (name) write(CUP_GUEST_NAME, name);

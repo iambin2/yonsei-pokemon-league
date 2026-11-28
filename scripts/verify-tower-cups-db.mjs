@@ -88,6 +88,8 @@ await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_nickname.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_nickname.sql", "utf8"));
 
 const users = {};
 for (const [key, name, status] of [["a", "이제빈", "approved"], ["b", "김선수", "approved"], ["c", "대기중", "pending"], ["d", "박도전", "approved"]]) {
@@ -259,6 +261,19 @@ try {
     await one("select public.streak_first($1, 'abcdefgh1234', 'm-c', 'gen9championsbssregmc', 'sim', 'hash', '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, 0, '') as r", [gRun.run_id]);
     await call(users.a, "select public.tower_cup_delete($1) as r", [fId]);
     assert.equal(await board(fId, users.a), null);
+  });
+
+  await check("an approved user joins with a custom nickname, and a pending Google user sees their guest join", async () => {
+    const nCup = await create(users.a, "open", null);
+    await call(users.d, "select public.tower_cup_join($1, null, '박별명') as r", [nCup.id]);
+    const nb = await board(nCup.id, users.d);
+    assert.equal(nb.rows.find(r => r.mine).trainer_name, "박별명");
+    const pendingTok = "guest-pending-4444444444444444";
+    await call(users.c, "select public.tower_cup_join_guest($1, '대기닉', null, $2) as r", [nCup.id, pendingTok]);
+    const pb = (await call(users.c, "select public.tower_cup_board($1, $2) as r", [nCup.id, pendingTok])).r;
+    assert.equal(pb.cup.joined, true);
+    assert.equal(pb.rows.find(r => r.mine).trainer_name, "대기닉");
+    await call(users.a, "select public.tower_cup_delete($1) as r", [nCup.id]);
   });
 
   console.log(`\n${checks} checks passed`);
