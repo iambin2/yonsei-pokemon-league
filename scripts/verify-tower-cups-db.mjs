@@ -86,6 +86,8 @@ await pg.exec(readFileSync("docs/db/tower_cups.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
 
 const users = {};
 for (const [key, name, status] of [["a", "이제빈", "approved"], ["b", "김선수", "approved"], ["c", "대기중", "pending"], ["d", "박도전", "approved"]]) {
@@ -231,6 +233,32 @@ try {
     // guest run never appears on monthly streak_board
     const monthly = await q("select trainer_name from public.streak_board()");
     assert.ok(!monthly.some(r => r.trainer_name === "게스트"));
+  });
+
+  await check("a host edits or deletes an open cup, and a guest cannot start before starts_at", async () => {
+    const prev = await one("select id from public.tower_cups where host_user = $1 and ends_at > now() limit 1", [users.a]);
+    if (prev) await call(users.a, "select public.tower_cup_close($1) as r", [prev.id]);
+    const future = await call(users.a, "select public.tower_cup_create('예정 등반전', now() + interval '1 hour', now() + interval '3 hours', 'open', null) as r");
+    const fId = future.r.id;
+    const gTok = "guest-token-3333333333333333";
+    await call(null, "select public.tower_cup_join_guest($1, '예정손님', null, $2) as r", [fId, gTok]);
+    await pg.exec("reset role");
+    await assert.rejects(one("select public.streak_begin_guest($1, $2, 'gen9championsbssregmc', '{}'::jsonb) as r", [fId, gTok]), /아직 시작하지 않은 등반전/);
+    // non-host cannot update or delete
+    await assert.rejects(call(users.d, "select public.tower_cup_update($1, '해킹', now(), now() + interval '2 hours', 'open', null) as r", [fId]), /연 사람만 수정/);
+    await assert.rejects(call(users.d, "select public.tower_cup_delete($1) as r", [fId]), /연 사람만 삭제/);
+    // host updates title, room -> code, limit -> 3
+    const upd = (await call(users.a, "select public.tower_cup_update($1, '바뀐 등반전', now(), now() + interval '4 hours', 'code', 3) as r", [fId])).r;
+    assert.match(upd.code, /^[0-9]{4}$/);
+    const b = await board(fId, users.a);
+    assert.deepEqual([b.cup.title, b.cup.room, b.cup.run_limit], ["바뀐 등반전", "code", 3]);
+    // make it active, let guest play a battle, then delete cup cleanly
+    await pg.exec("reset role");
+    await q("update public.tower_cups set starts_at = now() - interval '1 minute' where id = $1", [fId]);
+    const gRun = (await one("select public.streak_begin_guest($1, $2, 'gen9championsbssregmc', '{\"draft\":[]}'::jsonb) as r", [fId, gTok])).r;
+    await one("select public.streak_first($1, 'abcdefgh1234', 'm-c', 'gen9championsbssregmc', 'sim', 'hash', '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, 0, '') as r", [gRun.run_id]);
+    await call(users.a, "select public.tower_cup_delete($1) as r", [fId]);
+    assert.equal(await board(fId, users.a), null);
   });
 
   console.log(`\n${checks} checks passed`);

@@ -222,6 +222,9 @@ export const readTowerCup = async id => {
 };
 export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
   rest("rpc/tower_cup_create", { method: "POST", body: { p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
+export const updateTowerCup = ({ id, title, startsAt, endsAt, room, limit }) =>
+  rest("rpc/tower_cup_update", { method: "POST", body: { p_id: id, p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
+export const deleteTowerCup = id => rest("rpc/tower_cup_delete", { method: "POST", body: { p_id: id } });
 export const joinTowerCup = (id, code = null) => rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
 export const joinTowerCupGuest = (id, nickname, code = null) => {
   const name = String(nickname || "").trim();

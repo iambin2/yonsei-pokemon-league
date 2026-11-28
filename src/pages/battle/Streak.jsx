@@ -605,7 +605,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
       {tabs}
       {gateSheet}
       <CupBoard id={cup} approved={approved} onOpen={onOpen} onBack={() => { openCup(null); setCupsAsked(n => n + 1); }}
-        onClimb={c => { if (!approved && c) { keepGuestCup(c); setGuestCup(c); } openCup(null); }} />
+        onClimb={c => { if (!approved && c) { keepGuestCup(c); setGuestCup(c); } openCup(null); }}
+        onClearGuest={cupId => { if (guestCup?.id === cupId) { keepGuestCup(null); setGuestCup(null); } }} />
     </div>
   );
   return (

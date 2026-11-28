@@ -9,7 +9,7 @@ import ErrorNote from "../../components/common/ErrorNote.jsx";
 import { BackLink, Choice, Counter, Dock, Question, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
-import { closeTowerCup, createTowerCup, joinTowerCup, joinTowerCupGuest, readCupGuestName, readTowerCup, readTowerCups } from "../../services/visitorAuth.js";
+import { closeTowerCup, createTowerCup, deleteTowerCup, joinTowerCup, joinTowerCupGuest, readCupGuestName, readTowerCup, readTowerCups, updateTowerCup } from "../../services/visitorAuth.js";
 import { formatDate } from "../../services/dateFormat.js";
 
 const when = iso => formatDate(iso, { time: true });
@@ -62,14 +62,18 @@ const fieldTime = ms => { const d = new Date(ms - new Date(ms).getTimezoneOffset
 const ROOMS = { 공개: "open", 코드: "code" };
 const LIMITS = { "모든 도전": null, "처음 1번": 1, "처음 3번": 3 };
 
-/* 등반전 열기: its name, when it opens and closes, who comes in, how many runs count. The sheet's one key opens it and its board */
-export function CupMake({ onClose, onMade }) {
-  const [title, setTitle] = useState("");
+const limitLabel = n => (n === 1 ? "처음 1번" : n === 3 ? "처음 3번" : "모든 도전");
+
+/* 등반전 열기/수정: its name, when it opens and closes, who comes in, how many runs count. The sheet's one key opens or saves it */
+export function CupMake({ cup = null, onClose, onMade }) {
+  const editing = Boolean(cup);
+  const started = editing && Date.parse(cup.starts_at) <= Date.now();
+  const [title, setTitle] = useState(cup?.title || "");
   // it starts now by default (the server takes a start already past as now), so a meet opens it and climbs at once
-  const [start, setStart] = useState(() => fieldTime(Date.now()));
-  const [end, setEnd] = useState(() => fieldTime(Math.ceil(Date.now() / 600000) * 600000 + 2 * 3600e3));
-  const [room, setRoom] = useState("공개");
-  const [limit, setLimit] = useState("모든 도전");
+  const [start, setStart] = useState(() => fieldTime(cup ? Date.parse(cup.starts_at) : Date.now()));
+  const [end, setEnd] = useState(() => fieldTime(cup ? Date.parse(cup.ends_at) : Math.ceil(Date.now() / 600000) * 600000 + 2 * 3600e3));
+  const [room, setRoom] = useState(cup?.room === "code" ? "코드" : "공개");
+  const [limit, setLimit] = useState(() => limitLabel(cup?.run_limit));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const make = async () => {
@@ -78,17 +82,18 @@ export function CupMake({ onClose, onMade }) {
     if (!(Date.parse(end) > Date.parse(start))) { setError("마감은 시작보다 뒤여야 합니다."); return; }
     setBusy(true); setError("");
     try {
-      const made = await createTowerCup({ title: title.trim(), startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), room: ROOMS[room], limit: LIMITS[limit] });
+      const payload = { title: title.trim(), startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), room: ROOMS[room], limit: LIMITS[limit] };
+      const made = editing ? await updateTowerCup({ id: cup.id, ...payload }) : await createTowerCup(payload);
       onMade(made.id);
     } catch (e) { setError(e.message); setBusy(false); }
   };
-  return <Modal title="등반전 열기" onClose={onClose}>
+  return <Modal title={editing ? "등반전 수정" : "등반전 열기"} onClose={onClose}>
     <Question id="cup-title" label="이름" error={error === "등반전 이름을 입력해 주세요." ? error : ""}>
       <input id="cup-title" className="in" maxLength={24} autoComplete="off" enterKeyHint="done" value={title} placeholder="11월 정모"
         onChange={e => { setTitle(e.target.value); if (error) setError(""); }} />
     </Question>
     <Question id="cup-start" label="시작">
-      <input id="cup-start" className="in" type="datetime-local" value={start} onChange={e => setStart(e.target.value)} />
+      <input id="cup-start" className="in" type="datetime-local" value={start} disabled={started} onChange={e => setStart(e.target.value)} />
     </Question>
     <Question id="cup-end" label="마감">
       <input id="cup-end" className="in" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} />
@@ -96,7 +101,7 @@ export function CupMake({ onClose, onMade }) {
     <Question id="cup-room" label="입장" group><Choice name="cup-room" options={Object.keys(ROOMS)} value={room} onChange={setRoom} /></Question>
     <Question id="cup-limit" label="반영" group><Choice name="cup-limit" options={Object.keys(LIMITS)} value={limit} onChange={setLimit} /></Question>
     {error && error !== "등반전 이름을 입력해 주세요." && <Toast error>{error}</Toast>}
-    <div className="modal-actions"><Button variant="main" onClick={make} loading={busy}>열기</Button></div>
+    <div className="modal-actions"><Button variant="main" onClick={make} loading={busy}>{editing ? "저장" : "열기"}</Button></div>
   </Modal>;
 }
 
@@ -151,12 +156,13 @@ function CupGuestJoin({ room, onClose, onJoin }) {
 
 /* one cup's board: its name at 32, the ranking as the month's is drawn (the leader inverted at 84, live runs with their lamp and a
    door to watch), and beside it the time left, the players and the facts. Read again every 15 seconds while it runs and is seen. */
-export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
+export function CupBoard({ id, approved, onOpen, onBack, onClimb, onClearGuest = null }) {
   const [got, setGot] = useState(undefined);
   const [asked, setAsked] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [coding, setCoding] = useState(false);
   const [guesting, setGuesting] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   useEffect(() => {
@@ -166,6 +172,9 @@ export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
   }, [id, asked, approved]);
   const cup = got?.cup;
   const phase = cup ? phaseOf(cup, now) : null;
+  useEffect(() => {
+    if (!approved && (got === null || phase === "over")) onClearGuest?.(id);
+  }, [got, phase, approved, id]);
   useEffect(() => {
     if (!cup || phase === "over") return undefined;
     const tick = setInterval(() => setNow(Date.now()), 20_000);
@@ -191,6 +200,10 @@ export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
     if (!(await siteConfirm({ title: "지금 마감할까요?", body: phase === "soon" ? "시작 전이라 등반전이 지워집니다." : "지금까지의 순위로 굳습니다.", confirmLabel: "지금 마감" }))) return;
     try { const out = await closeTowerCup(id); if (out?.gone) onBack(); else setAsked(n => n + 1); } catch (e) { say(e.message, true); }
   };
+  const remove = async () => {
+    if (!(await siteConfirm({ title: "등반전을 삭제할까요?", body: "참가자와 순위 기록이 모두 지워집니다.", confirmLabel: "삭제" }))) return;
+    try { await deleteTowerCup(id); onBack(); } catch (e) { say(e.message, true); }
+  };
   const share = async () => {
     try { await navigator.clipboard.writeText(`${window.location.origin}/?view=battle&tab=streak&cup=${id}`); say("링크를 복사했습니다."); } catch { say("링크를 복사하지 못했습니다.", true); }
   };
@@ -203,11 +216,13 @@ export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
   const [left, unit] = cup ? leftOf(Date.parse(phase === "soon" ? cup.starts_at : cup.ends_at) - now) : [null, ""];
   const keys = !cup || phase === "over" ? null
     : !cup.joined ? <Button variant="main" onClick={enter} loading={busy}>참가</Button>
+    : !approved && phase === "soon" ? <Button variant="main" disabled>시작 전</Button>
     : <Button variant="main" onClick={() => onClimb({ id: cup.id, title: cup.title })}>도전하기</Button>;
   return <div className="cup-page">
     <BackLink to="도전의 탑" onClick={onBack} />
     {coding && <CupCode onClose={() => setCoding(false)} onJoin={join} />}
     {guesting && <CupGuestJoin room={cup.room} onClose={() => setGuesting(false)} onJoin={joinGuest} />}
+    {editing && <CupMake cup={cup} onClose={() => setEditing(false)} onMade={() => { setEditing(false); setAsked(n => n + 1); }} />}
     {/* two rows of the lobby's columns, so their top lines meet: the name beside the time left, then the ranking beside the facts,
         held in view on a desktop as a notice's 439 is. On a phone the time left comes right under the name */}
     <div className="bt-lobby cup-top">
@@ -236,7 +251,11 @@ export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
           <div className="pn spec-row"><span className="t12 dim">반영</span><span className="t15">{limitWords(cup.run_limit)}</span></div>
           <div className="pn spec-row"><span className="t12 dim">입장</span><span className="t15">{cup.room === "code" ? "코드" : "공개"}</span></div>
         </div>}
-        {cup?.hosting && phase !== "over" && <Button onClick={close}>지금 마감</Button>}
+        {cup?.hosting && <div className="bt-end-keys">
+          <Button onClick={() => setEditing(true)}>수정</Button>
+          {phase !== "over" && <Button onClick={close}>지금 마감</Button>}
+          <Button onClick={remove}>삭제</Button>
+        </div>}
       </div>
     </div>
   </div>;
