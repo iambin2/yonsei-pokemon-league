@@ -596,11 +596,21 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
     });
   },
 
-  /* 연승 도전을 시작한다: 이름이 승인된 Google 계정만. 진행 중인 도전이 있으면 그때까지의 연승으로 끝나고 새로 시작한다(streak_start).
+  /* 연승 도전을 시작한다: 이름이 승인된 Google 계정, 또는 등반전 게스트(cupId + guestToken). 진행 중인 도전이 있으면 그때까지의 연승으로 끝나고 새로 시작한다.
      첫 판은 컴퓨터가 선출을 고른 채로 열리고, 이 기기가 그 판의 p1 자리다. */
-  async streak({ draft, daily }, _again, req) {
-    const user = await userOf(req!);
-    const name = await rpc("streak_trainer_name", { p_user: user });
+  async streak({ draft, daily, cupId, guestToken }, _again, req) {
+    const user = await userIdOf((req!.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
+    const name = user ? await rpc("streak_trainer_name", { p_user: user }) : null;
+    if (!name && draft && !daily && cupId && guestToken) {
+      const offer = draftOffer(drawFor(null, "draft"), { ban: STREAK_BAN, count: STREAK_DRAFT });
+      const { data, error } = await db.rpc("streak_begin_guest", { p_cup_id: String(cupId), p_guest_token: String(guestToken), p_format_id: STREAK_FORMAT, p_offer: { draft: offer } });
+      if (error) {
+        if (error.code === "P0001" || error.code === "42501") refuse(error.code === "P0001" ? 429 : 403, error.message);
+        throw error;
+      }
+      return { run: data, draft: shownDraft(offer) };
+    }
+    if (!user) refuse(401, "Google 계정으로 로그인해 주세요.");
     if (!name) refuse(403, "이름이 승인된 Google 계정만 도전의 탑에 오를 수 있습니다.");
     /* the opening draft (2026-11-11, 13장): the run begins with no game, its candidates kept by the run; the screen picks one of each
        row (streakDraft). daily: 오늘의 탑, the same candidates for everyone that day. A screen from before the draft sends no draft and
@@ -634,9 +644,16 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
      known, and kept a token that no longer opens it, so its tab showed no run and 도전 시작 ended it unasked. Only a token that opens
      the game is known now. A 오늘의 탑 run of an earlier day (KST) is over for the tab: today's is once a day, and the old one stood in its
      way with no 새로 도전 key until all its lamps went out (streak_begin closes it when today's starts) */
-  async streakResume({ daily, have, token: held }, _again, req) {
-    const user = await userOf(req!);
-    const run = await rpc("streak_active_run", { p_user: user, p_daily: Boolean(daily) });
+  async streakResume({ daily, have, token: held, cupId, guestToken }, _again, req) {
+    const user = await userIdOf((req!.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
+    const name = user ? await rpc("streak_trainer_name", { p_user: user }) : null;
+    let run = name ? await rpc("streak_active_run", { p_user: user, p_daily: Boolean(daily) }) : null;
+    if (!run && !name && !daily && cupId && guestToken) {
+      run = await rpc("streak_active_run_guest", { p_cup_id: String(cupId), p_guest_token: String(guestToken) });
+    } else if (!name) {
+      if (!user) refuse(401, "Google 계정으로 로그인해 주세요.");
+      refuse(403, "이름이 승인된 Google 계정만 도전의 탑에 오를 수 있습니다.");
+    }
     if (!run || (run.daily && String(run.daily) < kstDay())) return { run: null };
     const shown = { run_id: run.run_id, wins: run.wins, lives: run.lives, daily: run.daily };
     if (!run.battle_id) return run.offer?.draft ? { run: shown, draft: shownDraft(run.offer.draft) } : { run: null };
@@ -652,9 +669,16 @@ const actions: Record<string, (body: Record<string, any>, again?: boolean, req?:
 
   /* the draft picked (2026-11-11): one species from each row of the run's candidates. Asked as the account (the run has no seat yet);
      the party is settled (an item taken twice goes to the set's next one) and checked, then the run's first game opens with it. */
-  async streakDraft({ picks, daily }, _again, req) {
-    const user = await userOf(req!);
-    const run = await rpc("streak_active_run", { p_user: user, p_daily: Boolean(daily) });
+  async streakDraft({ picks, daily, cupId, guestToken }, _again, req) {
+    const user = await userIdOf((req!.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
+    const name = user ? await rpc("streak_trainer_name", { p_user: user }) : null;
+    let run = name ? await rpc("streak_active_run", { p_user: user, p_daily: Boolean(daily) }) : null;
+    if (!run && !name && !daily && cupId && guestToken) {
+      run = await rpc("streak_active_run_guest", { p_cup_id: String(cupId), p_guest_token: String(guestToken) });
+    } else if (!name) {
+      if (!user) refuse(401, "Google 계정으로 로그인해 주세요.");
+      refuse(403, "이름이 승인된 Google 계정만 도전의 탑에 오를 수 있습니다.");
+    }
     if (!run?.offer?.draft || run.battle_id) refuse(409, "고를 파티가 없습니다. 도전을 다시 시작해 주세요.", { reason: "gone" });
     const party = draftParty(STREAK_FORMAT, run.offer.draft, Array.isArray(picks) ? picks.map(String) : []);
     if (party === "pick") refuse(409, "급마다 후보 가운데 하나씩 골라 주세요.");

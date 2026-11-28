@@ -9,7 +9,7 @@ import ErrorNote from "../../components/common/ErrorNote.jsx";
 import { BackLink, Choice, Counter, Dock, Question, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
-import { closeTowerCup, createTowerCup, joinTowerCup, readTowerCup, readTowerCups } from "../../services/visitorAuth.js";
+import { closeTowerCup, createTowerCup, joinTowerCup, joinTowerCupGuest, readCupGuestName, readTowerCup, readTowerCups } from "../../services/visitorAuth.js";
 import { formatDate } from "../../services/dateFormat.js";
 
 const when = iso => formatDate(iso, { time: true });
@@ -120,13 +120,43 @@ function CupCode({ onClose, onJoin }) {
   </Modal>;
 }
 
+/* a guest joins with a nickname they set (and 4 digits if it is a code cup) */
+function CupGuestJoin({ room, onClose, onJoin }) {
+  const [name, setName] = useState(readCupGuestName);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const go = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError("닉네임을 입력해 주세요."); document.getElementById("cup-guest-name")?.focus(); return; }
+    if (room === "code" && code.length !== 4) { setError("코드 4자리를 입력해 주세요."); document.getElementById("cup-guest-code")?.focus(); return; }
+    setBusy(true); setError("");
+    try { await onJoin(trimmed, room === "code" ? code : null); } catch (e) { setError(e.message); setBusy(false); }
+  };
+  return <Modal title="등반전 참가" onClose={onClose}>
+    <Question id="cup-guest-name" label="닉네임" error={error === "닉네임을 입력해 주세요." ? error : ""}>
+      <input id="cup-guest-name" className="in" maxLength={20} autoComplete="nickname" enterKeyHint={room === "code" ? "next" : "go"} value={name} placeholder="트레이너 이름" autoFocus
+        onChange={e => { setName(e.target.value); if (error) setError(""); }}
+        onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing && room !== "code") { e.preventDefault(); go(); } }} />
+    </Question>
+    {room === "code" && <Question id="cup-guest-code" label="코드" error={error === "코드 4자리를 입력해 주세요." ? error : ""}>
+      <input id="cup-guest-code" className="in" inputMode="numeric" autoComplete="off" maxLength={4} enterKeyHint="go" value={code} placeholder="숫자 4자리"
+        onChange={e => { setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4)); if (error) setError(""); }}
+        onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); go(); } }} />
+    </Question>}
+    {error && error !== "닉네임을 입력해 주세요." && error !== "코드 4자리를 입력해 주세요." && <Toast error>{error}</Toast>}
+    <div className="modal-actions"><Button variant="main" onClick={go} loading={busy}>참가</Button></div>
+  </Modal>;
+}
+
 /* one cup's board: its name at 32, the ranking as the month's is drawn (the leader inverted at 84, live runs with their lamp and a
    door to watch), and beside it the time left, the players and the facts. Read again every 15 seconds while it runs and is seen. */
-export function CupBoard({ id, approved, onGate, onOpen, onBack, onClimb }) {
+export function CupBoard({ id, approved, onOpen, onBack, onClimb }) {
   const [got, setGot] = useState(undefined);
   const [asked, setAsked] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [coding, setCoding] = useState(false);
+  const [guesting, setGuesting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
   useEffect(() => {
@@ -147,8 +177,12 @@ export function CupBoard({ id, approved, onGate, onOpen, onBack, onClimb }) {
     await joinTowerCup(id, code);
     setCoding(false); setAsked(n => n + 1);
   };
+  const joinGuest = async (nickname, code) => {
+    await joinTowerCupGuest(id, nickname, code);
+    setGuesting(false); setAsked(n => n + 1);
+  };
   const enter = () => {
-    if (!approved) { onGate(); return; }
+    if (!approved) { setGuesting(true); return; }
     if (cup.room === "code") { setCoding(true); return; }
     setBusy(true);
     join(null).catch(e => say(e.message, true)).finally(() => setBusy(false));
@@ -169,10 +203,11 @@ export function CupBoard({ id, approved, onGate, onOpen, onBack, onClimb }) {
   const [left, unit] = cup ? leftOf(Date.parse(phase === "soon" ? cup.starts_at : cup.ends_at) - now) : [null, ""];
   const keys = !cup || phase === "over" ? null
     : !cup.joined ? <Button variant="main" onClick={enter} loading={busy}>참가</Button>
-    : <Button variant="main" onClick={onClimb}>도전하기</Button>;
+    : <Button variant="main" onClick={() => onClimb({ id: cup.id, title: cup.title })}>도전하기</Button>;
   return <div className="cup-page">
     <BackLink to="도전의 탑" onClick={onBack} />
     {coding && <CupCode onClose={() => setCoding(false)} onJoin={join} />}
+    {guesting && <CupGuestJoin room={cup.room} onClose={() => setGuesting(false)} onJoin={joinGuest} />}
     {/* two rows of the lobby's columns, so their top lines meet: the name beside the time left, then the ranking beside the facts,
         held in view on a desktop as a notice's 439 is. On a phone the time left comes right under the name */}
     <div className="bt-lobby cup-top">

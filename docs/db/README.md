@@ -69,6 +69,7 @@ Log every file added after 2026-11-22 in the table below.
 | `third_place_best_of.sql` | 2026-11-22 | Verified read-only: 3 columns on `bracket_runtimes`, 4 functions (`set_bracket_rules`, `sync_third_place_match`, `set_third_place_winner`, `bracket_rules_ready`), 3rd-place sync in single-elim winner RPC, 3rd-place keys in both delete functions and group-record apply check, wins-required check in score RPC, and best-of battle score trigger |
 | `community_secret_read.sql` | 2026-11-22 | Verified read-only: `community_secret_read` (`security definer`) and `anon` execute grant |
 | `push_all_default.sql` | 2026-11-22 | Verified `push_subscriptions.kinds` default set to all seven kinds; 7 notice-only devices upgraded to all (10 total on all), 1 manually disabled device stayed empty |
+| `tower_cups_guest.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (guest nickname join, guest cup climb, monthly board isolation) |
 
 ## Schema snapshot
 

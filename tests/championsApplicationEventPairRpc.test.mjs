@@ -103,8 +103,8 @@ test("docs/db never grants anon an admin RPC or a table write", () => {
     // The day's board and a run's lamps for whoever watches its game (2026-11-11): the same kind of read, names, counts and states only.
     // Each past month's top three (tower_history.sql, 2026-11-22): the same names and counts the month's board already showed.
     if (/^grant execute on function public\.(streak_board|streak_daily_board|streak_run_public|streak_month_tops)\(/.test(statement)) continue;
-    // 등반전's list and board (tower_cups.sql): the same kind of read, names and counts only; a code shown only to the cup's own players.
-    if (/^grant execute on function public\.(tower_cups|tower_cup_board)\(/.test(statement)) continue;
+    // 등반전's list, board, and guest nickname join (tower_cups.sql, tower_cups_guest.sql): visitor-space only; a code shown only to the cup's own players.
+    if (/^grant execute on function public\.(tower_cups|tower_cup_board|tower_cup_join_guest)\(/.test(statement)) continue;
     // A visitor's screen error (handover_features.sql): an insert-only report, capped per hour and trimmed, that nobody but an operator
     // reads back; and the yes the site asks before showing that file's features.
     // A visitor's report of a post (handover_features.sql): insert-only, capped per post and per hour, read back by operators alone.

@@ -17,7 +17,7 @@ import Modal from "../../components/common/Modal.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
 import Pager from "../../components/common/Pager.jsx";
 import Fig from "../../components/common/Fig.jsx";
-import { Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
+import { BackLink, Bar, Counter, Dock, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
 import StandTable from "../../components/common/StandTable.jsx";
 import { siteConfirm } from "../../components/common/SiteDialog.jsx";
 import { GoogleMark } from "../../components/layout/SiteHeader.jsx";
@@ -52,6 +52,9 @@ const monthsKept = () => {
 };
 // today in KST as the database writes a 오늘의 탑 run's day: "2026-11-13"
 const kstToday = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const GUEST_CUP_KEY = "ypl-battle:guest-cup";
+const readGuestCup = () => { try { return JSON.parse(localStorage.getItem(GUEST_CUP_KEY) || "null"); } catch { return null; } };
+const keepGuestCup = cup => { try { cup ? localStorage.setItem(GUEST_CUP_KEY, JSON.stringify(cup)) : localStorage.removeItem(GUEST_CUP_KEY); } catch {} };
 // the month's board, read once at a game's end to know whether the run is the account's best this month (null while read or when it cannot be)
 function useBoard(daily = false) {
   const [board, setBoard] = useState(null);
@@ -467,6 +470,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   // a refusal after the court went dark stands it up again, lit
   const [round, setRound] = useState(0);
   const [cup, setCup] = useState(askedCup);
+  const [guestCup, setGuestCup] = useState(readGuestCup);
   const [making, setMaking] = useState(false);
   const [cupsAsked, setCupsAsked] = useState(0);
   const cups = useCups(`${cupsAsked}|${account?.status}`);
@@ -490,14 +494,17 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     return () => { on = false; };
   }, [back, daily, account?.status, boardAsked]);
   const approved = account?.status === "approved";
-  useWarm(approved);
+  useEffect(() => { if (approved && guestCup) { keepGuestCup(null); setGuestCup(null); } }, [approved]);
+  const activeCupId = !approved ? guestCup?.id ?? null : null;
+  const canClimb = approved || Boolean(activeCupId);
+  useWarm(canClimb);
   // the run as the server holds it, so a run started or picked elsewhere is shown here (and 새로 도전 asks before ending it)
   // the seat's token goes with the game it names, so a seat another device has taken since is given back (2026-11-13)
   /* synced (2026-11-16): the keys wait for the server's answer, so a run this device only remembers (ended, or moved on elsewhere)
      is never offered; with no answer (offline) the device's own stands */
   const [synced, setSynced] = useState(false);
-  const sync = () => resumeStreakRun(daily, currentStreakGame(daily), readSeat(currentStreakGame(daily))?.token ?? "").then(made => { if (keepStreakResume(made, daily)) setSeen(n => n + 1); }, () => {}).then(() => setSynced(true));
-  useEffect(() => { setSynced(false); if (approved) sync(); }, [approved, daily]);
+  const sync = () => resumeStreakRun(daily, currentStreakGame(daily), readSeat(currentStreakGame(daily))?.token ?? "", activeCupId).then(made => { if (keepStreakResume(made, daily)) setSeen(n => n + 1); }, () => {}).then(() => setSynced(true));
+  useEffect(() => { setSynced(false); if (canClimb) sync(); }, [approved, activeCupId, daily]);
   const wins = run?.wins ?? 0;
   const rows = Array.isArray(board) ? board : null;
   /* a past month's top three (tower_history.sql streak_month_tops) open their run's last game as a replay: in battles for two months,
@@ -508,7 +515,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const openRun = async runId => { const id = await runLastGame(runId).catch(() => null); if (id) onOpen(id); };
   const mine = back ? null : rows?.find(r => r.mine);
   // the draft waits only while no run of its kind is on (a run started on another device leaves this one's stale)
-  const drafting = approved && run === null && draft?.draft?.length ? draft.draft : null;
+  const drafting = canClimb && run === null && draft?.draft?.length ? draft.draft : null;
   // the tab is silent: the draft and the doors have no music (2026-11-22, the owner: 너무 시끄러워); the tower's theme sounds in the break between games (BattlePage)
   const doneToday = daily && !run && !drafting && Boolean(mine);
   // going in, as the lobby does: the court goes dark while the game is made and read, then its screen lights
@@ -526,7 +533,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
       await dark;
       towerDrop(); standUp(); setError(e.message); setBusy(false); setEntering(false); setRound(n => n + 1);
       // refused because the run moved elsewhere (ended, or its next game opened on another device): show it as the server holds it
-      if (approved) sync();
+      if (canClimb) sync();
     }
   };
   // a run begins with its draft (no game yet, so nothing goes dark): the candidates stand in the tower's place
@@ -535,7 +542,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     if (run && !(await siteConfirm({ title: "새로 도전할까요?", body: `진행 중인 도전은 ${run.wins}연승으로 끝납니다.`, confirmLabel: "새로 도전" }))) return;
     setBusy(true); setError("");
     try {
-      const made = await startStreakRun(daily);
+      const made = await startStreakRun(daily, activeCupId);
       keepStreakDraft(made, daily);
       // the draft took the place of the run this device held (keepStreakDraft), so the tab reads its run again
       setDraft(made); setPicks([]); setSeen(n => n + 1);
@@ -546,7 +553,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
   const depart = () => {
     flushSync(() => setEntering(true));
     goInto(async () => {
-      try { return keepStreakStart(await pickStreakDraft(picks, daily)); } catch (e) {
+      try { return keepStreakStart(await pickStreakDraft(picks, daily, activeCupId)); } catch (e) {
         if (e.reason !== "gone") throw e;
         // the run left its draft (picked in another tab or on another device): drop it and show the run as it stands
         keepStreakDraft(null, daily); setSeen(n => n + 1); sync();
@@ -559,8 +566,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
      on a sign-in and an operator (DESIGN.md 연승 도전, 2026-11-09) */
   const practice = onPractice && <Button onClick={onPractice}>컴퓨터와 연습</Button>;
   const left = drafting ? drafting.length - picks.filter(Boolean).length : 0;
-  const keys = account === undefined || (approved && !synced) ?<Button variant="main" loading>도전 시작</Button>
-    : !approved ? <><Button variant="main" onClick={() => setGate(true)}>도전 시작</Button>{practice}</>
+  const keys = account === undefined || (canClimb && !synced) ?<Button variant="main" loading>도전 시작</Button>
+    : !canClimb ? <><Button variant="main" onClick={() => setGate(true)}>도전 시작</Button>{practice}</>
     : drafting ? <Button variant="main" icon={left ? "check" : undefined} disabled={left > 0} onClick={depart} loading={busy}>{left ? `${left}마리 더 고르기` : "출발"}</Button>
     : run ? <><Button variant="main" onClick={resume} loading={busy}>이어서 하기</Button>{!daily && <Button onClick={start} disabled={busy}>새로 도전</Button>}</>
     : doneToday ? <Button variant="main" disabled>오늘 도전 완료</Button>
@@ -583,7 +590,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
     open: r.live && r.battle_id ? () => onOpen(r.battle_id) : topRun(r) ? () => openRun(topRun(r)) : null }));
   // the other climbers on the tower, all of them, counted by floor there: this board's but one's own (one's own run is the path)
   const climbers = !back && rows ? rows.filter(r => !r.mine).map(r => ({ name: r.trainer_name, wins: r.wins, live: r.live })) : null;
-  const ready = run !== undefined && board !== undefined && account !== undefined && (!approved || synced);
+  const ready = run !== undefined && board !== undefined && account !== undefined && (!canClimb || synced);
   /* the key comes last (2026-11-24): it waits unseen in its place until the run is read and the tower (or the draft) comes in, then
      rises after it. Once up it stays: a run read again does not take it away */
   const keysRef = useRef(null), keysUp = useRef(false), cupsRef = useRef(null);
@@ -597,8 +604,8 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
       <h1 className="page-title">배틀</h1>
       {tabs}
       {gateSheet}
-      <CupBoard id={cup} approved={approved} onGate={() => setGate(true)} onOpen={onOpen} onBack={() => { openCup(null); setCupsAsked(n => n + 1); }}
-        onClimb={() => { openCup(null); }} />
+      <CupBoard id={cup} approved={approved} onOpen={onOpen} onBack={() => { openCup(null); setCupsAsked(n => n + 1); }}
+        onClimb={c => { if (!approved && c) { keepGuestCup(c); setGuestCup(c); } openCup(null); }} />
     </div>
   );
   return (
@@ -606,6 +613,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
       <h1 className="page-title">배틀</h1>
       {tabs}
       {gateSheet}
+      {!approved && guestCup && <BackLink to={guestCup.title} onClick={() => openCup(guestCup.id)} />}
       <div className="bt-lobby">
         <div className="bt-lobby-main">
           <div className="streak-scene">
@@ -959,7 +967,7 @@ export function StreakEnd({ id, won, res = null, onOpen, onOut, enter, goingIn, 
              would end the run unasked (2026-11-13), so it waits for the run's answer */
           : !seat?.daily && typeof seat?.won === "boolean" && <Button variant="main" icon="refresh" loading={busy} onClick={async () => {
             setBusy(true);
-            try { keepStreakDraft(await startStreakRun(false), false); onOut(); } catch (e) { setError(e.message); setBusy(false); }
+            try { keepStreakDraft(await startStreakRun(false, readGuestCup()?.id ?? null), false); onOut(); } catch (e) { setError(e.message); setBusy(false); }
           }}>다시 도전</Button>}
         <Button onClick={onOut} disabled={busy}>나가기</Button>
       </div>

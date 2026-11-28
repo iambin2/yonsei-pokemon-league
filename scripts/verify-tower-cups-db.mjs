@@ -84,6 +84,8 @@ await pg.exec(`
 // run twice: the file must be safe to run again
 await pg.exec(readFileSync("docs/db/tower_cups.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_guest.sql", "utf8"));
 
 const users = {};
 for (const [key, name, status] of [["a", "이제빈", "approved"], ["b", "김선수", "approved"], ["c", "대기중", "pending"], ["d", "박도전", "approved"]]) {
@@ -194,6 +196,41 @@ try {
     const cup = await create(users.d);
     await win(await begin(users.d, true));
     assert.equal((await board(cup.id)).rows[0].runs, 0);
+  });
+
+  await check("a guest joins with a nickname without Google auth, climbs in the cup, and stays off the monthly board", async () => {
+    const gCup = await create(users.a, "code", 1);
+    const guest1 = "guest-token-1111111111111111";
+    const guest2 = "guest-token-2222222222222222";
+    await assert.rejects(call(null, "select public.tower_cup_join_guest($1, ' ', $2, $3) as r", [gCup.id, gCup.code, guest1]), /1자에서 20자/);
+    await assert.rejects(call(null, "select public.tower_cup_join_guest($1, '게스트', '0000', $2) as r", [gCup.id, guest1]), /코드가 맞지 않습니다/);
+    await call(null, "select public.tower_cup_join_guest($1, '게스트', $2, $3) as r", [gCup.id, gCup.code, guest1]);
+    // duplicate nickname in the same cup is rejected
+    await assert.rejects(call(null, "select public.tower_cup_join_guest($1, '게스트', $2, $3) as r", [gCup.id, gCup.code, guest2]), /이미 사용 중인 닉네임/);
+    // guest sees the code, the cup in tower_cups, and their own row marked mine
+    const gb = (await call(null, "select public.tower_cup_board($1, $2) as r", [gCup.id, guest1])).r;
+    assert.equal(gb.cup.joined, true);
+    assert.equal(gb.cup.code, gCup.code);
+    assert.equal(gb.rows.find(r => r.trainer_name === "게스트").mine, true);
+    const gListed = (await call(null, "select coalesce(jsonb_agg(c.id), '[]') as r from public.tower_cups($1) c", [guest1])).r;
+    assert.ok(gListed.includes(gCup.id));
+
+    // guest starts a run via streak_begin_guest and climbs
+    await pg.exec("reset role");
+    const started = (await one("select public.streak_begin_guest($1, $2, 'gen9championsbssregmc', '{}'::jsonb) as r", [gCup.id, guest1])).r;
+    assert.equal(started.trainer_name, "게스트");
+    const active = (await one("select public.streak_active_run_guest($1, $2) as r", [gCup.id, guest1])).r;
+    assert.equal(active.run_id, started.run_id);
+    await win(started.run_id);
+    await win(started.run_id);
+
+    const after = (await call(null, "select public.tower_cup_board($1, $2) as r", [gCup.id, guest1])).r;
+    assert.equal(after.rows.find(r => r.trainer_name === "게스트").wins, 2);
+    // run_limit = 1 blocks a second guest run
+    await assert.rejects(one("select public.streak_begin_guest($1, $2, 'gen9championsbssregmc', '{}'::jsonb) as r", [gCup.id, guest1]), /도전 횟수를 모두 사용/);
+    // guest run never appears on monthly streak_board
+    const monthly = await q("select trainer_name from public.streak_board()");
+    assert.ok(!monthly.some(r => r.trainer_name === "게스트"));
   });
 
   console.log(`\n${checks} checks passed`);

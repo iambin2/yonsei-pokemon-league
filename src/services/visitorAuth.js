@@ -153,15 +153,29 @@ export async function decideLinkRequest(user, approve) {
   if (error) throw new Error(error.message || "결정을 저장하지 못했습니다.");
 }
 
-/* 연승 도전 (docs/BATTLE_STREAK.md): the start and the draft are the battle requests made as the signed-in account, since the run is
-   the account's until its first game gives it a seat; the battle function checks the token itself. A refusal keeps the function's own
-   sentence. */
-async function asAccount(body) {
+const CUP_GUEST_TOKEN = "ypl-cup-guest-token";
+const CUP_GUEST_NAME = "ypl-cup-guest-name";
+const hasCupGuestToken = () => Boolean(read(CUP_GUEST_TOKEN));
+export function cupGuestToken() {
+  const held = read(CUP_GUEST_TOKEN);
+  if (held && String(held).length >= 16) return held;
+  const next = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  write(CUP_GUEST_TOKEN, next);
+  return next;
+}
+export const readCupGuestName = () => read(CUP_GUEST_NAME) || "";
+
+/* 연승 도전 (docs/BATTLE_STREAK.md): the start and the draft are the battle requests made as the signed-in account, or as a
+   등반전 guest (cupId + guestToken); the battle function checks the token itself. A refusal keeps the function's own sentence. */
+async function asStreak(body, cupId = null) {
   const bearer = await token();
-  if (!bearer) throw Object.assign(new Error("로그인이 만료되었습니다. 다시 로그인해 주세요."), { signedOut: true });
+  if (!bearer && !cupId) throw Object.assign(new Error("로그인이 만료되었습니다. 다시 로그인해 주세요."), { signedOut: true });
+  const payload = cupId ? { ...body, cupId, guestToken: cupGuestToken() } : body;
   const response = await fetch(`${URL_BASE}functions/v1/battle`, {
-    method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${bearer || KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   }).catch(() => null);
   if (!response) throw Object.assign(new Error("연결이 끊겼습니다. 연결을 확인하고 다시 시도해 주세요."), { status: 0 });
   const json = await response.json().catch(() => ({}));
@@ -169,12 +183,12 @@ async function asAccount(body) {
   return json;
 }
 /* a run begins with its draft (2026-11-11, BATTLE_STREAK.md 13장): { run, draft }, the candidates of each tier. daily: 오늘의 탑 */
-export const startStreakRun = (daily = false) => asAccount({ action: "streak", draft: true, daily });
+export const startStreakRun = (daily = false, cupId = null) => asStreak({ action: "streak", draft: true, daily }, cupId);
 // the draft picked, one species from each row: the run's first game, as streakNextGame answers a next one
-export const pickStreakDraft = (picks, daily = false) => asAccount({ action: "streakDraft", picks, daily });
+export const pickStreakDraft = (picks, daily = false, cupId = null) => asStreak({ action: "streakDraft", picks, daily }, cupId);
 /* the account's run as the server holds it (battle streakResume): have, the game this device holds, and token, its seat there, so a seat
    that still opens it is not taken anew and one another device took is given back */
-export const resumeStreakRun = (daily = false, have = null, token = "") => asAccount({ action: "streakResume", daily, have, token });
+export const resumeStreakRun = (daily = false, have = null, token = "", cupId = null) => asStreak({ action: "streakResume", daily, have, token }, cupId);
 /* 오늘의 탑's board (streak_daily_board): today's, read as the account when signed in. Before the SQL has run it stands aside (null) */
 export async function readDailyBoard() {
   const signedIn = visitorSignedIn() && Boolean(await token());
@@ -190,12 +204,30 @@ export async function readDailyBoard() {
    screen leaves 등반전 out. */
 const standAside = error => { if (error.status === 404 || error.code === "PGRST202") return null; throw error; };
 const signedInNow = async () => visitorSignedIn() && Boolean(await token());
-export const readTowerCups = async () => rest("rpc/tower_cups", { method: "POST", body: {}, auth: await signedInNow() }).catch(standAside);
+async function readCupRpc(path, body, guestBody, auth) {
+  if (auth || !hasCupGuestToken()) return rest(path, { method: "POST", body, auth }).catch(standAside);
+  return rest(path, { method: "POST", body: guestBody, auth: false }).catch(error => {
+    if (error.status === 404 || error.code === "PGRST202") return rest(path, { method: "POST", body, auth: false }).catch(standAside);
+    throw error;
+  });
+}
+export const readTowerCups = async () => {
+  const auth = await signedInNow();
+  return readCupRpc("rpc/tower_cups", {}, { p_guest_token: cupGuestToken() }, auth);
+};
 // { cup: { id, title, host_name, starts_at, ends_at, room, run_limit, players, joined, hosting, code }, rows: [...] }, or null (none such)
-export const readTowerCup = async id => rest("rpc/tower_cup_board", { method: "POST", body: { p_id: id }, auth: await signedInNow() }).catch(standAside);
+export const readTowerCup = async id => {
+  const auth = await signedInNow();
+  return readCupRpc("rpc/tower_cup_board", { p_id: id }, { p_id: id, p_guest_token: cupGuestToken() }, auth);
+};
 export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
   rest("rpc/tower_cup_create", { method: "POST", body: { p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
 export const joinTowerCup = (id, code = null) => rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null } });
+export const joinTowerCupGuest = (id, nickname, code = null) => {
+  const name = String(nickname || "").trim();
+  if (name) write(CUP_GUEST_NAME, name);
+  return rest("rpc/tower_cup_join_guest", { method: "POST", body: { p_id: id, p_nickname: name, p_code: code || null, p_guest_token: cupGuestToken() }, auth: false });
+};
 export const closeTowerCup = id => rest("rpc/tower_cup_close", { method: "POST", body: { p_id: id } });
 
 /* 내 도전 (docs/db/tower_history.sql, 2026-11-22): the signed-in account's own runs, newest first. null when not signed in or before that
