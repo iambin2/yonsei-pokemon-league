@@ -898,7 +898,7 @@ export function Waiting({ row, res, team, code, rematch = false, onShare, onCanc
           <Row title={rematch ? "상대의 다시하기를 기다리는 중입니다." : "상대를 기다리는 중입니다."} line={`${rule} ${kind}`} />
           {/* a code room's four digits stand first and largest: they are what the opener reads out to the one coming in */}
           <div className="bt-wait-counters">
-            {code && !rematch && <Counter label="방 코드" value={code} h={84} />}
+            {code && !rematch && <Counter label="방 코드" value={code} h={84} keepZero />}
             {/* only the code is read out large; the time waited is a 40 counter beside it, so a phone keeps 대기 취소 in view (P-04) */}
             <Counter label="기다린 시간" value={clock} h={40} />
           </div>

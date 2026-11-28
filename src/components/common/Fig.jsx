@@ -6,13 +6,13 @@ import { tone } from "./motion.js";
    digits, '-', ' ' and ':'; nothing to show stands as a muted dash. label is what assistive technology reads. When the value changes the
    figure brightens once (tone). Any other prop (an older caller's cells) is not read. */
 const weightOf = h => (h >= 84 ? 200 : h >= 40 ? 300 : 400);
-export function figText(value) {
+export function figText(value, keepZero = false) {
   const v = String(value ?? "").trim();
   if (!v || !/\d/.test(v)) return "";
-  return v.includes(":") ? v : v.replace(/^(-?)0+(?=\d)/, "$1");
+  return keepZero || v.includes(":") ? v : v.replace(/^(-?)0+(?=\d)/, "$1");
 }
-export default function Fig({ value, h = 40, label, className = "" }) {
-  const text = figText(value);
+export default function Fig({ value, h = 40, label, className = "", keepZero = false }) {
+  const text = figText(value, keepZero);
   const el = useRef(null), last = useRef(null);
   useLayoutEffect(() => {
     const was = last.current;

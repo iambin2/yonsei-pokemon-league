@@ -635,7 +635,7 @@ export function StreakOpen({ res, onOpen, go, tabs, enter, goingIn, standUp, lea
           <div className="streak-run">
             <RunBoard run={run} best={rows ? mine?.wins ?? 0 : null} approved={approved} daily={daily} />
           </div>
-          {making && <CupMake onClose={() => setMaking(false)} onMade={id => { setMaking(false); openCup(id); }} />}
+          {making && <CupMake defaultName={account?.requested_name || ""} onClose={() => setMaking(false)} onMade={id => { setMaking(false); openCup(id); }} />}
           <section aria-labelledby="streak-board">
             <SectionHead id="streak-board" title={`${month.label} 순위`} link={nextBack ? `${other.label} 보기` : "이번 달 보기"} onLink={() => setBack(nextBack)} />
             {board === undefined ? <StandTable rows={null} />

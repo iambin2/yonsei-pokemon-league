@@ -220,10 +220,22 @@ export const readTowerCup = async id => {
   const auth = await signedInNow();
   return readCupRpc("rpc/tower_cup_board", { p_id: id }, { p_id: id, p_guest_token: cupGuestToken() }, auth);
 };
-export const createTowerCup = ({ title, startsAt, endsAt, room, limit }) =>
-  rest("rpc/tower_cup_create", { method: "POST", body: { p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
-export const updateTowerCup = ({ id, title, startsAt, endsAt, room, limit }) =>
-  rest("rpc/tower_cup_update", { method: "POST", body: { p_id: id, p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null } });
+export const createTowerCup = ({ title, startsAt, endsAt, room, limit, nickname = null }) => {
+  const base = { p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null };
+  return rest("rpc/tower_cup_create", { method: "POST", body: { ...base, p_nickname: nickname ? String(nickname).trim() : null } })
+    .catch(error => {
+      if (error.status === 404 || error.code === "PGRST202") return rest("rpc/tower_cup_create", { method: "POST", body: base });
+      throw error;
+    });
+};
+export const updateTowerCup = ({ id, title, startsAt, endsAt, room, limit, nickname = null }) => {
+  const base = { p_id: id, p_title: title, p_starts_at: startsAt, p_ends_at: endsAt, p_room: room, p_limit: limit ?? null };
+  return rest("rpc/tower_cup_update", { method: "POST", body: { ...base, p_nickname: nickname ? String(nickname).trim() : null } })
+    .catch(error => {
+      if (error.status === 404 || error.code === "PGRST202") return rest("rpc/tower_cup_update", { method: "POST", body: base });
+      throw error;
+    });
+};
 export const deleteTowerCup = id => rest("rpc/tower_cup_delete", { method: "POST", body: { p_id: id } });
 export const joinTowerCup = (id, code = null, nickname = null) =>
   rest("rpc/tower_cup_join", { method: "POST", body: { p_id: id, p_code: code || null, p_nickname: nickname ? String(nickname).trim() : null } })

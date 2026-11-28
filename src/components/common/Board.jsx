@@ -83,13 +83,13 @@ export function SectionHead({ id, title, link, onLink }) {
 /* A counter: an 84 entry, its label 12 on top, a figure under it (Figures). value null is a place still waiting for its figure: a
    muted dash. lamp "sig" puts the amber mark before the label, for what is live; nothing else is marked (Marks). The unit stands in type
    on the figure's baseline, and after replaces it where the words differ (/ 32). */
-export function Counter({ label, value, unit = "", onClick, lamp, after, h = 40 }) {
+export function Counter({ label, value, unit = "", onClick, lamp, after, h = 40, keepZero = false }) {
   const { as: Box, props } = door(onClick);
   const lit = value != null;
   return (
     <Box className="pn counter" {...props} aria-label={lit ? `${label} ${value}${unit}` : label}>
       <span className="t12 dim counter-label">{lamp === "sig" && <i className="lamp sig" aria-hidden="true" />}{label}</span>
-      <span className="counter-board"><Fig value={lit ? value : ""} h={h} label={lit ? `${value}${unit}` : ""} />{after ?? (unit && <span className="t15">{unit}</span>)}</span>
+      <span className="counter-board"><Fig value={lit ? value : ""} h={h} label={lit ? `${value}${unit}` : ""} keepZero={keepZero} />{after ?? (unit && <span className="t15">{unit}</span>)}</span>
     </Box>
   );
 }

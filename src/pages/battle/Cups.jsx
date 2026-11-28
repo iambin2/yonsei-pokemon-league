@@ -4,6 +4,7 @@
    board a room puts on its projector, read again while it runs. */
 import React, { useEffect, useState } from "react";
 import Button from "../../components/common/Button.jsx";
+import Icon from "../../components/common/Icon.jsx";
 import Modal from "../../components/common/Modal.jsx";
 import ErrorNote from "../../components/common/ErrorNote.jsx";
 import { BackLink, Choice, Counter, Dock, Question, Row, SectionHead, Toast } from "../../components/common/Board.jsx";
@@ -50,9 +51,10 @@ export function CupList({ cups, onCup, onMake, onRetry, boxRef = null, style }) 
       : cups === false ? <ErrorNote action="다시 불러오기" onRetry={onRetry}>등반전을 불러오지 못했습니다.</ErrorNote>
       : !cups.length ? <div className="stack"><Row title="열린 등반전이 없습니다." /></div>
       : <div className="stack">{cups.map(c => {
-        const phase = phaseOf(c);
-        return <Row key={c.id} title={c.title} line={`${c.host_name}, ${lineOf(c)}`} value={<span className="t15">{c.players}명</span>}
-          lamp={phase === "on"} sig onClick={() => onCup(c.id)} label={`${c.title}, ${lineOf(c)}, ${c.players}명`} />;
+        const phase = phaseOf(c), secret = c.room === "code";
+        return <Row key={c.id} title={c.title} line={`${c.host_name}, ${lineOf(c)}`}
+          value={<span className="bt-hall-kind t15">{secret && <Icon n="lock" size={16} />}{c.players}명</span>}
+          lamp={phase === "on"} sig onClick={() => onCup(c.id)} label={`${c.title}, ${secret ? "비밀, " : ""}${lineOf(c)}, ${c.players}명`} />;
       })}</div>}
   </section>;
 }
@@ -64,11 +66,12 @@ const LIMITS = { "모든 도전": null, "처음 1번": 1, "처음 3번": 3 };
 
 const limitLabel = n => (n === 1 ? "처음 1번" : n === 3 ? "처음 3번" : "모든 도전");
 
-/* 등반전 열기/수정: its name, when it opens and closes, who comes in, how many runs count. The sheet's one key opens or saves it */
-export function CupMake({ cup = null, onClose, onMade }) {
+/* 등반전 열기/수정: its name, host nickname, when it opens and closes, who comes in, how many runs count. The sheet's one key opens or saves it */
+export function CupMake({ cup = null, defaultName = "", onClose, onMade }) {
   const editing = Boolean(cup);
   const started = editing && Date.parse(cup.starts_at) <= Date.now();
   const [title, setTitle] = useState(cup?.title || "");
+  const [nickname, setNickname] = useState(cup?.host_name || defaultName || "");
   // it starts now by default (the server takes a start already past as now), so a meet opens it and climbs at once
   const [start, setStart] = useState(() => fieldTime(cup ? Date.parse(cup.starts_at) : Date.now()));
   const [end, setEnd] = useState(() => fieldTime(cup ? Date.parse(cup.ends_at) : Math.ceil(Date.now() / 600000) * 600000 + 2 * 3600e3));
@@ -79,18 +82,23 @@ export function CupMake({ cup = null, onClose, onMade }) {
   const make = async () => {
     if (busy) return;
     if (!title.trim()) { setError("등반전 이름을 입력해 주세요."); document.getElementById("cup-title")?.focus(); return; }
+    if (!nickname.trim()) { setError("닉네임을 입력해 주세요."); document.getElementById("cup-host-name")?.focus(); return; }
     if (!(Date.parse(end) > Date.parse(start))) { setError("마감은 시작보다 뒤여야 합니다."); return; }
     setBusy(true); setError("");
     try {
-      const payload = { title: title.trim(), startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), room: ROOMS[room], limit: LIMITS[limit] };
+      const payload = { title: title.trim(), nickname: nickname.trim(), startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString(), room: ROOMS[room], limit: LIMITS[limit] };
       const made = editing ? await updateTowerCup({ id: cup.id, ...payload }) : await createTowerCup(payload);
       onMade(made.id);
     } catch (e) { setError(e.message); setBusy(false); }
   };
   return <Modal title={editing ? "등반전 수정" : "등반전 열기"} onClose={onClose}>
     <Question id="cup-title" label="이름" error={error === "등반전 이름을 입력해 주세요." ? error : ""}>
-      <input id="cup-title" className="in" maxLength={24} autoComplete="off" enterKeyHint="done" value={title} placeholder="11월 정모"
+      <input id="cup-title" className="in" maxLength={24} autoComplete="off" enterKeyHint="next" value={title} placeholder="11월 정모"
         onChange={e => { setTitle(e.target.value); if (error) setError(""); }} />
+    </Question>
+    <Question id="cup-host-name" label="닉네임" error={error === "닉네임을 입력해 주세요." ? error : ""}>
+      <input id="cup-host-name" className="in" maxLength={20} autoComplete="nickname" enterKeyHint="done" value={nickname} placeholder="트레이너 이름"
+        onChange={e => { setNickname(e.target.value); if (error) setError(""); }} />
     </Question>
     <Question id="cup-start" label="시작">
       <input id="cup-start" className="in" type="datetime-local" value={start} disabled={started} onChange={e => setStart(e.target.value)} />
@@ -100,7 +108,7 @@ export function CupMake({ cup = null, onClose, onMade }) {
     </Question>
     <Question id="cup-room" label="입장" group><Choice name="cup-room" options={Object.keys(ROOMS)} value={room} onChange={setRoom} /></Question>
     <Question id="cup-limit" label="반영" group><Choice name="cup-limit" options={Object.keys(LIMITS)} value={limit} onChange={setLimit} /></Question>
-    {error && error !== "등반전 이름을 입력해 주세요." && <Toast error>{error}</Toast>}
+    {error && error !== "등반전 이름을 입력해 주세요." && error !== "닉네임을 입력해 주세요." && <Toast error>{error}</Toast>}
     <div className="modal-actions"><Button variant="main" onClick={make} loading={busy}>{editing ? "저장" : "열기"}</Button></div>
   </Modal>;
 }
@@ -203,7 +211,7 @@ export function CupBoard({ id, approved, defaultName = "", onOpen, onBack, onCli
         {phase === "over" ? <Counter label="마감" value={null} />
           : <Counter label={phase === "soon" ? "시작까지" : "마감까지"} lamp={phase === "on" ? "sig" : undefined} value={left == null ? null : String(left)} unit={unit} />}
         <Counter label="참가" value={cup ? String(cup.players) : null} unit="명" />
-        {cup?.code && <Counter label="코드" value={cup.code} />}
+        {cup?.code && <Counter label="코드" value={cup.code} keepZero />}
       </div>
     </div>
     <div className="bt-lobby">

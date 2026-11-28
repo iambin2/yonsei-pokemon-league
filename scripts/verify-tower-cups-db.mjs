@@ -90,6 +90,8 @@ await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_manage.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_nickname.sql", "utf8"));
 await pg.exec(readFileSync("docs/db/tower_cups_nickname.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_host_and_code.sql", "utf8"));
+await pg.exec(readFileSync("docs/db/tower_cups_host_and_code.sql", "utf8"));
 
 const users = {};
 for (const [key, name, status] of [["a", "이제빈", "approved"], ["b", "김선수", "approved"], ["c", "대기중", "pending"], ["d", "박도전", "approved"]]) {
@@ -121,9 +123,9 @@ try {
     assert.deepEqual([b.cup.title, b.cup.hosting, b.cup.joined, b.cup.players, b.rows.length, b.rows[0].wins], ["정모 등반전", true, true, 1, 1, 0]);
   });
 
-  await check("a code cup is joined only with its code, which only its players see", async () => {
+  await check("a code cup is listed to everyone, but joined only with its 4-digit code (1000-9999)", async () => {
     code = await create(users.b, "code", 1);
-    assert.match(code.code, /^[0-9]{4}$/);
+    assert.match(code.code, /^[1-9][0-9]{3}$/);
     await assert.rejects(join(users.d, code.id, "x"), /코드가 맞지 않습니다/);
     await assert.rejects(join(users.c, code.id, code.code), /승인된 Google 계정/);
     assert.equal((await board(code.id, users.d)).cup.code, null, "an outsider does not see the code");
@@ -131,7 +133,7 @@ try {
     await join(users.d, code.id, null);  // already in: the code is not asked again
     assert.equal((await board(code.id, users.d)).cup.code, code.code);
     const listed = async user => (await call(user, "select coalesce(jsonb_agg(c.id), '[]') as r from public.tower_cups() c")).r;
-    assert.ok((await listed(null)).includes(open.id) && !(await listed(null)).includes(code.id), "a code cup is listed only to its players");
+    assert.ok((await listed(null)).includes(open.id) && (await listed(null)).includes(code.id), "a code cup is listed to everyone");
     assert.ok((await listed(users.d)).includes(code.id));
   });
 
@@ -264,12 +266,20 @@ try {
   });
 
   await check("an approved user joins with a custom nickname, and a pending Google user sees their guest join", async () => {
-    const nCup = await create(users.a, "open", null);
-    await call(users.d, "select public.tower_cup_join($1, null, '박별명') as r", [nCup.id]);
+    const nCup = (await call(users.a, "select public.tower_cup_create('별명 등반전', now(), now() + interval '2 hours', 'open', null, '개최자별명') as r")).r;
+    const hb = await board(nCup.id, users.a);
+    assert.equal(hb.cup.host_name, "개최자별명");
+    assert.equal(hb.rows.find(r => r.mine).trainer_name, "개최자별명");
+    await call(users.a, "select public.tower_cup_update($1, '별명 등반전', now(), now() + interval '2 hours', 'code', null, '바뀐개최자') as r", [nCup.id]);
+    const hb2 = await board(nCup.id, users.a);
+    assert.equal(hb2.cup.host_name, "바뀐개최자");
+    assert.equal(hb2.rows.find(r => r.mine).trainer_name, "바뀐개최자");
+    assert.match(hb2.cup.code, /^[1-9][0-9]{3}$/);
+    await call(users.d, "select public.tower_cup_join($1, $2, '박별명') as r", [nCup.id, hb2.cup.code]);
     const nb = await board(nCup.id, users.d);
     assert.equal(nb.rows.find(r => r.mine).trainer_name, "박별명");
     const pendingTok = "guest-pending-4444444444444444";
-    await call(users.c, "select public.tower_cup_join_guest($1, '대기닉', null, $2) as r", [nCup.id, pendingTok]);
+    await call(users.c, "select public.tower_cup_join_guest($1, '대기닉', $2, $3) as r", [nCup.id, hb2.cup.code, pendingTok]);
     const pb = (await call(users.c, "select public.tower_cup_board($1, $2) as r", [nCup.id, pendingTok])).r;
     assert.equal(pb.cup.joined, true);
     assert.equal(pb.rows.find(r => r.mine).trainer_name, "대기닉");

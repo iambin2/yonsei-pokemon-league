@@ -72,6 +72,7 @@ Log every file added after 2026-11-22 in the table below.
 | `tower_cups_guest.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (guest nickname join, guest cup climb, monthly board isolation) |
 | `tower_cups_manage.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (`tower_cup_update`, `tower_cup_delete`, pre-start guest guard) |
 | `tower_cups_nickname.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (`tower_cup_join` custom nickname, pending-user guest lookup) |
+| `tower_cups_host_and_code.sql` | 2026-11-28 | Owner-applied in prod; verified locally via `verify-tower-cups-db.mjs` (host nickname, code cups listed, 1000-9999 4-digit codes) |
 
 ## Schema snapshot
 
