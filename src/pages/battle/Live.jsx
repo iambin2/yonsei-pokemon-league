@@ -39,7 +39,7 @@ export function useLiveBoards(wanted = true) {
 }
 
 // the two sides as the strips show them, read from the public log (no hidden set reaches it)
-function sidesOf(res, row) {
+export function sidesOf(res, row) {
   const reader = createBattleReader({ text: res.text, moves: res.detail.moves, pokedex: res.detail.pokedex, perspective: "p1" });
   for (const line of String(row.spectator_log || "").split("\n")) { try { reader.read(line); } catch { /* a line it cannot read is left out */ } }
   const scene = sceneOf(reader.state);

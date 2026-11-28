@@ -91,3 +91,57 @@
 /* 내 도전 (2026-11-24): three counters on the seam, the runs five a page, the pager 12 under them; the section keeps its height */
 .streak-mine-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--s3); }
 .streak-mine-pager { margin-top: var(--s3); }
+
+/* ---------- 등반전 중계 화면 (Cups.jsx CupBroadcast) ---------- */
+.cup-cast { position: fixed; inset: 0; z-index: var(--z-modal); background: var(--ground); color: var(--lit); overflow-y: auto; }
+.cup-cast-in { max-width: var(--content); min-height: 100%; margin: 0 auto; padding: var(--s5); display: grid; grid-template-rows: auto 1fr auto; gap: var(--s5); }
+@media (min-width: 860px) { .cup-cast-in { padding: var(--s8) var(--s13); gap: var(--s8); } }
+
+.cup-cast-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s5); padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cup-cast-brand { display: flex; align-items: center; gap: var(--s5); min-width: 0; }
+.cup-cast-title-wrap { display: grid; gap: var(--s1); min-width: 0; }
+.cup-cast-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.cup-cast-right { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s5); }
+.cup-cast-counters { display: flex; align-items: flex-end; gap: var(--s5); }
+.cup-cast-counters .counter { height: auto; padding: 0; gap: var(--s1); }
+
+.cup-cast-main { display: grid; gap: var(--s8); min-height: 0; align-content: start; }
+@media (min-width: 860px) { .cup-cast-main { grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr); gap: var(--s13); align-content: stretch; } }
+
+.cup-cast-lead-col { display: flex; flex-direction: column; justify-content: space-between; gap: var(--s5); min-width: 0; }
+.cup-cast-lead-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); padding-bottom: var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cup-cast-lead-tag { display: inline-flex; align-items: center; gap: var(--s2); font-weight: 700; color: var(--dim); }
+.cup-cast-lead-body { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s5); padding: var(--s5) 0 var(--s3); }
+.cup-cast-lead-id { display: grid; gap: var(--s3); min-width: 0; }
+.cup-cast-lead-btn { text-align: left; }
+.cup-cast-lead-sub { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+.cup-cast-lead-score { display: flex; align-items: baseline; gap: var(--s2); }
+
+.cup-cast-party { display: grid; gap: var(--s2); }
+.cup-cast-party-head { display: flex; justify-content: space-between; align-items: baseline; }
+.cup-cast-party-row { padding-bottom: var(--s3); box-shadow: inset 0 -1px 0 var(--rule); }
+.cup-cast-party-row .bt-roster { gap: var(--s2); }
+
+.cup-cast-hot { display: grid; gap: var(--s2); }
+.cup-cast-hot-head { padding-bottom: var(--s2); box-shadow: inset 0 -1px 0 var(--rule); }
+.cup-cast-hot-grid { display: grid; gap: var(--s5); }
+@media (min-width: 640px) { .cup-cast-hot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.cup-cast-hot-item { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--band); text-align: left; }
+.cup-cast-hot-left { display: grid; gap: var(--s1); min-width: 0; }
+.cup-cast-hot-left > b { display: inline-flex; align-items: center; gap: var(--s2); }
+.cup-cast-hot-info { display: flex; align-items: center; gap: var(--s2); }
+.cup-cast-hot-right { display: flex; align-items: baseline; gap: var(--s1); flex: none; }
+
+.cup-cast-board-col { display: flex; flex-direction: column; min-width: 0; }
+.cup-cast-st-head { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto var(--s13); gap: var(--s3); align-items: center; padding: 0 var(--band) var(--s3); box-shadow: inset 0 calc(var(--line) * -1) 0 var(--lit); }
+.cup-cast-st-head > :last-child { text-align: right; }
+.cup-cast-st-list { display: grid; gap: var(--seam); }
+.cup-cast-st-row { display: grid; grid-template-columns: var(--s8) minmax(0, 1fr) auto var(--s13); gap: var(--s3); align-items: center; min-height: var(--h-row); padding: var(--s2) var(--band); text-align: left; }
+.cup-cast-st-rank { display: inline-flex; align-items: center; gap: var(--s2); }
+.cup-cast-st-name { display: grid; gap: var(--s1); min-width: 0; }
+.cup-cast-st-name > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cup-cast-st-state { display: inline-flex; align-items: center; gap: var(--s2); }
+.cup-cast-st-pts { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: var(--s1); }
+
+.cup-cast-ticker { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); padding-top: var(--s3); box-shadow: inset 0 1px 0 var(--rule); font-weight: 600; }
+.cup-cast-ticker-main { display: inline-flex; align-items: center; gap: var(--s2); }
